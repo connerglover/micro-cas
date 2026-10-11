@@ -5,10 +5,26 @@ single-file build. The measured converter limit is source bytes plus 18 plus
 the module-name length, at most 65,535. See the converter evidence under
 `docs/reference/`. Calculator storage and Python heap are separate budgets.
 
-`build/release.py` creates the downloadable ZIP. Normal development modules
+`build/release.py` creates the intermediate source ZIP. Normal development modules
 remain under `src/`; `dist/device/` is the conventional bundled test target.
 The release is transformed further, so it also has its own acceptance harness
 in `build/check_release.py` and `tests/test_release.py`.
+
+The downloadable package now comes from `build/archive.py`,
+`build/package_archive.mjs` and `build/archive_zip.py`. There are 236 compiled
+`.8mp2` modules stored in archive and two `.8xpy2` launchers stored in RAM.
+The old source ZIP failed on the user's EVO with `phase compile memory`.
+Converting its CODE carriers directly to MPY would still compile the embedded
+strings, so `build/archive_modules.py` replaces them with native initializers.
+They retain live namespace semantics and original defaults, with no engine
+`exec`. The loader deletes each initializer after use to free its bytecode.
+Phase admission uses actual compiled sizes instead of source/parser estimates.
+
+MicroPython v1.12 at `1f371947309c5ea6023b6d9065415697cbc75578` compiles these
+modules with `-mcache-lookup-bc -msmall-int-bits=31`; the required header is
+`4d05031f`. The package builder rejects another ABI. TIVarsLib converts every
+module into the actual EVO CBOR container and reads it back to verify name,
+type and payload bytes. Renaming `.py` or `.mpy` cannot perform this conversion.
 
 ## Loading and memory
 
@@ -16,7 +32,8 @@ in `build/check_release.py` and `tests/test_release.py`.
   attributes, reflection names and probe comparison strings remain intact.
 - Project modules become live namespace dictionaries. Source carriers contain
   one bounded CODE string. The loader imports a carrier, removes it from the
-  native module cache, executes the string, then drops it and collects.
+  native module cache, executes the string, then drops it and collects. This is
+  the intermediate source harness only; archive modules use native initializers.
 - UI, input and output definitions load at explicit phase boundaries. The
   input frame returns before its code is unloaded and math families preload.
 - `build/function_pages.py` moves audited functions into native CVF pages.
@@ -41,8 +58,9 @@ in `build/check_release.py` and `tests/test_release.py`.
 
 No compressed source archive stays resident. The memory report remains a
 provisional subtotal with explicit exclusions; its passing estimate is not
-heap acceptance. GitHub Actions runs the actual bytes in pinned MicroPython
-1.29, on both 32-bit/173,360-byte and 64-bit/500,000-byte total heaps. Each run
+heap acceptance. GitHub Actions runs source artifacts in MicroPython 1.29 and
+the actual compiled bytes in 1.12, on both 32-bit/173,360-byte and
+64-bit/500,000-byte total heaps. Each run
 checks UI arithmetic/quit, seven UI calculus/recovery commands, and CVTEST's
 55 diagnostics. The harness uses short import paths so a host checkout's path
 length cannot change the heap result. Minimal graphics shims allocate no framebuffer. Physical EVO
@@ -53,8 +71,8 @@ graphics, transfer, performance and depth calibration remain device checks.
 The builder enforces ASCII, Python 3.4 syntax, per-file converter limits,
 combined object storage, and compilation of every file with `mpy-cross`.
 It invalidates only recognized previous outputs before building and writes the
-deterministic ZIP only after the checks succeed. The ZIP includes all Python
-files, INSTALL.md, release.json and SHA256SUMS. Never transfer development
+deterministic ZIP only after the checks succeed. The final calculator ZIP includes
+the 238 EVO objects, INSTALL.md, archive.json and SHA256SUMS. Never transfer development
 modules or mix companions from different ZIPs.
 
 `release.json` records file hashes, module/function ownership, native-page
@@ -69,3 +87,10 @@ Generated loader-only lines have no source location. An exec traceback may
 report `<string>`; use the named function and page/phase ownership metadata to
 identify its source. The desktop artifact harness assigns filenames to these
 exec blocks solely to make profiling and failure injection observable.
+
+`archive.json` records original source hashes (for safe old-source migration),
+transformed compiler-input hashes, bytecode hashes, compiler ABI and destinations.
+`source/` contains exact initializer compiler inputs. The website manifest adds
+converted-object hashes and bytes; its installer validates them before device
+access and verifies directory locations after sending. Native tests and the
+website do not claim physical EVO execution acceptance.

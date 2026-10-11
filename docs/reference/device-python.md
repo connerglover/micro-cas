@@ -407,9 +407,15 @@ All rows are verified on CPython [C]. The device column is [A] unless marked oth
 * There is about **185 KB of free heap** at program start, and about 173 KB after importing several `ti_*`
   modules [V]. Everything lives in this one heap: our compiled bytecode, compile-time
   transients, interned names, expression data and history.
-* No precompiled `.mpy` support is known on TI [A]. Every module is compiled from source on
-  every run, so the compile peak (parse tree plus bytecode under construction) and the compile
-  time both count.
+* EVO supports compiled Python libraries in archive [upstream implementation and
+  independent port evidence, not a cas-evo device probe]. They use `.8mp2` on OS
+  7.1+ and a compiled `.8xpy2` container on 7.0. See
+  [EVO transfer implementation](https://github.com/Evo-Programming/evo_usb_py#readme)
+  and the [Tello EVO port](https://tiplanet.org/forum/viewtopic.php?p=281357).
+  The new cas-evo build uses compatible MPY v5.3 libraries and native initializers,
+  avoiding engine source compilation. Imported code still consumes working heap.
+  Only the small source launchers need RAM program storage. This replaces the
+  earlier unverified assumption that all modules must compile from source.
 * The GC is mark-sweep and non-moving [A]. A collection on a heap of about 180 KB is cheap. Fragmentation can
   make a large contiguous allocation fail even when the total free memory looks sufficient.
 

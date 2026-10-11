@@ -114,6 +114,23 @@ jobs:
         working-directory: dist
         run: sha256sum --check SHA256SUMS
 
+      - name: Check installer and build the self-contained website
+        run: |
+          node --test website/tests/*.test.js
+          python build/website.py
+
+      - name: Upload local web installer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cas-evo-web-installer
+          path: |
+            dist/website/
+            dist/serve_installer.py
+            dist/START-INSTALLER.txt
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload calculator app and documentation
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

@@ -314,9 +314,10 @@ def build(dist=ROOT / 'dist'):
         print('HEAP FIT UNRESOLVED: model exceeds the measured Python heap.')
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8', newline='\n') as summary:
-            summary.write('## Calculator test build\n\n')
-            summary.write('- Extract `cas-evo-v1.zip` and send **all %d .py files** together. Run `CASEVO`.\n' % len(files))
-            summary.write('- Total source: %d bytes. Every file passes the converter size gate.\n' % meta['total_source_bytes'])
+            summary.write('## Internal source build\n\n')
+            summary.write('- %d source files feed the compiled EVO package; do not install this intermediate source ZIP.\n' % len(files))
+            summary.write('- Download `cas-evo-calculator.zip` from the final artifact or use `cas-evo-web-installer`.\n')
+            summary.write('- Intermediate source: %d bytes. Every file passes the converter size gate.\n' % meta['total_source_bytes'])
             summary.write('- Model: %d bytes before exclusions; measured free Python heap: %d bytes.\n' %
                           (model['max_estimated_heap_bytes'], model['known_heap_bytes']))
             summary.write('- Physical calculator validation pending. See `INSTALL.md`.\n')

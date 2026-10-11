@@ -24,8 +24,10 @@ source-build input, not the calculator download. Do not mix these packages.
 
 1. Exit Python, turn on the EVO, and connect a USB data cable. Close TI Connect
    and any other calculator connection tabs.
-2. Open the cas-evo installer in desktop Chrome or Edge. For a local build, run
-   `python build/serve_website.py` and visit `http://127.0.0.1:4173`.
+2. Download and extract **cas-evo-web-installer** from the same successful Actions
+   run. In that folder, run `python serve_installer.py --directory website`, then
+   open `http://127.0.0.1:4173` in desktop Chrome or Edge. For a repository build,
+   build the website first and run `python build/serve_website.py`.
 3. Choose **Connect your EVO**, select the calculator's serial port, then
    **Install cas-evo**. The installer checks space, moves matching old source
    companions out of RAM, sends the compiled libraries to archive, sends the
@@ -48,7 +50,8 @@ manual handling. It does not erase RAM, unrelated programs, or firmware.
 Only CASEVO and CVTEST should appear as launchable programs. The compiled
 companions stay in archive and load on demand. Ordinary archived `.py` files
 cannot replace compiled `.8mp2` libraries. Merely renaming a file does not convert
-it. Reinstall the complete package if a companion is missing.
+it. Imported code still occupies working heap; archive does not add RAM.
+Reinstall the complete package if a companion is missing.
 
 The EVO format and archive behavior come from
 [WebTILP's EVO implementation](https://github.com/adriweb/tilibs) and the

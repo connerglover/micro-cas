@@ -22,14 +22,46 @@ Those checks did not establish physical compatibility.
 
 ## Next step
 
-Finish the user's requested WebTILP installer website, preserving this memory
-fix as the priority milestone. Website files are in progress under website/;
-build/website.py still needs conversion to the compiled manifest format.
-Finish browser/protocol checks, Impeccable review/documentation, automatic site
-artifact build, final HANDOVER update, commit and push v1. The user authorized
-all of that, requests no questions, and has not requested a PR or repo visibility
-change. Physical USB transfer/execution remain hardware acceptance, never claim
-them completed by native tests.
+The installer is implemented and reviewed. Finish its milestone commit/push,
+watch the final GitHub build, verify the downloadable artifacts, and record the
+successful run here before stopping. Memory-fix commit 3eee7ba is already pushed;
+its successful run is https://github.com/connerglover/cas-evo/actions/runs/38169620143.
+Downloaded artifact bytes match all 238 locally native-tested transfer objects.
+The user requests no questions and has not requested a PR or visibility change.
+After software delivery, the remaining acceptance is physical USB transfer and
+CASEVO/CVTEST on the user's EVO; never claim native checks complete that step.
+
+## Web installer
+
+`website/` is a static, self-contained desktop Chrome/Edge Web Serial installer
+using pinned, unmodified WebTILP. `build/website.py` consumes the compiled EVO
+manifest, validates vendor hashes, mirrors corresponding upstream source, and
+bundles a calculator ZIP, local server, credits, licenses and integration source.
+GitHub's `cas-evo-web-installer` artifact contains `website/`,
+`serve_installer.py` and `START-INSTALLER.txt`. Extract it, run
+`python serve_installer.py --directory website`, visit http://127.0.0.1:4173.
+The repository's local server is `python build/serve_website.py` after building.
+No public hosting or repository visibility change has been made.
+
+Installer behavior: verify every object hash before device access, check space,
+move only exact hash-matched old cas-evo source companions out of RAM, install
+compiled libraries to archive before the RAM launchers, then verify directory
+types and destinations. Modified old files are preserved with a manual recovery
+message. Native calls are serialized; stop waits for the current file; a timeout
+retires the WASM instance because JavaScript cannot cancel Asyncify safely.
+
+12 Node checks pass, including the real TIVarsLib source round-trip/migration,
+native init reference-count handling, storage errors, ordering, stop, timeout,
+location verification and all 238 package hashes. Real browser WASM loads and
+initializes (its `init()` returns 1, not a zero success code). T3 browser checks
+cover settled package state, SHA-256, all 238 rows, matching/empty search, and no
+horizontal overflow at 1440, 1280 and 390px, including the expanded mobile table.
+
+Impeccable finish reviewer: **ship**, no material fixes. All three full-page
+captures were reviewed; no approved comp exists (autonomous code-led choice).
+UI design lives in root DESIGN.md and .impeccable/design.json; engine architecture
+remains docs/DESIGN.md. Review images/results under .impeccable/review are ignored.
+Product/direction/review material is not served or included in website downloads.
 
 ## Corrected loading architecture
 
@@ -65,7 +97,11 @@ formal fallbacks are unchanged. See docs/notes/PACKAGING.md and docs/DESIGN.md.
 - 85 archive initializer semantics, real artifact/corpus, recovery and strict
   depth tests pass. The existing eight-frame budget still holds.
 - All 238 final transfer objects pass actual TIVarsLib round-trip checks.
-- Website transport/installer tests currently 9 pass; physical USB not tested.
+- Website transport/installer tests: 12 pass; physical USB not tested.
+- GitHub runtime milestone: 2,837 source tests, 2,915 bundled tests and 85
+  archive tests pass. Skips are artifact-dependent tests before their build
+  stage. The standard acceptance command excludes 55 slow cases; CVTEST is a
+  separate 55-command native diagnostic, not a substitute for those tests.
 
 Final local inputs currently live in dist/archive-final and
 dist/archive-final-transfer. CI uses the canonical dist/archive and
@@ -85,8 +121,8 @@ Use .venv/Scripts/python locally; requirements-dev.txt pins dependencies.
 
 The GitHub action builds both the original 1.29 compatibility checks and the
 actual MPY v5 package on 1.12, plus the startup regression. Its cas-evo-v1
-artifact now contains cas-evo-calculator.zip. This workflow change is not yet
-pushed or verified on GitHub in this milestone.
+artifact now contains cas-evo-calculator.zip. The runtime workflow is pushed in
+3eee7ba; the website milestone adds its own installer artifact to the same action.
 
 Native local environment: WSL cachyos, /tmp/cas-evo-mpy5-ti. Old MicroPython
 needs `-DMICROPY_NLR_SETJMP=1` with modern GCC (without it, caught exceptions
@@ -107,8 +143,8 @@ ports/unix/micropython-cas32 and micropython-cas64. The former uses the private
   python -m pytest -q -m "not slow" --strict-depth (and --bundled after release).
 - Impeccable context already ran once this session. Do not rerun. Direction is
   in .impeccable/surfaces/website-index-html.md and docs/notes/WEBSITE-DIRECTION.md.
-  Its archive-only wording must be corrected for compiled libraries + RAM
-  launchers. Finish reviewer and documenter are still owed after website QA.
+  Its storage wording now matches compiled libraries + RAM launchers. Finish
+  review completed with ship; verify documenter outputs before final commit.
 
 Previous milestones: T1 841cbfe; T2 2273a6d; T3 c08edd0; UI d767ade;
 compatibility 699cc12; CI/single-file f19de2b; companions cffa02e;
