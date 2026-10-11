@@ -65,6 +65,7 @@ GOOD = '''
 
 def test_good_snippet_is_clean():
     assert errs(GOOD) == []
+    assert errs('a = x[1:4]\nb = x[1:4:1]\nc = x[1:4:None]\n') == []
 
 
 @pytest.mark.parametrize('src, needle', [
@@ -91,6 +92,9 @@ def test_good_snippet_is_clean():
     ('v = eval(s)\n', "'eval'"),
     ("if __name__ == '__main__':\n    pass\n", '__main__'),
     ('x = [i for i in y]\n', 'comprehension'),
+    ('x = a[::2]\n', 'stepped slice'),
+    ('x = a[::-1]\n', 'stepped slice'),
+    ('x = a[1:n:k]\n', 'stepped slice'),
     ('x = {i: 1 for i in y}\n', 'comprehension'),
     ('x = sum(i for i in y)\n', 'generator expression'),
     ('f = lambda x: x\n', 'lambda'),

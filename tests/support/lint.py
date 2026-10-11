@@ -333,6 +333,10 @@ def lint(src, filename='<src>', module=None, device_names=False):
                 elif f.attr == 'join' and node.args and is_dictset(node.args[0], node) \
                         and not _marked(lines, node, '#@unordered-ok'):
                     err(node, 'join() over a dict or set: order is not portable')
+        # Standard MicroPython rejects non-unit slice steps (native smoke regression).
+        if t is ast.Slice and node.step is not None and not (
+                isinstance(node.step, ast.Constant) and node.step.value in (None, 1)):
+            err(node, 'stepped slice is unsupported: use an explicit range loop')
         # -- iteration order ---------------------------------------------------------------
         if t is ast.For and is_dictset(node.iter, node) and \
                 not _marked(lines, _Line(node.lineno), '#@unordered-ok'):

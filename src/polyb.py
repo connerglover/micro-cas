@@ -74,8 +74,9 @@ def ratroots(a):                                                #@L 6
                 continue
             for p in (p0, -p0):
                 if v1 is None:                      # f(1) and f(-1) of the current f
-                    v1 = sum(f)
-                    v2 = sum(f[0::2]) - sum(f[1::2])
+                    v1, v2 = sum(f), 0
+                    for i in range(len(f)):
+                        v2 += -f[i] if i & 1 else f[i]
                 if (v1 and (q == p or v1 % (q - p))) or (v2 and (q == -p or v2 % (q + p))):
                     continue                        # (q-p) | f(1) and (q+p) | f(-1)
                 tests += 1

@@ -131,3 +131,16 @@ Do not claim actual EVO validation: the device probes remain deferred to Conner.
 - Strict UI/menu/forms/layout suite: 65 passed. Boundary wrapping preserves input; empty calls retain editor; decimal views omit duplicate footer.
 - Panic draws directly without the layout engine, preserving input, history and Ans. Single-file entry recovery is being validated separately with phases unloaded.
 - CVTEST contains 55 device-engine acceptance commands plus bounded depth and math checks. Its source tests pass; physical execution remains deferred.
+
+### Native Python compatibility checkpoint
+
+- The actual single-file artifact runs on native 64-bit MicroPython 1.29 with a
+  500,000-byte heap. Boot and `2+3=5` pass; this is not an EVO emulator.
+- Native CVTEST exposed three unsupported stepped slices in node/factor/poly
+  routines. Replaced them with explicit loops and added subset-lint regression
+  checks. Node/lint: 213 strict tests passed; factor/poly: 159 passed.
+- The full bundled desktop suite before these equivalent loop replacements
+  passed 2,838 tests, 55 slow tests deselected. Final native/source checks continue.
+- The release now reports a provisional 236,684-byte stage subtotal before
+  runtime-data exclusions against the measured 173,360-byte Python heap. Do not
+  describe this as hardware-ready or silently substitute the 500 KB total RAM.

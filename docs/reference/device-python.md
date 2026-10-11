@@ -162,7 +162,7 @@ deep nested tuples can be for native `==`, `hash`, `repr` and `<`.
 | List, dict and set comprehensions, generator expressions | A | Each costs a frame (section 2.2) |
 | Set literals `{1, 2}` | V | |
 | Tuple unpacking, starred assignment `a, *b = t` | A | PROBE5 `star=` |
-| Slicing with a step (`s[::-1]`) | A | PROBE5 `slice` |
+| Slicing with a step (`s[::-1]`) | Banned in cas-evo | MicroPython 1.29 native smoke rejects tuple/list steps other than 1; EVO support remains unverified. Use explicit range loops. |
 | `%`-formatting | V | Preferred over `str.format` |
 | `str.format` (subset) | D | |
 | `0x`/`0o`/`0b` literals, big-int literals, complex literals `2j`, `b''` | A/D | |

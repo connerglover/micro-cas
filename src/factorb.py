@@ -116,7 +116,12 @@ def ufac(f):                                                    #@L 3
                     p = int(y + 0.5) if y > 0 else -int(0.5 - y)
                     if fs is None and p and PO.pdivex(g, [-p, q]) is not None:
                         fs = [[-p, q], PO.pdivex(g, [-p, q])]
-            tg = ((g[::e], e), (g, 1)) if e > 1 else ((g, 1),)
+            tg = ((g, 1),)
+            if e > 1:
+                h = []
+                for i in range(0, len(g), e):
+                    h.append(g[i])
+                tg = ((h, e), (g, 1))
             for p, s in tg:
                 d = 1 if s > 1 or not ok else 2
                 while fs is None and d <= (len(p) - 1) // 2:

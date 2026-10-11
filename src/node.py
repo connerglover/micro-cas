@@ -870,8 +870,10 @@ def add_(terms, k=None):                                        #@L 6
         m = acc[e]
         if m[1] or m[2]:
             lst.append((H[e], e))                               # flat sort keys (5.7)
-            if N[e][0] == MUL and OO in N[e][2::2]:
-                hold = True
+            if N[e][0] == MUL:
+                for j in range(2, len(N[e]), 2):
+                    if N[e][j] == OO:
+                        hold = True
     if inf == 3 or (inf and OO in acc):
         return UNDEF
     if inf:
