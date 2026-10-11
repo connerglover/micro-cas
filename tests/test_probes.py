@@ -202,14 +202,14 @@ def stand_in(lines):
 
 
 def run_probe(tmp, name, stubs, keys=(), getkey=0, prelude="", extra=None,
-              env_extra=None):
+              env_extra=None, omit=()):
     """Run `from name import *` in a fresh interpreter in a copy of probe/.
 
     Returns (exit code, stdout lines, stderr)."""
     d = tmp / ("run_" + name)
     d.mkdir()
     for f in PROBE_DIR.iterdir():
-        if f.suffix in (".py", ".mpy"):
+        if f.suffix in (".py", ".mpy") and f.name not in omit:
             shutil.copy(f, d / f.name)
     if stubs:
         (d / "ti_system.py").write_text(TI_SYSTEM_STUB, encoding="ascii")
@@ -469,21 +469,23 @@ def test_probek2_dry_run(tmp_path):
     assert value(lines, "on code") == "105"
 
 
-def test_prbmem_dry_run(tmp_path):
+@pytest.mark.parametrize('missing', [False, True], ids=['generated', 'missing'])
+def test_prbmem_dry_run(tmp_path, missing):
     # a fake gc.mem_free runs the ballast search on the desktop too
     rc, lines, err = run_probe(
         tmp_path, "PRBMEM", stubs=True,
         prelude="import gc\ngc.mem_free = lambda: 150000",
-        extra={"PRBL100.py": stand_in(100)})
+        omit=("PRBL200.py", "PRBL300.py") if missing else ())
     assert rc == 0, err
     check_screen("PRBMEM", lines)
     assert value(lines, "sys.modules") == "yes"
     assert value(lines, "delmod") == "ok reimport new"
     assert value(lines, "dictclr") == "ok"
-    for name in ("PRBMOD", "PRBL100"):
+    for name in ("PRBMOD", "PRBL100", "PRBL200", "PRBL300"):
+        if missing and name in ("PRBL200", "PRBL300"):
+            assert value(lines, name) == "missing"
+            continue
         assert re.fullmatch(r"cost -?\d+ ms \d+ kept -?\d+ k2 -?\d+ "
                             r"kD -?\d+ peak -?\d+", value(lines, name)), name
-    assert value(lines, "PRBL200") == "missing"
-    assert value(lines, "PRBL300") == "missing"
     for lab in ("tup2", "tup4", "tup9", "gen", "slot", "arr", "dent"):
         assert re.fullmatch(r"-?\d+", value(lines, lab)), lab

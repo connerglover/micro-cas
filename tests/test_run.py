@@ -256,7 +256,21 @@ def g_kbi(args, ctx):
 def g_ctx(args, ctx):
     L.events.append(('ctx', list(ctx)))
     yield args[0]
+
+def g_key(args, ctx):
+    M = R.MODS['nothere']
+    yield args[0]
+
+class Marker(object):
+    pass
+
+def g_hold(args, ctx):
+    o = Marker()                    # dies with this generator's frame
+    L.events.append(('hold', weakref.ref(o)))
+    while True:
+        yield R.TICK
 '''
+TST = TST.replace('import fk_log as L\n', 'import fk_log as L\nimport weakref\n', 1)
 
 TCMDS = {
     'tval': ('tst', 'g_val', 1, 1, NOAUTO, ()),
@@ -279,6 +293,8 @@ TCMDS = {
     'tcm': ('tst', 'g_cm', 1, 1, NOAUTO, ()),
     'tkbi': ('tst', 'g_kbi', 1, 1, NOAUTO, ()),
     'tctx': ('tst', 'g_ctx', 1, 1, NOAUTO, ()),
+    'tkey': ('tst', 'g_key', 1, 1, NOAUTO, ()),
+    'thold': ('tst', 'g_hold', 1, 1, NOAUTO, ()),
 }
 
 FRESH = (('ANS', None), ('HIST', list), ('VARS', dict), ('FUNCS', dict), ('MODS', dict),
@@ -518,6 +534,31 @@ def test_memoryerror_path(env):
     assert txt('tval(2)') == '2' and env.imports['fk_tst'] == 3
 
 
+@pytest.mark.parametrize('exc', [MemoryError, K.Cancel])
+def test_generator_frames_dropped_before_the_eviction(env, monkeypatch, exc):
+    """18.6 step 1: every suspended generator frame (the stack, and the last one resumed) is
+    gone before evict_all collects, so its locals are freed on the OOM path."""
+    seen = []
+
+    def esc():
+        raise exc()
+
+    def ev_all():
+        ((_, ref),) = [e for e in env.log if e[0] == 'hold']
+        seen.append(ref() is None)
+        orig()
+
+    orig = R.evict_all
+    monkeypatch.setattr(K, 'ESC', esc)
+    monkeypatch.setattr(R, 'evict_all', ev_all)
+    r = ev('thold(1)')
+    assert r[1] == ('Out of memory' if exc is MemoryError else 'Interrupted')
+    ((_, ref),) = [e for e in env.log if e[0] == 'hold']
+    assert ref() is None                       # freed by the time go returns
+    assert seen == ([True] if exc is MemoryError else [])
+    clean()
+
+
 def test_keyboardinterrupt_reraised_after_reset(env):
     ev('1+1')
     n = len(R.HIST)
@@ -540,6 +581,55 @@ def test_cas_soft_outside_the_loop(env, monkeypatch):
         raise K.Undefined()
     monkeypatch.setattr(PR, 'record', bad, raising=False)
     assert ev('1+1') == ('msg', 'undefined', None, 0)
+
+
+def test_undefined_from_start(env, monkeypatch):
+    """10.4: Undefined raised by start() (outside the loop) gives undefined, after the reset."""
+    def bad(toks):
+        K.sym('w3')
+        raise K.Undefined()
+    monkeypatch.setattr(P, 'expand_names', bad)
+    assert ev('x+1') == ('msg', 'undefined', None, 0)
+    clean()
+    assert R.HIST[-1] == ['x+1', 'undefined', 'msg', None, 0, None]
+
+
+@pytest.mark.allow_internal_error
+def test_keyerror_in_a_generator(env):
+    """18.4: R.MODS[key] outside the command's closure is a bug: loud, the session survives."""
+    assert ev('tkey(1)') == ('msg', 'internal error: KeyError', None, 0)
+    clean()
+    assert txt('tval(2)') == '2'
+
+
+@pytest.mark.allow_internal_error
+def test_overflowerror_in_the_printer(env, monkeypatch):
+    def bad(val, job):
+        K.sym('w4')
+        raise OverflowError('int too large to convert to float')
+    monkeypatch.setattr(PR, 'record', bad, raising=False)
+    assert ev('1+1') == ('msg', 'internal error: OverflowError', None, 0)
+    clean()
+
+
+class FullList(list):
+    """A history list whose growth runs out of memory (the session store after the reset)."""
+
+    def append(self, x):
+        raise MemoryError()
+
+
+def test_memoryerror_after_the_reset(env, monkeypatch):
+    """R.go never raises: a MemoryError in finish (history, Ans, the store) or in the message
+    text after the reset still gives the Out of memory record, and evicts (18.6)."""
+    assert txt('tval(1)') == '1' and R.MODS
+    monkeypatch.setattr(R, 'HIST', FullList(R.HIST))
+    assert ev('2+3') == ('msg', 'Out of memory', None, 0)
+    clean()
+    assert R.MODS == {} and R.LOADED == [] and R.ANS == '1'
+    assert ev('1+') == ('msg', 'Out of memory', None, 0)      # a message record's path too
+    monkeypatch.setattr(R, 'HIST', list(R.HIST))
+    assert txt('2+3') == '5' and R.ANS == '5'
 
 
 # -- the session (7.11) -----------------------------------------------------------------------------

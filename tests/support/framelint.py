@@ -58,7 +58,8 @@ ENTRY = ('casevo', 'CASEVO')
 # Runtime keys (need, MODS, DEPS, STRATS) -> src module, where they differ (DESIGN 4.3, 15.1).
 # A literal DEV = {...} table in run.py, when present, overrides these.
 KEYS = {
-    'fact': 'factor', 'factb': 'factorb', 'ser': 'series', 'serb': 'seriesb',
+    'fact': 'factor', 'factb': 'factorb', 'factc': 'factorc', 'factd': 'factord',
+    'ser': 'series', 'serb': 'seriesb',
     'lim': 'limit', 'limb': 'limitb', 'int': 'integ', 'intb': 'integb',
     'int2': 'integ2', 'int2b': 'integ2b', 'int3': 'integ3', 'int3b': 'integ3b',
     'def': 'defint', 'defb': 'defintb', 'sum': 'sums', 'sumb': 'sumsb',

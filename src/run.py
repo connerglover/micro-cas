@@ -59,19 +59,21 @@ DEPS = {'norm': ('poly', 'rules', 'ident'), 'fact': ('poly', 'norm'),
         'ode': ('int', 'poly', 'norm'),  # soft: solve after the integration phase (11.4)
         'form': ('norm', 'fact')}
 DEV = {'cat': 'catalog', 'catb': 'catalogb', 'def': 'defint', 'defb': 'defintb', 'diff': 'diff',
-       'fact': 'factor', 'factb': 'factorb', 'form': 'forms', 'ident': 'ident', 'int': 'integ',
+       'fact': 'factor', 'factb': 'factorb', 'factc': 'factorc', 'factd': 'factord',
+       'form': 'forms', 'ident': 'ident', 'int': 'integ',
        'int2': 'integ2', 'int2b': 'integ2b', 'int3': 'integ3', 'int3b': 'integ3b',
        'intb': 'integb', 'itab': 'itab', 'lim': 'limit', 'limb': 'limitb', 'menu': 'menu',
        'menub': 'menub', 'norm': 'norm', 'normb': 'normb', 'ode': 'ode', 'odeb': 'odeb',
        'odec': 'odec', 'poly': 'poly', 'polyb': 'polyb', 'polyc': 'polyc', 'rules': 'rules',
        'rulesb': 'rulesb', 'ser': 'series', 'serb': 'seriesb', 'solve': 'solve',
        'solveb': 'solveb', 'solvec': 'solvec', 'sum': 'sums', 'sumb': 'sumsb'}
-PARTS = {'def': ('def', 'defb'), 'fact': ('fact', 'factb'), 'int': ('int', 'intb'),
+PARTS = {'def': ('def', 'defb'), 'fact': ('fact', 'factb', 'factc', 'factd'), 'int': ('int', 'intb'),
          'lim': ('lim', 'limb'), 'norm': ('norm', 'normb'), 'ode': ('ode', 'odeb', 'odec'),
          'poly': ('poly', 'polyb', 'polyc'), 'rules': ('rules', 'rulesb'),
          'ser': ('ser', 'serb'), 'solve': ('solve', 'solveb', 'solvec'),
          'sum': ('sum', 'sumb')}
-FAMILY = {'defb': 'def', 'factb': 'fact', 'intb': 'int', 'limb': 'lim', 'normb': 'norm',
+FAMILY = {'defb': 'def', 'factb': 'fact', 'factc': 'fact', 'factd': 'fact',
+          'intb': 'int', 'limb': 'lim', 'normb': 'norm',
           'odeb': 'ode', 'odec': 'ode', 'polyb': 'poly', 'polyc': 'poly', 'rulesb': 'rules',
           'serb': 'ser', 'solveb': 'solve', 'solvec': 'solve', 'sumb': 'sum'}
 CLOSURE = {
@@ -168,6 +170,7 @@ M_MANYANS = 'too many ans()'
 M_BADNAME = 'Invalid variable name'
 M_CIRC = 'circular definition'
 M_ERROR = 'error'
+REC_OOM = (R_MSG, M_OOM, None, 0)  # preallocated: built with no memory to spare (18.6)
 
 
 def scoped(g):                                                  #@L 7
@@ -280,8 +283,9 @@ def go(job):                                                    #@L 1
         err = KBI                        # re-raised below, after the reset
     except Exception as e:               # a bug: report it, never lose the session
         err = (M_INTERNAL, type(e).__name__)
-    stack = g = val = None               # every path: drop the generator frames first,
-    del NEEDED[:]                        # then reset (18.6), then build the message
+    stack = g = val = top = y = None     # every path: drop the generator frames first (top:
+    del NEEDED[:]                        # the last one resumed), reset (18.6), then the message
+    LASTSOFT[0] = None
     LIVE.clear()
     del PINNED[:]
     K.reset()
@@ -291,9 +295,13 @@ def go(job):                                                    #@L 1
         trim()
     if err is KBI:
         raise KeyboardInterrupt()
-    if err is not None:
-        rec = msg_rec(err)
-    return finish(job, rec)
+    try:
+        if err is not None:
+            rec = msg_rec(err)
+        return finish(job, rec)
+    except MemoryError:                  # the session store after the reset: still no raise
+        evict_all()
+        return REC_OOM
 
 
 def start(job):                                                 #@L 2
@@ -468,12 +476,13 @@ def start(job):                                                 #@L 2
 
 
 def finish(job, rec):                                           #@L 2
-    """After the reset: the store of rules 2-3, then the history and Ans (eval jobs only)."""
+    """After the reset: the store of rules 2-3, the history and Ans (eval jobs only). The
+    history entry is made first, so a MemoryError there leaves VARS and ANS unchanged."""
     global ANS
     if job[0] != 'eval' or rec is None:
         return rec
+    nm = None
     if rec[0] == R_ANS:
-        fl = rec[3] | FLAGS
         s = rec[1]
         nm = TARGET
         if nm is not None:
@@ -491,16 +500,18 @@ def finish(job, rec):                                           #@L 2
                     i += 1
             if nm is None:
                 rec = (R_MSG, M_CIRC, None, 0)
-            else:
-                VARS[nm] = s
-                if nm in FUNCS:
-                    del FUNCS[nm]
-                if nm in HINTV:
-                    fl |= F_PURGEHINT
         if rec[0] == R_ANS:
+            fl = rec[3] | FLAGS
+            if nm in HINTV:
+                fl |= F_PURGEHINT
             rec = (R_ANS, s, rec[2], fl)
-            ANS = s
     HIST.append([LINE, rec[1], rec[0], rec[2], rec[3], None])
+    if rec[0] == R_ANS:
+        if nm is not None:
+            VARS[nm] = rec[1]
+            if nm in FUNCS:
+                del FUNCS[nm]
+        ANS = rec[1]
     t = 0
     for e in HIST:
         t += len(e[0]) + len(e[1])

@@ -27,7 +27,7 @@ SRC = os.path.join(ROOT, 'src')
 # -- the module map (DESIGN.md section 4.1) ----------------------------------------------------
 
 # src module -> the fixed import alias every module uses for it. Parts (section 4.3) take the
-# family's alias plus B or C: polyb -> POB.
+# family's alias plus B, C or D: polyb -> POB, factord -> FAD.
 ALIASES = {
     'node': 'K', 'parse': 'P', 'printer': 'PR', 'alg': 'A', 'run': 'R', 'draw': 'D',
     'ui': 'U', 'rules': 'RU', 'poly': 'PO', 'norm': 'NO', 'ident': 'ID', 'factor': 'FA',
@@ -75,7 +75,7 @@ def family(mod):
     """'polyb' -> 'poly', 'integ2b' -> 'integ2', 'node' -> 'node'."""
     if mod in ALIASES or mod in ENTRY:
         return mod
-    if len(mod) > 1 and mod[-1] in 'bc' and mod[:-1] in ALIASES:
+    if len(mod) > 1 and mod[-1] in 'bcd' and mod[:-1] in ALIASES:
         return mod[:-1]
     return mod
 

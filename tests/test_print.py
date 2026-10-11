@@ -567,14 +567,85 @@ def test_random_trees_print(seed):
         K.reset()
 
 
-def test_temporary_nodes_are_canonical():
-    # the display passes build nodes (flips, degree conversions); the invariant scan runs
-    # after this test over everything they built
-    for s in ('(-x^2+x+1)^3*y', '2x*cos(x)-(2-x^2)*sin(x)', '(1-x)^5*(2-x^3-x)'):
+@pytest.fixture
+def scan_display(monkeypatch):
+    """Run the invariant scan over the display-only nodes that text builds, just before it
+    releases them (they never reach the end-of-test scan)."""
+    import invariants
+    real = K.release
+    seen = []
+
+    def release(m):
+        if K.NN > m:
+            errs = invariants.scan(K)
+            assert not errs, '\n'.join(errs[:10])
+            seen.append(K.NN - m)
+        real(m)
+    monkeypatch.setattr(K, 'release', release)
+    return seen
+
+
+def test_temporary_nodes_are_canonical(scan_display):
+    # the display passes build nodes (flips, sum content, degree conversions, the long-
+    # polynomial expansion); scan_display checks them before text releases them
+    for s in ('(-x^2+x+1)^3*y', '2x*cos(x)-(2-x^2)*sin(x)', '(1-x)^5*(2-x^3-x)',
+              'y*(2x+2)+z*(x/2-1/3)', '(x+2)(2x+4)*sin(y*(4x-6))', '1+i+(2+3i)*x',
+              '(x^12+3x^11+5x^10+7x^9+9x^8+11x^7+13x^6+15x^5+17x^4+19x^3+21x^2+23x)/182'):
         e, ctx = ev(s)
         assert PR.text(e, ctx)
-    e, ctx = ev('asin(x)+sin(2x+60)+acos(sin(x))', 1)
+        K.reset()
+    e, ctx = ev('asin(x)+sin(2x+60)+acos(sin(x))+y*(2asin(x)+180)', 1)
     assert PR.text(e, ctx)
+    assert len(scan_display) >= 4
+
+
+@pytest.mark.parametrize('seed', range(3))
+def test_random_trees_display_nodes(scan_display, seed):
+    g = gen.Gen(50 + seed, syms=('x', 'y'), consts=('pi', 'e', 'i'))
+    for _ in range(40):
+        try:
+            e = gen.build(g.tree(3), K)
+        except (K.CasSoft, K.CasError):
+            continue
+        for deg in (0, 1):
+            PR.text(e, [deg, None, 0, 0])
+        K.reset()
+
+
+def test_text_releases_its_nodes():
+    for s, deg in (('(-x^2+x+1)^3*y', 0), ('y*(2x+2)', 0), ('asin(x)+sin(x+30)', 1),
+                   ('1+i+x', 0)):
+        e, ctx = ev(s, deg)
+        n = K.NN
+        assert PR.text(e, ctx)
+        assert K.NN == n, s
+        r = PR.record(e, ('eval', s, ctx, 0))
+        assert r[0] == 'ans' and K.NN == n, s
+        K.reset()
+
+
+def test_scont():
+    x = sym('x')
+    y = sym('y')
+    assert PR.scont(K.add_([mul((x, K.TWO), k=num(2)), num(4)])) == (2, 1)
+    assert PR.scont(K.add_([mul((x, K.ONE), k=num(2, 0, 13)), K.mul_(num(-3, 0, 13),
+                                                                       [(K.fn_(K.SIN, x),
+                                                                         K.ONE)])])) == (1, 13)
+    assert PR.scont(K.add_([x, num(1, 0, 2)])) == (1, 2)
+    assert PR.scont(K.add_([mul((x, K.ONE), k=num(-6)), num(-9, 0, 2)])) == (3, 2)
+    assert PR.scont(K.add_([x, K.ONE])) is None
+    assert PR.scont(K.add_([x, y])) is None
+    assert PR.scont(K.add_([mul((x, K.ONE), k=num(2)), K.flt(4.0)])) is None
+    assert PR.scont(K.add_([mul((x, K.ONE), k=num(2)), num(0, 4)])) is None
+    assert PR.scont(K.add_([mul((x, K.ONE), k=num(4)), mul((y, K.ONE), k=num(6))])) == (2, 1)
+
+
+def test_main_variable_skips_call_names():
+    # a call's name is not a variable: asin(y) in degree mode prints through CALL('asin', y)
+    e, ctx = ev('asin(y)<y', 1)
+    assert PR.text(e, ctx) == 'asin(y)<y'
+    f = K.mk((K.CALL, sym('a'), sym('z')))
+    assert K.N[PR.pickmv(K.add_([f, sym('b')]))][1] == 'b'
 
 
 def test_flip_value_is_preserved():

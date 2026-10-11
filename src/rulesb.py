@@ -1,19 +1,12 @@
 #@L 3
-# CVRULEB: the rule matcher (DESIGN 9.5), part b of the CVRULE family (4.3): match, check,
-# view. A goal stack, a trail of bound slots and choice points; no recursion. Holds no state.
+# CVRULEB: the rule matcher (DESIGN 9.5), part b of the CVRULE family (4.3). A goal stack, a
+# trail of bound slots and choice points; no recursion. Holds no state. The wildcard check is
+# in part a (R.MODS['rules'].check).
 import node as K
-import alg as A
+import parse as P
+import run as R
 
 MAXSTEP = 400       # goal steps per match (10.7); running out is a failure
-# wildcard constraints (the third field of a WILD leaf; parse.W_* and DESIGN 9.2)
-ANY = 0
-FREE = 1
-NUMB = 2
-INT = 3
-LIN = 4
-QUAD = 5
-REST = 6
-SA = 3              # the slots A, B, C that the binders L and Q write
 
 
 def view(op, s):                                                #@L 4
@@ -34,63 +27,37 @@ def view(op, s):                                                #@L 4
     return K.ZERO, (s, K.ONE)
 
 
-def check(c, s, env, x, trail):                                 #@L 4
-    # does s satisfy the wildcard constraint c (9.2)? LIN and QUAD also bind A, B (and C),
-    # on the trail so that backtracking undoes them. FREE without a focus variable: constant.
-    if c == ANY or c == REST:
-        return True
-    t = K.N[s]
-    if c == NUMB:
-        return t[0] == K.NUM
-    if c == INT:
-        return t[0] == K.NUM and t[2] == 0 and t[3] == 1
-    if c == FREE:
-        if not x:
-            return not K.V[s]
-        return K.free_of(s, x)
-    if not x:
-        return False
-    if c == LIN:
-        r = A.linear(s, x)
-    else:
-        r = A.quadratic(s, x)
-    if r is None or r[0] == K.ZERO:
-        return False
-    for j in range(len(r)):
-        v = env[SA + j]
-        if v:
-            if v != r[j]:
-                return False
-        else:
-            env[SA + j] = r[j]
-            trail.append(SA + j)
-    return True
-
-
-def match(p, s, env, x):                                        #@L 3
+def match(p, s, env, x, alt=0):                                 #@L 3
     # Match the pattern p against the subject s (9.5). env: slot -> bound id (0: unbound),
-    # with env[XSLOT] = x set by the caller. True: env holds the bindings. False: env is as
-    # it was. ADD and MUL patterns match AC: the subject is viewed as the pattern's op, pattern
-    # pairs take distinct subject pairs (concrete heads first), a REST unit pair takes the
-    # leftovers with the constant or coefficient. A NUMB or INT wildcard base of exponent 1 in
-    # a MUL pattern binds the coefficient (N*sin(U) matches 3*sin(x) with N=3), also as a term
-    # k*N*f of an ADD pattern, where N binds the term's coefficient over k (N*ln(U)+R matches
-    # 2*ln(x)+1 with N=2; -N*sinh(U)^2 matches -2*sinh(x)^2 with N=2). Goals: (pattern,
-    # subject), (pattern, term, coefficient) and AC goals (op, pattern pairs, subject pairs,
-    # next, rest, const).
+    # with env[XSLOT] = x set by the caller. True: env holds the bindings of solution number
+    # alt (0: the first; the search order is fixed, so the rewriter can ask for the next
+    # binding when a guard fails). False: env is as it was.
+    # ADD and MUL patterns match AC: the subject is viewed as the pattern's op, pattern pairs
+    # take distinct subject pairs (concrete heads first), a REST unit pair takes the leftovers
+    # with the constant or coefficient. A NUMB or INT wildcard factor of exponent 1 in a MUL
+    # pattern binds the coefficient (N*sin(U) matches 3*sin(x) with N=3). A MUL term of an
+    # ADD pattern meets a subject term with the subject's coefficient over the pattern's
+    # (N*ln(U)+R matches 2*ln(x)+1 with N=2; -N*sinh(U)^2 matches -2*sinh(x)^2 with N=2).
+    # Goals: (pattern, subject), (pattern, term, coefficient) and AC goals (op, pattern pairs,
+    # subject pairs, next pair, rest slot, constant); choice points (goals, trail length, AC
+    # goal to resume); the bottom one fails.
     N = K.N
+    RA = R.MODS['rules']
     goals = [(p, s)]
     trail = []
-    cps = []
+    cps = [((), 0, None)]
     steps = 0
     while True:
         steps += 1
         ok = True
         if steps > MAXSTEP:
             ok = False
-            cps = []
+            del cps[1:]
         elif not goals:
-            return True
+            if not alt:
+                return True
+            alt -= 1                                            # skip this solution
+            ok = False
         else:
             g = goals.pop()
             if len(g) < 4:                                      # a plain goal
@@ -104,17 +71,15 @@ def match(p, s, env, x):                                        #@L 3
                     sl = tp[1]
                     if env[sl]:
                         ok = env[sl] == ss
-                    elif check(tp[2], ss, env, x, trail):
-                        env[sl] = ss
-                        trail.append(sl)
                     else:
-                        ok = False
+                        ok = RA.check(tp[2], ss, env, x, trail)
+                        if ok:
+                            env[sl] = ss
+                            trail.append(sl)
                 elif op == K.ADD or op == K.MUL:
-                    if len(g) == 3:                             # a term with its coefficient
+                    c, sp = view(op, ss)
+                    if len(g) == 3:                             # a term: its coefficient
                         c = g[2]
-                        sp = view(op, ss)[1]
-                    else:
-                        c, sp = view(op, ss)
                     pc = []                                     # concrete heads first
                     pw = []
                     rest = -1
@@ -125,56 +90,42 @@ def match(p, s, env, x):                                        #@L 3
                         if w[0] != K.WILD:
                             pc.append(b)
                             pc.append(tp[j + 1])
-                        elif tp[j + 1] == K.ONE and w[2] == REST:
+                        elif tp[j + 1] == K.ONE and w[2] == P.W_REST:
                             rest = w[1]
                         elif tp[j + 1] == K.ONE and op == K.MUL and not cw and (
-                                w[2] == NUMB or w[2] == INT):
+                                w[2] == P.W_NUMB or w[2] == P.W_INT):
                             cw = b
                         else:
                             pw.append(b)
                             pw.append(tp[j + 1])
-                    pps = tuple(pc + pw)
                     k = tp[1]
-                    if cw:
+                    rc = c                                      # what REST takes
+                    if cw:                                      # N binds the coefficient
                         ok = k == K.ONE
                         k = cw
-                    if not ok:
-                        pass
-                    elif rest < 0:
-                        goals.append((op, pps, sp, 0, -1, 0))
-                        goals.append((k, c))
-                    elif cw:
-                        goals.append((op, pps, sp, 0, rest, K.ONE))
-                        goals.append((cw, c))
-                    elif k == (K.ZERO if op == K.ADD else K.ONE):
-                        goals.append((op, pps, sp, 0, rest, c))
-                    else:
-                        ok = False
-                elif op >= K.COMP:                              # a fixed-arity node
-                    ts = N[ss]
-                    if ts[0] != op or len(ts) != len(tp):
-                        ok = False
-                    else:
-                        for j in range(len(tp) - 1, 0, -1):
-                            goals.append((tp[j], ts[j]))
+                        rc = K.ONE
+                    elif rest >= 0:                             # REST takes the constant
+                        ok = k == (K.ZERO if op == K.ADD else K.ONE)
+                        k = c
+                    goals.append((op, tuple(pc + pw), sp, 0, rest, rc))
+                    goals.append((k, c))
+                elif op >= K.COMP and N[ss][0] == op and len(N[ss]) == len(tp):
+                    ts = N[ss]                                  # a fixed-arity node
+                    for j in range(len(tp) - 1, 0, -1):
+                        goals.append((tp[j], ts[j]))
                 else:
-                    ok = False                                  # different leaves
+                    ok = False                                  # different leaves or heads
             else:                                               # an AC goal
-                op, pps, sps, j0, rest, c = g
+                op, pps, sps, j, rest, c = g
                 if not pps:
                     if rest < 0:
                         ok = not sps
-                    else:                                       # rebuild the leftovers
-                        if op == K.ADD:
-                            ts = [c]
-                            for j in range(0, len(sps), 2):
-                                ts.append(K.mul_(sps[j + 1], [(sps[j], K.ONE)]))
-                            r = K.add_(ts)
-                        else:
-                            ts = []
-                            for j in range(0, len(sps), 2):
-                                ts.append((sps[j], sps[j + 1]))
-                            r = K.mul_(c, ts)
+                    else:                                       # REST: rebuild the leftovers
+                        ts = [c]
+                        for j in range(0, len(sps), 2):
+                            ts.append(K.mul_(sps[j + 1], [(sps[j], K.ONE)]) if op == K.ADD
+                                      else (sps[j], sps[j + 1]))
+                        r = K.add_(ts) if op == K.ADD else K.mul_(c, ts[1:])
                         if env[rest]:
                             ok = env[rest] == r
                         else:
@@ -183,16 +134,7 @@ def match(p, s, env, x):                                        #@L 3
                 else:
                     pb = pps[0]
                     pe = pps[1]
-                    tb = N[pb]
-                    hb = tb[0]
-                    cm = 0                                      # an ADD term k*N*f: N takes
-                    if op == K.ADD and hb == K.MUL:             # the coefficient over k
-                        for j in range(2, len(tb), 2):
-                            w = N[tb[j]]
-                            if w[0] == K.WILD and tb[j + 1] == K.ONE and (
-                                    w[2] == NUMB or w[2] == INT):
-                                cm = 1
-                    j = j0
+                    hb = N[pb][0]
                     if hb != K.WILD and hb != K.ADD and hb != K.MUL:
                         while j < len(sps) and N[sps[j]][0] != hb:
                             j += 2
@@ -201,7 +143,7 @@ def match(p, s, env, x):                                        #@L 3
                     else:                                       # try pair j; remember j+2
                         cps.append((tuple(goals), len(trail), (op, pps, sps, j + 2, rest, c)))
                         goals.append((op, pps[2:], sps[:j] + sps[j + 2:], 0, rest, c))
-                        if cm:
+                        if op == K.ADD and hb == K.MUL:         # coefficient over pattern's
                             k = sps[j + 1]
                             if pe != K.ONE:
                                 k = K.mk(K.nmul(N[k], K.ninv(N[pe])))
@@ -210,12 +152,10 @@ def match(p, s, env, x):                                        #@L 3
                             goals.append((pe, sps[j + 1]))
                             goals.append((pb, sps[j]))
         if not ok:
-            if not cps:
-                while trail:
-                    env[trail.pop()] = 0
-                return False
             gl, tl, acg = cps.pop()
             while len(trail) > tl:
                 env[trail.pop()] = 0
+            if acg is None:
+                return False
             goals = list(gl)
             goals.append(acg)

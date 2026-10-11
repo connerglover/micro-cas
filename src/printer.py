@@ -18,6 +18,7 @@ import parse as P
 # anyway, so the answer is Done and no decimal line is lost. istr uses the same guard.
 DECBITS = 13287
 MAXTEXT = 4000
+LONGPOLY = 70               # a longer (sum)/integer prints term by term (fmt 1.4)
 
 # records (kind, text, approx, flags) (10.4, 13.6). The flag bits are run's (T1.6); F_SOLN is
 # the registry flag P.F_SOLN, which the runner passes for an F_SOLN command.
@@ -227,6 +228,31 @@ def pkey(b):                                                    #@L 7
     return (N[v][1], dg, c[1], c[3])
 
 
+def scont(b):                                                   #@L 7
+    # (g, l): the rational content g/l of the sum b (FlowCE sum_content, fmt 1.3): the gcd of
+    # the numerators of its constant and coefficients over the lcm of their denominators;
+    # None when it is 1 or when a coefficient is not a real rational (a float, i)
+    N = K.N
+    t = N[b]
+    g = 0
+    l = 1
+    for j in range(1, len(t), 2):
+        w = N[t[j]]
+        if w[0] != K.NUM or w[2]:
+            return None
+        a = w[1] if w[1] > 0 else -w[1]
+        while a:
+            g, a = a, g % a
+        d = w[3]
+        x = l
+        while d:
+            x, d = d, x % d
+        l = l // x * w[3]
+    if g == 1 and l == 1:
+        return None
+    return (g, l)
+
+
 def hasi(t, k):                                                 #@L 7
     # True if the sum term k*t contains i: a non-real coefficient, or a non-real number in t
     N = K.N
@@ -274,7 +300,7 @@ def pickmv(e):                                                  #@L 7
                 bk = k
                 best = m
         elif u[0] >= K.COMP:
-            for j in range(1, len(u)):
+            for j in range(2 if u[0] == K.CALL else 1, len(u)):  # (not a call's name)
                 if V[u[j]]:
                     st.append(u[j])
     return best
@@ -677,7 +703,9 @@ def items(n, need, c):                                          #@L 4
             if d is None:
                 return None
             ps.append((d[0], d[1], r[0], r[1]))
-        if len(ps) == 2:                   # the positive term first, then the real part (12.3)
+        if len(ps) == 2 and (not o[1][0] or N[o[1][0]][0] != K.BIGO):
+            # the positive term first, then the real part (12.3); a series keeps its
+            # ascending order (-x+O(x^3)), as FlowCE leaves series alone
             if ps[0][0] and not ps[1][0]:
                 ps.reverse()
             if hasi(ps[0][2], ps[0][3]) and not hasi(ps[1][2], ps[1][3]):
@@ -738,22 +766,39 @@ def items(n, need, c):                                          #@L 4
         seq.append(')' if op == K.CALL else ']')
     elif op == K.BIGO:
         seq = ['O(', (t[1], Q_ARG), ')']
-    elif op == K.HOLD:                     # the pairs as built, b^e joined by * (12.4)
+    elif op == K.HOLD:                     # keep prime powers, negative ones below the bar
         m = N[t[1]]
         seq = []
+        den = []
+        counts = [0, 0]
         if m[1] == K.MONE:
             seq.append('-')
-        elif m[1] != K.ONE or len(m) == 2:
+        elif m[1] != K.ONE:
             seq.append((m[1], Q_NEG))
+            counts[0] = 1
         for j in range(2, len(m), 2):
-            if j > 2 or (m[1] != K.ONE and m[1] != K.MONE):
-                seq.append('*')
-            if m[j + 1] == K.ONE:
-                seq.append((m[j], Q_NEG))
+            e = m[j + 1]
+            q = N[e]
+            d = 1 if q[0] == K.NUM and not q[2] and q[1] < 0 else 0
+            part = den if d else seq
+            if d:
+                e = K.neg_(e)
+            if counts[d]:
+                part.append('*')
+            counts[d] += 1
+            if e == K.ONE:
+                part.append((m[j], Q_NEG))
             else:
-                seq.append((m[j], Q_POST))
-                seq.append('^')
-                seq.append((m[j + 1], Q_ATOM))
+                part.append((m[j], Q_POST))
+                part.append('^')
+                part.append((e, Q_ATOM))
+        if not counts[0]:
+            seq.append('1')
+        if den:
+            seq.append('/(' if counts[1] > 1 else '/')
+            seq.extend(den)
+            if counts[1] > 1:
+                seq.append(')')
         p = Q_MUL
     elif op == K.DNE or op == K.DIVG:      # a sentinel inside a result has no value
         seq = ['undef']
@@ -774,50 +819,89 @@ def text(root, ctx):                                            #@L 3
     # record is then Done). ctx: the evaluation context [deg, mainvar, ...], or None. In degree
     # mode each inverse-trig node F(u) is first replaced by (pi/180)*CALL(SYM('asin'), u), a
     # print-only atom, through the constructors (6.5). A top-level list of solutions prints
-    # bare: x=1,x=2 (12.1).
+    # bare: x=1,x=2 (12.1). A long (sum)/integer prints term by term (fmt 1.4). The nodes
+    # built here are display-only and are released before the return.
     N = K.N
+    m0 = K.NN
     deg = 1 if ctx is not None and ctx[P.X_DEG] else 0
-    if deg:
-        new = {}
-        for m in A.postorder(root):
-            u = N[m]
-            if K.ASIN <= u[0] <= K.ATAN:
-                x = K.mk((K.CALL, K.sym(FNAME[u[0] - K.FN0]), new.get(u[1], u[1])))
-                new[m] = K.mul_(D180, [(K.PI, K.ONE), (x, K.ONE)])
-            elif new and u[0] >= K.COMP:
-                x = A.rebuild(m, new)
-                if x != m:
-                    new[m] = x
-        root = new.get(root, root)
+    new = {}
+    for m in A.postorder(root):                 # the display pass: bottom-up (children
+        u = N[m]                                # first, as FlowCE), through the constructors
+        if deg and K.ASIN <= u[0] <= K.ATAN:
+            x = K.mk((K.CALL, K.sym(FNAME[u[0] - K.FN0]), new.get(u[1], u[1])))
+            new[m] = K.mul_(D180, [(K.PI, K.ONE), (x, K.ONE)])
+        elif u[0] == K.MUL:                     # sum_content (fmt 1.3): the content of a
+            q = N[u[1]]                         # factor S^1, S a sum, goes to the
+            ps = []                             # coefficient: y*(2x+2) is 2*y*(x+1)
+            ch = 0
+            for j in range(2, len(u), 2):
+                b = new.get(u[j], u[j])
+                e = new.get(u[j + 1], u[j + 1])
+                if b != u[j] or e != u[j + 1]:
+                    ch = 1
+                if e == K.ONE and N[b][0] == K.ADD:
+                    r = scont(b)
+                    if r is not None:
+                        b = K.add_([b], (K.NUM, r[1], 0, r[0]))
+                        q = K.nmul(q, (K.NUM, r[0], 0, r[1]))
+                        ch = 1
+                ps.append((b, e))
+            if ch:
+                new[m] = K.mul_(q, ps)
+        elif new and u[0] >= K.COMP:
+            x = A.rebuild(m, new)
+            if x != m:
+                new[m] = x
+    root = new.get(root, root)
     c = (deg, mainv(root, ctx))
-    t = N[root]
-    st = []
-    if t[0] == K.LST and bare(root):
-        for j in range(len(t) - 1, 0, -1):
-            st.append((t[j], Q_ARG))
-            if j > 1:
-                st.append(',')
-    else:
-        st.append((root, 0))
-    out = []
-    n = 0
-    while st:
-        it = st.pop()
-        if type(it) is str:
-            if it[0] == '=' and out and out[-1][-1] == '!':
-                out.append(' ')            # n! =1: n!=1 would lex as n != 1
-                n += 1
-            out.append(it)
-            n += len(it)
-            if n > MAXTEXT:                # stop at once: no 30k-digit text is ever built
-                return None
-            continue
-        seq = items(it[0], it[1], c)
-        if seq is None:
-            return None
-        for i in range(len(seq) - 1, -1, -1):
-            st.append(seq[i])
-    return ''.join(out)
+    s = None
+    for z in (0, 1):
+        t = N[root]
+        st = []
+        if t[0] == K.LST and bare(root):
+            for j in range(len(t) - 1, 0, -1):
+                st.append((t[j], Q_ARG))
+                if j > 1:
+                    st.append(',')
+        else:
+            st.append((root, 0))
+        out = []
+        n = 0
+        while st:
+            it = st.pop()
+            if type(it) is str:
+                if it[0] == '=' and out and out[-1][-1] == '!':
+                    out.append(' ')        # n! =1: n!=1 would lex as n != 1
+                    n += 1
+                out.append(it)
+                n += len(it)
+                if n > MAXTEXT:            # stop at once: no 30k-digit text is ever built
+                    out = None
+                    break
+                continue
+            seq = items(it[0], it[1], c)
+            if seq is None:
+                out = None
+                break
+            for i in range(len(seq) - 1, -1, -1):
+                st.append(seq[i])
+        if out is None:                    # pass 1 over MAXTEXT keeps the factored text
+            break
+        s = ''.join(out)
+        if z or len(s) <= LONGPOLY or t[0] != K.MUL or len(t) != 4 or t[3] != K.ONE:
+            break
+        u = N[t[2]]
+        q = N[t[1]]
+        if u[0] != K.ADD or q[0] != K.NUM or q[2]:
+            break
+        j = len(u) - 2                          # (u has no content left: the display pass)
+        while j > 0 and N[u[j]][0] != K.BIGO:
+            j -= 2
+        if q[3] == 1 or j > 0:                  # no denominator (2*(x^12+...)), or a series
+            break
+        root = K.add_([t[2]], q)                # (13*x^14+...)/182 -> 13*x^14/182+...
+    K.release(m0)
+    return s
 
 
 # -- the decimal line (12.6) and the record -------------------------------------------------------

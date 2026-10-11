@@ -292,8 +292,9 @@ source files of at most `LAZYMAX` lines each. Splitting does not change the stea
 the compile peak at the size of one part, because each part compiles on its own.
 
 - **Names.** `poly.py`, `polyb.py`, `polyc.py`; device `CVPOLY`, `CVPOLYB`, `CVPOLYC`; aliases `PO`,
-  `POB`, `POC` (the module's alias plus `B`, `C`). The runtime keys used by `need`, `MODS`, `DEPS`
-  and `STRATS` are the family key plus `b`, `c`: `int`, `intb` for `integ.py`, `integb.py`; the
+  `POB`, `POC` (the module's alias plus `B`, `C`, or `D`; `factord` uses `FAD`). The runtime keys
+  used by `need`, `MODS`, `DEPS` and `STRATS` are the family key plus `b`, `c`, or `d`:
+  `int`, `intb` for `integ.py`, `integb.py`; the
   name map `DEV` (§18.4) turns a key into the module name. The bundler treats a part as an ordinary
   module.
 - **Families.** Parts that call each other form a family, listed in `R.PARTS = {'poly': ('poly',
@@ -312,7 +313,7 @@ the compile peak at the size of one part, because each part compiles on its own.
 | CVRULE (250) | `rules`: compiler, cache, `guard_ok`, `rebuild`, `g_rewrite`; `rulesb`: `match`, `check`, `view` | one |
 | CVPOLY (350) | `poly`: dense Z[x] arithmetic, division, PRS gcd, Yun; `polyb`: Bezout, rational roots, Gauss-Jordan over Q; `polyc`: sparse multivariate dicts | one |
 | CVNORM (300) | `norm`: `expand`, `normal`, `together`, Kronecker gcd; `normb`: `g_iszero`, simplify candidates, `g_autosimp`, `g_polish` | one |
-| CVFACT (280) | `factor`: pipeline, content, shapes, rational roots, integer factoring; `factorb`: Kronecker odometer, multivariate, numeric real roots | one |
+| CVFACT (515 implemented) | `factor`: command and node/polynomial conversion (131); `factorb`: univariate factoring and Kronecker (121); `factorc`: multivariate recombination and product check (129); `factord`: integer factoring, binomial shapes and numeric real roots (134) | one, four parts |
 | CVSOLVE (330) | `solve`: worklist, polynomial and radical cases, root checks; `solveb`: inverse table, trig windows, exponentials, `a·sin u + b·cos u`; `solvec`: linear and nonlinear systems | one |
 | CVSER (300) | `series`: substitution, ADD/MUL folds, powering; `seriesb`: function recurrences, `g_series` retries, `g_taylor` | one |
 | CVLIM (300) | `limit`: strategies 1-4 and L'Hôpital; `limitb`: growth classes, oscillation, numeric limits | one |
@@ -4547,3 +4548,14 @@ with the reason.
   guard must be able to read the coefficients that `L` and `Q` bind (`'L^(N+1)/(A*(N+1))'`).
 - **#1, `KeyboardInterrupt`.** Re-raised after the reset as suggested; the event loop already
   turns it into `Interrupted` (§16.2), so the user sees the same message as for [clear].
+
+
+### Implementation follow-up: T1.11 completion (2026-10-11)
+
+CVFACT uses four compile units, all below the provisional `LAZYMAX = 150`: 131, 121, 129 and
+134 minified lines. Section 4.3 records the implemented seam; the manifest, loader and static
+checkers support the `d` suffix. Cross-part helpers moved, but no section 21.2 frozen API or
+function level changed. The total is 515 lines, still above the original 280-line estimate;
+this split controls compilation peak only. Section 18's device memory estimates remain
+provisional until T1.15. Rational `HOLD` answers display negative prime powers as denominators,
+consistent with ordinary products; their exact value is unchanged.

@@ -41,6 +41,8 @@ MODULES = (
     ('ident',     'CVIDENT',   'L',   150,       3),
     ('factor',    'CVFACT',    'L',   150,       3),
     ('factorb',   'CVFACTB',   'L',   150,       3),
+    ('factorc',   'CVFACTC',   'L',   150,       3),
+    ('factord',   'CVFACTD',   'L',   150,       3),
     ('solve',     'CVSOLVE',   'L',   150,       3),
     ('solveb',    'CVSOLVEB',  'L',   150,       3),
     ('solvec',    'CVSOLVEC',  'L',   150,       3),
@@ -73,7 +75,8 @@ MODULES = (
 # Runtime keys (R.need, R.MODS, DEPS, STRATS, CMDS) -> src module, where they differ from the
 # src name (DESIGN 4.3, 15.1). Must equal tests/support/framelint.py KEYS.
 KEYS = {
-    'fact': 'factor', 'factb': 'factorb', 'ser': 'series', 'serb': 'seriesb',
+    'fact': 'factor', 'factb': 'factorb', 'factc': 'factorc', 'factd': 'factord',
+    'ser': 'series', 'serb': 'seriesb',
     'lim': 'limit', 'limb': 'limitb', 'int': 'integ', 'intb': 'integb',
     'int2': 'integ2', 'int2b': 'integ2b', 'int3': 'integ3', 'int3b': 'integ3b',
     'def': 'defint', 'defb': 'defintb', 'sum': 'sums', 'sumb': 'sumsb',
@@ -87,7 +90,7 @@ PARTS = {
     'rules': ('rules', 'rulesb'),
     'poly': ('poly', 'polyb', 'polyc'),
     'norm': ('norm', 'normb'),
-    'fact': ('fact', 'factb'),
+    'fact': ('fact', 'factb', 'factc', 'factd'),
     'solve': ('solve', 'solveb', 'solvec'),
     'ser': ('ser', 'serb'),
     'lim': ('lim', 'limb'),
@@ -101,6 +104,7 @@ PARTS = {
 # Must agree with PARTS (checked).
 FAMILY = {
     'rulesb': 'rules', 'polyb': 'poly', 'polyc': 'poly', 'normb': 'norm', 'factb': 'fact',
+    'factc': 'fact', 'factd': 'fact',
     'solveb': 'solve', 'solvec': 'solve', 'serb': 'ser', 'limb': 'lim', 'intb': 'int',
     'defb': 'def', 'sumb': 'sum', 'odeb': 'ode', 'odec': 'ode',
 }

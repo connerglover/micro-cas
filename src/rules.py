@@ -1,7 +1,8 @@
 #@L 3
-# CVRULE: the rule-set compiler and cache, guards and the rewriter (DESIGN 9.2-9.7), part a of
-# the CVRULE family; the matcher is part b, reached as R.MODS['rulesb'] (4.3). Compiled sets
-# live in K.RULECACHE, which K.keep treats as roots and K.reset clears with the command.
+# CVRULE: the rule-set compiler and cache, guards, the matcher's wildcard check and the
+# rewriter (DESIGN 9.2-9.7): part a of the CVRULE family; the matcher is part b, reached as
+# R.MODS['rulesb'] (4.3). Compiled sets live in K.RULECACHE, which K.keep treats as roots
+# and K.reset clears with the command.
 import node as K
 import alg as A
 import parse as P
@@ -10,42 +11,38 @@ import run as R
 VIEW = -1           # the bucket of view-aware rules (ADD, MUL or wildcard heads, 9.4)
 NEAR = 2            # guard_ok: a constant difference too close to 0 to decide numerically
 MAXPASS = 8         # rewrite passes (10.7)
+MAXALT = 6          # bindings a rule tries when its guard fails (3 pairs: 3*2 orders)
 WHERE = {'itab': 'itab'}    # rule set name -> module key; any other set lives in ident
+SA = 3              # the slots A, B, C that the binders L and Q write (parse.WSLOT)
 
 
 def rset(name):                                                 #@L 3
-    # The compiled rule set name (9.4): {head op: ((pattern id, rhs, guard), ...)} with
+    # The compiled rule set name (9.4): {head op: ((pattern id, rhs, guard), ...)} with the
     # bucket VIEW, cached in K.RULECACHE[name]. The strings are the tuple NAME (upper case)
     # of the set's module: (lhs, rhs, guard, ...), after a measure tuple for identity sets.
+    # An ADD-, MUL- or wildcard-headed rule goes into every bucket; a new head's bucket
+    # starts with the VIEW rules before it, so every bucket is in file order.
     rs = K.RULECACHE.get(name)
     if rs is not None:
         return rs
     data = getattr(R.MODS[WHERE.get(name, 'ident')], name.upper())
     m = K.NN
-    hs = []
-    es = []
+    rs = {VIEW: []}
     j = 1 if type(data[0]) is tuple else 0
     while j < len(data):
         p = P.inst(P.tcode(data[j]), None)
+        r = (p, data[j + 1], data[j + 2])
         h = K.N[p][0]
         if h == K.ADD or h == K.MUL or h == K.WILD:
-            h = VIEW
-        elif h not in hs:
-            hs.append(h)
-        es.append((h, (p, data[j + 1], data[j + 2])))
-        j += 3
-    bk = {VIEW: []}
-    for h in hs:
-        bk[h] = []
-    for h, r in es:                                 # file order within every bucket
-        if h == VIEW:
-            for b in bk:                                        #@unordered-ok
-                bk[b].append(r)
+            for b in rs:                                        #@unordered-ok
+                rs[b].append(r)
         else:
-            bk[h].append(r)
-    rs = {}
-    for b in bk:                                                #@unordered-ok
-        rs[b] = tuple(bk[b])
+            if h not in rs:
+                rs[h] = list(rs[VIEW])
+            rs[h].append(r)
+        j += 3
+    for b in rs:                                                #@unordered-ok
+        rs[b] = tuple(rs[b])
     K.RULECACHE[name] = rs
     K.keep(m, None)                     # drop the build garbage; the patterns are remapped
     return rs
@@ -104,12 +101,41 @@ def guard_ok(guard, env):                                       #@L 3
     return near
 
 
+def check(c, s, env, x, trail):                                 #@L 4
+    # does s satisfy the wildcard constraint c (P.W_*, 9.2)? FREE without a focus variable
+    # means constant. LIN and QUAD also bind A, B (and C), on the trail so that backtracking
+    # undoes them; a binder whose leading coefficient is 0 fails.
+    t = K.N[s]
+    if c == P.W_NUMB or c == P.W_INT:
+        return t[0] == K.NUM and (c == P.W_NUMB or (not t[2] and t[3] == 1))
+    if c == P.W_FREE:
+        return K.free_of(s, x) if x else not K.V[s]
+    if c != P.W_LIN and c != P.W_QUAD:
+        return True                                             # ANY, REST
+    r = None
+    if x:
+        r = A.linear(s, x) if c == P.W_LIN else A.quadratic(s, x)
+    if r is None or r[0] == K.ZERO:
+        return False
+    for j in range(len(r)):
+        v = env[SA + j]
+        if not v:
+            env[SA + j] = r[j]
+            trail.append(SA + j)
+        elif v != r[j]:
+            return False
+    return True
+
+
 def g_rewrite(root, rs, x, budget):                             #@L 2
     # Rewrite to a fixpoint with the rule set rs (a name or rset's dict) and the focus
-    # variable x (0: none) (9.7): bottom-up passes over postorder(root); a node whose child
-    # changed is rebuilt, then the first rule of its bucket that matches and whose guard
-    # holds fires. Each pass keeps only its result. Stops at a fixpoint, a repeated root or
-    # MAXPASS passes; more than budget fires in one pass is a soft failure.
+    # variable x (0 or None: none) (9.7): bottom-up passes over postorder(root); a node whose
+    # child changed is rebuilt, then the first rule of its bucket fires that matches with a
+    # binding whose guard holds and whose result is a different node (a result that the
+    # constructors fold back to the node is no fire). A rule tries at most MAXALT bindings in
+    # the matcher's order. Each pass keeps only its result. Stops at a fixpoint, a repeated
+    # root or MAXPASS passes; more than budget fires in one pass is a soft failure. Yields
+    # TICK after each pass that changed the root, then the result.
     MT = R.MODS['rulesb']
     if type(rs) is str:
         rs = rset(rs)
@@ -125,18 +151,21 @@ def g_rewrite(root, rs, x, budget):                             #@L 2
         for n in A.postorder(root):
             m = A.rebuild(n, new)
             for p, rhs, guard in rs.get(K.N[m][0], rs[VIEW]):
-                if not MT.match(p, m, env, x):
-                    continue
-                ok = guard_ok(guard, env)
-                if type(ok) is tuple:           # constant and near 0: the exact test (L2)
-                    ok = R.MODS['norm'].normal(ok[2]) == K.ZERO and (
-                        ok[1] == K.EQ or ok[1] == K.LE)
-                if ok:
-                    m = P.inst(P.tcode(rhs), env)
+                r = m
+                k = 0
+                while r == m and k < MAXALT and MT.match(p, m, env, x, k):
+                    ok = guard_ok(guard, env)
+                    if type(ok) is tuple:       # constant and near 0: the exact test (L2)
+                        ok = R.MODS['norm'].normal(ok[2]) == K.ZERO and (
+                            ok[1] == K.EQ or ok[1] == K.LE)
+                    if ok:
+                        r = P.inst(P.tcode(rhs), env)
+                    env = [0] * P.NSLOT
+                    env[P.XSLOT] = x
+                    k += 1
+                if r != m:
+                    m = r
                     fired += 1
-                env = [0] * P.NSLOT
-                env[P.XSLOT] = x
-                if ok:
                     break
             if m != n:
                 new[n] = m
@@ -149,29 +178,3 @@ def g_rewrite(root, rs, x, budget):                             #@L 2
         root = r
         yield R.TICK                                # let the driver poll [clear]
     yield root
-
-
-def g_apply(e, rs, x):                                          #@L 2
-    # Match and instantiate at the root only (the integral table, 9.1): the right-hand side
-    # of the first rule of rs (a name or rset's dict) that matches e and whose guard holds,
-    # instantiated; None when no rule fires.
-    MT = R.MODS['rulesb']
-    if type(rs) is str:
-        rs = rset(rs)
-    if not x:
-        x = 0
-    env = [0] * P.NSLOT
-    env[P.XSLOT] = x
-    r = None
-    for p, rhs, guard in rs.get(K.N[e][0], rs[VIEW]):
-        if not MT.match(p, e, env, x):
-            continue
-        ok = guard_ok(guard, env)
-        if type(ok) is tuple:
-            ok = R.MODS['norm'].normal(ok[2]) == K.ZERO and (ok[1] == K.EQ or ok[1] == K.LE)
-        if ok:
-            r = P.inst(P.tcode(rhs), env)
-            break
-        env = [0] * P.NSLOT
-        env[P.XSLOT] = x
-    yield r
