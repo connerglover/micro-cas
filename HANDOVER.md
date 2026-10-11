@@ -12,6 +12,14 @@ requested a final commit and push. The v1 download is dist/cas-evo-v1.zip:
 Extract the ZIP, send every .py file together, and run CASEVO. CVTEST is the
 optional 55-command diagnostic. Do not send files from src/ or dist/device/.
 
+Release commit 88a443b is pushed to origin/v1. GitHub Actions
+[run 38164295044](https://github.com/connerglover/cas-evo/actions/runs/38164295044)
+passed every step. The downloaded
+[cas-evo-v1 artifact](https://github.com/connerglover/cas-evo/actions/runs/38164295044/artifacts/11711359556)
+contains the verified ZIP. This artifact expires 2026-10-25; a new push or
+manual workflow dispatch produces a fresh download. The private repository
+requires GitHub sign-in. Extract the artifact ZIP, then cas-evo-v1.zip inside it.
+
 All 238 final files passed TI Connect Evo 7.1.0.792's actual converter, with
 matching source hashes recorded in docs/reference/multifile-converter-checks.json.
 The old CASEVO.py was 262,679 bytes, beyond the 65,511-byte per-program limit.
@@ -28,10 +36,10 @@ graphics, speed and depth calibration remain device checks, not completed work.
 
 ## Next step
 
-Commit the release milestone, push v1, and verify GitHub Actions and
-its downloadable artifact. Record the successful run here before stopping.
-No feature work remains in the agreed v1 scope. After publication, the next
-external step is Conner's physical calculator acceptance using docs/INSTALL.md.
+No implementation or publication work remains in the agreed v1 scope.
+The next step is Conner's physical calculator acceptance using docs/INSTALL.md:
+send all 238 Python files from the verified ZIP, run CASEVO, and run CVTEST.
+Investigate any reported device failure against that exact package and traceback.
 Do not describe native or desktop checks as a physical calculator run.
 
 ## Validation
@@ -42,12 +50,20 @@ Do not describe native or desktop checks as a physical calculator run.
 - Full final bundled regression: 2,906 pass; 55 slow/oracle tests deselected.
   The debug-arena reset bug found in the earlier run is fixed and its affected
   algebra/node tests pass. Final actual-package strict depth remains eight.
+- GitHub run 38164295044: source 2,829 pass, 77 artifact tests skipped;
+  bundled 2,906 pass. Each run deselects 55 slow/oracle tests. Both native word
+  sizes pass UI arithmetic/quit, seven UI calculus commands and CVTEST 55/55.
 - Native 32-bit/173,360 bytes and 64-bit/500,000 bytes: all three smoke suites
   pass against final immutable calculator bytes. Logs are ignored under dist/.
 - Source subset lint, FRAMELINT, actionlint 1.7.12 and git diff checks pass.
 - ZIP members, SHA256SUMS, release metadata, smoke copies and converter captures
-  match exactly. Independent builds produce the identical 245,512-byte ZIP:
+  match exactly. Independent local builds produce the identical 245,512-byte ZIP:
   SHA256 983a0be93eb525a1239d9ab93c8b4b2d700bb1242754a135a960f554319a0a79.
+- Downloaded GitHub ZIP: 246,901 bytes, SHA256
+  864e7abdeecd1106a65f3f43e5fa4e196b0e935ab7488ff540f6f81630fb3d20.
+  Every uncompressed member is byte-for-byte identical to the local package;
+  compression differs between host environments. All downloaded member checksums
+  and ZIP CRCs pass. CI log: dist/github-build.log (ignored).
 
 ## Packaging architecture
 
@@ -105,8 +121,8 @@ process is reading its artifacts; use a separate --dist for comparison builds.
 
 T1 841cbfe; T2 2273a6d; T3 c08edd0; UI d767ade; compatibility 699cc12;
 original CI/single-file build f19de2b; transferable companions cffa02e;
-identifier/input overlap 08ad2dd; dynamic storage/template cache 54ac8d5.
-The current pending milestone adds native function paging and final release checks.
+identifier/input overlap 08ad2dd; dynamic storage/template cache 54ac8d5;
+native function paging and final release checks 88a443b (pushed to origin/v1).
 
 Pinned MicroPython v1.29.0: 0fd6c573ea815774668bbb16b8e197c8822368b2.
 WSL cachyos: /tmp/cas-evo-micropython/ports/unix/build-cas32/micropython
