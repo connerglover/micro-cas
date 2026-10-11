@@ -1,0 +1,253 @@
+# The 1D printer (DESIGN 12): input -> canonical answer text, T1 forms.
+# Checked by tests/test_print.py; regenerate the expected column with --update-golden.
+#
+# A case is   MODE|input|expected
+#   R   radian mode, D   degree mode.
+# The input runs the user path (stages 3-7, then g_eval with no session: no commands, no
+# default simplify path), then PR.text(value, ctx). An expected '!msg' means that evaluation
+# raises CasError(msg). Every case is also round-tripped by tests/test_roundtrip.py.
+# Blank and '#' lines are ignored.
+
+# -- sums: polynomials in descending powers, the constant last (fmt 1.1) --
+R|x^2+3x/2-sin(x)|x^2+3*x/2-sin(x)
+R|-sin(x)+3/2*x+x*x|x^2+3*x/2-sin(x)
+R|1+x+x^2+x^3|x^3+x^2+x+1
+R|5-x^3+3x^2|-x^3+3*x^2+5
+R|-x^3+3x^2-2|-x^3+3*x^2-2
+R|x^12*11/2+20x^11+88x^9+1|11*x^12/2+20*x^11+88*x^9+1
+R|a*x^2+b*x+c|a*x^2+b*x+c
+R|c+b*x+a*x^2|a*x^2+b*x+c
+# exactly two terms: the positive one first
+R|-x^2+4|4-x^2
+R|4-x^2|4-x^2
+R|x-1|x-1
+R|1-x|1-x
+R|-x-1|-x-1
+R|ln(abs(x-2))-ln(abs(x+2))|ln(abs(x-2))-ln(abs(x+2))
+R|-ln(abs(x+2))+ln(abs(x-2))|ln(abs(x-2))-ln(abs(x+2))
+R|x-ln(e^x+1)|x-ln(e^x+1)
+# not a polynomial: descending x_power (60 x the exponent of x)
+R|6sqrt(x)-3x+2x^(3/2)|2*x^(3/2)-3*x+6*sqrt(x)
+R|2e^x-2x*e^x+x^2*e^x|x^2*e^x-2*x*e^x+2*e^x
+R|1/x+x+1|x+1+1/x
+R|x+pi+1|x+pi+1
+# the main variable: x, then t, then theta, then the first name
+R|t^2+y+t|t^2+t+y
+R|theta^2+theta+1|theta^2+theta+1
+R|b^2+b+a|a+b^2+b
+# complex numbers: the real part first
+R|1+i*sqrt(3)|1+i*sqrt(3)
+R|i*sqrt(3)-1|-1+i*sqrt(3)
+R|1-i*sqrt(3)|1-i*sqrt(3)
+R|-1-i*sqrt(3)|-1-i*sqrt(3)
+R|3+4i|3+4*i
+R|(3+4i)/5|3/5+4*i/5
+R|-i|-i
+R|2i|2*i
+R|i/2|i/2
+R|-3i/2|-3*i/2
+R|(1+i)x|(1+i)*x
+R|(1-i)x/2|(1-i)*x/2
+R|-(1+i)x|-(1+i)*x
+R|x+1+2i|x+1+2*i
+R|i*x+1|1+i*x
+R|ln(-2)|ln(2)+i*pi
+R|ln(1+i)|ln(2)/2+i*pi/4
+R|sqrt(-4)|2*i
+# -- products (fmt 1.3) --
+R|x*pi*2|2*pi*x
+R|cos(x)e^x|e^x*cos(x)
+R|y*x*3|3*x*y
+R|2cos(x)sin(x)|2*sin(x)*cos(x)
+R|tan(x)sec(x)|sec(x)*tan(x)
+R|-cot(x)csc(x)|-csc(x)*cot(x)
+R|sin(2x)sin(x)|sin(x)*sin(2*x)
+R|sin(x)(x^2-2)|(x^2-2)*sin(x)
+R|(x^2+4)(x+2)(x-2)|(x-2)*(x+2)*(x^2+4)
+R|(x-3)(x-2)|(x-2)*(x-3)
+R|(y-1)(x+1)|(x+1)*(y-1)
+R|(x+1)^2(x-1)|(x-1)*(x+1)^2
+R|x*2^x|x*2^x
+R|2^x*e^x*x|x*2^x*e^x
+R|sqrt(2)*x*3|3*sqrt(2)*x
+R|x*oo|x*oo
+R|ln(x)*x|x*ln(x)
+# the coefficient prints as p*m/q
+R|1/6*x^3|x^3/6
+R|3/40*x^5|3*x^5/40
+R|x/2|x/2
+R|-x/2|-x/2
+R|(x+1)/2|(x+1)/2
+R|2(x+1)|2*(x+1)
+R|-2(x+1)y|-2*y*(x+1)
+R|x/(2y)|x/(2*y)
+R|2x/(3y)|2*x/(3*y)
+R|3/x|3/x
+R|-1/x|-1/x
+R|1/(x*y)|1/(x*y)
+R|x^2/y^2|x^2/y^2
+R|-3/(16(x-1))|-3/(16*(x-1))
+R|-3/(16x-16)|-3/(16*x-16)
+R|x/(x+1)|x/(x+1)
+R|(x+1)/(x-1)|(x+1)/(x-1)
+R|1/(x+1)^2|1/(x+1)^2
+# a sum factor with a negative lead is flipped: -(P)*rest -> (-P)*rest
+R|(2-x^2)*sin(x)|-(x^2-2)*sin(x)
+R|2x*cos(x)-(2-x^2)*sin(x)|2*x*cos(x)+(x^2-2)*sin(x)
+R|(1-x)(x+1)|-(x-1)*(x+1)
+R|(-x^2+x+1)y|-y*(x^2-x-1)
+R|(-x^2+x+1)^2|(x^2-x-1)^2
+R|(-x^2+x+1)^3*y|-y*(x^2-x-1)^3
+R|sqrt(1-x^2)|sqrt(1-x^2)
+# a lone negated sum is a sum
+R|-(x+1)|-x-1
+R|-(x-1)(x+1)|-(x-1)*(x+1)
+# -- powers, roots, exponentials, logarithms (12.4) --
+R|x^(1/2)|sqrt(x)
+R|x^(-1/2)|1/sqrt(x)
+R|3x^(-1/2)|3/sqrt(x)
+R|x^(3/2)|x^(3/2)
+R|x^(1/3)|x^(1/3)
+R|x^(-2/3)|1/x^(2/3)
+R|sqrt(2)/2|sqrt(2)/2
+R|1/sqrt(2)|sqrt(2)/2
+R|2^(1/3)*2|2*2^(1/3)
+R|12^(1/4)|sqrt(2)*3^(1/4)
+R|(-8)^(1/3)|-2
+R|sqrt(8)|2*sqrt(2)
+R|e^x|e^x
+R|exp(1)|e
+R|e^2|e^2
+R|e^(2x)|e^(2*x)
+R|e^(-x)|e^(-x)
+R|x*e^(-x)|x*e^(-x)
+R|e^(x+1)|e^(x+1)
+R|e^(x^2)|e^(x^2)
+R|sqrt(e)|sqrt(e)
+R|1/e|1/e
+R|e^(-2)|1/e^2
+R|e^(i*pi/6)|e^(i*pi/6)
+R|2^x|2^x
+R|2^(-x)|2^(-x)
+R|(1/2)^x|(1/2)^x
+R|(-2)^x|(-2)^x
+R|i^x|i^x
+R|(1+i)^(1/2)|sqrt(1+i)
+R|x^y|x^y
+R|x^y^z|x^(y^z)
+R|(x^y)^z|(x^y)^z
+R|x^(y+1)|x^(y+1)
+R|x^(2y)|x^(2*y)
+R|x^(-y)|x^(-y)
+R|log(x)|log(x)
+R|3log(x)/2|3*log(x)/2
+R|log(x)^2|log(x)^2
+R|log(x)*log(y)|log(x)*log(y)
+R|log(x)/ln(y)|log(x)/ln(y)
+R|ln(x)/ln(10)^2|ln(x)/ln(10)^2
+R|ln(x)^2/ln(10)|ln(x)^2/ln(10)
+R|log(2)|log(2)
+R|log(4)|2*log(2)
+R|log(100)|2
+R|log(8,2)|3
+R|log(x,2)|ln(x)/ln(2)
+R|ln(10)+1|ln(10)+1
+R|ln(8)|3*ln(2)
+# -- functions --
+R|abs(x)|abs(x)
+R|abs(-x-1)|abs(x+1)
+R|sin(1-x)|-sin(x-1)
+R|cos(1-x)|cos(x-1)
+R|asin(x)+acos(x)+atan(x)|asin(x)+acos(x)+atan(x)
+R|asec(x)|acos(1/x)
+R|sinh(x)+cosh(x)+tanh(x)|sinh(x)+cosh(x)+tanh(x)
+R|sign(x)+floor(x)+ceil(x)|sign(x)+floor(x)+ceil(x)
+R|n!|n!
+R|(n+1)!|(n+1)!
+R|(2n)!|(2*n)!
+R|n!^2|n!^2
+R|1001!|1001!
+R|5!|120
+R|f(x)|f(x)
+R|g(x,y)+1|g(x,y)+1
+R|cos(5pi/12)|sqrt(6)/4-sqrt(2)/4
+R|sin(pi/3)|sqrt(3)/2
+R|tan(pi/12)|2-sqrt(3)
+# -- relations: the main variable on the left (12.4) --
+R|x>3|x>3
+R|3<x|x>3
+R|x<3|x<3
+R|3>=x|x<=3
+R|x<=2y|x<=2*y
+R|y<x|x>y
+R|x!=1|x!=1
+R|x=1|x=1
+R|1=x|1=x
+R|x^2-1=0|x^2-1=0
+R|(n!)=1|n! =1
+R|2<3|true
+R|3<2|false
+R|x-x=1|false
+R|x+1=x+1|true
+R|(x=1)+2|(x=1)+2
+# -- lists, solutions, series, constants --
+R|[1,2,3]|[1,2,3]
+R|[x,[y,z]]|[x,[y,z]]
+R|[]|[]
+R|[x=1]|x=1
+R|x=-1,x=1|x=-1,x=1
+R|x=-sqrt(2),x=sqrt(2)|x=-sqrt(2),x=sqrt(2)
+R|x=2,y=1|x=2,y=1
+R|[x=2,y=1],[x=3,y=4]|[x=2,y=1],[x=3,y=4]
+R|x>3,x<-1|x>3,x<-1
+R|[1,2]+x|x+[1,2]
+R|O(x^6)|O(x^6)
+R|1+x+x^2/2+x^3/6+O(x^4)|1+x+x^2/2+x^3/6+O(x^4)
+R|x-x^3/6+O(x^5)|x-x^3/6+O(x^5)
+R|1/x+x/3+O(x^3)|1/x+x/3+O(x^3)
+R|pi|pi
+R|e|e
+R|oo|oo
+R|-oo|-oo
+R|undef|undef
+R|true|true
+R|theta|theta
+R|-pi/2|-pi/2
+R|2pi|2*pi
+# -- numbers --
+R|2^100|1267650600228229401496703205376
+R|-2^64|-18446744073709551616
+R|1/3|1/3
+R|-7/3|-7/3
+R|3/4-x|3/4-x
+# -- floats: 15 significant digits, always with a point or an exponent (D8) --
+R|0.5x|0.5*x
+R|0.5|0.5
+R|2.0|2.0
+R|-2.5|-2.5
+R|0.1+0.2|0.3
+R|1/3+0.0|0.333333333333333
+R|2.5E-3|0.0025
+R|1E10|1E10
+R|1.5E-5|1.5E-5
+R|x^2.5|x^(5/2)
+R|0.5+1.5i|0.5+1.5*i
+R|x+0.5|x+0.5
+R|x-0.5|x-0.5
+R|sin(0.5)|0.479425538604203
+R|pi*1.0|3.14159265358979
+# -- degree mode (6.5): trig arguments and inverse trig in degrees --
+D|sin(30)|1/2
+D|sin(x)|sin(x)
+D|sin(x+30)|sin(x+30)
+D|cos(2(x+15))|cos(2*(x+15))
+D|tan(45+x)+1|tan(x+45)+1
+D|asin(1/2)|30
+D|asin(x)|asin(x)
+D|asin(x)+30|asin(x)+30
+D|2acos(x)|2*acos(x)
+D|atan(x)/3|atan(x)/3
+D|sin(asin(x))|x
+D|sin(2asin(x))|sin(2*asin(x))
+D|sin(x)^2+cos(x)^2|sin(x)^2+cos(x)^2
+D|asin(x)=30|asin(x)=30

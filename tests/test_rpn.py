@@ -274,7 +274,10 @@ def check_rpn(items, ntok):
             need = ARITY.get(it[1], 2)
             assert depth >= need, it
             depth += 1 - need
-        elif k == 'F' or k == 'L':
+        elif k == 'F':
+            assert depth >= it[2], it
+            depth += 1 - it[2]
+        elif k == 'L':
             assert depth >= it[1], it
             depth += 1 - it[1]
         else:
@@ -328,18 +331,20 @@ def ev_tree(t):
         return complex(float(t[1]))
     if k in ('sym', 'con'):
         return ENV[t[1]]
+    # the same operations, in the same order, as the RPN: a 0j or 1+0j seed could turn a -0.0
+    # imaginary part into 0.0, and a later fractional power would then take the other branch
     if k == 'add':
-        v = 0j
-        for c in t[1]:
+        v = ev_tree(t[1][0])
+        for c in t[1][1:]:
             v = v + ev_tree(c)
         return v
     if k == 'mul':
-        v = 1 + 0j
-        for c in t[1]:
+        v = ev_tree(t[1][0])
+        for c in t[1][1:]:
             v = v * ev_tree(c)
         return v
     if k == 'neg':
-        return -ev_tree(t[1])
+        return 0j - ev_tree(t[1])       # as ev_rpn: no -0.0 imaginary parts
     if k == 'sub':
         return ev_tree(t[1]) - ev_tree(t[2])
     if k == 'div':
@@ -365,7 +370,8 @@ def ev_rpn(items):
         elif k == 's':
             st.append(ENV[it[1]])
         elif k == 'o' and it[1] == 'neg':
-            st[-1] = -st[-1]
+            st[-1] = 0j - st[-1]        # not -z or 0 - z: -(4+0j) has a -0.0 imaginary part,
+                                        # and (-4-0j)**1.5 is on the other side of the cut
         elif k == 'o':
             b = st.pop()
             st[-1] = BIN[it[1]](st[-1], b)

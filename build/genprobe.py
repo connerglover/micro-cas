@@ -1,20 +1,31 @@
 """M0.5 memory gate (DESIGN 18.7): the PRBL probe modules and the calibration of the memory model.
 
-    python build/genprobe.py                 write probe/PRBL100.py, PRBL200.py, PRBL300.py
-    python build/genprobe.py --check         exit 1 if those files are stale
-    python build/genprobe.py --stats         shape statistics (and .mpy bytes if mpy-cross is found)
-    python build/genprobe.py --derive FILE   the gate: a PRBMEM transcript -> the manifest values
+    python build/genprobe.py                  write probe/PRBL100.py, PRBL200.py, PRBL300.py
+    python build/genprobe.py --check          exit 1 if those files are stale
+    python build/genprobe.py --stats          shape statistics (.mpy bytes if mpy-cross is found)
+    python build/genprobe.py --provisional    the memory model with the provisional numbers
+    python build/genprobe.py --derive FILE [--apply]
+                                              the gate: a PRBMEM transcript -> the manifest values;
+                                              --apply also writes them into build/manifest.py
 
 **The probe modules.** ``generate(n)`` writes exactly ``n`` minified lines of code shaped like
-ours: the prototype's functions (pair loops over flat node tuples, ``if`` chains on op codes,
-explicit-stack loops, dense integer lists, a generator strategy, printer string building) and
-tuple and string tables. The source goes through the M0.4 minifier (``bundle.minify``), so a
-"line" is a device line, as in ``LAZYMAX`` and the manifest budgets. Every function and table
-name carries a per-module tag (``a`` for PRBL100, ``b``, ``c``), so no two modules share a
-name: each import interns its own names, as a real lazy module does. The module bodies only
-define functions and tables, so the probes import at any depth (PROBE6 ``imp6`` imports PRBL300
-from depth 6). The functions are never called; ``K``, ``R`` and ``A`` stand in for the resident
-modules a lazy module imports.
+ours: the prototype's functions and the DESIGN sketches (pair loops over flat node tuples, ``if``
+chains on op codes, an explicit goal stack, dense integer lists, a pair of trampoline
+generators, printer string building) and tuple and string tables. The source goes through the
+M0.4 minifier (``bundle.minify``), so a "line" is a device line, as in ``LAZYMAX`` and the
+manifest budgets.
+
+A module is a head (2 lines) and blocks of ``BLOCK`` = 100 lines. Block k holds the templates
+of ``GROUPS[k % 3]`` and one-line tables that pad it to exactly 100 lines. The three groups have
+a similar mix (string tables, loops, nested loops, an ``if`` chain), so the modules differ in
+size, not in kind: PRBL200 is PRBL100 plus the second block, PRBL300 adds the third, and
+PRBMEM's three sizes give a straight-line fit (fixed part + bytes per line). Every function
+and table name carries a per-module tag (``a`` for PRBL100, ``b``, ``c``), so no two modules
+share a name: each import interns its own names, as a real lazy module does. The attribute
+names (``K.N``, ``K.ONE``, ...) are shared, as real lazy modules share them with the resident
+modules. The module bodies only define functions and tables, so the probes import at any depth
+(PROBE6 ``imp6`` imports PRBL300 from depth 6). The functions are never called; ``K``, ``R`` and
+``A`` stand in for the resident modules a lazy module imports.
 
 **The gate.** PRBMEM prints, per module, ``cost`` (steady RAM after the first import), ``kept``
 (RAM not freed by the first, second and third import/evict cycles; the third clears
@@ -26,8 +37,9 @@ into the values DESIGN 18.7 asks for:
   bytes per line ``FACTOR * MPYB``, which the ledger and the bundler's ``COST`` both use;
 - ``PEAKB``: the compile transient per line, ``(peak - cost + qstr) / lines``, where
   ``qstr = kept1 - kept2`` is the name table the first import interned. The worst module
-  counts. ``R.need`` adds the part's ``COST`` to ``PEAKB * LINES`` (DESIGN 18.4), so the
-  steady cost is not counted twice;
+  counts (with a fixed part, that is the smallest module, so ``PEAKB * lines`` bounds every
+  part of 100 lines or more). ``R.need`` adds the part's ``COST`` to ``PEAKB * LINES``
+  (DESIGN 18.4), so the steady cost is not counted twice;
 - ``LAZYMAX``: the largest part (a multiple of 10) whose transient fits the 12 KB compile
   reserve of the ledger (DESIGN 18.1);
 - ``NMAX``: the node memory of the ledger (768 x (32 B tuple + 4 x 4 B slots) = 36 KB) divided
@@ -48,6 +60,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 PROBE = os.path.join(ROOT, 'probe')
+MANIFEST = os.path.join(HERE, 'manifest.py')
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
@@ -55,24 +68,25 @@ import bundle  # noqa: E402
 
 SIZES = (100, 200, 300)
 TAGS = {100: 'a', 200: 'b', 300: 'c'}
+BLOCK = 100
 
 # .mpy bytes of the generated modules, from mpy-cross 1.29.0.post2 (mpy v6.3). FACTOR divides
 # PRBMEM's cost by these. `--stats` re-measures them when mpy-cross is found (MPY_CROSS=path,
 # the mpy_cross package or PATH); tests/test_genprobe.py checks them then.
-MPY_BYTES = {'PRBL100': 1328, 'PRBL200': 2600, 'PRBL300': 3893}
+MPY_BYTES = {'PRBL100': 1498, 'PRBL200': 2856, 'PRBL300': 4205}
 
 # -- the code shapes ------------------------------------------------------------------------
 #
 # Each template is a fragment of a lazy module, adapted from the memory-first prototype
-# (core.py, rules.py, prt.py) and the DESIGN sketches (10.6 g_int, 18.4 need). '@' marks the
-# per-copy name suffix. One statement per line, so a template's line count is its device
-# line count. The order interleaves the shapes, so PRBL100 already holds most of them.
+# (core.py, rules.py, prt.py) and the DESIGN sketches (5.10 mk, 9.5 match, 10.6 g_int,
+# 18.4 need). '@' marks the per-copy name suffix. One statement per line, so a template's
+# line count is its device line count.
 
 HEAD = 'K = R = A = None\nMAXSTEP = 400\n'
 
-TEMPLATES = (
+TEMPLATES = {
     # pair loop over a flat ADD/MUL tuple; constructor calls through the K alias
-    '''
+    'linear': '''
 def linear@(e, x):
     if e == x:
         return K.ONE
@@ -91,8 +105,9 @@ def linear@(e, x):
         return a
     return 0
 ''',
-    # a generator strategy (DESIGN 10.6) with its strategy table
-    '''
+    # a pair of trampoline generators with a strategy table (DESIGN 10.6): g_int yields g_sum
+    # for a sum, g_sum yields g_int per term (no direct recursion, as the lint requires)
+    'g_int': '''
 STRATS@ = (('int', 'g_table'), ('intb', 'g_usub'), ('int2', 'g_tabular'), ('int2b', 'g_rational'), ('int3', 'g_parts'))
 
 
@@ -103,17 +118,8 @@ def g_int@(f, x, depth):
     c, g = A.split_const(f, x)
     t = K.N[g]
     if t[0] == K.ADD:
-        Fs = [K.mul_(t[1], [(x, K.ONE)])]
-        Rs = []
-        j = 2
-        while j < len(t):
-            r = yield g_int@(t[j], x, depth)
-            if r is None:
-                r = (K.ZERO, t[j])
-            Fs.append(K.mul_(t[j + 1], [(r[0], K.ONE)]))
-            Rs.append(K.mul_(t[j + 1], [(r[1], K.ONE)]))
-            j += 2
-        yield (K.add_(Fs), K.add_(Rs))
+        r = yield g_sum@(t, x, depth)
+        yield (K.mul_(K.ONE, [(c, K.ONE), (r[0], K.ONE)]), K.mul_(K.ONE, [(c, K.ONE), (r[1], K.ONE)]))
         return
     for mod, name in STRATS@:
         M = R.need(mod)
@@ -122,9 +128,23 @@ def g_int@(f, x, depth):
             yield (K.mul_(K.ONE, [(c, K.ONE), (r[0], K.ONE)]), r[1])
             return
     yield (K.ZERO, f)
+
+
+def g_sum@(t, x, depth):
+    Fs = [K.mul_(t[1], [(x, K.ONE)])]
+    Rs = []
+    j = 2
+    while j < len(t):
+        r = yield g_int@(t[j], x, depth)
+        if r is None:
+            r = (K.ZERO, t[j])
+        Fs.append(K.mul_(t[j + 1], [(r[0], K.ONE)]))
+        Rs.append(K.mul_(t[j + 1], [(r[1], K.ONE)]))
+        j += 2
+    yield (K.add_(Fs), K.add_(Rs))
 ''',
     # printer: string building, short strings and name tables
-    '''
+    'items': '''
 CNAME@ = ('pi', 'e', 'oo', 'undef', 'true', 'false')
 FNAME@ = ('sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'ln', 'abs', 'sign', 'floor', 'ceil')
 
@@ -157,7 +177,7 @@ def items@(n, x):
     return out
 ''',
     # an if chain on op codes
-    '''
+    'prec': '''
 def prec@(n):
     t = K.N[n]
     op = t[0]
@@ -171,8 +191,8 @@ def prec@(n):
         return 4 if t[3] == K.HALF else 3
     return 4
 ''',
-    # an explicit goal stack with a step cap (the matcher)
-    '''
+    # an explicit goal stack with a step cap (the matcher, DESIGN 9.5)
+    'match': '''
 def match@(p, s, env, x):
     goals = [(p, s)]
     trail = []
@@ -205,7 +225,7 @@ def match@(p, s, env, x):
     return True
 ''',
     # pseudo-division over Z (poly.py style): nested loops over int lists
-    '''
+    'pdivrem': '''
 def pdivrem@(a, b):
     n = len(b) - 1
     lb = b[-1]
@@ -237,7 +257,7 @@ def pdivrem@(a, b):
     return q, r, m
 ''',
     # a view of a node as pairs
-    '''
+    'view': '''
 def view@(op, s):
     t = K.N[s]
     if t[0] == op:
@@ -258,7 +278,7 @@ def view@(op, s):
     return K.ZERO, ((s, K.ONE),)
 ''',
     # a rule table of strings, scanned in file order
-    '''
+    'rule': '''
 RULES@ = (('sin(A*X)', '-cos(A*X)/A', ''), ('cos(A*X)', 'sin(A*X)/A', ''), ('e^(A*X)', 'e^(A*X)/A', 'A!=0'), ('1/(A*X+B)', 'ln(abs(A*X+B))/A', ''), ('sec(A*X)^2', 'tan(A*X)/A', ''))
 
 
@@ -269,7 +289,7 @@ def rule@(op, s, env):
     return None
 ''',
     # nested loops with a structural compare stack (the prototype's tiefix)
-    '''
+    'tiefix': '''
 def tiefix@(lst):
     i = 1
     while i < len(lst):
@@ -297,7 +317,7 @@ def tiefix@(lst):
         i += 1
 ''',
     # integer kernel with an exception
-    '''
+    'qn': '''
 def qn@(p, q):
     if q < 0:
         p = -p
@@ -314,7 +334,7 @@ def qn@(p, q):
     return p, q
 ''',
     # postorder rebuild with a memo dict
-    '''
+    'subst': '''
 def subst@(e, x, v):
     new = {}
     for n in A.postorder(e):
@@ -336,7 +356,7 @@ def subst@(e, x, v):
     return new[e]
 ''',
     # dense Z[x] lists
-    '''
+    'padd': '''
 def padd@(a, b, k=1):
     if len(a) < len(b):
         r = a + [0] * (len(b) - len(a))
@@ -348,7 +368,7 @@ def padd@(a, b, k=1):
         r.pop()
     return r
 ''',
-    '''
+    'split': '''
 def split@(e, x):
     t = K.N[e]
     if t[0] != K.MUL:
@@ -364,7 +384,7 @@ def split@(e, x):
         j += 2
     return K.mul_(t[1], c), K.mul_(K.ONE, g)
 ''',
-    '''
+    'pmul': '''
 def pmul@(a, b):
     if not a or not b:
         return []
@@ -376,7 +396,7 @@ def pmul@(a, b):
                 r[i + j] += x * b[j]
     return r
 ''',
-    '''
+    'deg': '''
 def deg@(n, x):
     if n == x:
         return 1
@@ -391,7 +411,7 @@ def deg@(n, x):
     return 0
 ''',
     # the inline LRU victim search of R.need (DESIGN 18.4)
-    '''
+    'pick': '''
 def pick@(loaded, use, pinned, live):
     v = None
     for n in loaded:
@@ -399,7 +419,7 @@ def pick@(loaded, use, pinned, live):
             v = n
     return v
 ''',
-    '''
+    'pcont': '''
 def pcont@(a):
     g = 0
     for c in a:
@@ -410,71 +430,79 @@ def pcont@(a):
             break
     return g
 ''',
-    '''
+    'horner': '''
 def horner@(a, x):
     v = 0
     for i in range(len(a) - 1, -1, -1):
         v = v * x + a[i]
     return v
 ''',
-    '''
+    'sgn': '''
 def sgn@(a):
     return -1 if a < 0 else (1 if a > 0 else 0)
 ''',
+}
+
+# One group per 100-line block, each with a similar mix: a string table, an explicit-stack or
+# nested loop, list arithmetic and an if chain. A template that does not fit the room left in
+# its block is skipped; one-line tables pad the block.
+GROUPS = (
+    ('items', 'match', 'view', 'split', 'pick', 'sgn'),
+    ('g_int', 'subst', 'qn', 'deg', 'pmul', 'pcont', 'horner'),
+    ('rule', 'pdivrem', 'tiefix', 'linear', 'prec', 'padd'),
 )
 
-# A one-line table, for the last line when no template fits.
-FILL = "TAB%s = ((%d, 'sin', %d), (%d, 'cos', %d), (%d, 'ln', %d))"
+# A one-line table, the padding of a block.
+FILL = "TAB%s = ((%d, 'sin'), (%d, 'cos'))"
 
 
 def _nlines(text):
     return len(bundle.minify(text).lines)
 
 
-_SIZE = []
+_SIZE = {}
 
 
 def template_lines():
-    """The device line count of each template."""
+    """{template name: its device line count}."""
     if not _SIZE:
-        for t in TEMPLATES:
-            _SIZE.append(_nlines(t.replace('@', '0')))
-    return list(_SIZE)
+        for k in TEMPLATES:
+            _SIZE[k] = _nlines(TEMPLATES[k].replace('@', '0'))
+    return dict(_SIZE)
 
 
 def module_source(n, tag=None):
     """The unminified source of an n-line probe module (n >= 2). Deterministic.
 
-    Templates are used in TEMPLATES order, cyclically; when the next one does not fit, the
-    next one in that order that fits; a one-line table fills a last single line."""
+    The head, then blocks of BLOCK lines (the first block includes the head; the last may be
+    shorter). Block k holds the templates of GROUPS[k % len(GROUPS)] that fit, in order, then
+    one-line tables up to the block's size. So module_source(m) is a prefix of
+    module_source(n) for every multiple m of BLOCK below n (same tag)."""
     if n < 2:
         raise ValueError('a probe module has at least 2 lines')
     if tag is None:
         tag = TAGS.get(n, 'z%d' % n)
     sizes = template_lines()
     parts = [HEAD]
-    left = n - _nlines(HEAD)
-    used = [0] * len(TEMPLATES)
-    i = 0
+    head = _nlines(HEAD)
+    left = n - head
+    used = {}
     nfill = 0
+    k = 0
     while left > 0:
-        pick = -1
-        for d in range(len(TEMPLATES)):
-            k = (i + d) % len(TEMPLATES)
-            if sizes[k] <= left:
-                pick = k
-                break
-        if pick < 0:
-            v = 10 * nfill
-            parts.append(FILL % (tag + str(nfill), v + 1, v + 2, v + 3, v + 4, v + 5, v + 6) +
-                         '\n')
+        room = min(left, BLOCK - (head if k == 0 else 0))
+        left -= room
+        for name in GROUPS[k % len(GROUPS)]:
+            if sizes[name] <= room:
+                c = used.get(name, 0)
+                used[name] = c + 1
+                parts.append(TEMPLATES[name].replace('@', tag + str(c)))
+                room -= sizes[name]
+        while room > 0:
+            parts.append(FILL % (tag + str(nfill), 2 * nfill + 1, 2 * nfill + 2) + '\n')
             nfill += 1
-            left -= 1
-            continue
-        parts.append(TEMPLATES[pick].replace('@', tag + str(used[pick])))
-        used[pick] += 1
-        left -= sizes[pick]
-        i = pick + 1
+            room -= 1
+        k += 1
     return '\n'.join(parts)
 
 
@@ -501,12 +529,13 @@ def write(dirpath=PROBE, sizes=SIZES):
 
 
 def stale(dirpath=PROBE, sizes=SIZES):
-    """The probe files that are missing or differ from generate()."""
+    """The probe files that are missing or differ from generate(). Line ends do not count: a
+    git checkout with core.autocrlf may turn LF into CRLF, which MicroPython reads too."""
     bad = []
     for n in sizes:
         p = os.path.join(dirpath, 'PRBL%d.py' % n)
         try:
-            with open(p, encoding='ascii', newline='') as fh:
+            with open(p, encoding='ascii') as fh:
                 same = fh.read() == generate(n)
         except (OSError, UnicodeDecodeError):
             same = False
@@ -559,7 +588,8 @@ COMPILE_RESERVE = 12 * 1024  # the compile transient the ledger reserves (LAZYMA
 NODE_BUDGET = 768 * (32 + 4 * 4)    # node memory: live tuples plus the 4 preallocated slots
 LEAKMAX = 2048               # bytes an evicted LAZYMAX-line part may leave (DESIGN 18.7)
 PROVISIONAL = {'FACTOR': 1.8, 'PEAKB': 80, 'LAZYMAX': 150, 'NMAX': 768, 'MPYB': 12.5,
-               'TUPB': 32, 'SLOTB': 4}
+               'TUPB': 32, 'SLOTB': 4, 'FRAG': 3072, 'EVICT': 'modules',
+               'DRAW_EVICTABLE': False}
 
 # (module, lines, class) of DESIGN 4.1; 'catalog' is data: 7 KB at the provisional 22.5 B
 # per line is about 320 line-equivalents.
@@ -609,7 +639,7 @@ def logical_lines(text):
         if not s.strip() or _PROMPT.match(s.strip()) or s.startswith('=='):
             continue
         first = s.split()[0]
-        if out and (s[0] == ' ' or first in _CONT):
+        if out and (s[0] in ' \t' or first in _CONT):
             out[-1] = out[-1] + ' ' + s.strip()
         else:
             out.append(s.strip())
@@ -678,6 +708,21 @@ def _floor(x, step):
     return int(math.floor(x / float(step) + 1e-9)) * step
 
 
+def fit(points):
+    """Least-squares line through [(x, y)]: (intercept, slope), or None with fewer than two
+    distinct x."""
+    pts = [(float(x), float(y)) for x, y in points]
+    if len(set(x for x, _ in pts)) < 2:
+        return None
+    n = len(pts)
+    mx = sum(x for x, _ in pts) / n
+    my = sum(y for _, y in pts) / n
+    sxx = sum((x - mx) ** 2 for x, _ in pts)
+    sxy = sum((x - mx) * (y - my) for x, y in pts)
+    b = sxy / sxx
+    return my - b * mx, b
+
+
 def ledger(bpl, peakb, lazymax, nmax, tupb, slotb, frag):
     """The heap ledger of DESIGN 18.1 in bytes: [(item, bytes)], and the lazy code budget."""
     free = FREE_KB * 1024
@@ -709,11 +754,46 @@ def row_bytes(mods, bpl):
     return int(total * bpl)
 
 
+def _budget(g, warn):
+    """The ledger and the load sets (DESIGN 18.1, 18.2), and ladder step 4 (DESIGN 18.8)."""
+    g['ledger'], g['lazy'] = ledger(g['BPL'], g['PEAKB'], g['LAZYMAX'], g['NMAX'], g['TUPB'],
+                                     g['SLOTB'], g['FRAG'])
+    draw = row_bytes((DRAW,), g['BPL'])
+    g['draw'] = draw
+    g['rows'] = []
+    short = []
+    for label, ms in ROWS:
+        b = row_bytes(ms, g['BPL'])
+        fit_ = b <= g['lazy']
+        fit4 = b <= g['lazy'] + draw
+        g['rows'].append((label, b, fit_, fit4))
+        if not fit4:
+            short.append('%s (%+.1f KB)' % (label, (g['lazy'] + draw - b) / 1024.0))
+    g['DRAW_EVICTABLE'] = not all(r[2] for r in g['rows'])
+    if short:
+        warn.append('still short with CVDRAW evictable: %s; ladder steps 5-7 (DESIGN 18.8)'
+                    % ', '.join(short))
+
+
+def provisional():
+    """The memory model with the provisional numbers of DESIGN 18 (no measurement): the same
+    dict as derive(), with 'modules' empty. Its 'DRAW_EVICTABLE' is what the estimate says;
+    the manifest keeps CVDRAW resident until a measurement decides (docs/notes/M0.5.md)."""
+    p = PROVISIONAL
+    g = {'warnings': [], 'modules': [], 'fits': {}, 'FACTOR': p['FACTOR'],
+         'BPL': p['FACTOR'] * p['MPYB'], 'probe_bpl': None, 'PEAKB': p['PEAKB'],
+         'LAZYMAX': p['LAZYMAX'], 'TUPB': p['TUPB'], 'SLOTB': p['SLOTB'], 'NMAX': p['NMAX'],
+         'EVICT': p['EVICT'], 'leak': None, 'leak_dict': None, 'qstr_part': None,
+         'FRAG': p['FRAG'], 'reserve150': None}
+    _budget(g, g['warnings'])
+    return g
+
+
 def derive(res, mpy=None, lines=None, mpyb=None, frag=3072):
     """The M0.5 gate (DESIGN 18.7) from a parsed PRBMEM transcript. Returns a dict with the
     manifest values ('FACTOR', 'PEAKB', 'LAZYMAX', 'NMAX', 'EVICT', 'DRAW_EVICTABLE'), the
-    figures behind them ('BPL', 'TUPB', 'SLOTB', 'modules', 'ledger', 'lazy', 'rows') and
-    'warnings'. Raises ValueError if no probe module was measured."""
+    figures behind them ('BPL', 'TUPB', 'SLOTB', 'modules', 'fits', 'ledger', 'lazy', 'rows')
+    and 'warnings'. Raises ValueError if no probe module was measured."""
     if mpy is None:
         mpy = MPY_BYTES
     if lines is None:
@@ -747,7 +827,8 @@ def derive(res, mpy=None, lines=None, mpyb=None, frag=3072):
         cost_sum += cost
         mpy_sum += mpy[name]
         row = {'name': name, 'lines': n, 'mpy': mpy[name], 'cost': cost, 'kept': k1, 'k2': k2,
-               'kD': kd, 'qstr': qstr, 'peak': d.get('peak'), 'transient': None}
+               'kD': kd, 'qstr': qstr, 'peak': d.get('peak'), 'transient': None,
+               'ms': d.get('ms')}
         if d.get('peak') is not None:
             tr = d['peak'] - cost + qstr
             row['transient'] = tr
@@ -757,6 +838,12 @@ def derive(res, mpy=None, lines=None, mpyb=None, frag=3072):
         g['modules'].append(row)
     if cost_sum <= 0:
         raise ValueError('the costs are not positive: is this a desktop dry run?')
+    # straight lines through the three sizes: fixed part + bytes per line (report only)
+    g['fits'] = {
+        'cost': fit([(r['lines'], r['cost']) for r in g['modules']]),
+        'transient': fit([(r['lines'], r['transient']) for r in g['modules']
+                          if r['transient'] is not None]),
+    }
     factor = cost_sum / float(mpy_sum)
     g['FACTOR'] = math.ceil(factor * 100 - 1e-9) / 100.0
     g['BPL'] = g['FACTOR'] * mpyb
@@ -766,12 +853,16 @@ def derive(res, mpy=None, lines=None, mpyb=None, frag=3072):
         peakb = PROVISIONAL['PEAKB']
     g['PEAKB'] = int(math.ceil(peakb - 1e-9))
     g['LAZYMAX'] = _floor(COMPILE_RESERVE / float(g['PEAKB']), 10)
+    g['reserve150'] = None
     if g['LAZYMAX'] < 50:
         warn.append('LAZYMAX %d < 50: the compile peak is too large for parts; consider .mpy '
                     'output (PROBE7) or the ladder (DESIGN 18.8)' % g['LAZYMAX'])
     elif g['LAZYMAX'] < PROVISIONAL['LAZYMAX']:
-        warn.append('LAZYMAX %d < 150: the DESIGN 4.3 seams move; every lazy part must fit'
-                    % g['LAZYMAX'])
+        g['reserve150'] = PROVISIONAL['LAZYMAX'] * g['PEAKB']
+        warn.append('LAZYMAX %d < 150: the DESIGN 4.3 seams move (every lazy part must fit), '
+                    'or the reserve grows to %.1f KB (%+.1f KB of lazy budget) to keep 150'
+                    % (g['LAZYMAX'], g['reserve150'] / 1024.0,
+                       (COMPILE_RESERVE - g['reserve150']) / 1024.0))
     elif g['LAZYMAX'] >= 300:
         warn.append('LAZYMAX %d >= 300: parts of one family may be merged (DESIGN 4.3)'
                     % g['LAZYMAX'])
@@ -808,66 +899,105 @@ def derive(res, mpy=None, lines=None, mpyb=None, frag=3072):
     if qmax > LEAKMAX:
         warn.append('first import of a %d-line part interns about %d B of names for good'
                     % (g['LAZYMAX'], qmax))
-    # the ledger and the load sets (DESIGN 18.1, 18.2), and ladder step 4 (DESIGN 18.8)
-    g['ledger'], g['lazy'] = ledger(g['BPL'], g['PEAKB'], g['LAZYMAX'], g['NMAX'], tupb,
-                                     slotb, frag)
-    draw = row_bytes((DRAW,), g['BPL'])
-    g['draw'] = draw
-    g['rows'] = []
-    short = []
-    for label, ms in ROWS:
-        b = row_bytes(ms, g['BPL'])
-        fit = b <= g['lazy']
-        fit4 = b <= g['lazy'] + draw
-        g['rows'].append((label, b, fit, fit4))
-        if not fit4:
-            short.append('%s (%+.1f KB)' % (label, (g['lazy'] + draw - b) / 1024.0))
-    g['DRAW_EVICTABLE'] = not all(r[2] for r in g['rows'])
-    if short:
-        warn.append('still short with CVDRAW evictable: %s; ladder steps 5-7 (DESIGN 18.8)'
-                    % ', '.join(short))
     g['FRAG'] = frag
+    _budget(g, warn)
     return g
 
 
-def manifest_block(g):
+# -- output: the report and the manifest ------------------------------------------------------
+
+CONSTS = ('FACTOR', 'PEAKB', 'LAZYMAX', 'NMAX', 'EVICT', 'DRAW_EVICTABLE', 'CALIBRATION')
+
+
+def manifest_values(g, label='M0.5'):
+    """{name: value} for the CONSTS of build/manifest.py."""
+    return {'FACTOR': g['FACTOR'], 'PEAKB': g['PEAKB'], 'LAZYMAX': g['LAZYMAX'],
+            'NMAX': g['NMAX'], 'EVICT': g['EVICT'], 'DRAW_EVICTABLE': g['DRAW_EVICTABLE'],
+            'CALIBRATION': label}
+
+
+def manifest_block(g, label='M0.5'):
     """The constants block for build/manifest.py."""
-    return ('FACTOR = %s\nPEAKB = %d\nLAZYMAX = %d\nFRAG = %d\nNMAX = %d\nEVICT = %r\n'
-            'DRAW_EVICTABLE = %r\n' % (repr(g['FACTOR']), g['PEAKB'], g['LAZYMAX'], g['FRAG'],
-                                       g['NMAX'], g['EVICT'], g['DRAW_EVICTABLE']))
+    v = manifest_values(g, label)
+    return ''.join('%s = %r\n' % (k, v[k]) for k in CONSTS)
+
+
+def apply_manifest(g, path=None, label='M0.5'):
+    """Write the gate's values into build/manifest.py (or ``path``): each ``NAME = value``
+    line of CONSTS keeps its trailing comment (and its column, where the new value fits).
+    Returns [(name, old text, new text)]. Raises ValueError if a name has no line."""
+    if path is None:
+        path = MANIFEST
+    with open(path, encoding='utf-8', newline='') as fh:
+        text = fh.read()
+    vals = manifest_values(g, label)
+    changes = []
+    for name in CONSTS:
+        pat = re.compile(r'^(%s[ \t]*=[ \t]*)(.*?)([ \t]*)(#.*)?$' % name, re.M)
+        m = pat.search(text)
+        if m is None:
+            raise ValueError('%s has no %s line' % (path, name))
+        old = m.group(2)
+        new = repr(vals[name])
+        if m.group(4):
+            width = len(old) + len(m.group(3))
+            body = new.ljust(width - 1) + ' ' if len(new) < width else new + ' '
+            line = m.group(1) + body + m.group(4)
+        else:
+            line = m.group(1) + new
+        text = text[:m.start()] + line + text[m.end():]
+        changes.append((name, old, new))
+    with open(path, 'w', encoding='utf-8', newline='') as fh:
+        fh.write(text)
+    return changes
 
 
 def report(g):
-    """A text report of derive(): modules, ledger, load sets, warnings, the manifest block."""
-    L = ['M0.5 memory gate (DESIGN 18.7)', '',
-         'module    lines  .mpy   cost  kept1  kept2  keptD   peak  transient  B/line']
-    for r in g['modules']:
-        tr = r['transient']
-        L.append('%-8s %6d %5d %6d %6d %6d %6d %6s %10s %7.1f' % (
-            r['name'], r['lines'], r['mpy'], r['cost'], r['kept'], r['k2'], r['kD'],
-            '-' if r['peak'] is None else r['peak'], '-' if tr is None else tr,
-            r['cost'] / float(r['lines'])))
-    L += ['', 'FACTOR %.2f (provisional 1.8); steady %.1f B/line at MPYB %.1f (probe code: %.1f)'
-          % (g['FACTOR'], g['BPL'], g['BPL'] / g['FACTOR'], g['probe_bpl']),
-          'PEAKB %d B/line (provisional 80) -> LAZYMAX %d' % (g['PEAKB'], g['LAZYMAX']),
-          'node: tuple %d B + 4 slots x %d B -> NMAX %d' % (g['TUPB'], g['SLOTB'], g['NMAX']),
-          'eviction %s (repeat leak %d B, with __dict__.clear() %d B, names %d B per %d-line '
-          'part)' % (g['EVICT'], g['leak'], g['leak_dict'], g['qstr_part'], g['LAZYMAX']),
-          '', 'ledger (DESIGN 18.1)']
+    """A text report of derive() or provisional(): modules, fits, ledger, load sets, the KB
+    column of DESIGN 4.1, warnings, the manifest block."""
+    if g['modules']:
+        L = ['M0.5 memory gate (DESIGN 18.7)', '',
+             'module    lines  .mpy   cost  kept1  kept2  keptD   peak  transient  B/line'
+             '  import ms']
+        for r in g['modules']:
+            tr = r['transient']
+            L.append('%-8s %6d %5d %6d %6d %6d %6d %6s %10s %7.1f %10s' % (
+                r['name'], r['lines'], r['mpy'], r['cost'], r['kept'], r['k2'], r['kD'],
+                '-' if r['peak'] is None else r['peak'], '-' if tr is None else tr,
+                r['cost'] / float(r['lines']), '-' if r['ms'] is None else r['ms']))
+        L.append('')
+        for k in ('cost', 'transient'):
+            f = g['fits'].get(k)
+            if f is not None:
+                L.append('fit %-9s = %7.0f B + %6.1f B/line' % (k, f[0], f[1]))
+        L += ['FACTOR %.2f (provisional 1.8); steady %.1f B/line at MPYB %.1f (probe code: '
+              '%.1f)' % (g['FACTOR'], g['BPL'], g['BPL'] / g['FACTOR'], g['probe_bpl']),
+              'PEAKB %d B/line (provisional 80) -> LAZYMAX %d' % (g['PEAKB'], g['LAZYMAX']),
+              'node: tuple %d B + 4 slots x %d B -> NMAX %d' % (g['TUPB'], g['SLOTB'],
+                                                               g['NMAX']),
+              'eviction %s (repeat leak %d B, with __dict__.clear() %d B, names %d B per '
+              '%d-line part)' % (g['EVICT'], g['leak'], g['leak_dict'], g['qstr_part'],
+                                 g['LAZYMAX'])]
+    else:
+        L = ['memory model with the PROVISIONAL numbers of DESIGN 18 (no measurement)', '',
+             'FACTOR %.2f, steady %.1f B/line; PEAKB %d -> LAZYMAX %d; NMAX %d; eviction %s'
+             % (g['FACTOR'], g['BPL'], g['PEAKB'], g['LAZYMAX'], g['NMAX'], g['EVICT'])]
+    L += ['', 'ledger (DESIGN 18.1)']
     for item, b in g['ledger']:
         L.append('  %-52s %7.1f KB' % (item, b / 1024.0))
     L.append('  %-52s %7.1f KB' % ('lazy code budget', g['lazy'] / 1024.0))
     L += ['', 'load sets (DESIGN 18.2); CVDRAW is %.1f KB' % (g['draw'] / 1024.0)]
-    for label, b, fit, fit4 in g['rows']:
-        L.append('  %-28s %6.1f KB  %-3s %s' % (label, b / 1024.0, 'yes' if fit else 'no',
-                                               '' if fit else ('fits with CVDRAW evictable'
-                                                               if fit4 else 'short')))
+    for label, b, fit_, fit4 in g['rows']:
+        L.append('  %-28s %6.1f KB  %-3s %s' % (label, b / 1024.0, 'yes' if fit_ else 'no',
+                                               '' if fit_ else ('fits with CVDRAW evictable'
+                                                                if fit4 else 'short')))
     L += ['', 'KB per module (DESIGN 4.1)']
     for name, lines, cls in LOGICAL:
         L.append('  %-8s %s %4d lines %5.1f KB' % (name, cls, lines, lines * g['BPL'] / 1024.0))
     if g['warnings']:
         L += [''] + ['warning: ' + w for w in g['warnings']]
-    L += ['', 'build/manifest.py:', manifest_block(g)]
+    if g['modules']:
+        L += ['', 'build/manifest.py:', manifest_block(g)]
     return '\n'.join(L)
 
 
@@ -890,12 +1020,19 @@ def main(argv=None):
                       s['strings'], s['defs'], s['generators'],
                       '%d B (%.1f B/line)' % (b, b / float(n)) if b else 'n/a (no mpy-cross)'))
         return 0
-    if argv[:1] == ['--derive'] and len(argv) == 2:
+    if argv[:1] == ['--provisional']:
+        print(report(provisional()))
+        return 0
+    if argv[:1] == ['--derive'] and len(argv) in (2, 3) and argv[2:] in ([], ['--apply']):
         with open(argv[1], encoding='utf-8') as fh:
             res = parse_prbmem(fh.read())
         for s in res['unparsed']:
             print('unparsed: %s' % s)
-        print(report(derive(res)))
+        g = derive(res)
+        print(report(g))
+        if argv[2:] == ['--apply']:
+            for name, old, new in apply_manifest(g):
+                print('manifest %s: %s -> %s' % (name, old, new))
         return 0
     if argv:
         print(__doc__.split('\n\n')[0])

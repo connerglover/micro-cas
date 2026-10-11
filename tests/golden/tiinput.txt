@@ -516,3 +516,18 @@ R|f(x)= =2|f(x):= =2
 R|  sin x  |  sin(x)  
 R|cos^3(x)sin x|cos(x)^3sin(x)
 R|xsin(x)|x*sin(x)
+# deviation from FlowCE (sin(x)^sin): a function name is no exponent, so that a second pass
+# changes nothing (FlowCE: sin^sin^n(x) -> sin^sin(x)^n -> sin(x)^sin^n)
+R|sin^sin(x)|sin^sin(x)
+R|sin^sin^n(x)|sin^sin(x)^n
+R|sinx^sin(x)|sin(x)^sin(x)
+R|sin x^sin x|sin(x)^sin(x)
+R|sin^log10x|sin^log10(x)
+P|sin^2x^3|sin(x^3)^2
+# deviation from FlowCE (l*n*cos(x)): a name that starts with a function name is not cut, so
+# that a second stage 4 reads ln lncos(x) as the first one did
+I|lncos(x)|lncos(x)
+I|lnpi(x)|lnpi(x)
+I|expi(x)|expi(x)
+P|ln lncos(x)|ln lncos(x)
+P|sin^2 lncos(x)|sin^2* lncos(x)

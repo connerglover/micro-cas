@@ -268,13 +268,14 @@ def test_golden_tiinput(monkeypatch, update_golden):
 
 
 def test_golden_has_every_flowce_case():
-    """The FlowCE section keeps all 266 cases of test_tiinput.cc (67 rcases, 199 cases)."""
+    """The FlowCE section keeps all 266 cases of test_tiinput.cc (67 rcases; 199 cases, 10 of
+    them with split_unknown false)."""
     rows = golden_cases()
     n = {'R': 0, 'I': 0, 'i': 0}
     for no, line, directive, mode, s, want in rows:
         if directive == '@ flowce' and mode is not None:
             n[mode] += 1
-    assert n == {'R': 67, 'I': 190, 'i': 9}
+    assert n == {'R': 67, 'I': 189, 'i': 10}
 
 
 # -- lex (stage 3) --------------------------------------------------------------------------------
@@ -519,6 +520,18 @@ def test_implicit_without_cut(casevo):
     assert P.untok(P.ti_implicit(P.lex(s), 0), s) == '2*pir+xy(x)+abc'
 
 
+@pytest.mark.parametrize('s', [
+    # found by the random lines: FlowCE's rules are not idempotent on these
+    'ab**sin^sin^midf(x)=sinxabcE5',            # a function name taken as an exponent
+    'xcosgxsin^sqrtx{2E-3',
+    '0!-tyintln  lncos(3.5pioo',                # stage 5 cut lncos, stage 4 then read ln l
+    'sec  lndiff(int2E-3sin^cosx:=',
+])
+def test_stages_4_5_twice_on_found_lines(monkeypatch, s):
+    monkeypatch.setattr(P, 'classify', FakeClassify())
+    assert check_line(s) == ''
+
+
 def test_passes_do_not_change_their_input(casevo):
     t = P.lex('sin^2xcosx+2pir+f(x)=3')
     keep = list(t)
@@ -559,7 +572,8 @@ def test_review_sin_through_lex_and_rpn_alone(casevo):
 # -- untok ----------------------------------------------------------------------------------------
 
 @pytest.mark.parametrize('s', ['x y', '  2 x ', 'sin( x )\t+1', '1.2.3', '2 3', 'a = = b',
-                               '2E5', '3.', '007x', "y''", '[1,2]', ''])
+                               '2E5', '3.', '007x', "y''", '[1,2]', '', '\t', '  ', '1E5E5',
+                               '2E', '2Ex', '2E- 3', '2E -3', '1E5E-3', '2.E'])
 def test_untok_restores_the_source(casevo, s):
     assert P.untok(P.lex(s), s) == s
 
@@ -577,6 +591,14 @@ def test_untok_restores_the_source(casevo, s):
     ([(P.K_OP, '=', 0, 0, 0), (P.K_OP, '=', 0, 0, 0)], '=='),
     ([(P.K_NUM, 1e20, 0, 0, 0)], '1E+20'),
     ([(P.K_NUM, (3, 4), 0, 0, 0)], '3/4'),
+    ([(P.K_NUM, (2, 1), 0, 0, 0), (P.K_NAME, 'E', 0, 0, 0)], '2E'),
+    ([(P.K_NUM, 1e5, 0, 0, 0), (P.K_NAME, 'E5', 0, 0, 0)], '100000.0 E5'),
+    ([(P.K_NUM, (2, 1), 0, 0, 0), (P.K_NAME, 'E', 0, 0, 0), (P.K_OP, '-', 0, 0, 0),
+      (P.K_NUM, (3, 1), 0, 0, 0)], '2E- 3'),                  # not the float 2E-3
+    ([(P.K_NUM, 2.5, 0, 0, 0), (P.K_NAME, 'E', 0, 0, 0), (P.K_OP, '+', 0, 0, 0),
+      (P.K_NUM, (3, 1), 0, 0, 0)], '2.5E+ 3'),
+    ([(P.K_NAME, 'x', 0, 0, 0), (P.K_NAME, 'E', 0, 0, 0), (P.K_OP, '-', 0, 0, 0),
+      (P.K_NUM, (3, 1), 0, 0, 0)], 'x E-3'),
 ])
 def test_untok_without_source_keeps_tokens_apart(toks, text):
     assert P.untok(toks) == text

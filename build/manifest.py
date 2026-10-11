@@ -105,9 +105,16 @@ FAMILY = {
     'defb': 'def', 'sumb': 'sum', 'odeb': 'ode', 'odec': 'ode',
 }
 
-# Memory model (DESIGN 4.1, 18.1, 18.7). Provisional until the M0.5 gate.
+# Memory model (DESIGN 4.1, 18.1, 18.7). CALIBRATION says where the numbers come from:
+# 'provisional' = the DESIGN 18 estimates, because the M0.5 device run (PRBMEM on the
+# PRBL100/200/300 modules) is still pending. `python build/genprobe.py --derive FILE --apply`
+# writes the measured values here (probe/README-MEM.md); T1.15 re-measures the real T1 bundle.
+CALIBRATION = 'provisional'
 FACTOR = 1.8      # RAM bytes per .mpy byte; set by the M0.5 gate (section 18.7)
 PEAKB = 80        # compile peak in bytes per source line; set by the M0.5 gate
 LAZYMAX = 150     # lines per lazy part; set by the M0.5 gate
+NMAX = 768        # node slots preallocated at boot (DESIGN 5.1); set by the M0.5 gate
+EVICT = 'modules'           # eviction: 'modules', 'dict' (__dict__.clear() first) or 'none'
+DRAW_EVICTABLE = False      # ladder step 4 (DESIGN 18.8): CVDRAW evictable during a command
 FRAG = 3072       # fragmentation allowance per import, bytes
 MPYB = 12.5       # .mpy bytes per minified line [M]: COST estimate when mpy-cross is missing

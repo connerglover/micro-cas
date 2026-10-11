@@ -3568,6 +3568,15 @@ CPython: an LRU victim that is live is skipped, and the next one is evicted [M].
 
 ### 18.7 Calibration: the M0.5 gate (before T1.1) and T1.15
 
+**Status (M0.5, 2026-10-10): device run pending.** `build/genprobe.py` and `probe/PRBL100.py`,
+`PRBL200.py`, `PRBL300.py` exist; the user has not run PRBMEM yet (`probe/README-MEM.md`). Until
+then every number of §4.1 and §18 stays provisional, and `build/manifest.py` says so
+(`CALIBRATION = 'provisional'`, with `FACTOR 1.8`, `PEAKB 80`, `LAZYMAX 150`, `NMAX 768`,
+`EVICT 'modules'` and CVDRAW resident). T1.1 and T1.2 proceed on these numbers (D13 relaxed for
+this run); T1.15 measures the real T1 bundle in any case. `python build/genprobe.py --derive
+FILE --apply` turns the transcript into the manifest values; `docs/notes/M0.5.md` lists the
+rest of the follow-up.
+
 **M0.5 memory gate (before T1.1).** The design's code-size factors are assumptions, and every lazy
 module's size depends on them, so they are measured before any module is written.
 `build/genprobe.py` generates three modules of 100, 200 and 300 lines (`PRBL100`, `PRBL200`,
