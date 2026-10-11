@@ -10,8 +10,10 @@ web
 
 Implementation choice under the user's standing instruction to work autonomously:
 static HTML, CSS and JavaScript, with the EVO transport from WebTILP. No account,
-application server or upload of calculator contents is needed. Hosting remains
-an open deployment decision; local use must work immediately.
+application server or upload of calculator contents is needed. The user requested
+Cloudflare Pages hosting on their existing connerglover.com domain. The proposed
+hostname is cas.connerglover.com; local use remains available. See docs/HOSTING.md
+and HANDOVER.md for deployment status.
 
 ## Users
 
@@ -37,8 +39,9 @@ browser transfer experience. Browser permission still requires a user gesture.
 - Validate package integrity before transfer; report interruption and retry.
 - Do not remove unrelated calculator content or change calculator firmware.
 - Physical EVO transfer and execution have not been verified by this agent.
-- Repository is private. Publishing source or a public site requires a concrete
-  deployment decision; do not change repository visibility.
+- Repository stays private. The user authorized publishing the built installer
+  and attaching a subdomain in Cloudflare. Publish only the website output,
+  including the calculator download and required corresponding-source archives.
 - Accessibility: semantic controls, visible focus, status announcements,
   responsive layout and reduced-motion support (implementation requirements).
 

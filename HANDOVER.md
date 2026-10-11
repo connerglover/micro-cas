@@ -22,17 +22,42 @@ Those checks did not establish physical compatibility.
 
 ## Next step
 
-Software delivery is complete. The next acceptance step is the user's physical
+The user now requests Cloudflare Pages hosting on their existing domain. Use
+**cas.connerglover.com**, Pages project **cas-evo**, production branch **v1**.
+Deployment preparation is implemented. The user then requested instructions
+instead of further account automation. Cloudflare authentication was not
+completed (Wrangler OAuth timed out); no Pages project, deployment, DNS record,
+custom-domain binding or deployment secret was created. The site is not live.
+The user will perform the one-time setup in docs/HOSTING.md.
+
+Once hosting is configured, the next acceptance step is the user's physical
 EVO: use the installer, run CASEVO, then run CVTEST in a fresh Python session.
 Record the OS version, complete traceback/free-heap values if a failure occurs,
 and CVTEST's final result. Native checks do not complete hardware acceptance.
 Do not restore the old source-only package or recommend putting all companions
 in RAM. Preserve all T1/T2/T3/UI features when addressing any device feedback.
 
-The user requests no questions and has not requested a PR or visibility change.
-The site is available locally and as an Actions download; public hosting has
-not been configured. There is no outstanding software implementation task in
-this milestone.
+The user requests no questions, wants commits pushed, and has not requested a
+PR or repository visibility change. Publishing the built installer and attaching
+the subdomain are authorized. Credentials must stay out of chat and source files.
+
+## Cloudflare hosting preparation
+
+- `.github/workflows/build.yml` now has a Pages deployment job after the existing
+  complete build. Only `v1` push/manual builds deploy; PRs never publish. It uses
+  that run's `cas-evo-web-installer` artifact, pinned Wrangler 4.149.0 and Node 22.
+- Configure repository secret `CLOUDFLARE_API_TOKEN` (account-scoped Pages Edit),
+  then repository variable `CLOUDFLARE_ACCOUNT_ID` to enable it. Neither was set
+  when this task began. Without the account variable the deploy job is skipped.
+- `build/check_pages.py` checks the exact upload folder for Pages limits,
+  required files/licenses, isolation headers, manifest/vendor hashes and stray
+  root files. The existing downloaded CI artifact passes: 28 files, largest
+  25,642,244 bytes, below the 26,214,400-byte limit. GPL source ZIPs remain served.
+- Workflow validation: actionlint 1.7.12 passes (official release SHA-256 checked).
+- `docs/HOSTING.md` documents Direct Upload, custom-domain binding, token setup
+  and production verification. PRODUCT.md records the new hosting authorization.
+- Local `.wrangler/` state is ignored. Deploy only the built `website/` folder;
+  preserve private repository/design briefs and unrelated DNS records.
 
 ## Final delivery verification
 

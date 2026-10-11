@@ -118,6 +118,7 @@ jobs:
         run: |
           node --test website/tests/*.test.js
           python build/website.py
+          python build/check_pages.py dist/website
 
       - name: Upload local web installer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -139,3 +140,47 @@ jobs:
             dist/cas-evo-calculator.zip
           if-no-files-found: error
           retention-days: 14
+
+  deploy:
+    name: Publish installer to Cloudflare Pages
+    needs: build
+    # Account ID is a repository variable. Leave unset until Pages and its
+    # deployment token are configured. Pull requests never publish production.
+    if: >-
+      github.ref == 'refs/heads/v1' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      vars.CLOUDFLARE_ACCOUNT_ID != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out deployment checks
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Download this run's tested installer
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cas-evo-web-installer
+          path: dist/pages
+
+      - name: Check the exact publication directory
+        run: python3 build/check_pages.py dist/pages/website
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Publish production installer
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo '::error::Set the CLOUDFLARE_API_TOKEN repository secret before enabling deployment.'
+            exit 1
+          fi
+          npx --yes wrangler@4.149.0 pages deploy dist/pages/website --project-name cas-evo --branch v1 --commit-hash "$GITHUB_SHA"
