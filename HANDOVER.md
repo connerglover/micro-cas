@@ -1,6 +1,6 @@
 # cas-evo handover
 
-Updated: 2026-10-11, multi-file transfer fix and constrained-heap validation in progress.
+Updated: 2026-10-11, transfer fix committed; heap optimizations in progress.
 Branch: v1. Remote: https://github.com/connerglover/cas-evo.git (private).
 
 ## Current outcome
@@ -22,10 +22,16 @@ invalidated before building. No oversized-development override remains.
 Finish constrained 32-bit native validation, final package/converter checks,
 commit and push v1, then verify the GitHub Actions build and downloadable ZIP.
 Update this handover with final results before stopping. The first paged native
-32-bit test at 173,360B booted the UI, but only 21/55 diagnostic commands passed.
-Tracebacks show native allocation failures during carrier import/compilation,
-not the admission guard. Collection before and after carrier import has just
-been added and is awaiting re-test. Do not claim heap acceptance from a model.
+32-bit test at 173,360B booted the UI but passed only 21/55 diagnostic commands.
+Moving preload after input-frame return and safely reusing short global/local
+names improved this to 38/55 (before correcting one renamed probe expectation).
+Calculus still exhausts heap. Do not claim heap acceptance from a model.
+
+Current package is 110 files / 264,489 source bytes. 101 focused shrink and
+actual-artifact tests pass, including strict depth and failure recovery. The
+converter capture still describes the earlier package and must be refreshed.
+Experimental generator paging and dynamic node backing are isolated under
+ignored dist; neither is adopted in the production builder yet.
 
 The current provisional stage subtotal is about 139KB, below the unchanged
 173,360B measured free Python heap, but excludes namespaces, working data, lazy
@@ -52,8 +58,10 @@ Conner's device checks. Never report them as passed from host evidence.
 ## Implemented milestones
 
 T1 841cbfe; T2 2273a6d; T3 c08edd0; UI d767ade; MicroPython compatibility 699cc12;
-previous single-file/CI packaging f19de2b. Current uncommitted milestone replaces
-that packaging with demand-loaded companions and transfer-limit validation.
+previous single-file/CI packaging f19de2b; transferable companions cffa02e.
+The next milestone reuses names across separate namespaces and frees the input
+frame before compiling math families. It preserves the original eight-frame
+budget, memory guards, and mathematical behavior.
 
 T2/T3 notes document bounds and unsupported cases: this is not an unrestricted
 symbolic math engine. Preserve the implemented behavior and formal fallbacks.

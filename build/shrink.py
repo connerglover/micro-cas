@@ -194,12 +194,20 @@ def _short_names():
         width += 1
 
 
-def make_mapping(sources, reserved=()):
+def make_mapping(sources, reserved=(), local_names=False):
     """Return a stable old-name -> new-name dict; keys in sources are import module names."""
     trees = {name: ast.parse(source, filename=name) for name, source in sources.items()}
     candidates = set()
     for tree in trees.values():
         candidates.update(_bindings(tree))
+        if local_names:
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+                    candidates.add(node.id)
+                elif isinstance(node, ast.arg):
+                    candidates.add(node.arg)
+                elif isinstance(node, ast.ExceptHandler) and node.name:
+                    candidates.add(node.name)
     blocked = _native_names() | set(reserved)
     used = set(blocked)
     counts = {}
@@ -271,10 +279,82 @@ def make_mapping(sources, reserved=()):
     return mapping
 
 
-def transform(source, mapping):
+def _lexical_names(source):
+    """Names sharing lexical namespaces; attributes belong to their receiver."""
+    names = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Name):
+            names.add(node.id)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.arg):
+            names.add(node.arg)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            names.add(node.name)
+        elif isinstance(node, (ast.Global, ast.Nonlocal)):
+            names.update(node.names)
+    return names
+
+
+def coalesce_mapping(sources, mapping, extra_sources=(), reserved=()):
+    """Reuse fresh spellings only for names that never share a module's scopes.
+
+    MicroPython retains interned identifier strings even after code eviction.
+    Coloring this conservative interference graph bounds that permanent pool.
+    Attribute accesses and proven reflection still use the universal word map;
+    every target namespace's own lexical bindings keep distinct spellings.
+    Extra entry/probe sources participate in capture prevention too.
+    """
+    conflicts = {name: set() for name in mapping}
+    extra_sources = tuple(extra_sources)
+    unavailable = _native_names() | set(reserved)
+    written = set()
+    for source in list(sources.values()) + list(extra_sources):
+        for token in tokenize.generate_tokens(io.StringIO(source).readline):
+            if token.type == tokenize.NAME:
+                unavailable.add(token.string)
+        for node in ast.walk(ast.parse(source)):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value.isidentifier():
+                unavailable.add(node.value)
+            elif isinstance(node, ast.Attribute) and isinstance(node.ctx, (ast.Store, ast.Del)):
+                written.add(node.attr)
+            elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in REFLECT:
+                if len(node.args) > 1 and isinstance(node.args[1], ast.Constant):
+                    written.add(node.args[1].value)
+        names = _lexical_names(source) & mapping.keys()
+        for name in names:
+            conflicts[name].update(names - {name})
+    # Writes can introduce a receiver binding absent from its own source. Keep
+    # these spellings unique without assuming that every module alias is static.
+    for name in written & mapping.keys():
+        conflicts[name].update(mapping.keys() - {name})
+        for other in mapping.keys() - {name}:
+            conflicts[other].add(name)
+    targets = []
+    fresh = _short_names()
+    result = {}
+    for name in sorted(mapping, key=lambda name: (-len(conflicts[name]), name)):
+        used = {result[other] for other in conflicts[name] if other in result}
+        target = next((target for target in targets if target not in used), None)
+        if target is None:
+            target = next(fresh)
+            while target in unavailable:
+                target = next(fresh)
+            targets.append(target)
+        if len(target) >= len(name):
+            raise ShrinkError('no profitable identifier for entry constraints')
+        result[name] = target
+    return result
+
+
+def transform(source, mapping, allow_reuse=False):
     """Apply a mapping produced by make_mapping; preserve every physical line and comment."""
-    if len(set(mapping.values())) != len(mapping):
+    if not allow_reuse and len(set(mapping.values())) != len(mapping):
         raise ShrinkError('replacement names must be unique')
+    if allow_reuse:
+        active = _lexical_names(source) & mapping.keys()
+        if len({mapping[name] for name in active}) != len(active):
+            raise ShrinkError('replacement names collide in a lexical namespace')
     for before, after in mapping.items():
         if not before.isidentifier() or not after.isidentifier() or keyword.iskeyword(after):
             raise ShrinkError('invalid replacement identifier')
@@ -303,7 +383,17 @@ def transform(source, mapping):
     return source
 
 
-def shrink_sources(sources, reserved=()):
+def shrink_sources(sources, reserved=(), reuse=False, extra_sources=(), local_names=False):
     """Return ({module: transformed source}, mapping), deterministic across dict order."""
-    mapping = make_mapping(sources, reserved)
-    return {name: transform(source, mapping) for name, source in sources.items()}, mapping
+    mapping = make_mapping(sources, reserved, local_names)
+    extra_sources = tuple(extra_sources)
+    # Entry/probe text is transformed with the same map later. Its user-facing
+    # strings are not reflection metadata and must never become identifiers.
+    for source in extra_sources:
+        for node in ast.walk(ast.parse(source)):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                mapping.pop(node.value, None)
+    if reuse:
+        mapping = coalesce_mapping(sources, mapping, extra_sources, reserved)
+    return {name: transform(source, mapping, allow_reuse=reuse)
+            for name, source in sources.items()}, mapping

@@ -39,8 +39,17 @@ def replace(source, old, new):
 def hooks(sources):
     """Install transitions at frame-safe boundaries, before identifier shrinking."""
     s = sources['CVRUN']
-    s = replace(s, 'code,ctx=start(job)', "CVPH.unload('ui')\n  CVPH.unload('print')\n  evict_all()\n  CVPH.load('input')\n  code,ctx=start(job)")
-    s = replace(s, 'for k in ks:', "CVPH.unload('input')\n if job[0]=='form':\n  CVPH.load('print')\n for k in ks:")
+    a = s.index(' for k in ks:')
+    b = s.index(' CTX=ctx', a)
+    preload = s[a:b]
+    s = replace(s, preload + ' CTX=ctx\n return code,ctx',
+                ' CTX=ctx\n return code,ctx,ks,rs')
+    s = replace(s, 'code,ctx=start(job)',
+        "CVPH.unload('ui')\n  CVPH.unload('print')\n  evict_all()\n  CVPH.load('input')\n"
+        "  ready=start(job)\n  code,ctx=ready[:2]\n  CVPH.unload('input')\n"
+        "  if code is not None:\n   ks,rs=ready[2],ready[3]\n"
+        "   if job[0]=='form':\n    CVPH.load('print')\n" +
+        ''.join('  ' + line + '\n' for line in preload.splitlines()) + '  ready=None')
     s = replace(s, 'rec=PR.record(val,', "top=y=g=None\n    LIVE.clear()\n    del PINNED[:]\n    evict_all()\n    K.RULECACHE.clear()\n    K.TCACHE.clear()\n    K.FCACHE.clear()\n    val=K.keep(K.BASE,val)\n    CVPH.load('print')\n    rec=PR.record(val,")
     s = replace(s, 'K.reset()\n', "K.reset()\n CVPH.unload('input')\n CVPH.unload('print')\n")
     sources['CVRUN'] = 'import CVPH\n' + s
@@ -140,7 +149,8 @@ def prepare(dist):
             mapped.extend(spans[a:b] if tag == 'equal' else [None] * (d-c))
         origins[mod] = mapped
     spec = groups(sources)
-    shrunk, mapping = shrink.shrink_sources(sources, reserved=('MODS', 'need', 'DEV'))
+    shrunk, mapping = shrink.shrink_sources(sources, reserved=('MODS', 'need', 'DEV'),
+        reuse=True, local_names=True, extra_sources=((ROOT/'probe/CVTEST.py').read_text('ascii'),))
     spec = {mod: {phase: [mapping.get(n, n) for n in names] for phase, names in g.items()}
             for mod, g in spec.items()}
     facades, extras, metadata = phases.pack(shrunk, spec)
@@ -239,7 +249,7 @@ def build(dist=ROOT / 'dist'):
              for name, source in sorted(output.items())}
     files['CASEVO.py'] = code.encode('ascii')
     probe = bundle.minify((ROOT/'probe/CVTEST.py').read_text()).text
-    probe = shrink.transform(probe, meta['names'])
+    probe = shrink.transform(probe, meta['names'], allow_reuse=True)
     probe = dictionaries(probe, output)
     probe_code = "import gc\nprint('CVTEST startup heap',gc.mem_free())\n" + LOADER + '\n# RUN\n' + probe
     files['CVTEST.py'] = probe_code.encode('ascii')

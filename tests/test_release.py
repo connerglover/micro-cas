@@ -79,7 +79,7 @@ def test_phase_boundaries_during_math_and_output(app):
     events = []
 
     def observe(frame, phase):
-        if frame.f_code.co_name in (app.name('g_eval'), app.name('record')):
+        if app.is_function(frame, 'CVPARSE', 'g_eval') or app.is_function(frame, 'CVPRINT', 'record'):
             events.append((frame.f_code.co_name, phase))
 
     app.observer = observe
@@ -165,7 +165,7 @@ def test_actual_entry_loads_ui_before_interaction(release_module):
     states = []
 
     def observe(frame, phase):
-        if frame.f_code.co_name == app.name('key'):
+        if app.is_function(frame, 'CVUI', 'key'):
             states.append(phase)
 
     app.observer = observe
@@ -189,10 +189,10 @@ def test_actual_entry_repeated_ui_admission_failure_recovers(release_module):
 
     def observe(frame, phase):
         name = frame.f_code.co_name
-        if name == app.name('finish') and state['armed']:
+        if app.is_function(frame, 'CVRUN', 'finish') and state['armed']:
             state['armed'] = False
             app.free_memory = 0
-        elif name == app.name('panic'):
+        elif app.is_function(frame, 'CVUI', 'panic'):
             state['panics'].append(phase)
             if len(state['panics']) == 2:
                 app.free_memory = 175 * 1024
@@ -212,7 +212,7 @@ def test_actual_entry_mode_exits_when_ui_cannot_load(release_module):
     app = release_module.Release()
 
     def observe(frame, phase):
-        if frame.f_code.co_name == app.name('finish'):
+        if app.is_function(frame, 'CVRUN', 'finish'):
             app.free_memory = 0
 
     app.observer = observe

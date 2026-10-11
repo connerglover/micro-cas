@@ -77,6 +77,105 @@ def test_multimodule_mutation_registry_dispatch_and_local_alias(monkeypatch):
     assert "'core'" in outputs['shloader'] and "'command'" in outputs['shloader']
 
 
+def test_reuse_preserves_cross_module_mutation_and_dynamic_dispatch(monkeypatch):
+    sources = example()
+    outputs, names = shrink.shrink_sources(sources, reuse=True)
+    assert len(set(names.values())) < len(names)
+    modules = load(outputs, monkeypatch)
+    client = modules['shclient']
+    assert getattr(client, names['direct_read'])() == (3, 3)
+    assert next(next(getattr(client, names['g_dispatch'])(4))) == 7
+    assert getattr(modules['shcore'], names['SHARED_COUNTER']) == 7
+    reverse, other = shrink.shrink_sources(dict(reversed(list(sources.items()))), reuse=True)
+    assert other == names and reverse == outputs
+
+
+def test_reuse_keeps_parameters_closures_and_globals_distinct(monkeypatch):
+    sources = {
+        'shone': 'left_value=11\ndef read_value(right_value):\n def inner():\n  return left_value+right_value\n return inner()\n',
+        'shtwo': 'right_value=20\nthird_value=30\n',
+    }
+    outputs, names = shrink.shrink_sources(sources, reuse=True)
+    modules = load(outputs, monkeypatch)
+    assert names['left_value'] != names['right_value']
+    assert getattr(modules['shone'], names['read_value'])(4) == 15
+
+
+def test_reuse_includes_extra_entry_scopes_and_avoids_capture():
+    sources = {'shone': 'first_value=1\n', 'shtwo': 'second_value=2\n'}
+    extra = 'aa=40\nfirst_value=1\nsecond_value=2\nanswer=aa+first_value+second_value\n'
+    _, names = shrink.shrink_sources(sources, reuse=True, extra_sources=(extra,))
+    assert names['first_value'] != names['second_value']
+    assert 'aa' not in names.values()
+    ns = {}
+    exec(shrink.transform(extra, names, allow_reuse=True), ns)
+    assert ns['answer'] == 43
+
+
+def test_reuse_rejects_collisions_in_one_lexical_namespace():
+    with pytest.raises(shrink.ShrinkError, match='lexical'):
+        shrink.transform('first_value=1\nsecond_value=2\n',
+                         {'first_value': 'aa', 'second_value': 'aa'}, allow_reuse=True)
+
+
+def test_reuse_keeps_exception_binding_separate_from_global(monkeypatch):
+    inputs = {'shone': 'first_value=1\n',
+              'shtwo': 'second_value=2\ndef read_result():\n try:\n  pass\n except Exception as first_value:\n  pass\n return second_value\n'}
+    outputs, names = shrink.shrink_sources(inputs, reuse=True)
+    modules = load(outputs, monkeypatch)
+    assert getattr(modules['shtwo'], names['read_result'])() == 2
+
+
+@pytest.mark.parametrize('write', ('B.first_value=3', 'setattr(B,"first_value",3)'))
+def test_reuse_keeps_new_receiver_bindings_separate(monkeypatch, write):
+    inputs = {'shone': 'first_value=1\n', 'shtwo': 'second_value=2\n',
+              'shthree': 'import shtwo as B\n' + write + '\nresult=B.second_value\n'}
+    outputs, names = shrink.shrink_sources(inputs, reuse=True)
+    modules = load(outputs, monkeypatch)
+    assert getattr(modules['shthree'], names['result']) == 2
+
+
+def test_reuse_preserves_missing_reflected_attributes(monkeypatch):
+    inputs = {'shone': 'first_value=1\n', 'shtwo': 'second_value=2\n',
+              'shthree': 'import shtwo as B\nresult=hasattr(B,"first_value")\n'}
+    outputs, names = shrink.shrink_sources(inputs, reuse=True)
+    modules = load(outputs, monkeypatch)
+    assert getattr(modules['shthree'], names['result']) is False
+
+
+def test_reuse_preserves_explicit_reservations():
+    _, names = shrink.shrink_sources({'shone': 'long_value=1\n'},
+                                    reserved=('aa', 'ab'), reuse=True)
+    assert names['long_value'] == 'ac'
+
+
+def test_local_names_preserve_extra_probe_expectations():
+    inputs = {'shone': 'def read_result():\n oscillates=True\n return oscillates\n'}
+    extra = "expected='oscillates'\n"
+    outputs, names = shrink.shrink_sources(inputs, reuse=True, local_names=True,
+                                          extra_sources=(extra,))
+    assert 'oscillates' not in names
+    assert shrink.transform(extra, names, allow_reuse=True) == extra
+
+
+def test_local_names_keep_keywords_and_exception_aliases(monkeypatch):
+    inputs = {'shone': source('''
+        def calculate_result(long_parameter, keyword_parameter=2):
+            local_value = long_parameter + keyword_parameter
+            try:
+                raise ValueError('bad')
+            except ValueError as caught_error:
+                local_value += len(str(caught_error))
+            return local_value
+        result = calculate_result(4, keyword_parameter=3)
+        ''')}
+    outputs, names = shrink.shrink_sources(inputs, reuse=True, local_names=True)
+    assert {'long_parameter', 'local_value', 'caught_error'} <= names.keys()
+    assert 'keyword_parameter' not in names
+    modules = load(outputs, monkeypatch)
+    assert getattr(modules['shone'], names['result']) == 10
+
+
 def test_mapping_deterministic_unique_fresh_and_profitable():
     sources = example()
     sources['shother'] = 'aa=1\nab=2\nac=3\nlong_counter=4\ndef local_user(long_counter):\n return long_counter+aa\n'

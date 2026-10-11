@@ -99,6 +99,11 @@ class Release:
     def name(self, old):
         return self.meta['names'].get(old, old)
 
+    def is_function(self, frame, module, old):
+        owner = Path(frame.f_code.co_filename).stem
+        owner = self.meta['payloads'].get(owner, {}).get('module', owner)
+        return owner == module and frame.f_code.co_name == self.name(old)
+
     def module(self, name):
         return self.env[self.meta['modules'].get(name, name)]
 
@@ -198,7 +203,7 @@ class Release:
                 namespace[old] = namespace[new]
         problems = invariants.scan(SimpleNamespace(**namespace))
         assert not problems, problems[:5]
-        assert all(namespace.get(self.name('SIMPBUG'), 0) == 0 for namespace in self.env.values())
+        assert self.env.get('CVNORMB', {}).get(self.name('SIMPBUG'), 0) == 0
 
     def run(self, script):
         TS.reset()
