@@ -148,8 +148,21 @@ for name, record in CVTEST.ENGINE_MATH:
 print('PROBE PASS: 55/55')
 '''
 
+STARTUP = '''# Stop at CVTEST's first page, after the real resident engine loads.
+import gc
+import ti_system as TS
+TS.wait_key=iter(()).__next__
+try:
+ import CVTEST
+except StopIteration:
+ gc.collect()
+ print('STARTUP PASS: resident engine; %d bytes free' % gc.mem_free())
+else:
+ raise AssertionError('CVTEST did not reach its first diagnostic page')
+'''
 
-def prepare(dist, output):
+
+def prepare(dist, output, archive=None):
     """Copy immutable release bytes and validate every generated script's syntax."""
     dist, output = Path(dist).resolve(), Path(output).resolve()
     if output == dist:
@@ -167,21 +180,43 @@ def prepare(dist, output):
                            status=repr(names.get('STATUS', 'STATUS')),
                            hist=repr(names.get('HIST', 'HIST'))),
         'probe.py': PROBE,
+        'startup.py': STARTUP,
         'ui_calculus.py': calculus_ui(names),
     }
     for name, source in scripts.items():
         ast.parse(source, filename=name, feature_version=(3, 4))
         compile(source, name, 'exec')
     output.mkdir(parents=True, exist_ok=True)
-    for name in meta['files']:
-        path = dist / name
+    files = {name: dist / name for name in meta['files']}
+    if archive is not None:
+        archive = Path(archive)
+        manifest = json.loads((archive / 'archive.json').read_text('ascii'))
+        if not manifest.get('runtimeCompilation') is False:
+            raise ValueError('archive still requires runtime compilation')
+        if {f['module'] + '.py' for f in manifest['files']} != set(files):
+            raise ValueError('archive and release modules differ')
+        files = {}
+        for info in manifest['files']:
+            name = info['name']
+            if Path(name).name != name or Path(name).suffix not in ('.py', '.mpy'):
+                raise ValueError('unsafe archive member: ' + name)
+            path = archive / name
+            data = path.read_bytes()
+            if len(data) != info['bytes'] or hashlib.sha256(data).hexdigest() != info['sha256']:
+                raise ValueError('archive checksum mismatch: ' + name)
+            files[name] = path
+            # A stale .py would silently shadow the bytecode under test.
+            alternate = output / (info['module'] + ('.py' if name.endswith('.mpy') else '.mpy'))
+            if alternate.is_file():
+                alternate.unlink()
+    for name, path in files.items():
         target = output / path.name
         shutil.copyfile(path, target)
         assert target.read_bytes() == path.read_bytes()
     for name, source in scripts.items():
         (output / name).write_text(source, encoding='ascii', newline='\n')
     hashes = []
-    for name in sorted(meta['files']):
+    for name in sorted(files):
         hashes.append(hashlib.sha256((output / name).read_bytes()).hexdigest() + '  ' + name)
     (output / 'SHA256SUMS').write_text('\n'.join(hashes) + '\n', encoding='ascii', newline='\n')
     return output
@@ -191,14 +226,15 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dist', type=Path, default=ROOT / 'dist')
     parser.add_argument('--output', type=Path, help='default: DIST/micro-smoke')
+    parser.add_argument('--archive', type=Path, help='test actual MPY v5 archive files instead of source carriers')
     parser.add_argument('--run', metavar='MICROPYTHON', help='explicitly run this native executable')
     parser.add_argument('--heap', type=int, default=512000,
                         help='native MicroPython heap bytes (default 512000 = 500 KiB)')
-    parser.add_argument('--suite', choices=('all', 'ui', 'ui_calculus', 'probe'), default='all')
+    parser.add_argument('--suite', choices=('all', 'ui', 'ui_calculus', 'probe', 'startup'), default='all')
     args = parser.parse_args(argv)
     if args.heap <= 0:
         parser.error('--heap must be a positive byte count')
-    output = prepare(args.dist, args.output or args.dist / 'micro-smoke')
+    output = prepare(args.dist, args.output or args.dist / 'micro-smoke', args.archive)
     print('Prepared ' + str(output))
     print('Not an EVO emulator; native object sizes and limits differ, especially on 64-bit hosts.')
     print('No framebuffer is allocated. Each script runs in its own process.')

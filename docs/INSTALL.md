@@ -1,47 +1,60 @@
 # Install cas-evo on the TI-84 EVO
 
-The package preserves the full v1 feature set across **238 small Python files**.
-The largest is 6,238 bytes; total Python source is 317,277 bytes. Every file
-passed TI Connect Evo's actual converter. Physical transfer and execution on an
-EVO still need testing.
+Use **cas-evo-calculator.zip**, the compiled EVO package. It preserves all v1
+features with **236 compiled libraries in archive and two launchers in RAM**.
+The transfer objects total about 261 KiB; the two launcher sources total 6,760
+bytes. This is well below the 3.5 MB storage allowance. Runtime Python heap is
+a separate, smaller budget.
 
-The earlier single-file CASEVO.py was too large and produced the generic
-"One or more files was invalid" error. This package replaces that build.
-Companions also let the engine release source after compilation instead of
-keeping the full 87 KB compressed archive in its Python heap.
+This replaces the source package that reported `MemoryError: phase compile
+memory` in both CASEVO and CVTEST. Compiling source carriers alone did not fix
+that error: their loader still invoked `exec`. The new package imports compiled
+initializers and never compiles the engine on the calculator. The launchers
+remain small Python source programs so they appear in the Python app.
 
 ## Get the program
 
 From a successful **Build calculator app** GitHub Actions run, download the
-**cas-evo-v1** artifact. Extract the download, then extract `cas-evo-v1.zip`
-inside it into a new folder. For local builds, extract `dist/cas-evo-v1.zip`.
-Use the ZIP's files, not development files under `src/` or `dist/device/`.
+**cas-evo-v1** artifact. Extract the download, then extract
+`cas-evo-calculator.zip` inside it into a new folder. For local builds, use
+`dist/cas-evo-calculator.zip`. The older `dist/cas-evo-v1.zip` is now an internal
+source-build input, not the calculator download. Do not mix these packages.
 
 ## Transfer and launch
 
-1. Turn on the EVO and connect it to the computer with a USB data cable.
-2. Open [TI Connect Evo](https://connectevo.ti.com) in a browser supported by TI.
-   Select **Connect to Calculator**, choose the EVO, and connect.
-3. Open **Send Files**, then **Send to Calculator**. Select **all 238 `.py`
-   files from the extracted folder** together. Do not select the ZIP, JSON,
-   Markdown or checksum files. Keep every Python filename unchanged. Allow
-   CASEVO/CVTEST to replace earlier versions and wait for transfer to finish.
-4. Open the calculator's **Python** app, select **CASEVO**, and run it.
-5. The cas-evo screen should show `RAD`, an edit line, and the five bottom labels
+1. Exit Python, turn on the EVO, and connect a USB data cable. Close TI Connect
+   and any other calculator connection tabs.
+2. Open the cas-evo installer in desktop Chrome or Edge. For a local build, run
+   `python build/serve_website.py` and visit `http://127.0.0.1:4173`.
+3. Choose **Connect your EVO**, select the calculator's serial port, then
+   **Install cas-evo**. The installer checks space, moves matching old source
+   companions out of RAM, sends the compiled libraries to archive, sends the
+   launchers to RAM, and verifies their locations. Wait for completion.
+4. Start a fresh **Python** session, select **CASEVO**, and run it.
+5. The screen should show `RAD`, an edit line, and the five bottom labels
    `menu`, `recall`, `setup`, `forms`, and `help`.
 
-Keep the companions on the calculator: CASEVO imports them on demand. Only
-CASEVO and CVTEST are entry programs. Running a support module individually
-will not start the app. If a module is missing, re-send all `.py` files from the
-same ZIP. Avoid mixing builds. Python objects use about 0.33 MB before device
-storage bookkeeping, below the 3.5 MB total allowance.
+For manual transfer, use [WebTILP](https://adriweb.github.io/tilibs/). Send every
+`.8mp2` library from the ZIP to **Archive**, then send `CASEVO.8xpy2` and
+`CVTEST.8xpy2` to **RAM**. Keep their names unchanged. Do not send JSON, Markdown,
+checksum files, raw `.mpy`, or source files from `src/` or `dist/device/`.
+WebTILP handles the older EVO 7.0 compiled-module container when needed.
 
-TI documents the connection and file-transfer controls in its
-[TI Connect Evo guide](https://education.ti.com/en/product-resources/eguides/eguide-84-evo/evo-connect-user-guide).
-Its [product page](https://education.ti.com/en/products/calculators/graphing-calculators/ti-84-evo/ti-connect-evo)
-lists Python-program transfer and current browser requirements. Those pages do
-not specify the raw `.py` conversion limit; that limit was tested directly in
-the converter. Renaming the extension does not convert or shrink Python data.
+If you previously installed the source package, move its old companion programs
+out of RAM before opening Python. The installer checks their source hashes before
+moving them. If one differs, it leaves the file intact and identifies it for
+manual handling. It does not erase RAM, unrelated programs, or firmware.
+
+Only CASEVO and CVTEST should appear as launchable programs. The compiled
+companions stay in archive and load on demand. Ordinary archived `.py` files
+cannot replace compiled `.8mp2` libraries. Merely renaming a file does not convert
+it. Reinstall the complete package if a companion is missing.
+
+The EVO format and archive behavior come from
+[WebTILP's EVO implementation](https://github.com/adriweb/tilibs) and the
+[EVO Python transfer implementation](https://github.com/Evo-Programming/evo_usb_py).
+Physical USB transfer and execution of this cas-evo package still need hardware
+acceptance; native tests are not an EVO emulator.
 
 ## First checks
 
@@ -101,12 +114,17 @@ Photograph each page and press ENTER to continue; CLEAR at a page prompt stops.
 The expected final line is `CVTEST: 55/55 PASS`.
 
 The EVO probes measured **173,360 bytes of free Python heap** after native
-imports. The release passes all 55 diagnostics and an arithmetic/quit UI check
-on native 32-bit MicroPython with a 173,360-byte total heap. Graphics are shimmed,
-so this is not a calculator measurement. Code loads in small pages, node storage
-grows only as needed, and temporary code/cache data is released. If either program
+imports. The build checks the actual MPY v5 bytecode on native 32-bit MicroPython
+with a 173,360-byte total heap, including all 55 diagnostics and UI sessions.
+An additional 95,000-byte startup regression reproduces the old exact error
+and checks that the compiled loader reaches CVTEST's first page. Graphics are
+shimmed, so these are not calculator measurements. Code loads in small pages,
+node storage grows only as needed, and temporary code/cache data is released. If either program
 fails before drawing its first screen, keep the complete traceback and any
-free-heap value. Restarting Python creates a fresh session. Small programs in
+free-heap value. The new loader reports the module or phase and available/required
+bytes if its memory reserve cannot be met. Seeing `phase compile memory` still
+means source-loader files from an earlier build are running. Restarting Python
+creates a fresh session. Small programs in
 `probe/` can measure device capabilities without loading the CAS.
 
 For a failed check, keep the expression, displayed result/error, calculator OS

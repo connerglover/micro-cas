@@ -78,6 +78,38 @@ jobs:
           test -s dist/release.json
           test -s dist/SHA256SUMS
 
+      - name: Build pinned EVO bytecode compiler and compatible native runtimes
+        run: |
+          git init "$RUNNER_TEMP/evo-micropython"
+          git -C "$RUNNER_TEMP/evo-micropython" remote add origin https://github.com/micropython/micropython.git
+          git -C "$RUNNER_TEMP/evo-micropython" fetch --depth 1 origin 1f371947309c5ea6023b6d9065415697cbc75578
+          git -C "$RUNNER_TEMP/evo-micropython" checkout --detach FETCH_HEAD
+          # Use portable exception handling with modern GCC; large-file stat is
+          # necessary for 32-bit Linux hosts with 64-bit filesystem inode IDs.
+          make -C "$RUNNER_TEMP/evo-micropython/mpy-cross" -j2 CFLAGS_EXTRA="-Wno-error -DMICROPY_NLR_SETJMP=1"
+          make -C "$RUNNER_TEMP/evo-micropython/ports/unix" -j2 BUILD=build-cas64 PROG=micropython-cas64 MICROPY_PY_USSL=0 MICROPY_PY_BTREE=0 MICROPY_PY_FFI=0 FROZEN_MANIFEST= CFLAGS_EXTRA="-Wno-error -DMICROPY_NLR_SETJMP=1 -D_FILE_OFFSET_BITS=64"
+          make -C "$RUNNER_TEMP/evo-micropython/ports/unix" -j2 BUILD=build-cas32 PROG=micropython-cas32 CC="gcc -m32" MICROPY_PY_USSL=0 MICROPY_PY_BTREE=0 MICROPY_PY_FFI=0 FROZEN_MANIFEST= CFLAGS_EXTRA="-Wno-error -DMICROPY_NLR_SETJMP=1 -D_FILE_OFFSET_BITS=64"
+
+      - name: Compile archive libraries without calculator-side exec
+        run: python build/archive.py --mpy-cross "$RUNNER_TEMP/evo-micropython/mpy-cross/mpy-cross"
+
+      - name: Check archive initializer behavior and depth
+        run: python -m pytest -q tests/test_archive_modules.py tests/test_archive_release.py --strict-depth
+
+      - name: Regress the reported phase compile memory startup failure
+        run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 95000 --suite startup
+
+      - name: Check actual EVO bytecode on a 173360-byte 32-bit heap
+        run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 173360
+
+      - name: Check actual EVO bytecode on a 500000-byte 64-bit heap
+        run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas64" --heap 500000
+
+      - name: Convert and round-trip every EVO transfer object
+        run: |
+          node build/package_archive.mjs
+          python build/archive_zip.py
+
       - name: Verify release checksums
         working-directory: dist
         run: sha256sum --check SHA256SUMS
@@ -87,6 +119,6 @@ jobs:
         with:
           name: cas-evo-v1
           path: |
-            dist/cas-evo-v1.zip
+            dist/cas-evo-calculator.zip
           if-no-files-found: error
           retention-days: 14
