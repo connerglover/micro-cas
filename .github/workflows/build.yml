@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   build:
-    name: Test and package CASEVO.py
+    name: Test and package calculator app
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -42,8 +42,11 @@ jobs:
       - name: Run source acceptance tests
         run: python -m pytest -q -m 'not slow' --strict-depth
 
-      - name: Build the single-file calculator app
+      - name: Build the paged calculator app
         run: python build/release.py
+
+      - name: Enforce TI Connect Evo per-program transfer limits
+        run: python build/transfer.py dist/*.py
 
       - name: Run bundled acceptance tests
         run: python -m pytest -q -m 'not slow' --strict-depth --bundled
@@ -76,11 +79,6 @@ jobs:
         with:
           name: cas-evo-v1
           path: |
-            dist/CASEVO.py
-            dist/CVTEST.py
-            dist/INSTALL.md
-            dist/release.json
-            dist/SHA256SUMS
             dist/cas-evo-v1.zip
           if-no-files-found: error
           retention-days: 14

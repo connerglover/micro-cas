@@ -56,7 +56,7 @@ def _archive_bytes(archive):
     return size
 
 
-def report(output, metadata, archive, decoder, sizer, factor=1.8, heap=173360):
+def report(output, metadata, archive, decoder, sizer, factor=1.8, heap=173360, external=False):
     """Return JSON-ready stage estimates; ``sizer(path)`` returns .mpy bytes.
 
     ``output`` contains transformed source blocks, not CODE-string wrappers.
@@ -95,7 +95,7 @@ def report(output, metadata, archive, decoder, sizer, factor=1.8, heap=173360):
     if not set(archive) <= set(output):
         raise ValueError('archive contains an unknown source')
     missing_archive = set(output) - set(archive) - {'CASEVO'}
-    if missing_archive:
+    if missing_archive and not external:
         raise ValueError('missing archive blocks: ' + ', '.join(sorted(missing_archive)))
     by_phase = {'resident': [], 'ui': [], 'input': [], 'print': []}
     for name, info in sorted(payloads.items()):
@@ -116,8 +116,8 @@ def report(output, metadata, archive, decoder, sizer, factor=1.8, heap=173360):
             sizes[name] = size
         path = Path(temp) / '_decoder.py'
         path.write_text(decoder, encoding='ascii', newline='\n')
-        decoder_size = sizer(str(path))
-        if type(decoder_size) is not int or decoder_size <= 0:
+        decoder_size = 0 if external else sizer(str(path))
+        if not external and (type(decoder_size) is not int or decoder_size <= 0):
             raise ValueError('invalid compiled decoder size')
     scaled = {name: math.ceil(size * factor) for name, size in sizes.items()}
 
@@ -128,7 +128,7 @@ def report(output, metadata, archive, decoder, sizer, factor=1.8, heap=173360):
     facade = subtotal(resident)
     phase_code = {phase: subtotal(names) for phase, names in sorted(by_phase.items())}
     fixed = {'archive_bytes': _archive_bytes(archive),
-             'decoded_dictionary_bytes': _dictionary_bytes(decoder),
+             'decoded_dictionary_bytes': 0 if external else _dictionary_bytes(decoder),
              'node_backing_bytes': NODE_BYTES, 'reserve_bytes': RESERVE_BYTES}
     fixed_total = sum(fixed.values())
     decoder_heap = math.ceil(decoder_size * factor)

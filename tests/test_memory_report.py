@@ -87,6 +87,19 @@ def test_individual_rounding_entry_and_admission_are_separate():
     assert 'does not prove' in got['interpretation']
 
 
+def test_paged_sources_remove_only_archive_and_decoder_costs():
+    output, metadata, archive, decoder, sizes = fixture_data()
+    sizer = lambda p: sizes[Path(p).stem]
+    embedded = mr.report(output, metadata, archive, decoder, sizer)
+    paged = mr.report(output, metadata, {}, '', sizer, external=True)
+    assert paged['fixed_components']['archive_bytes'] == 0
+    assert paged['fixed_components']['decoded_dictionary_bytes'] == 0
+    assert paged['decoder']['mpy_bytes'] == 0
+    assert paged['resident_facades'] == embedded['resident_facades']
+    assert paged['excluded_compiled_blocks'] == embedded['excluded_compiled_blocks']
+    assert paged['max_estimated_heap_bytes'] == embedded['max_estimated_heap_bytes'] - 24 - 5 - 90
+
+
 @pytest.mark.parametrize('storage', ['bytes', 'base85'])
 def test_actual_codec_dictionary_and_archive_payload_size(storage):
     output, metadata, unused, unused_decoder, sizes = fixture_data()

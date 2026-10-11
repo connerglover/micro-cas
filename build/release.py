@@ -1,4 +1,4 @@
-"""Reproducible, single-file EVO release; no on-device filesystem or custom modules.
+"""Reproducible EVO release with small, demand-loaded Python companion files.
 
 The source tree remains normal modules. At build time project module accesses become
 native dictionary lookups into exec namespaces. That preserves live globals without
@@ -22,6 +22,7 @@ import bundle
 import phases
 import shrink
 import memory_report
+import transfer
 
 
 INPUT = 'fnpre fnin mclose cutname scan ti_rewrite ti_implicit untok tokens expand_names'.split()
@@ -115,7 +116,7 @@ def dictionaries(source, modules, seeds=()):
             selected.append(e)
     for lo, hi, text in reversed(selected):
         source = source[:lo] + text + source[hi:]
-    # Loader imports and evictions refer to the archive, never Python's external module path.
+    # Logical namespaces are distinct from the short-lived carrier modules.
     source = source.replace('__import__(DEV[p])', '_load(DEV[p])')
     source = source.replace('sys.modules', '_env')
     return source
@@ -144,12 +145,12 @@ def prepare(dist):
             for mod, g in spec.items()}
     facades, extras, metadata = phases.pack(shrunk, spec)
     allmods = dict(facades, **extras)
-    # Payloads are archive blocks directly, without a second CODE string/module.
+    # Extract source payloads; release packaging gives each one its own carrier.
     for name, info in metadata['payloads'].items():
         allmods[name] = ast.literal_eval(ast.parse(extras[name]).body[0].value)
     controller = allmods['CVPH']
     controller = replace(controller, 'payload=__import__(name)\n  CURRENT=(key,name)\n  exec(payload.CODE,ns)',
-                         "CURRENT=(key,name)\n  payload=_decode(_data[name])\n  exec(payload,ns)")
+                         "CURRENT=(key,name)\n  payload=_read(name)\n  exec(payload,ns)")
     allmods['CVPH'] = controller
     # Rewrite namespaces after shrinking; dynamic loader source has stable helper names.
     output = {}
@@ -178,14 +179,23 @@ def prepare(dist):
 
 
 LOADER = '''import gc
+import sys
 _env={}
+def _read(name):
+ gc.collect()
+ try:
+  return __import__(name).CODE
+ finally:
+  if name in sys.modules:
+   del sys.modules[name]
+  gc.collect()
 def _load(name):
  if name in _env:
   return _env[name]
- ns={'__name__':name,'_load':_load,'_env':_env,'_data':_data,'_decode':_decode,'exec':exec}
+ ns={'__name__':name,'_load':_load,'_env':_env,'_read':_read,'exec':exec}
  _env[name]=ns
  try:
-  code=_decode(_data[name])
+  code=_read(name)
   exec(code,ns)
  except:
   del _env[name]
@@ -197,76 +207,112 @@ def _load(name):
 '''
 
 
+def invalidate(dist):
+    """Discard only known generated release outputs; never leave a stale download."""
+    names = {'CASEVO.py', 'CVTEST.py', 'cas-evo-v1.zip', 'cas-evo-development.zip',
+             'release.json', 'SHA256SUMS', 'INSTALL.md', 'transfer-check.json'}
+    previous = dist / 'release.json'
+    if previous.is_file():
+        meta = json.loads(previous.read_text('ascii'))
+        for name in meta.get('files', {}):
+            if not re.fullmatch(r'[A-Z][A-Z0-9]{0,7}\.py', name):
+                raise ValueError('unsafe previous release filename: ' + name)
+            names.add(name)
+    for name in sorted(names):
+        path = dist / name
+        if path.is_file():
+            path.unlink()
+
+
 def build(dist=ROOT / 'dist'):
     dist = Path(dist)
+    dist.mkdir(parents=True, exist_ok=True)
+    invalidate(dist)
     output, meta = prepare(dist)
-    # codec supplies a self-contained Python 3.4 decoder; each block is independently loaded.
-    import codec
     entry = output.pop('CASEVO')
-    archive, decoder = codec.encode_blocks(output, storage='bytes')
-    code = decoder + '\n_data=' + repr(archive) + '\n' + LOADER + '\n# RUN\n' + entry
-    ast.parse(code, feature_version=(3, 4))
-    path = dist / 'CASEVO.py'
-    path.write_text(code, encoding='ascii', newline='\n')
-    meta['file_bytes'] = path.stat().st_size
-    meta['archive_bytes'] = sum(len(value) for value in archive.values())
-    meta['storage_limit_bytes'] = 3500000
-    meta['python_heap_probe_bytes'] = 173360
-    meta['device_validation'] = 'pending physical EVO run; total user RAM is not the Python heap'
-    if meta['file_bytes'] > meta['storage_limit_bytes']:
-        raise ValueError('single file exceeds calculator storage budget')
-    meta['sha256'] = hashlib.sha256(path.read_bytes()).hexdigest()
-    # Optional self-contained diagnostic program; CASEVO never imports it.
+    meta['sources'].pop('CASEVO', None)
+    code = LOADER + '\n# RUN\n' + entry
+    # Native imports fetch one source string at a time. The loader drops the
+    # carrier module immediately, then drops the string after exec/collection.
+    # No source archive or decompressor remains resident in calculator RAM.
+    files = {name + '.py': ('CODE=' + repr(source) + '\n').encode('ascii')
+             for name, source in sorted(output.items())}
+    files['CASEVO.py'] = code.encode('ascii')
     probe = bundle.minify((ROOT/'probe/CVTEST.py').read_text()).text
     probe = shrink.transform(probe, meta['names'])
     probe = dictionaries(probe, output)
-    probe_code = "import gc\nprint('CVTEST startup heap',gc.mem_free())\n" + decoder + '\n_data=' + repr(archive) + '\n' + LOADER + '\n# RUN\n' + probe
-    (dist / 'CVTEST.py').write_text(probe_code, 'ascii', newline='\n')
-    ast.parse(probe_code, feature_version=(3, 4))
+    probe_code = "import gc\nprint('CVTEST startup heap',gc.mem_free())\n" + LOADER + '\n# RUN\n' + probe
+    files['CVTEST.py'] = probe_code.encode('ascii')
+    for name, data in files.items():
+        ast.parse(data.decode('ascii'), filename=name, feature_version=(3, 4))
+    meta['format'] = 'paged-source-v1'
+    meta['file_bytes'] = len(files['CASEVO.py'])
+    meta['total_source_bytes'] = sum(map(len, files.values()))
+    meta['archive_bytes'] = 0
+    meta['storage_limit_bytes'] = 3500000
+    meta['python_heap_probe_bytes'] = 173360
+    meta['device_validation'] = 'pending physical EVO run; total user RAM is not the Python heap'
+    meta['sha256'] = hashlib.sha256(files['CASEVO.py']).hexdigest()
+    meta['files'] = {name: {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
+                     for name, data in sorted(files.items())}
+    file_checks = {name: transfer.inspect_source(data, name) for name, data in sorted(files.items())}
+    meta['transfer_check'] = {'converter_version': transfer.CONVERTER_VERSION,
+        'fits_converter_limit': all(item['fits_converter_limit'] for item in file_checks.values()),
+        'files': file_checks, 'physical_transfer_verified': False}
+    (dist / 'transfer-check.json').write_text(
+        json.dumps(meta['transfer_check'], indent=2) + '\n', 'ascii', newline='\n')
+    transfer.require_transferable(files)
+    if sum(item['python_object_bytes'] for item in file_checks.values()) > meta['storage_limit_bytes']:
+        raise ValueError('combined Python objects exceed calculator storage budget')
+    for name, data in files.items():
+        (dist / name).write_bytes(data)
     sizer = bundle.mpy_sizer()
     if sizer is None:
         raise ValueError('release requires mpy-cross')
-    meta['mpy_bytes'] = sizer(str(path))
-    meta['probe_mpy_bytes'] = sizer(str(dist/'CVTEST.py'))
-    meta['memory_model'] = memory_report.report(dict(output, CASEVO=LOADER + entry),
-        meta, archive, decoder, sizer, factor=bundle.load_manifest().FACTOR)
+    # Compile every carrier and both entries, not just the desktop intermediates.
+    meta['file_mpy_bytes'] = {name: sizer(str(dist/name)) for name in sorted(files)}
+    meta['mpy_bytes'] = meta['file_mpy_bytes']['CASEVO.py']
+    meta['probe_mpy_bytes'] = meta['file_mpy_bytes']['CVTEST.py']
+    meta['memory_model'] = memory_report.report(dict(output, CASEVO=code),
+        meta, {}, '', sizer, factor=bundle.load_manifest().FACTOR, external=True)
     (dist / 'release.json').write_text(json.dumps(meta, indent=1, sort_keys=True)+'\n', 'ascii', newline='\n')
     (dist / 'INSTALL.md').write_text((ROOT/'docs/INSTALL.md').read_text('utf-8'), 'utf-8', newline='\n')
-    checks = []
-    for name in ('CASEVO.py', 'CVTEST.py', 'INSTALL.md', 'release.json'):
-        checks.append(hashlib.sha256((dist/name).read_bytes()).hexdigest()+'  '+name)
+    members = sorted(files) + ['INSTALL.md', 'release.json']
+    checks = [hashlib.sha256((dist/name).read_bytes()).hexdigest()+'  '+name for name in members]
     (dist / 'SHA256SUMS').write_text('\n'.join(checks)+'\n', 'ascii', newline='\n')
-    # Inspectable transformed blocks are desktop diagnostics, not required calculator files.
     blockdir = dist / 'blocks'
     blockdir.mkdir(exist_ok=True)
     for name, source in output.items():
         (blockdir / (name+'.py')).write_text(source, 'ascii', newline='\n')
+    # The ZIP appears only after every gate succeeds. All .py companions are in it.
     with zipfile.ZipFile(dist/'cas-evo-v1.zip', 'w', compression=zipfile.ZIP_DEFLATED) as package:
-        for name in ('CASEVO.py', 'CVTEST.py', 'INSTALL.md', 'release.json', 'SHA256SUMS'):
+        for name in members + ['SHA256SUMS']:
             info = zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
             info.create_system = 3
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o644 << 16
             package.writestr(info, (dist/name).read_bytes())
-    print('Single-file release: %s (%d bytes)' % (path, meta['file_bytes']))
+    print('Calculator package: %d Python files, %d total source bytes; largest %d bytes' %
+          (len(files), meta['total_source_bytes'], max(map(len, files.values()))))
+    print('Every file passes the TI Connect Evo converter size gate.')
     model = meta['memory_model']
     print('Provisional peak stage: %d bytes before excluded runtime data; known heap: %d' %
           (model['max_estimated_heap_bytes'], model['known_heap_bytes']))
     if not model['fits_known_heap_model']:
-        print('HEAP FIT UNRESOLVED: model exceeds the measured Python heap; device test build only.')
-        if os.environ.get('GITHUB_ACTIONS') == 'true':
-            print('::warning title=Calculator heap fit unresolved::This test build exceeds the provisional model for the measured EVO Python heap. Desktop tests do not establish hardware readiness.')
+        print('HEAP FIT UNRESOLVED: model exceeds the measured Python heap.')
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8', newline='\n') as summary:
             summary.write('## Calculator test build\n\n')
-            summary.write('- Single runtime file: `CASEVO.py`, %d bytes.\n' % meta['file_bytes'])
+            summary.write('- Extract `cas-evo-v1.zip` and send **all %d .py files** together. Run `CASEVO`.\n' % len(files))
+            summary.write('- Total source: %d bytes. Every file passes the converter size gate.\n' % meta['total_source_bytes'])
             summary.write('- Model: %d bytes before exclusions; measured free Python heap: %d bytes.\n' %
                           (model['max_estimated_heap_bytes'], model['known_heap_bytes']))
-            summary.write('- **Hardware validation pending; heap fit is not established.** See `release.json` and `INSTALL.md`.\n')
-    return path
+            summary.write('- Physical calculator validation pending. See `INSTALL.md`.\n')
+    return dist / 'CASEVO.py'
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dist', type=Path, default=ROOT/'dist')
-    build(parser.parse_args().dist)
+    args = parser.parse_args()
+    build(args.dist)

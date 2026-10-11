@@ -1,81 +1,68 @@
 # cas-evo handover
 
-Updated: 2026-10-11, single-file build and native compatibility milestone.
-Rewrite this file at each milestone. Branch: v1.
+Updated: 2026-10-11, multi-file transfer fix and constrained-heap validation in progress.
+Branch: v1. Remote: https://github.com/connerglover/cas-evo.git (private).
 
 ## Current outcome
 
-T1, T2, T3 and the calculator UI are implemented, with bounded algorithms and
-documented unsupported cases. The build produces one minified, compressed
-runtime file, dist/CASEVO.py, plus an optional standalone CVTEST.py.
-GitHub Actions builds, tests and packages these automatically on push, pull
-request and manual dispatch. The local repository currently has no Git remote;
-the workflow has been checked locally, not executed on GitHub.
+T1, T2, T3 and the calculator UI are implemented. The user explicitly authorized
+multiple files after the original CASEVO.py transfer failed. They also requested
+commit and push when finished. Preserve all features; no single-file constraint
+remains. The build now emits CASEVO/CVTEST plus minified source carriers, 110
+Python files in one cas-evo-v1.zip. All 110 first-revision files passed TI's actual
+converter; the largest is 6,314 bytes. No USB/device transfer was performed.
 
-**The user's requested finished calculator v1 is NOT yet established. Heap fit
-is the remaining release blocker.** Do not equate passing desktop/native tests
-with completion on the EVO. The current artifact is a device test build and may
-fail during startup on the real calculator.
+The old single-file CASEVO (262,679B) exceeded its 65,511B per-program limit.
+Boundary experiments prove source bytes + 18 + module-name length must not
+exceed 65,535. build/transfer.py gates every new output; stale deliverables are
+invalidated before building. No oversized-development override remains.
 
 ## Next step
 
-Resolve the memory architecture before declaring v1 complete. Preserve the full
-T1-T3/UI behavior and single-file requirement. Do not repeat completed feature
-work or merely raise the heap limit. The existing device probes measured
-**173,360 bytes of free Python heap** after native imports; the user's roughly
-500 KB of total accessible RAM is not all available to Python.
+Finish constrained 32-bit native validation, final package/converter checks,
+commit and push v1, then verify the GitHub Actions build and downloadable ZIP.
+Update this handover with final results before stopping. The first paged native
+32-bit test at 173,360B booted the UI, but only 21/55 diagnostic commands passed.
+Tracebacks show native allocation failures during carrier import/compilation,
+not the admission guard. Collection before and after carrier import has just
+been added and is awaiting re-test. Do not claim heap acceptance from a model.
 
-The current provisional stage subtotal is **236,690 bytes**, before namespace
-overhead, working data, lazy families and some compilation temporaries. The
-single-file archive retains **87,456 bytes** even when compiled definitions are
-evicted. No verified EVO API permits reading/paging source from the same file;
-open is absent. More aggressive phasing alone has not established a viable
-full-calculus footprint. Further work needs a materially smaller representation
-or new device evidence, not another optimistic budget adjustment.
+The current provisional stage subtotal is about 139KB, below the unchanged
+173,360B measured free Python heap, but excludes namespaces, working data, lazy
+families and some compiler temporaries. The old 87,456B resident archive and
+decoder have been removed. `_read` imports one CODE-string carrier, removes it
+from sys.modules, and collects; `_load` execs source into shared dictionaries
+and collects source after use. Existing UI/input/print eviction stays in place.
 
-After resolving this, repeat the source/bundled/native checks, regenerate the
-package, commit and update this handover. Physical transfer, depth calibration,
-graphics and heap checks remain deferred to Conner under the existing project
-instructions. Never claim those gates passed without results.
+Physical transfer, depth calibration, graphics and heap validation remain
+Conner's device checks. Never report them as passed from host evidence.
 
 ## User instructions and project rules
 
-- Work autonomously; do not ask Conner questions. Complete all milestones and
-  the downloadable app, rather than stopping after T1/T2/T3.
-- Commit at milestones; end messages with
-  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>.
-- Produce one .py runtime file and an automatic GitHub Action. Minify for
-  limited storage and especially heap. No graphing in v1.
-- Read docs/DESIGN.md and docs/notes/<TASK>.md for APIs, bounds and deviations.
-  docs/reference/device-python.md records measured versus assumed device facts.
-- Target the EVO's Python 3.4 subset. No recursion; use explicit stacks and the
-  generator trampoline. Strict desktop depth budget: eight; measured ceiling:
-  about ten total Python calls. Native/dunder costs require device calibration.
-- Reference repositories are read-only: C:/Users/conner/.cache/cas-evo-ref/FlowCE
-  and C:/Users/conner/.cache/cas-evo-ref/ti-ce-giac.
-- The project is personal and has no licence yet. No push or publication occurred.
+- Work autonomously, no questions. Finish the downloadable v1, commit milestones.
+- Multiple files explicitly allowed to preserve functionality; automatic GitHub
+  Action and minification still required. User explicitly requests a final push.
+- Commit footer: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>.
+- Read docs/DESIGN.md and task notes for APIs, bounds and deviations. No graphing.
+- Target EVO Python 3.4 subset. No recursion; explicit stacks/generator trampoline.
+  Desktop strict depth budget eight. Native/dunder costs need device calibration.
+- Reference repositories under C:/Users/conner/.cache/cas-evo-ref are read-only.
+- No PR requested. Push the existing v1 branch; do not change repository visibility.
 
 ## Implemented milestones
 
-| Milestone | Evidence / commit |
-|---|---|
-| T1 exact core | 841cbfe; rational/radical/complex arithmetic, normalization, factor/solve, sessions; split lazy units |
-| T2 calculus | 2273a6d; derivatives, Laurent/Taylor series, limits and verified integration strategies |
-| T3 | c08edd0; definite/improper/nested integrals, sums/Riemann, ODEs, gradients/geometric macros |
-| UI and diagnostic | d767ade; editor/history, 2D answers, F1-F5 menus/forms/help, cancellation/panic; 55-command CVTEST |
-| MicroPython compatibility | 699cc12; unsupported stepped slices replaced with loops and subset-lint gates |
-| Single-file/CI packaging | This milestone; see docs/notes/B.1.md |
+T1 841cbfe; T2 2273a6d; T3 c08edd0; UI d767ade; MicroPython compatibility 699cc12;
+previous single-file/CI packaging f19de2b. Current uncommitted milestone replaces
+that packaging with demand-loaded companions and transfer-limit validation.
 
-T2/T3 notes list deliberate bounds and remaining DESIGN differences, including
-generic infinite-series tests, general numerical singularity isolation and the
-independent quadrature cross-check. Unsupported cases stay formal; do not
-describe this as an unrestricted symbolic mathematics engine.
+T2/T3 notes document bounds and unsupported cases: this is not an unrestricted
+symbolic math engine. Preserve the implemented behavior and formal fallbacks.
 
-## Build and artifacts
+## Build and validation
 
-Use .venv/Scripts/python on this Windows checkout. Dependencies are pinned in
-requirements-dev.txt. mpy-cross checks the final Python and supplies provisional
-compiled-size estimates; the factor 1.8 is uncalibrated, not a measured heap bound.
+Use .venv/Scripts/python in this Windows checkout. requirements-dev.txt pins
+build dependencies. Generated files under dist are ignored; the ZIP contains
+all required .py files, INSTALL.md, release.json and SHA256SUMS.
 
     python -m pip install -r requirements-dev.txt
     python tests/support/lint.py src
@@ -84,54 +71,26 @@ compiled-size estimates; the factor 1.8 is uncalibrated, not a measured heap bou
     python build/release.py
     python -m pytest -q -m "not slow" --strict-depth --bundled
     python build/check_release.py
-    python build/micro_smoke.py --run /path/to/micropython --heap 500000
+    python build/micro_smoke.py
 
-- dist/CASEVO.py: **262,679 bytes**; the only runtime file to transfer.
-- dist/CVTEST.py: independent optional diagnostic, **267,644 bytes**.
-- dist/cas-evo-v1.zip: app, diagnostic, installation guide, release.json
-  metadata and SHA256SUMS. Generated files are Git-ignored.
-- docs/INSTALL.md: transfer steps, controls, acceptance commands and candid
-  heap/physical-validation status. README describes local and Actions downloads.
-- dist/device and dist/blocks: inspectable desktop build intermediates;
-  neither is needed on the calculator.
+Current validation before the final GC change:
+- 76 actual-package strict acceptance tests pass, including corrected native
+  __import__ depth accounting as well as exec; max depth stays eight.
+- 32 transfer/memory tests pass, including rejected builds in a reused directory.
+- Full bundled run: 2,795 pass, 55 slow deselected; two mock-fixture failures were
+  corrected and re-run successfully in the focused suite above. The long run
+  had loaded the earlier test functions before the correction.
+- Device subset/FRAMELINT and actionlint 1.7.12 pass.
+- Native64, 500,000B: UI arithmetic/quit and CVTEST 55/55 pass.
+- Native32, 173,360B: UI pass (56,784B boot free); calculus failures under diagnosis.
+- ZIP audit: all 110 declared Python files and metadata/checksums match.
 
-The release pipeline shrinks identifiers, uses native dictionary namespaces,
-packs bounded source blocks, and evicts input/print/UI phases. Compressed binary
-literals save resident memory compared with base85 at the cost of ASCII file
-size; the result is well below the 3.5 MB storage budget. A deterministic LZ/Huffman
-decoder needs no third-party calculator modules or file access. Checksums,
-fixed ZIP metadata and LF output support reproducible builds. The action reports
-heap fit as unresolved rather than silently substituting 500 KB.
-
-## Verification for this milestone
-
-- Full source strict non-slow suite: **2,780 passed**, 55 slow tests deselected,
-  in 460.81 seconds. Command also used --ignore=tests/test_release.py because
-  the bundled run includes the actual-artifact suite. A clean checkout skips
-  those artifact tests until the single-file program has been built.
-- Full bundled strict non-slow suite: **2,856 passed**, 55 slow tests deselected,
-  in 746.31 seconds. This includes 76 tests of the actual compressed artifact,
-  its dynamic frames, real event loop, phase transitions and failure recovery.
-- Device-subset lint, FRAMELINT and actionlint 1.7.12 pass.
-- Current actual CASEVO.py: native MicroPython 1.29, 64-bit, 500,000-byte heap:
-  boot, real key replay 2+3, answer 5, and normal quit pass.
-- Current actual standalone CVTEST.py: **55/55 pass**, plus native depth
-  3/6/8 and math checks. The native graphics shim allocates no framebuffer.
-- Native testing exposed stepped-slice incompatibility, lazy-source garbage
-  retention and quadrature float-key dictionary fragmentation. The release
-  loader now collects after decoded-source execution; admission collects before
-  rejecting a load; quadrature uses a fixed 449-slot dyadic sample grid.
-- Independent builds produce identical CASEVO, CVTEST and release metadata.
-  The final package is checked against a second build and all member checksums.
-- Native 64-bit object sizes differ from the calculator. These results do not
-  establish fit in its 173,360-byte heap. A 173,360-byte native-host startup
-  experiment failed; that is not an EVO measurement either.
-- Physical transfer, font metrics, execution timing, PRBMEM/PROBE6 and device
-  acceptance remain unrun. See probe/README.md and probe/README-MEM.md.
-
-Native interpreter built from MicroPython commit
-0fd6c573ea815774668bbb16b8e197c8822368b2 (v1.29.0). Local WSL executable:
-/tmp/cas-evo-micropython/ports/unix/build-cas64/micropython in cachyos.
-Use wsl -d cachyos --exec and an absolute /mnt/c/... script path; the user's
-login shell resets the working directory. build/micro_smoke.py recopies the
-unchanged release into dist/micro-smoke and verifies copied hashes.
+Native MicroPython pinned commit: 0fd6c573ea815774668bbb16b8e197c8822368b2, v1.29.0.
+WSL cachyos checkout: /tmp/cas-evo-micropython. Unix binaries: ports/unix/build-cas64
+and build-cas32/micropython. The 32-bit build uses a private extracted sysroot
+/tmp/cas-evo-i686; no system packages were installed. Launch via its
+usr/lib32/ld-linux.so.2 --library-path /tmp/cas-evo-i686/usr/lib32 BINARY
+-X heapsize=173360 /mnt/c/Users/conner/Documents/GitHub/cas-evo/dist/micro-smoke/probe.py.
+Use wsl --exec with absolute script paths; login shells change working directory.
+`build/micro_smoke.py` restores unchanged release copies before testing; previous
+diagnostic copies were temporarily instrumented and must not be published.

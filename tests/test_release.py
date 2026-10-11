@@ -1,4 +1,4 @@
-"""Acceptance of the compressed, single-file calculator artifact itself."""
+"""Acceptance of the paged multi-file calculator artifact itself."""
 import ast
 import hashlib
 import importlib.util
@@ -15,7 +15,7 @@ SPEC = importlib.util.spec_from_file_location('check_release', ROOT / 'build/che
 @pytest.fixture(scope='module')
 def release_module():
     if not (ROOT / 'dist/CASEVO.py').is_file() or not (ROOT / 'dist/release.json').is_file():
-        pytest.skip('single-file artifact absent; run python build/release.py')
+        pytest.skip('packaged artifact absent; run python build/release.py')
     module = importlib.util.module_from_spec(SPEC)
     SPEC.loader.exec_module(module)
     return module
@@ -48,7 +48,7 @@ def corpus():
 
 
 @pytest.mark.parametrize('command,kind,expected', corpus())
-def test_single_file_corpora(app, command, kind, expected):
+def test_packaged_corpora(app, command, kind, expected):
     result = app.go(command)
     assert result[0] == ('msg' if kind == 'msg' else 'ans'), (command, result)
     if kind in ('msg', 'text'):
@@ -71,7 +71,8 @@ def test_dynamic_function_frames_are_observed(app):
     assert any(Path(path).stem == 'CVDIFF' and name == app.name('g_deriv')
                for path, name in app.seen)
     assert 1 < app.max_depth <= 8
-    assert not any(name.startswith('CV') for name in app.imports)
+    assert 'CVDIFF' in app.imports
+    assert not app.carriers
 
 
 def test_phase_boundaries_during_math_and_output(app):
@@ -222,27 +223,41 @@ def test_actual_entry_mode_exits_when_ui_cannot_load(release_module):
     app.assert_clean()
 
 
-def test_archive_integrity_compatibility_and_single_file_contract(booted):
+def test_package_integrity_compatibility_and_paging(booted):
     data = booted.path.read_bytes()
-    assert len(data) == booted.meta['file_bytes'] < 3_500_000
+    assert len(data) == booted.meta['file_bytes']
     assert hashlib.sha256(data).hexdigest() == booted.meta['sha256']
-    ast.parse(data.decode('ascii'), feature_version=(3, 4))
+    assert booted.meta['total_source_bytes'] < 3_500_000
+    assert booted.meta['archive_bytes'] == 0
+    assert '_data' not in booted.globals and '_decode' not in booted.globals
+    assert booted.meta['transfer_check']['fits_converter_limit']
+    for name, info in booted.meta['files'].items():
+        content = (booted.dist / name).read_bytes()
+        assert len(content) == info['bytes'] < 65509
+        assert hashlib.sha256(content).hexdigest() == info['sha256']
+        ast.parse(content.decode('ascii'), feature_version=(3, 4))
     with booted.traced():
-        for name, records in booted.globals['_data'].items():
-            source = booted.globals['_decode'](records)
+        for name in booted.meta['sources']:
+            source = booted.globals['_read'](name)
             assert len(source.encode('ascii')) == booted.meta['sources'][name]
             assert source == (booted.dist / 'blocks' / (name + '.py')).read_text('ascii')
-            tree = ast.parse(source, feature_version=(3, 4))
-            for node in ast.walk(tree):
-                imports = ([a.name for a in node.names] if isinstance(node, ast.Import)
-                           else [node.module] if isinstance(node, ast.ImportFrom) else [])
-                assert not any(name.startswith('CV') or name == 'CASEVO' for name in imports)
+            assert not booted.carriers
+            ast.parse(source, feature_version=(3, 4))
 
 
-def test_corrupt_compressed_payload_is_rejected(booted):
-    records = next(iter(booted.globals['_data'].values()))
-    assert isinstance(records, bytes)
-    corrupt = bytearray(records)
-    corrupt[9] ^= 1  # First chunk header's bit count; preserve the payload bytes.
-    with booted.traced(), pytest.raises(ValueError, match='corrupt source'):
-        booted.globals['_decode'](bytes(corrupt))
+def test_failed_companion_load_does_not_poison_namespace(booted, monkeypatch):
+    original = booted._import
+
+    def missing(name, *args, **kwargs):
+        if name == 'CVDIFF':
+            raise ImportError('missing companion')
+        return original(name, *args, **kwargs)
+
+    monkeypatch.setitem(booted.builtins, '__import__', missing)
+    with booted.traced(), pytest.raises(ImportError, match='missing companion'):
+        booted.globals['_load']('CVDIFF')
+    assert 'CVDIFF' not in booted.env
+    assert not booted.carriers
+    monkeypatch.setitem(booted.builtins, '__import__', original)
+    assert booted.go('diff(x^3,x)')[1] == '3*x^2'
+    booted.assert_clean()

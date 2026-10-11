@@ -4581,3 +4581,30 @@ presented as proof of hardware readiness.
 Native compatibility testing also banned stepped slices and replaced the
 quadrature floating-key dictionary with a fixed dyadic sample grid. The lazy
 loader collects reclaimable compilation buffers before rejecting admission.
+
+### Transfer rejection and corrected size gate (2026-10-11)
+
+The user could not transfer the generated CASEVO.py. Reproduction with TI
+Connect Evo 7.1.0.792's actual converter established a **65,511-byte source
+limit for CASEVO.py/CVTEST.py**, far below the 262,679/267,644-byte artifacts.
+The Python object adds 18 bytes plus its module name under a 65,535-byte limit;
+the 3.5 MB total-storage check did not cover this. See
+`reference/transfer-limits.md` for the boundary tests.
+
+Default builds enforce this limit for every generated Python file and remove
+stale release outputs before validation.
+
+### Authorized companion-file paging (2026-10-11)
+
+The user subsequently allowed multiple files to preserve functionality. This
+supersedes the single-file requirement above. The release keeps minification,
+native dictionary namespaces and eviction phases, but stores each source block
+in a separate importable CODE-string carrier. CASEVO/CVTEST load carriers on
+demand, drop them from sys.modules immediately, and release source after exec.
+No file API is required. The 110-file package has no resident compressed archive
+or decoder; the largest file is 6,314 bytes and all passed TI's converter.
+
+The provisional stage subtotal is now 139,442 bytes before excluded runtime
+costs. The measured 173,360-byte heap remains the target. Physical acceptance
+remains unverified. Complete files, checksums and the installation guide ship in
+one deterministic ZIP, automatically built and tested by GitHub Actions.

@@ -1,4 +1,4 @@
-"""Prepare native MicroPython smoke tests of the actual single-file release.
+"""Prepare native MicroPython smoke tests of the actual multi-file release.
 
     python build/micro_smoke.py
     python build/micro_smoke.py --run /path/to/micropython --heap 512000
@@ -133,14 +133,15 @@ def prepare(dist, output):
         ast.parse(source, filename=name, feature_version=(3, 4))
         compile(source, name, 'exec')
     output.mkdir(parents=True, exist_ok=True)
-    for path in paths[:2]:
+    for name in meta['files']:
+        path = dist / name
         target = output / path.name
         shutil.copyfile(path, target)
         assert target.read_bytes() == path.read_bytes()
     for name, source in scripts.items():
         (output / name).write_text(source, encoding='ascii', newline='\n')
     hashes = []
-    for name in ('CASEVO.py', 'CVTEST.py'):
+    for name in sorted(meta['files']):
         hashes.append(hashlib.sha256((output / name).read_bytes()).hexdigest() + '  ' + name)
     (output / 'SHA256SUMS').write_text('\n'.join(hashes) + '\n', encoding='ascii', newline='\n')
     return output

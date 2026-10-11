@@ -1,52 +1,47 @@
-# Install and try cas-evo v1
+# Install cas-evo on the TI-84 EVO
 
-cas-evo runs in the TI-84 EVO Python app. The release contains **one runtime file,
-`CASEVO.py`**. Its parser, algebra, calculus, menus, and graphics code are embedded;
-there are no companion modules to transfer.
+The package preserves the full v1 feature set across **110 small Python files**.
+The largest is 6,314 bytes; total Python source is 272,097 bytes. Every file
+passed TI Connect Evo's actual converter. Physical transfer and execution on an
+EVO still need testing.
 
-**This is a device test build, not a hardware-validated release.** The existing
-EVO probes measured about **173 KB of free Python heap**, although the calculator
-has about 500 KB of total user RAM. The current build's provisional heap model
-exceeds that smaller budget. It may stop with `MemoryError` during startup.
-Passing desktop tests does not establish calculator memory fit. The exact model,
-its exclusions, and the file checksum are in `release.json`.
-
-The file is about 263 KB, comfortably below 3.5 MB of storage. It uses minified
-identifiers, compressed embedded code, bounded compilation, and phase eviction.
-Byte storage was chosen over base85 text because it uses less runtime memory,
-despite producing a larger ASCII transfer file. Graphics metrics, transfer
-conversion and execution speed also still need physical validation.
+The earlier single-file CASEVO.py was too large and produced the generic
+"One or more files was invalid" error. This package replaces that build.
+Companions also let the engine release source after compilation instead of
+keeping the full 87 KB compressed archive in its Python heap.
 
 ## Get the program
 
-Download `CASEVO.py`, or extract it from `cas-evo-v1.zip`. Repository builds place
-the release archive under `dist/`. GitHub Actions provides downloadable artifacts
-on a successful build: open the repository's **Actions** tab, select the completed
-build, and download its release artifact. Extract downloaded archives on the
-computer before selecting the Python file for transfer.
-
-Keep the name `CASEVO.py`. Transfer the generated release file; the files in
-`src/` are development sources.
+From a successful **Build calculator app** GitHub Actions run, download the
+**cas-evo-v1** artifact. Extract the download, then extract `cas-evo-v1.zip`
+inside it into a new folder. For local builds, extract `dist/cas-evo-v1.zip`.
+Use the ZIP's files, not development files under `src/` or `dist/device/`.
 
 ## Transfer and launch
 
 1. Turn on the EVO and connect it to the computer with a USB data cable.
 2. Open [TI Connect Evo](https://connectevo.ti.com) in a browser supported by TI.
    Select **Connect to Calculator**, choose the EVO, and connect.
-3. Open **Send Files**, then **Send to Calculator**. Select `CASEVO.py` and wait
-   for transfer to finish.
+3. Open **Send Files**, then **Send to Calculator**. Select **all 110 `.py`
+   files from the extracted folder** together. Do not select the ZIP, JSON,
+   Markdown or checksum files. Keep every Python filename unchanged. Allow
+   CASEVO/CVTEST to replace earlier versions and wait for transfer to finish.
 4. Open the calculator's **Python** app, select **CASEVO**, and run it.
 5. The cas-evo screen should show `RAD`, an edit line, and the five bottom labels
    `menu`, `recall`, `setup`, `forms`, and `help`.
+
+Keep the companions on the calculator: CASEVO imports them on demand. Only
+CASEVO and CVTEST are entry programs. Running a support module individually
+will not start the app. If a module is missing, re-send all `.py` files from the
+same ZIP. Avoid mixing builds. Python objects use about 0.28 MB before device
+storage bookkeeping, below the 3.5 MB total allowance.
 
 TI documents the connection and file-transfer controls in its
 [TI Connect Evo guide](https://education.ti.com/en/product-resources/eguides/eguide-84-evo/evo-connect-user-guide).
 Its [product page](https://education.ti.com/en/products/calculators/graphing-calculators/ti-84-evo/ti-connect-evo)
 lists Python-program transfer and current browser requirements. Those pages do
-not specify raw `.py` conversion details; acceptance of this exact release file
-still needs to be checked on the calculator. If the transfer dialog rejects it,
-record the exact error and Connect/browser version. Renaming the extension does
-not convert the file.
+not specify the raw `.py` conversion limit; that limit was tested directly in
+the converter. Renaming the extension does not convert or shrink Python data.
 
 ## First checks
 
@@ -99,19 +94,19 @@ remain symbolic or return a size/time/memory message.
 
 ## Automated calculator diagnostic
 
-The archive also contains **CVTEST.py**, an optional, independent test program.
-Transfer and run it separately from CASEVO. It includes its own engine, so you
-do not need any other CV modules. It checks 55 algebra/calculus commands and
-prints the available heap, bounded call-depth checks, and native-math results.
+Run **CVTEST** in a fresh Python session after sending the complete package.
+It uses the same companion modules as CASEVO. It checks 55 algebra/calculus
+commands and prints available heap, bounded call-depth checks and native-math results.
 Photograph each page and press ENTER to continue; CLEAR at a page prompt stops.
 The expected final line is `CVTEST: 55/55 PASS`.
 
-Because CVTEST includes the same engine archive, it can encounter the same
-startup heap limit. If either program fails before drawing its first screen,
-keep the complete traceback and the free-heap value if printed. Restarting the
-Python shell creates a fresh session; deleting your calculator data is not a
-remedy for a fixed Python heap limit. The small programs in `probe/` can measure
-device capabilities without loading the CAS.
+The EVO probes measured **173,360 bytes of free Python heap** after native
+imports. The paged build's provisional core/phase subtotal is 139,442 bytes,
+before namespace overhead, working data, loaded lazy families and compilation
+temporaries. This estimate is not a hardware measurement. If either program
+fails before drawing its first screen, keep the complete traceback and any
+free-heap value. Restarting Python creates a fresh session. Small programs in
+`probe/` can measure device capabilities without loading the CAS.
 
 For a failed check, keep the expression, displayed result/error, calculator OS
 version, and a screen capture. TI Connect Evo's **Capture Screen** page can save

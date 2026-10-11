@@ -1,0 +1,125 @@
+{
+  "actual": {
+    "convertedBytes": 262679,
+    "name": "CASEVO.py",
+    "sourceBytes": 262679,
+    "status": 4,
+    "sha256": "8b089953957992aa878f1ae70409a0fed6a503473c848ed5f501224fdbfa8d53"
+  },
+  "converter": "https://connectevo.ti.com/ticevo/en/assets/library/ticonnect.min.js?v=7.1.0.792",
+  "rows": [
+    {
+      "convertedBytes": 65598,
+      "name": "A.py",
+      "shape": "one line",
+      "sourceBytes": 65516,
+      "status": 0
+    },
+    {
+      "convertedBytes": 65598,
+      "name": "A.py",
+      "shape": "short lines",
+      "sourceBytes": 65516,
+      "status": 0
+    },
+    {
+      "convertedBytes": 65517,
+      "name": "A.py",
+      "shape": "one line",
+      "sourceBytes": 65517,
+      "status": 4
+    },
+    {
+      "convertedBytes": 65517,
+      "name": "A.py",
+      "shape": "short lines",
+      "sourceBytes": 65517,
+      "status": 4
+    },
+    {
+      "convertedBytes": 65608,
+      "name": "CASEVO.py",
+      "shape": "one line",
+      "sourceBytes": 65511,
+      "status": 0
+    },
+    {
+      "convertedBytes": 65608,
+      "name": "CASEVO.py",
+      "shape": "short lines",
+      "sourceBytes": 65511,
+      "status": 0
+    },
+    {
+      "convertedBytes": 65512,
+      "name": "CASEVO.py",
+      "shape": "one line",
+      "sourceBytes": 65512,
+      "status": 4
+    },
+    {
+      "convertedBytes": 65512,
+      "name": "CASEVO.py",
+      "shape": "short lines",
+      "sourceBytes": 65512,
+      "status": 4
+    },
+    {
+      "convertedBytes": 65608,
+      "name": "CVTEST.py",
+      "shape": "one line",
+      "sourceBytes": 65511,
+      "status": 0
+    },
+    {
+      "convertedBytes": 65608,
+      "name": "CVTEST.py",
+      "shape": "short lines",
+      "sourceBytes": 65511,
+      "status": 0
+    },
+    {
+      "convertedBytes": 65512,
+      "name": "CVTEST.py",
+      "shape": "one line",
+      "sourceBytes": 65512,
+      "status": 4
+    },
+    {
+      "convertedBytes": 65512,
+      "name": "CVTEST.py",
+      "shape": "short lines",
+      "sourceBytes": 65512,
+      "status": 4
+    },
+    {
+      "convertedBytes": 65612,
+      "name": "ABCDEFGH.py",
+      "shape": "one line",
+      "sourceBytes": 65509,
+      "status": 0
+    },
+    {
+      "convertedBytes": 65612,
+      "name": "ABCDEFGH.py",
+      "shape": "short lines",
+      "sourceBytes": 65509,
+      "status": 0
+    },
+    {
+      "convertedBytes": 65510,
+      "name": "ABCDEFGH.py",
+      "shape": "one line",
+      "sourceBytes": 65510,
+      "status": 4
+    },
+    {
+      "convertedBytes": 65510,
+      "name": "ABCDEFGH.py",
+      "shape": "short lines",
+      "sourceBytes": 65510,
+      "status": 4
+    }
+  ],
+  "verified_date": "2026-10-11"
+}

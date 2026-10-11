@@ -5,19 +5,27 @@ complex numbers, simplify/expand/factor/solve, derivatives, limits, integration,
 series, sums, differential equations, gradients and geometric integrals. Includes
 a calculator editor, history, stored variables/functions and 2D answers.
 
-**Device acceptance remains open.** The full v1 feature set is implemented and
-tested on desktop. The generated single-file build currently exceeds the
-provisional model for the EVO's measured 173 KB Python heap; it is not yet a
-proven working calculator release. About 500 KB of total user RAM does not imply
-500 KB available to Python. See [installation and device testing](docs/INSTALL.md).
+The calculator build is now a **multi-file package**. Small companion modules
+load only when needed, preserving the full feature set. All 110 files passed
+TI's actual converter; the largest is 6,314 bytes. Combined Python source is
+about 272 KB. This replaces the rejected single-file build.
 
-## Download a test build
+## Download and run
 
-Pushes and pull requests run the **Build calculator app** GitHub Action. Download
-the `cas-evo-v1` artifact from a successful run, then extract `CASEVO.py`.
-Only that file is needed for the app. `CVTEST.py` is an optional standalone
-diagnostic. The package includes instructions, size/memory metadata and SHA-256
-checksums. Local builds write the same files to `dist/`.
+Download **cas-evo-v1** from a successful **Build calculator app** GitHub Actions
+run. Extract the artifact, then extract its `cas-evo-v1.zip`. Locally, the same
+ZIP is written to `dist/cas-evo-v1.zip`.
+
+Send **all `.py` files from the extracted ZIP** to the calculator together.
+Open the Python app and run **CASEVO**. `CVTEST` runs the optional 55-command
+diagnostic against the same companions. Keep filenames unchanged.
+See [INSTALL.md](docs/INSTALL.md) for controls and acceptance examples.
+
+Physical calculator execution is still pending. Paging removes the old 87 KB
+resident archive. The provisional core/phase subtotal is now about 139 KB
+against a measured 173,360-byte Python heap, before documented exclusions.
+Native MicroPython and desktop tests do not replace an EVO run. About 500 KB
+of total user RAM is not the Python heap.
 
 ## Build locally
 
@@ -32,6 +40,11 @@ python build/release.py
 python -m pytest -q -m "not slow" --strict-depth --bundled
 python build/check_release.py
 ```
+
+The build minifies identifiers and source, checks every file's converter limit,
+compiles every carrier with `mpy-cross`, and creates a deterministic ZIP with
+checksums. GitHub Actions builds and tests on pushes, pull requests and manual
+dispatch. An invalid build cannot leave an old release ZIP in the output folder.
 
 The action also builds pinned MicroPython 1.29 and runs the actual app and all
 55 diagnostic commands with a 500,000-byte native heap. Locally, prepare those

@@ -1,8 +1,8 @@
-"""Run the actual compressed CASEVO.py on desktop shims with strict EVO depth checks.
+"""Run the actual paged calculator package with strict EVO depth checks.
 
     python build/check_release.py [--dist dist]
 
-No uncompressed project module is imported. Decoded definitions execute in their
+Only packaged carrier modules are imported. Their definitions execute in their
 real shared dictionaries; only the exec filename is supplied by a desktop hook.
 The fake free-heap reading exercises admission and cleanup, not physical RAM use.
 """
@@ -40,13 +40,18 @@ class _ReleaseDepth(evodepth.DepthChecker):
 
     def _enter(self, code, frame, quiet):
         caller = frame.f_back
-        bridge = caller is not None and caller.f_code is Release._exec.__code__
-        if bridge:
-            self._native[caller] = builtins.exec
+        bridge = None
+        if caller is not None:
+            if caller.f_code is Release._exec.__code__:
+                bridge = builtins.exec
+            elif caller.f_code is Release._import.__code__:
+                bridge = builtins.__import__
+        if bridge is not None:
+            self._native[caller] = bridge
         try:
             super()._enter(code, frame, quiet)
         finally:
-            if bridge:
+            if bridge is not None:
                 self._native.pop(caller, None)
         self.release.seen.add((code.co_filename, code.co_name))
         observer = self.release.observer
@@ -69,6 +74,8 @@ class Release:
         self.screen, self.snaps = '', {}
         self.ended = None
         self.builtins = dict(vars(builtins), __import__=self._import)
+        self.carriers = {}
+        self.sys = SimpleNamespace(modules=self.carriers)
         self.globals = {'__name__': 'CASEVO', '__builtins__': self.builtins, 'exec': self._exec}
         self.levels = {}
         for module, table in self.meta['levels'].items():
@@ -106,8 +113,17 @@ class Release:
 
     def _import(self, name, *args, **kwargs):
         self.imports.append(name)
+        if name == 'sys':
+            return self.sys
+        if name in self.meta['sources']:
+            if name not in self.carriers:
+                path = self.dist / (name + '.py')
+                namespace = {'__name__': name, '__builtins__': self.builtins}
+                builtins.exec(compile(path.read_text('ascii'), str(path), 'exec'), namespace)
+                self.carriers[name] = SimpleNamespace(**namespace)
+            return self.carriers[name]
         if name.startswith('CV') or name == 'CASEVO' or name in self.meta['modules']:
-            raise AssertionError('external project import from single-file release: ' + name)
+            raise AssertionError('unpackaged project import: ' + name)
         return builtins.__import__(name, *args, **kwargs)
 
     def _exec(self, source, namespace):
@@ -144,7 +160,7 @@ class Release:
     def boot(self):
         prefix, separator, entry = self.source.partition('# RUN\n')
         if not separator:
-            raise ValueError('single-file entry marker missing')
+            raise ValueError('release entry marker missing')
         with self.traced():
             builtins.exec(compile(prefix, str(self.path), 'exec'), self.globals)
             for name in ('CVPH', 'CVNODE', 'CVALG', 'CVPARSE', 'CVPRINT', 'CVRUN'):
@@ -214,7 +230,7 @@ def main(argv=None):
         assert result[:2] == ('ans', expected), (command, result)
         app.assert_clean()
         print(command + ' -> ' + result[1])
-    print('Single-file self-test passed; strict depth %d/8' % app.max_depth)
+    print('Packaged self-test passed; strict depth %d/8' % app.max_depth)
 
 
 if __name__ == '__main__':
