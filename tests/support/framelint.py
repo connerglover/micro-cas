@@ -60,9 +60,9 @@ ENTRY = ('casevo', 'CASEVO')
 KEYS = {
     'fact': 'factor', 'factb': 'factorb', 'factc': 'factorc', 'factd': 'factord',
     'ser': 'series', 'serb': 'seriesb',
-    'lim': 'limit', 'limb': 'limitb', 'int': 'integ', 'intb': 'integb',
+    'lim': 'limit', 'limb': 'limitb', 'limc': 'limitc', 'int': 'integ',
     'int2': 'integ2', 'int2b': 'integ2b', 'int3': 'integ3', 'int3b': 'integ3b',
-    'def': 'defint', 'defb': 'defintb', 'sum': 'sums', 'sumb': 'sumsb',
+    'def': 'defint', 'defb': 'defintb', 'defc': 'defintc', 'sum': 'sums', 'sumb': 'sumsb', 'sumc': 'sumsc',
     'form': 'forms', 'cat': 'catalog', 'catb': 'catalogb',
 }
 

@@ -1,6 +1,6 @@
 # cas-evo handover
 
-Updated: 2026-10-11, T3 mathematics milestone. Whoever is working on this rewrites this file at every milestone.
+Updated: 2026-10-11, UI milestone. Whoever is working on this rewrites this file at every milestone.
 
 ## What this is
 
@@ -124,3 +124,10 @@ Do not claim actual EVO validation: the device probes remain deferred to Conner.
 - Review regressions prevent false limit growth, false sum divergence, missed narrow peaks and silently truncated primitive jumps.
 - Focused definite/double-integral suite: 67 strict-depth tests passed; ODE suite: 59 passed. Full suite exposed stale factor test imports after deliberate calculus eviction; fixture now follows live loader instances.
 - Single-file artifact is building; compressed release and final source/bundled tests remain in progress.
+
+### UI checkpoint
+
+- Calculator editor, history, 2D mathematical layout, F1 catalog, F2 recall, F3 settings, F4 forms and F5 contextual help implemented.
+- Strict UI/menu/forms/layout suite: 65 passed. Boundary wrapping preserves input; empty calls retain editor; decimal views omit duplicate footer.
+- Panic draws directly without the layout engine, preserving input, history and Ans. Single-file entry recovery is being validated separately with phases unloaded.
+- CVTEST contains 55 device-engine acceptance commands plus bounded depth and math checks. Its source tests pass; physical execution remains deferred.
