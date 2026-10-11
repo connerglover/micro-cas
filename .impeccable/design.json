@@ -1,0 +1,663 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-11T20:07:36.042885+00:00",
+  "title": "Design System: cas-evo installer",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Cool silver",
+        "tonalRamp": [
+          "oklch(15.000% 0.00626 255.476)",
+          "oklch(26.429% 0.00626 255.476)",
+          "oklch(37.857% 0.00626 255.476)",
+          "oklch(49.286% 0.00626 255.476)",
+          "oklch(60.714% 0.00626 255.476)",
+          "oklch(72.143% 0.00626 255.476)",
+          "oklch(83.571% 0.00626 255.476)",
+          "oklch(95.000% 0.00626 255.476)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "--ground",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "White paper",
+        "tonalRamp": [
+          "oklch(15.000% 0.00000 0.000)",
+          "oklch(26.429% 0.00000 0.000)",
+          "oklch(37.857% 0.00000 0.000)",
+          "oklch(49.286% 0.00000 0.000)",
+          "oklch(60.714% 0.00000 0.000)",
+          "oklch(72.143% 0.00000 0.000)",
+          "oklch(83.571% 0.00000 0.000)",
+          "oklch(95.000% 0.00000 0.000)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "--paper",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Dark ink",
+        "tonalRamp": [
+          "oklch(15.000% 0.03447 260.811)",
+          "oklch(26.429% 0.03447 260.811)",
+          "oklch(37.857% 0.03447 260.811)",
+          "oklch(49.286% 0.03447 260.811)",
+          "oklch(60.714% 0.03447 260.811)",
+          "oklch(72.143% 0.03447 260.811)",
+          "oklch(83.571% 0.03447 260.811)",
+          "oklch(95.000% 0.03447 260.811)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "--ink",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Slate text",
+        "tonalRamp": [
+          "oklch(15.000% 0.03576 258.917)",
+          "oklch(26.429% 0.03576 258.917)",
+          "oklch(37.857% 0.03576 258.917)",
+          "oklch(49.286% 0.03576 258.917)",
+          "oklch(60.714% 0.03576 258.917)",
+          "oklch(72.143% 0.03576 258.917)",
+          "oklch(83.571% 0.03576 258.917)",
+          "oklch(95.000% 0.03576 258.917)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "--muted",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Workspace rule",
+        "tonalRamp": [
+          "oklch(15.000% 0.01568 257.201)",
+          "oklch(26.429% 0.01568 257.201)",
+          "oklch(37.857% 0.01568 257.201)",
+          "oklch(49.286% 0.01568 257.201)",
+          "oklch(60.714% 0.01568 257.201)",
+          "oklch(72.143% 0.01568 257.201)",
+          "oklch(83.571% 0.01568 257.201)",
+          "oklch(95.000% 0.01568 257.201)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "--line",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      },
+      "blue": {
+        "role": "primary",
+        "displayName": "Ink blue",
+        "tonalRamp": [
+          "oklch(15.000% 0.17264 265.400)",
+          "oklch(26.429% 0.17264 265.400)",
+          "oklch(37.857% 0.17264 265.400)",
+          "oklch(49.286% 0.17264 265.400)",
+          "oklch(60.714% 0.17264 265.400)",
+          "oklch(72.143% 0.17264 265.400)",
+          "oklch(83.571% 0.17264 265.400)",
+          "oklch(95.000% 0.17264 265.400)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "--blue",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      },
+      "blue-dark": {
+        "role": "primary",
+        "displayName": "Deep ink blue",
+        "tonalRamp": [
+          "oklch(15.000% 0.13860 265.452)",
+          "oklch(26.429% 0.13860 265.452)",
+          "oklch(37.857% 0.13860 265.452)",
+          "oklch(49.286% 0.13860 265.452)",
+          "oklch(60.714% 0.13860 265.452)",
+          "oklch(72.143% 0.13860 265.452)",
+          "oklch(83.571% 0.13860 265.452)",
+          "oklch(95.000% 0.13860 265.452)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "--blue-dark",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      },
+      "blue-pale": {
+        "role": "primary",
+        "displayName": "Pale ink blue",
+        "tonalRamp": [
+          "oklch(15.000% 0.01866 265.982)",
+          "oklch(26.429% 0.01866 265.982)",
+          "oklch(37.857% 0.01866 265.982)",
+          "oklch(49.286% 0.01866 265.982)",
+          "oklch(60.714% 0.01866 265.982)",
+          "oklch(72.143% 0.01866 265.982)",
+          "oklch(83.571% 0.01866 265.982)",
+          "oklch(95.000% 0.01866 265.982)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "--blue-pale",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      },
+      "green": {
+        "role": "semantic",
+        "displayName": "Verification green",
+        "tonalRamp": [
+          "oklch(15.000% 0.07748 166.757)",
+          "oklch(26.429% 0.07748 166.757)",
+          "oklch(37.857% 0.07748 166.757)",
+          "oklch(49.286% 0.07748 166.757)",
+          "oklch(60.714% 0.07748 166.757)",
+          "oklch(72.143% 0.07748 166.757)",
+          "oklch(83.571% 0.07748 166.757)",
+          "oklch(95.000% 0.07748 166.757)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "--green",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      },
+      "green-pale": {
+        "role": "semantic",
+        "displayName": "Pale sage",
+        "tonalRamp": [
+          "oklch(15.000% 0.01738 159.111)",
+          "oklch(26.429% 0.01738 159.111)",
+          "oklch(37.857% 0.01738 159.111)",
+          "oklch(49.286% 0.01738 159.111)",
+          "oklch(60.714% 0.01738 159.111)",
+          "oklch(72.143% 0.01738 159.111)",
+          "oklch(83.571% 0.01738 159.111)",
+          "oklch(95.000% 0.01738 159.111)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "--green-pale",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      },
+      "error": {
+        "role": "semantic",
+        "displayName": "Attention rust",
+        "tonalRamp": [
+          "oklch(15.000% 0.11649 35.474)",
+          "oklch(26.429% 0.11649 35.474)",
+          "oklch(37.857% 0.11649 35.474)",
+          "oklch(49.286% 0.11649 35.474)",
+          "oklch(60.714% 0.11649 35.474)",
+          "oklch(72.143% 0.11649 35.474)",
+          "oklch(83.571% 0.11649 35.474)",
+          "oklch(95.000% 0.11649 35.474)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "--error",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      },
+      "error-pale": {
+        "role": "semantic",
+        "displayName": "Pale rust",
+        "tonalRamp": [
+          "oklch(15.000% 0.01880 46.814)",
+          "oklch(26.429% 0.01880 46.814)",
+          "oklch(37.857% 0.01880 46.814)",
+          "oklch(49.286% 0.01880 46.814)",
+          "oklch(60.714% 0.01880 46.814)",
+          "oklch(72.143% 0.01880 46.814)",
+          "oklch(83.571% 0.01880 46.814)",
+          "oklch(95.000% 0.01880 46.814)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "--error-pale",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      },
+      "control-line": {
+        "role": "neutral",
+        "displayName": "Control rule",
+        "tonalRamp": [
+          "oklch(15.000% 0.02918 258.371)",
+          "oklch(26.429% 0.02918 258.371)",
+          "oklch(37.857% 0.02918 258.371)",
+          "oklch(49.286% 0.02918 258.371)",
+          "oklch(60.714% 0.02918 258.371)",
+          "oklch(72.143% 0.02918 258.371)",
+          "oklch(83.571% 0.02918 258.371)",
+          "oklch(95.000% 0.02918 258.371)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "reused CSS literal",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      },
+      "file-ready": {
+        "role": "neutral",
+        "displayName": "Pending silver",
+        "tonalRamp": [
+          "oklch(15.000% 0.01039 261.788)",
+          "oklch(26.429% 0.01039 261.788)",
+          "oklch(37.857% 0.01039 261.788)",
+          "oklch(49.286% 0.01039 261.788)",
+          "oklch(60.714% 0.01039 261.788)",
+          "oklch(72.143% 0.01039 261.788)",
+          "oklch(83.571% 0.01039 261.788)",
+          "oklch(95.000% 0.01039 261.788)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "reused CSS literal",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      },
+      "divider": {
+        "role": "neutral",
+        "displayName": "Section rule",
+        "tonalRamp": [
+          "oklch(15.000% 0.01875 258.356)",
+          "oklch(26.429% 0.01875 258.356)",
+          "oklch(37.857% 0.01875 258.356)",
+          "oklch(49.286% 0.01875 258.356)",
+          "oklch(60.714% 0.01875 258.356)",
+          "oklch(72.143% 0.01875 258.356)",
+          "oklch(83.571% 0.01875 258.356)",
+          "oklch(95.000% 0.01875 258.356)"
+        ],
+        "sourcePath": "website/styles.css",
+        "sourceToken": "reused CSS literal",
+        "rampProvenance": "Synthesized OKLCH preview metadata; not used by the application."
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "sourcePath": "website/styles.css",
+        "purpose": "Installer h1; 36px at 1000px and below."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "sourcePath": "website/styles.css",
+        "purpose": "Help h2; 24px at 700px and below."
+      },
+      "title": {
+        "displayName": "Title",
+        "sourcePath": "website/styles.css",
+        "purpose": "Package heading."
+      },
+      "body": {
+        "displayName": "Body",
+        "sourcePath": "website/styles.css",
+        "purpose": "Default interface copy."
+      },
+      "supporting": {
+        "displayName": "Supporting",
+        "sourcePath": "website/styles.css",
+        "purpose": "Stage supporting copy."
+      },
+      "label": {
+        "displayName": "Label",
+        "sourcePath": "website/styles.css",
+        "purpose": "Utility text and manifest values."
+      },
+      "button": {
+        "displayName": "Button",
+        "sourcePath": "website/styles.css",
+        "purpose": "Primary action label."
+      },
+      "filename": {
+        "displayName": "Filename",
+        "sourcePath": "website/styles.css",
+        "purpose": "Manifest filenames and local diagnostics."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "primary-state",
+        "value": "background .16s ease-out",
+        "purpose": "Primary hover fill."
+      },
+      {
+        "name": "file-state",
+        "value": "background .18s ease-out,border-color .18s ease-out",
+        "purpose": "Acknowledged file-state change."
+      },
+      {
+        "name": "anchor-scroll",
+        "value": "smooth",
+        "purpose": "In-page help and skip navigation; scroll-padding-top 24px."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "@media(prefers-reduced-motion:reduce)",
+        "purpose": "Disable transitions and animations; use automatic scrolling."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "1400px",
+        "query": "(min-width:1400px)",
+        "purpose": "Larger top inset and workspace column gap."
+      },
+      {
+        "name": "compact",
+        "value": "1000px",
+        "query": "(max-width:1000px)",
+        "purpose": "Narrower gutters, adjusted columns and 28-column map."
+      },
+      {
+        "name": "mobile",
+        "value": "700px",
+        "query": "(max-width:700px)",
+        "purpose": "Stack action before package; full-width primary control."
+      }
+    ],
+    "focus": {
+      "value": "3px solid var(--blue)",
+      "offset": "4px",
+      "targets": "buttons, links, inputs, summaries and elements with tabindex"
+    },
+    "selection": {
+      "background": "#c6d7fa",
+      "text": "#152f76"
+    },
+    "scrollbars": {
+      "thumb": "#a4b0c2",
+      "track": "#edf0f4",
+      "width": "thin"
+    },
+    "sourcePaths": [
+      "website/index.html",
+      "website/styles.css",
+      "website/app.js",
+      "website/fonts/public-sans.ttf",
+      "PRODUCT.md",
+      ".impeccable/surfaces/website-index-html.md",
+      ".impeccable/review/finish-review.md"
+    ],
+    "scope": {
+      "designRecord": "DESIGN.md",
+      "engineDesign": "docs/DESIGN.md is separate and unchanged.",
+      "mode": "Operate",
+      "implementationAuthority": "Autonomous code-led choice for this session only.",
+      "approvedComp": null,
+      "decisionComp": null,
+      "northStarProvenance": "Descriptive name extracted from the implemented file-workspace direction; no user-approved comp is implied."
+    },
+    "evidence": {
+      "reviewPath": ".impeccable/review/finish-review.md",
+      "disposition": "ship",
+      "materialFixes": [],
+      "captures": [
+        {
+          "path": ".impeccable/review/desktop.png",
+          "state": "Package ready, disconnected, zero transferred",
+          "reviewNote": "Finish reviewer opened a compressed 1280 x 1156 image of the reported 1440-width layout."
+        },
+        {
+          "path": ".impeccable/review/mobile.png",
+          "state": "Package ready, disconnected, zero transferred",
+          "reviewNote": "Finish reviewer opened the 390 x 2022 capture."
+        },
+        {
+          "path": ".impeccable/review/user-1280.png",
+          "state": "Package ready, disconnected, zero transferred",
+          "reviewNote": "Finish reviewer opened the 1280 x 1278 capture."
+        }
+      ],
+      "observationBasis": "Existing finish-review report plus current source extraction; this documenter did not run a browser or device.",
+      "conditionalStates": [
+        "loading",
+        "connecting",
+        "connected",
+        "transferring",
+        "stopped",
+        "completed",
+        "retry",
+        "lost connection",
+        "unsupported browser",
+        "integrity failure",
+        "search-empty",
+        "copy-result"
+      ],
+      "conditionalBasis": "Inspected website/index.html and website/app.js; not all states are represented in reviewed screenshots.",
+      "physicalUsbVerified": false,
+      "calculatorExecutionVerified": false,
+      "shippingRasterAssets": []
+    },
+    "storageTruth": {
+      "compiledLibraries": 236,
+      "compiledDestination": "archive",
+      "sourceLaunchers": [
+        "CASEVO",
+        "CVTEST"
+      ],
+      "launcherDestination": "ram",
+      "totalFiles": 238,
+      "destinationToggle": false
+    },
+    "snippetContract": "Scoped ds- classes, inline SVG and live CSS variables with literal fallbacks. Snippets are visual components without the installation runtime. Full app state behavior remains in website/app.js."
+  },
+  "components": [
+    {
+      "name": "Primary action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single advancing connection or installation action.",
+      "html": "<button class=\"ds-primary\"><span>Connect your EVO</span><svg width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden=\"true\"><path d=\"M5 12h14m-6-6 6 6-6 6\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button>",
+      "css": ".ds-primary{display:flex;align-items:center;justify-content:space-between;gap:28px;min-height:52px;min-width:256px;padding:13px 19px;border:1px solid var(--blue,#2144ad);border-radius:var(--radius,6px);background:var(--blue,#2144ad);color:#fff;font-size:14px;font-weight:600;transition:background .16s ease-out}.ds-primary:hover{background:var(--blue-dark,#183383)}.ds-primary:active{background:#10266a}.ds-primary:disabled{background:#dbe2ed;border-color:#dbe2ed;color:#606d81;cursor:default}.ds-primary:disabled svg{opacity:.45}.ds-primary{font-family:var(--font,\"Public Sans\",sans-serif);font-size:14px;line-height:1.55;cursor:pointer}.ds-primary svg{flex-shrink:0}.ds-primary:focus-visible{outline:3px solid var(--blue,#2144ad);outline-offset:4px}@media(max-width:700px){.ds-primary{width:100%;min-width:0}}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}",
+      "sourcePaths": [
+        "website/index.html",
+        "website/styles.css",
+        "website/app.js"
+      ],
+      "sourceSelectors": [
+        ".primary"
+      ],
+      "stateEvidence": "Package-ready label is observed in reviewed captures; hover, focus, pressed, disabled and alternate labels are source-defined."
+    },
+    {
+      "name": "Secondary action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Outlined control used for local diagnostics and stopping after a file.",
+      "html": "<button class=\"ds-secondary\">Copy details</button>",
+      "css": ".ds-secondary{background:transparent;color:var(--ink,#202a3b);border:1px solid #a4b0c2;border-radius:var(--radius,6px);min-height:40px;padding:8px 12px;font-size:12px}.ds-secondary:hover{background:#e0e6ef}.ds-secondary:disabled{opacity:.6;cursor:default}.ds-secondary{font-family:var(--font,\"Public Sans\",sans-serif);font-size:15px;line-height:1.55;font-size:12px;cursor:pointer}.ds-secondary:focus-visible{outline:3px solid var(--blue,#2144ad);outline-offset:4px}",
+      "sourcePaths": [
+        "website/index.html",
+        "website/styles.css",
+        "website/app.js"
+      ],
+      "sourceSelectors": [
+        ".secondary"
+      ],
+      "stateEvidence": "Copy and stop actions exist in source; stop is conditional on an active installation."
+    },
+    {
+      "name": "Text action",
+      "kind": "button",
+      "refersTo": "button-text",
+      "description": "Quiet disconnect control shown when connected and idle.",
+      "html": "<button class=\"ds-text-button\">Disconnect</button>",
+      "css": ".ds-text-button{border:0;background:none;color:var(--muted,#586579);padding:9px 0;font-size:12px;text-decoration:underline;text-underline-offset:4px}.ds-text-button:hover{color:var(--blue,#2144ad)}.ds-text-button{font-family:var(--font,\"Public Sans\",sans-serif);font-size:15px;line-height:1.55;font-size:12px;cursor:pointer}.ds-text-button:focus-visible{outline:3px solid var(--blue,#2144ad);outline-offset:4px}@media(max-width:700px){.ds-text-button{padding:8px}}",
+      "sourcePaths": [
+        "website/index.html",
+        "website/styles.css",
+        "website/app.js"
+      ],
+      "sourceSelectors": [
+        ".text-button",
+        ".actions .text-button"
+      ],
+      "stateEvidence": "Conditional connected state, not observed in package-ready captures."
+    },
+    {
+      "name": "File search",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Labeled search inside the expanded package manifest.",
+      "html": "<div class=\"ds-manifest-toolbar\"><label for=\"ds-file-search\">Find a file</label><input id=\"ds-file-search\" class=\"ds-search\" type=\"search\" placeholder=\"For example, CASEVO\" autocomplete=\"off\" spellcheck=\"false\"></div>",
+      "css": ".ds-manifest-toolbar{display:flex;align-items:center;gap:12px;padding:4px 26px 12px;font-size:12px}.ds-manifest-toolbar label{white-space:nowrap}.ds-manifest-toolbar{font-family:var(--font,\"Public Sans\",sans-serif);font-size:15px;line-height:1.55;font-size:12px}.ds-search{font:inherit;min-width:0;flex:1;border:1px solid #a4b0c2;padding:8px 10px;border-radius:4px;color:var(--ink,#202a3b);background:#fff;font-size:12px;caret-color:var(--blue,#2144ad)}.ds-search::placeholder{color:var(--muted,#586579)}.ds-search:focus-visible{outline:3px solid var(--blue,#2144ad);outline-offset:4px}@media(max-width:700px){.ds-manifest-toolbar{padding-left:20px;padding-right:20px}}",
+      "sourcePaths": [
+        "website/index.html",
+        "website/styles.css",
+        "website/app.js"
+      ],
+      "sourceSelectors": [
+        ".manifest-toolbar",
+        "input",
+        "input::placeholder"
+      ],
+      "stateEvidence": "Expanded-manifest and filtering states are source-defined; snippet is a visual sample without filtering runtime."
+    },
+    {
+      "name": "Header navigation",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Plain links keep help and the offline package accessible.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Main\"><a href=\"#help\">Installation help</a><a href=\"cas-evo-calculator.zip\" download>Download ZIP</a></nav>",
+      "css": ".ds-nav{display:flex;gap:28px}.ds-nav a{font-size:13px;color:var(--muted,#586579);text-decoration:none}.ds-nav a:hover{color:var(--blue,#2144ad);text-decoration:underline}.ds-nav{font-family:var(--font,\"Public Sans\",sans-serif);font-size:15px;line-height:1.55;}.ds-nav a{text-underline-offset:4px;text-decoration-thickness:1px}.ds-nav a:hover{text-decoration-thickness:2px}.ds-nav a:focus-visible{outline:3px solid var(--blue,#2144ad);outline-offset:4px}@media(max-width:700px){.ds-nav{gap:15px}.ds-nav a{font-size:12px}.ds-nav a:first-child{display:none}}",
+      "sourcePaths": [
+        "website/index.html",
+        "website/styles.css",
+        "website/app.js"
+      ],
+      "sourceSelectors": [
+        "nav",
+        "nav a"
+      ],
+      "stateEvidence": "Desktop and mobile layout observed by finish reviewer; hover and focus are source-defined."
+    },
+    {
+      "name": "Compiled package tag",
+      "kind": "chip",
+      "refersTo": "chip-destination",
+      "description": "Static package descriptor; it does not choose a storage destination.",
+      "html": "<span class=\"ds-destination\">Compiled for EVO</span>",
+      "css": ".ds-destination{display:inline-flex;align-items:center;background:var(--blue-pale,#e8eefb);color:var(--blue,#2144ad);border-radius:4px;padding:4px 9px;font-size:12px;font-weight:600}.ds-destination{font-family:var(--font,\"Public Sans\",sans-serif);font-size:15px;line-height:1.55;font-size:12px}",
+      "sourcePaths": [
+        "website/index.html",
+        "website/styles.css",
+        "website/app.js"
+      ],
+      "sourceSelectors": [
+        ".destination"
+      ],
+      "stateEvidence": "Default tag is observed; no interactive or selected state exists."
+    },
+    {
+      "name": "Package surface",
+      "kind": "card",
+      "refersTo": "card-package",
+      "description": "One white file workspace, separated internally with rules.",
+      "html": "<section class=\"ds-package\" aria-label=\"cas-evo package\"><div class=\"ds-package-heading\"><div class=\"ds-package-name\"><svg width=\"25\" height=\"25\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden=\"true\"><path d=\"M3 7h18v14H3zM2 3h20v4H2zM9 11h6\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/></svg><h2>cas-evo <span>v1</span></h2></div><span class=\"ds-destination\">Compiled for EVO</span></div><div class=\"ds-package-description\"><p>Exact answers. On your EVO.</p><p>Algebra, calculus, series and differential equations, with an editor and typeset results.</p></div></section>",
+      "css": ".ds-package-heading{padding:23px 26px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line,#d4dbe5);gap:12px}.ds-package-name{display:flex;gap:12px;align-items:center}.ds-package-name svg{color:var(--blue,#2144ad)}.ds-package-heading h2{font-size:18px;letter-spacing:-.025em;margin:0;font-weight:600}.ds-package-heading h2 span{font-size:12px;font-weight:450;color:var(--muted,#586579);margin-left:4px;letter-spacing:0}.ds-destination{display:inline-flex;align-items:center;background:var(--blue-pale,#e8eefb);color:var(--blue,#2144ad);border-radius:4px;padding:4px 9px;font-size:12px;font-weight:600}.ds-package-description{padding:25px 26px 20px}.ds-package-description p:first-child{font-weight:600;margin-bottom:5px;font-size:17px;letter-spacing:-.02em}.ds-package-description p:last-child{color:var(--muted,#586579);font-size:13px;max-width:46ch}.ds-package{font-family:var(--font,\"Public Sans\",sans-serif);font-size:15px;line-height:1.55;color:var(--ink,#202a3b);background:var(--paper,#fff);border:1px solid var(--line,#d4dbe5);border-radius:12px;overflow:hidden}.ds-package p{margin:0}.ds-package svg{flex-shrink:0}@media(max-width:700px){.ds-package-heading{padding:20px}.ds-package-description{padding:21px 20px 18px}}",
+      "sourcePaths": [
+        "website/index.html",
+        "website/styles.css",
+        "website/app.js"
+      ],
+      "sourceSelectors": [
+        ".package",
+        ".package-heading",
+        ".package-name",
+        ".package-description",
+        ".destination"
+      ],
+      "stateEvidence": "Default white package surface observed; snippet omits the separate transfer and manifest subregions."
+    },
+    {
+      "name": "Installation stages",
+      "kind": "custom",
+      "refersTo": "stage-current",
+      "description": "Numbered task sequence with current and completed state treatments.",
+      "html": "<ol class=\"ds-stages\" aria-label=\"Installation stages\"><li class=\"ds-current\" aria-current=\"step\"><span class=\"ds-stage-number\">1</span><div><h2>Connect your EVO</h2><p>Use a USB data cable. Close TI Connect and other calculator tabs first.</p></div></li><li><span class=\"ds-stage-number\">2</span><div><h2>Install the complete package</h2><p>Every file goes to its correct location. Keep your calculator connected.</p></div></li><li><span class=\"ds-stage-number\">3</span><div><h2>Open CASEVO</h2><p>On your calculator, open Python, select CASEVO, and run it.</p></div></li></ol>",
+      "css": ".ds-stages{list-style:none;margin:40px 0 30px;padding:0}.ds-stages li{display:flex;gap:17px;position:relative;padding-bottom:26px}.ds-stages li:last-child{padding-bottom:0}.ds-stages li:not(:last-child)::after{content:\"\";position:absolute;left:14px;top:35px;bottom:5px;width:1px;background:var(--line,#d4dbe5)}.ds-stage-number{flex-shrink:0;width:29px;height:29px;border:1px solid #b5bfce;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--muted,#586579);margin-top:1px}.ds-stages .ds-current .ds-stage-number{background:var(--blue,#2144ad);color:#fff;border-color:var(--blue,#2144ad)}.ds-stages .ds-done .ds-stage-number{background:var(--green-pale,#e4f1e9);color:var(--green,#21644d);border-color:#a1c5b1}.ds-stages h2{margin:0 0 5px;font-size:15px;font-weight:600}.ds-stages p{font-size:13px;line-height:1.6;color:var(--muted,#586579);max-width:36ch}.ds-stages{font-family:var(--font,\"Public Sans\",sans-serif);font-size:15px;line-height:1.55;color:var(--ink,#202a3b)}.ds-stages p{margin:0}@media(max-width:700px){.ds-stages{margin-top:30px}.ds-stages li{padding-bottom:20px}.ds-stages li:last-child{padding-bottom:0}.ds-stages p{max-width:40ch}}",
+      "sourcePaths": [
+        "website/index.html",
+        "website/styles.css",
+        "website/app.js"
+      ],
+      "sourceSelectors": [
+        ".stages",
+        ".stage-number",
+        ".current",
+        ".done"
+      ],
+      "stateEvidence": "First stage current is observed; later current and completed stages are conditional source states."
+    },
+    {
+      "name": "Acknowledged file map",
+      "kind": "custom",
+      "refersTo": "transfer-map",
+      "description": "One literal cell per file, accompanied by a native progress bar, count and status.",
+      "html": "<section class=\"ds-transfer\" aria-label=\"Package transfer\"><div class=\"ds-transfer-heading\"><span role=\"status\">Package ready to install</span><span class=\"ds-numeric\">0 / 238</span></div><progress class=\"ds-progress\" value=\"0\" max=\"238\" aria-label=\"Package files sent\"></progress><div class=\"ds-file-map\" aria-hidden=\"true\"><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span><span class=\"ds-file-cell\"></span></div><div class=\"ds-map-caption\"><span>Each square is one file.</span><span class=\"ds-integrity ds-verified\">SHA-256 verified</span></div></section>",
+      "css": ".ds-transfer{border-top:1px solid var(--line,#d4dbe5);padding:23px 26px 19px}.ds-transfer-heading{display:flex;justify-content:space-between;gap:16px;font-size:12px;font-weight:550;min-height:20px}.ds-transfer-heading .ds-numeric{color:var(--muted,#586579);white-space:nowrap}.ds-progress{appearance:none;border:0;border-radius:0;width:100%;height:3px;margin:13px 0 21px;display:block;background:#e5e9f0;overflow:hidden}.ds-progress::-webkit-progress-bar{background:#e5e9f0}.ds-progress::-webkit-progress-value{background:var(--blue,#2144ad)}.ds-progress::-moz-progress-bar{background:var(--blue,#2144ad)}.ds-file-map{display:grid;grid-template-columns:repeat(34,minmax(0,1fr));gap:4px;min-height:86px;align-content:start}.ds-file-cell{aspect-ratio:1;background:#e5e9f0;border:1px solid #d9e0ea;border-radius:1px;transition:background .18s ease-out,border-color .18s ease-out}.ds-file-cell.ds-sending{background:var(--blue,#2144ad);border-color:var(--blue,#2144ad)}.ds-file-cell.ds-sent{background:#719c86;border-color:#719c86}.ds-file-cell.ds-verified{background:var(--green,#21644d);border-color:var(--green,#21644d)}.ds-file-cell.ds-failed{background:#b75d3f;border-color:#b75d3f}.ds-map-caption{display:flex;justify-content:space-between;gap:10px;margin-top:13px;font-size:12px;color:var(--muted,#586579)}.ds-integrity{white-space:nowrap}.ds-integrity.ds-verified{color:var(--green,#21644d)}.ds-transfer{font-family:var(--font,\"Public Sans\",sans-serif);font-size:15px;line-height:1.55;color:var(--ink,#202a3b);background:var(--paper,#fff)}.ds-numeric{font-variant-numeric:tabular-nums}@media(max-width:1000px){.ds-file-map{grid-template-columns:repeat(28,minmax(0,1fr));gap:3px}}@media(max-width:700px){.ds-transfer{padding:20px}.ds-file-map{min-height:90px}}@media(prefers-reduced-motion:reduce){.ds-file-cell{transition:none}}",
+      "sourcePaths": [
+        "website/index.html",
+        "website/styles.css",
+        "website/app.js"
+      ],
+      "sourceSelectors": [
+        ".transfer",
+        ".file-map",
+        ".file-cell",
+        "progress",
+        ".map-caption",
+        ".integrity"
+      ],
+      "stateEvidence": "Default package-ready state is observed. Sending, sent, verified and failed classes are conditional. This snippet has no transfer runtime and never animates synthetic progress."
+    },
+    {
+      "name": "Attention notice",
+      "kind": "custom",
+      "description": "Rust notice for connection or package issues; hidden when no message exists.",
+      "html": "<p class=\"ds-notice\" role=\"alert\">Connection canceled. Choose Connect your EVO when you’re ready.</p>",
+      "css": ".ds-notice{border:1px solid #d6ac97;background:var(--error-pale,#fff0e9);color:var(--error,#903e29);padding:14px 16px;font-size:13px;margin:0 0 18px;border-radius:var(--radius,6px);overflow-wrap:anywhere}.ds-notice{font-family:var(--font,\"Public Sans\",sans-serif);font-size:15px;line-height:1.55;font-size:13px}",
+      "sourcePaths": [
+        "website/index.html",
+        "website/styles.css",
+        "website/app.js"
+      ],
+      "sourceSelectors": [
+        ".notice"
+      ],
+      "stateEvidence": "Conditional source-defined cancellation message; not shown in package-ready review captures."
+    }
+  ],
+  "narrative": {
+    "northStar": "The File Workspace",
+    "overview": "The File Workspace gives the installer the clarity of a desktop file manager: a white working surface on cool silver, direct Public Sans labels, restrained ink-blue selection, and literal representations of package files. Its character is calm, compact and inspectable. Filename and diagnostic text use monospace; the surrounding interface uses proportional type.\n\nState carries the visual emphasis. Solid blue identifies the next action and current work; green identifies a specific verified or completed condition. Rules and tonal changes divide information without shadows. This record describes the implemented web interface, with the durable accessibility and direct-language commitments in PRODUCT.md.\n\nThis is an extracted record of website/index.html, website/styles.css and website/app.js, not an approved comp. The session used autonomous, code-led implementation; it establishes no lasting build-path preference. The surface composition and direction remain in .impeccable/surfaces/website-index-html.md. docs/DESIGN.md documents the calculator engine and is separate from this UI system.",
+    "keyCharacteristics": [
+      "A light file workspace with crisp rules and restrained state color.",
+      "Public Sans interface text; monospace filenames and local diagnostics.",
+      "One advancing primary action beside an inspectable package.",
+      "Literal file progress with a filename, count and textual state.",
+      "Responsive stacking, visible focus and reduced-motion support."
+    ],
+    "rules": [
+      {
+        "name": "The State Evidence Rule",
+        "body": "Color accompanies a named state and a count or message; it never supplies the only indication of progress or completion.",
+        "section": "colors"
+      },
+      {
+        "name": "The Filename Rule",
+        "body": "Reserve monospace for filenames and diagnostics; keep the operating instructions and interface hierarchy in Public Sans.",
+        "section": "typography"
+      },
+      {
+        "name": "The Surface Rule",
+        "body": "Separate working regions with tone and rules; retain the flat material language of the installed interface.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do pair state color with textual status and numeric progress.",
+      "Do use Public Sans for the interface and monospace for filenames and diagnostics.",
+      "Do preserve visible keyboard focus, semantic controls and reduced-motion behavior.",
+      "Do keep required archive and RAM destinations visible and automatic.",
+      "Do treat package verification, file-location verification and calculator execution as separate conditions."
+    ],
+    "donts": [
+      "Don't turn the static package tag into a destination toggle.",
+      "Don't use the pending or success file colors as decorative progress.",
+      "Don't claim a connected or installed device from the package-ready screenshot.",
+      "Don't replace the flat workspace hierarchy with shadows or individually boxed file rows.",
+      "Don't treat this session's code-led implementation as a standing workflow preference."
+    ]
+  }
+}

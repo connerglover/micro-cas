@@ -22,14 +22,38 @@ Those checks did not establish physical compatibility.
 
 ## Next step
 
-The installer is implemented and reviewed. Finish its milestone commit/push,
-watch the final GitHub build, verify the downloadable artifacts, and record the
-successful run here before stopping. Memory-fix commit 3eee7ba is already pushed;
-its successful run is https://github.com/connerglover/cas-evo/actions/runs/38169620143.
-Downloaded artifact bytes match all 238 locally native-tested transfer objects.
+Software delivery is complete. The next acceptance step is the user's physical
+EVO: use the installer, run CASEVO, then run CVTEST in a fresh Python session.
+Record the OS version, complete traceback/free-heap values if a failure occurs,
+and CVTEST's final result. Native checks do not complete hardware acceptance.
+Do not restore the old source-only package or recommend putting all companions
+in RAM. Preserve all T1/T2/T3/UI features when addressing any device feedback.
+
 The user requests no questions and has not requested a PR or visibility change.
-After software delivery, the remaining acceptance is physical USB transfer and
-CASEVO/CVTEST on the user's EVO; never claim native checks complete that step.
+The site is available locally and as an Actions download; public hosting has
+not been configured. There is no outstanding software implementation task in
+this milestone.
+
+## Final delivery verification
+
+- Runtime milestone 3eee7ba: successful run 38169620143.
+- Installer milestone 9f83514: successful run
+  https://github.com/connerglover/cas-evo/actions/runs/38170910971.
+- Both final artifacts were downloaded to dist/ci-38170910971 and checked.
+  All 238 transfer objects match the locally native-tested bytes. ZIP checksums,
+  site manifest integrity, vendor hashes and committed browser sources match.
+- `cas-evo-v1` artifact ID: 11713354445; `cas-evo-web-installer`: 11713429278.
+  Artifact retention is 14 days; rerun the workflow to regenerate a download.
+- The website's calculator ZIP equals the calculator artifact's ZIP. The
+  installer artifact contains website/, serve_installer.py, START-INSTALLER.txt,
+  matching upstream source archives/licenses, and no private design briefs.
+- Downloaded server command options were checked; its script matches the
+  browser-tested local server. The running server returns HTTP200 and both
+  required isolation headers. A second temporary-server launch was blocked by
+  automatic approval review; verification used file equivalence and the already
+  running server instead, without retrying the blocked launch.
+- Final documentation-only commit records these results and the Impeccable
+  design files with [skip ci]; calculator, website and build code remain 9f83514.
 
 ## Web installer
 
@@ -144,9 +168,11 @@ ports/unix/micropython-cas32 and micropython-cas64. The former uses the private
 - Impeccable context already ran once this session. Do not rerun. Direction is
   in .impeccable/surfaces/website-index-html.md and docs/notes/WEBSITE-DIRECTION.md.
   Its storage wording now matches compiled libraries + RAM launchers. Finish
-  review completed with ship; verify documenter outputs before final commit.
+  review completed with ship. Root DESIGN.md and .impeccable/design.json passed
+  schema/token/source checks; docs/DESIGN.md remains unchanged.
 
 Previous milestones: T1 841cbfe; T2 2273a6d; T3 c08edd0; UI d767ade;
 compatibility 699cc12; CI/single-file f19de2b; companions cffa02e;
 identifier/input 08ad2dd; storage/cache 54ac8d5; paging 88a443b;
 prior handover 7ddc258. The current memory fix supersedes their install advice.
+Current milestones: memory/compiled packaging 3eee7ba; web installer 9f83514.
