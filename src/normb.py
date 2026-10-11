@@ -14,6 +14,28 @@ AUTOMAX = 100       # the default path leaves results of this size or more alone
 RS = ('', '', 'trigsin', 'trigcos', 'tlin', 'lncollect', 'expmerge')
 
 
+def g_polish(e, x=None, drop=False):                            #@L 2
+    # Normalize small function arguments without expanding a large surrounding result.
+    replacements = {}
+    for n in A.postorder(e):
+        t = K.N[n]
+        if t[0] >= K.FN0 and A.size(t[1]) <= 40:
+            arg = R.MODS['norm'].normal(t[1])
+            if A.size(arg) <= A.size(t[1]):
+                replacements[t[1]] = arg
+        if t[0] >= K.COMP:
+            replacements[n] = A.rebuild(n, replacements)
+    e = replacements.get(e, e)
+    t = K.N[e]
+    if drop and x is not None and t[0] == K.ADD:
+        terms = []
+        for j in range(2, len(t), 2):
+            if not K.free_of(t[j], x):
+                terms.append(K.mul_(t[j+1], [(t[j], K.ONE)]))
+        e = K.add_(terms)
+    yield e
+
+
 def g_iszero(e):                                                #@L 2
     # 8.6: YES when e is exactly 0, A.NO when it is not, A.LIKELY when only the numeric probe
     # (real points) says 0 or it finds no usable point. Steps: expand, ln of rationals over

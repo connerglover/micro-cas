@@ -1,0 +1,30 @@
+#@L 3
+# CVITAB: real antiderivatives. L binds A*x+B; K is free of x.
+# Table entries are (integrand, primitive, guard), consumed by rules.rset.
+ITAB = (
+    'L^(-1)', 'ln(abs(L))/A', '',
+    'L^K', 'L^(K+1)/(A*(K+1))', '~K!=-1',
+    'e^L', 'e^L/A', '',
+    'K^L', 'K^L/(A*ln(K))', '~K>0,K!=1',
+    'sin(L)', '-cos(L)/A', '',
+    'cos(L)', 'sin(L)/A', '',
+    'tan(L)', '-ln(abs(cos(L)))/A', '',
+    'cot(L)', 'ln(abs(sin(L)))/A', '',
+    'sec(L)', 'ln(abs(sec(L)+tan(L)))/A', '',
+    'csc(L)', '-ln(abs(csc(L)+cot(L)))/A', '',
+    'sec(L)^2', 'tan(L)/A', '',
+    'csc(L)^2', '-cot(L)/A', '',
+    'sec(L)*tan(L)', 'sec(L)/A', '',
+    'csc(L)*cot(L)', '-csc(L)/A', '',
+    'sec(L)^3', '(sec(L)*tan(L)+ln(abs(sec(L)+tan(L))))/(2*A)', '',
+    'ln(L)', '(L*ln(L)-L)/A', '',
+    'asin(L)', '(L*asin(L)+sqrt(1-L^2))/A', '',
+    'acos(L)', '(L*acos(L)-sqrt(1-L^2))/A', '',
+    'atan(L)', '(L*atan(L)-ln(1+L^2)/2)/A', '',
+    'sinh(L)', 'cosh(L)/A', '',
+    'cosh(L)', 'sinh(L)/A', '',
+    'tanh(L)', 'ln(cosh(L))/A', '',
+    'abs(L)', 'L*abs(L)/(2*A)', '',
+    'Q^(-1)', '2*atan((2*A*x+B)/sqrt(4*A*C-B^2))/sqrt(4*A*C-B^2)', '4*A*C-B^2>0',
+    'Q^(-1)', 'ln(abs((2*A*x+B-sqrt(B^2-4*A*C))/(2*A*x+B+sqrt(B^2-4*A*C))))/sqrt(B^2-4*A*C)', 'B^2-4*A*C>0',
+    'L', 'L^2/(2*A)', '')

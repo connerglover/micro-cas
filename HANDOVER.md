@@ -1,6 +1,6 @@
 # cas-evo handover
 
-Updated: 2026-10-11, T1 integration milestone. Whoever is working on this rewrites this file at every milestone.
+Updated: 2026-10-11, T2 calculus milestone. Whoever is working on this rewrites this file at every milestone.
 
 ## What this is
 
@@ -66,15 +66,15 @@ graphing in v1. DESIGN §2 and Appendix C list every default.
 | Design and M0 foundations | done; real-device calibration deferred |
 | T1 exact core and integration (T1.1-T1.13) | complete, desktop verified |
 | T1.14 bundle / full B.1 | underway with final v1 packaging |
-| T2 calculus | derivatives, series, limits, table/substitution done; remaining strategies in progress |
-| T3 | gradients done; sums and Riemann implemented; ODE and definite/improper integration in progress |
-| UI U.1-U.4 and CVTEST D.1 | pending in this same continuation |
+| T2 calculus | complete, desktop verified; release integration underway |
+| T3 | implemented; final numeric fallback and correctness review underway |
+| UI U.1-U.4 and CVTEST D.1 | implemented, desktop tested; packaging underway |
 
 **Next step:** continue through ALL T2, T3, UI, and packaging without stopping at a milestone.
 The user's explicit continuation instruction requires a downloadable complete v1 application.
 Finish integration strategies, definite/improper integrals and ODEs; split every lazy compile
 unit; implement the interface, phase-2 bundler and CVTEST; run source and bundled strict tests;
-produce a ZIP plus installation instructions. Commit at milestones and update this handover.
+produce a single minified `CASEVO.py`, an automatic GitHub Actions build, and installation instructions. Commit at milestones and update this handover.
 Do not claim actual EVO validation: the device probes remain deferred to Conner.
 
 ## This continuation (2026-10-11)
@@ -109,3 +109,10 @@ Do not claim actual EVO validation: the device probes remain deferred to Conner.
   but does not lower total steady resident memory. Phase eviction and identifier shrinking
   are still required; do not silently increase the provisional 175 KB device heap.
 - Pending agent-owned files are not part of the T1 milestone commit.
+
+### T2 checkpoint
+
+- Derivatives, Laurent/Taylor series, limits, table/substitution/tabular/rational/trig/radical/by-parts integration and primitive verification implemented. See `docs/notes/T2.md`.
+- Focused T2/T3 calculus run: 467 strict-depth tests passed. Additional limit growth and quadrature review regressions passed independently.
+- User now requires one minified `.py` file and automatic GitHub Actions artifacts. `build/release.py` is implementing compressed lazy exec namespaces, retaining the stricter measured Python heap budget.
+- Continue through final v1 release; do not stop at this checkpoint.

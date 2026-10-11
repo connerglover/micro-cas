@@ -1,0 +1,13 @@
+# command	expected
+diff(x^x,x)	x^x*(ln(x)+1)
+diff(ln(sec(x)+tan(x)),x)	sec(x)
+diff(integrate(sin(t^2),t,0,x^2),x)	2*x*sin(x^4)
+limit(sin(x)/x,x,0)	1
+limit((1-cos(x))/x^2,x,0)	1/2
+limit(x*ln(x),x,0,1)	0
+limit((1+1/x)^x,x,oo)	e
+limit(x^3/e^x,x,oo)	0
+limit(sqrt(x^2+x)-x,x,oo)	1/2
+integrate(sin(x),x,0,pi)	2
+integrate(1/(2+cos(x)),x,0,2*pi)	2*pi/sqrt(3)
+integrate(sqrt(1-x^2),x,0,1)	pi/4
