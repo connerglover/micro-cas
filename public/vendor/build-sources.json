@@ -1,0 +1,9 @@
+{
+  "tilibs": "06d60cbc795c801061ab40bce0f932cade94bc1a",
+  "emsdk": "5eb0bde7585670252e8ba05e9d361627bffd08b5",
+  "tivars_lib_cpp": "cfb3529ccdc2f34918a928a5080b195585d11842",
+  "Luna": "a9924a9a968954eba9adcc161a58ac607f97ce8c",
+  "EMSDK_VERSION": "6.0.9",
+  "MESON_VERSION": "1.12.0",
+  "BUN_VERSION": "1.4.2"
+}

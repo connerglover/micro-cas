@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#edf0f4">
+  <meta name="description" content="Install cas-evo on your TI-84 EVO over USB. Compiled libraries in archive, tiny launchers in RAM.">
+  <title>Install cas-evo · TI-84 EVO</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232144ad'/%3E%3Cpath d='M23 9H11l7 7-7 7h12' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="preload" href="fonts/public-sans.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <script src="isolation.js" defer></script>
+  <script src="vendor/webtilp.js" defer></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to installer</a>
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="cas-evo installer home">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="5" fill="currentColor"/><path d="M21 8H10l7 7-7 7h11" fill="none" stroke="white" stroke-width="2.3" stroke-linejoin="round"/></svg>
+      <span>cas-evo</span>
+    </a>
+    <nav aria-label="Main"><a href="#help">Installation help</a><a href="cas-evo-calculator.zip" download>Download ZIP</a></nav>
+  </header>
+  <main id="main">
+    <div class="workspace">
+      <section class="setup" aria-labelledby="title">
+        <h1 id="title">Your calculator.<br>A little more capable.</h1>
+        <p class="intro">Install cas-evo on your TI-84 EVO.<br>Compiled libraries in archive. Tiny launchers in RAM.</p>
+        <ol class="stages" aria-label="Installation stages">
+          <li id="stage-connect" class="current" aria-current="step"><span class="stage-number">1</span><div><h2>Connect your EVO</h2><p>Use a USB data cable. Close TI Connect and other calculator tabs first.</p></div></li>
+          <li id="stage-install"><span class="stage-number">2</span><div><h2>Install the complete package</h2><p>Every file goes to its correct location. Keep your calculator connected.</p></div></li>
+          <li id="stage-open"><span class="stage-number">3</span><div><h2>Open CASEVO</h2><p>On your calculator, open Python, select CASEVO, and run it.</p></div></li>
+        </ol>
+        <div id="notice" class="notice" role="alert" hidden></div>
+        <noscript><p class="notice">JavaScript is needed to connect your calculator. You can still download the ZIP above.</p></noscript>
+        <div class="actions">
+          <button id="primary" class="primary" disabled><span id="primary-label">Checking package…</span><svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button id="stop" class="secondary" hidden>Stop after this file</button>
+          <button id="disconnect" class="text-button" hidden>Disconnect</button>
+        </div>
+        <p id="action-note" class="action-note">Chrome or Edge on a computer. No extra software.</p>
+        <div id="launch-note" class="launch-note" hidden><strong>Ready on your calculator.</strong><p>Open <b>Python → CASEVO → Run</b>. For a diagnostic check, run CVTEST in a fresh Python session.</p></div>
+      </section>
+
+      <section class="package" aria-labelledby="package-title">
+        <div class="package-heading"><div class="package-name"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 7h18v14H3zM2 3h20v4H2zM9 11h6" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><h2 id="package-title">cas-evo <span>v1</span></h2></div><span class="destination">Compiled for EVO</span></div>
+        <div class="package-description"><p>Exact answers. On your EVO.</p><p>Algebra, calculus, series and differential equations, with an editor and typeset results.</p></div>
+        <dl class="package-facts"><div><dt>Package</dt><dd id="file-count">Loading…</dd></div><div><dt>Transfer size</dt><dd id="source-size">Checking…</dd></div><div><dt>Launchers only</dt><dd id="ram-size">Checking…</dd></div></dl>
+        <div class="transfer">
+          <div class="transfer-heading"><span id="status-text" role="status" aria-live="polite">Verifying package integrity</span><span id="progress-count" class="numeric">—</span></div>
+          <progress id="progress" value="0" max="1" aria-label="Package files sent"></progress>
+          <div id="file-map" class="file-map" aria-hidden="true"></div>
+          <div class="map-caption"><span id="current-file">Each square is one file.</span><span id="integrity" class="integrity">Checking SHA-256</span></div>
+        </div>
+        <div class="device-line"><span class="connection-dot" id="connection-dot" aria-hidden="true"></span><span id="device-name">No calculator connected</span><span id="archive-free" class="numeric"></span></div>
+        <details class="manifest"><summary>View package files <span id="manifest-count"></span></summary><div class="manifest-toolbar"><label for="file-search">Find a file</label><input id="file-search" type="search" placeholder="For example, CASEVO" autocomplete="off" spellcheck="false"></div><div class="file-list-wrap" tabindex="0" aria-label="Scrollable package file list"><table><thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">Location</th><th scope="col">Status</th></tr></thead><tbody id="file-list"></tbody></table><p id="no-files" hidden>No matching files.</p></div></details>
+        <p class="package-footnote">Existing cas-evo files are replaced. Other files are left alone.</p>
+      </section>
+    </div>
+
+    <section class="help" id="help" aria-labelledby="help-title">
+      <div><h2 id="help-title">A smoother way in.</h2><p>The installer selects every file and its location. Only the two launchers need to appear in your Python program list.</p><a href="cas-evo-calculator.zip" download>Prefer a manual install? Download the ZIP.</a></div>
+      <div class="questions">
+        <details><summary>Why use two storage locations?</summary><p>CASEVO and CVTEST are small source launchers, so they go to RAM and appear in Python. The libraries are compiled EVO modules (.8mp2), stored in archive and imported as needed. This avoids compiling the engine on the calculator. Imported code still needs working memory; archive is not extra RAM. Ordinary archived .py files are not a substitute.</p></details>
+        <details><summary>My calculator isn’t in the list.</summary><p>Turn it on and use a USB cable that supports data. Close TI Connect and other calculator tabs. In Chrome or Edge, select the TI-84 EVO serial port when prompted. This installer supports the EVO and EVO-T, not the TI-84 Plus CE.</p></details>
+        <details><summary>A transfer stopped. What now?</summary><p>Keep any files that arrived. Reconnect, then install again: the same cas-evo filenames are replaced. If you stopped the transfer yourself, choose Install again. If the connection timed out, reload this page first. Wait for archive verification before running CASEVO.</p></details>
+        <details><summary>I already sent some files to RAM.</summary><p>The installer moves old cas-evo companions to archive only when their contents match the previous source package. Modified files are preserved and reported for you to move manually. It then installs the compiled libraries and replaces the two launchers. Your other programs stay untouched.</p></details>
+      </div>
+    </section>
+    <details class="diagnostics"><summary>Connection details</summary><p>These details stay in this browser. Copy them if a transfer fails.</p><button id="copy-log" class="secondary">Copy details</button><pre id="log" tabindex="0" aria-label="Connection log">Waiting for a connection.</pre></details>
+  </main>
+  <footer><span>cas-evo / calculator installer</span><span>Powered by <a href="https://github.com/adriweb/tilibs" target="_blank" rel="noreferrer">WebTILP</a><span class="footer-separator">·</span><a href="licenses.html">Credits &amp; source</a></span></footer>
+</body>
+</html>

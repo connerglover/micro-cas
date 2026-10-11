@@ -1,0 +1,42 @@
+[
+  {
+    "name": "tilibs-06d60cbc795c801061ab40bce0f932cade94bc1a.tar.gz",
+    "url": "https://codeload.github.com/adriweb/tilibs/tar.gz/06d60cbc795c801061ab40bce0f932cade94bc1a",
+    "sha256": "a78bab6c6056b5d1ea72b07e44327569b901ca63d12ac12aeb71592bd563293a"
+  },
+  {
+    "name": "tivars-cfb3529ccdc2f34918a928a5080b195585d11842.tar.gz",
+    "url": "https://codeload.github.com/adriweb/tivars_lib_cpp/tar.gz/cfb3529ccdc2f34918a928a5080b195585d11842",
+    "sha256": "4559e4a451918114fd237ae2f4df8afd75e8bafd3acdafbb222163f0b2e74e85"
+  },
+  {
+    "name": "zlib-1.3.2.tar.xz",
+    "sha256": "d7a0654783a4da529d1bb793b7ad9c3318020af77667bcae35f95d0e42a792f3",
+    "url": "https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.xz"
+  },
+  {
+    "name": "libffi-3.8.0.tar.gz",
+    "sha256": "7da3e2d9a171eb0a038f592ecad3ff2bb2550f3496d87b3b29ad0cf4430c0db4",
+    "url": "https://github.com/libffi/libffi/releases/download/v3.8.0/libffi-3.8.0.tar.gz"
+  },
+  {
+    "name": "glib-2.88.3.tar.xz",
+    "sha256": "ab24d24e698dfa1e408b7bcdb508f4aafc906185a8b8ce72fdf79bbbdc9b383b",
+    "url": "https://download.gnome.org/sources/glib/2.88/glib-2.88.3.tar.xz"
+  },
+  {
+    "name": "glib-wasm.patch",
+    "sha256": "ab0d26a034257ab4dcde2e9aa41b862eccd0309ba99b887076cf529356f00e11",
+    "url": "https://github.com/GNOME/glib/compare/2.88.1...kleisauke:1afd0d285774f342e0aadcda5cc2c2721d47506c.patch"
+  },
+  {
+    "name": "libusb-1.0.30.tar.bz2",
+    "sha256": "fea36f34f9156400209595e300840767ab1a385ede1dc7ee893015aea9c6dbaf",
+    "url": "https://github.com/libusb/libusb/releases/download/v1.0.30/libusb-1.0.30.tar.bz2"
+  },
+  {
+    "name": "libarchive-3.8.9.tar.xz",
+    "sha256": "888c934f9d95648ecb9163dc8e23ab80a476ecb81a8f1154704a227b5b676dde",
+    "url": "https://github.com/libarchive/libarchive/releases/download/v3.8.9/libarchive-3.8.9.tar.xz"
+  }
+]
