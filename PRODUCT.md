@@ -11,9 +11,10 @@ web
 Implementation choice under the user's standing instruction to work autonomously:
 static HTML, CSS and JavaScript, with the EVO transport from WebTILP. No account,
 application server or upload of calculator contents is needed. The user requested
-Cloudflare Pages hosting on their existing connerglover.com domain. The proposed
-hostname is cas.connerglover.com; local use remains available. See docs/HOSTING.md
-and HANDOVER.md for deployment status.
+Cloudflare Worker hosting connected to GitHub on their existing connerglover.com
+domain. Main contains source; successful builds publish the generated pages
+branch for Cloudflare. The proposed hostname is cas.connerglover.com; local use
+remains available. See docs/HOSTING.md and HANDOVER.md for deployment status.
 
 ## Users
 

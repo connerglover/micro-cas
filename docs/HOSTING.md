@@ -1,96 +1,83 @@
-# Cloudflare Pages hosting
+# Cloudflare Worker from GitHub
 
-Target: **cas.connerglover.com**, project **cas-evo**, production branch **v1**.
-The short hostname is easy to type; the site itself retains the cas-evo name.
-See HANDOVER.md for the actual deployment status. A configured workflow alone
-does not mean the site is live.
+Use **cas.connerglover.com**, Worker **cas-evo**, deployment branch **pages**.
+The repository stays private. Setup is entirely in dash.cloudflare.com; local
+Wrangler login and Cloudflare secrets in GitHub are not needed.
 
-Use a Pages **Direct Upload** project. GitHub Actions already builds and tests
-the calculator, then creates the self-contained website. Pages serves that
-exact artifact; it does not need another calculator build or repository access.
-The GitHub repository stays private.
+## Branches
 
-## Initial deployment
+- `main`: calculator and website source, tests, build tooling and documentation.
+  The complete v1 history is merged here. Make future changes here or in feature
+  branches merged into main.
+- `pages`: generated deployment files only, with an independent history.
+  `public/` contains the tested installer, calculator download, vendor code and
+  license sources. The root contains the Worker config and deployment provenance.
+- `v1`: retained for history; it no longer drives production publication.
 
-Authenticate with Wrangler in a terminal (Node 22 or later):
+After every successful main build, GitHub Actions updates pages with the exact
+installer artifact from that run. Cloudflare watches pages and deploys it. A
+failed build leaves the previous website intact. The publishing job needs only
+GitHub's built-in token with contents-write permission; PRs and stale builds
+cannot publish. Updates preserve history and never force push. Do not edit or
+merge the generated pages branch into main.
 
-```powershell
-npx --yes wrangler@4.149.0 login --scopes account:read user:read pages:write zone:read
-npx --yes wrangler@4.149.0 whoami
-npx --yes wrangler@4.149.0 pages project list
-```
+## One-time dashboard setup
 
-Use the Cloudflare account that owns connerglover.com. Inspect existing projects
-and DNS records before making changes. If cas-evo does not already exist, create
-it with `npx --yes wrangler@4.149.0 pages project create cas-evo --production-branch v1`.
-Set `CLOUDFLARE_ACCOUNT_ID` in the process environment if multiple accounts are
-available. Do not commit credentials or Wrangler authentication state.
+1. Open **Workers & Pages → Create application → Continue with GitHub**.
+   Authorize the Cloudflare GitHub app for `connerglover/cas-evo` and select it.
+   For an existing Worker, connect GitHub under **Settings → Builds** instead.
+2. Configure:
 
-Download **cas-evo-web-installer** from a successful **Build calculator app**
-run, extracting to `dist/pages`. Its layout must include `dist/pages/website`.
-Only deploy that inner folder, never the repository root or the whole `dist`:
+   | Setting | Value |
+   | --- | --- |
+   | Worker name | `cas-evo` |
+   | Production branch | `pages` |
+   | Root directory | Repository root (`/`) |
+   | Build command | Leave empty |
+   | Deploy command | `npx --yes wrangler@4.149.0 deploy` |
+   | Builds for other branches | Disabled |
 
-```powershell
-python build/check_pages.py dist/pages/website
-npx --yes wrangler@4.149.0 pages deploy dist/pages/website --project-name cas-evo --branch v1
-```
+   Keep the root at the repository root so Wrangler finds its config; that
+   config serves only `public/`. Cloudflare creates its deployment credential
+   through the GitHub integration. All website files are already built.
+3. Select **Deploy**. Check the installer at the generated workers.dev address.
+4. Open **Settings → Domains & Routes → Add → Custom Domain**. Enter
+   **cas.connerglover.com**, review the proposed DNS change, and confirm.
+   Cloudflare creates the DNS record and HTTPS certificate. Preserve unrelated
+   DNS records; the apex domain does not need to change.
+5. Once active, open https://cas.connerglover.com in desktop Chrome or Edge.
 
-In Cloudflare, open **Workers & Pages → cas-evo → Custom domains → Set up a
-custom domain** and enter **cas.connerglover.com**. Confirm the proposed CNAME
-only after checking it does not replace an unrelated record. Cloudflare can
-create the record in the existing zone. Associate the domain with the Pages
-project first; a DNS record alone is insufficient. Leave the apex domain and
-other subdomains unchanged. Wait for the custom domain and certificate to become
-active, then verify HTTPS at the target hostname.
+The name pages refers to a Git branch; this setup deploys a Cloudflare Worker.
+The earlier Pages Direct Upload job has been removed. Do not configure the old
+CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID GitHub settings for this setup, and do
+not enable GitHub Pages. See HANDOVER.md for what has actually been verified.
 
-## Automatic updates
+## Verification and maintenance
 
-Create an account-scoped Cloudflare API token for **Account → Cloudflare Pages →
-Edit**, limited to the account hosting this project. No DNS permission is needed
-for routine deployments. In the private GitHub repository's **Settings → Secrets
-and variables → Actions**, configure:
+- Check GitHub's **Build calculator app** run. Both the build and **Update website
+  deployment branch** jobs should succeed. `pages/deployment.json` records the
+  source commit and run URL. Then check the Worker build in Cloudflare.
+- To retry publication, rerun the workflow on main. If the publisher says main
+  advanced, use the latest main build. If GitHub rejects a pages push, inspect
+  repository rules; do not disable protections or force push.
+- The publisher calls `build/check_pages.py` to validate required assets,
+  source archives, manifest/vendor hashes and Cloudflare file-size limits.
+  Its historical filename applies to Workers static assets too.
+- Preserve `public/_headers` for cross-origin isolation and Serial/USB
+  permissions. Check `crossOriginIsolated === true` on the hosted site and
+  that the manifest lists all 238 transfer objects.
+- The largest initial asset, webtilp-source.zip, is 25,642,244 bytes, under the
+  25 MiB limit. Keep both corresponding-source ZIPs alongside the code. The
+  calculator ZIP, WASM and source ZIP URLs must return their actual bytes.
+  Missing files are configured to return 404.
+- Edit website source and `build/cloudflare/` templates on main. Full build
+  outputs stay off main. The calculator transfer manifest is public/package.json,
+  separate from any Node package manifest; do not install dependencies there.
+- Cloudflare account setup, live DNS/TLS and physical calculator acceptance are
+  separate checks. Successful Git publication alone proves none of those steps.
 
-| Type | Name | Value |
-| --- | --- | --- |
-| Repository secret | `CLOUDFLARE_API_TOKEN` | The scoped deployment token |
-| Repository variable | `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account ID |
-
-Add the token first and the account variable last. Do not paste the token into
-chat, code, commit messages or command arguments. The CLI alternative is
-`gh secret set CLOUDFLARE_API_TOKEN`, which prompts privately for its value.
-
-The existing build workflow publishes only successful `v1` push/manual builds.
-Pull requests and other branches never publish production. With no account
-variable, deployment is skipped and the calculator/site downloads still build.
-With an account variable but no token, the deployment job fails with an explicit
-configuration error. Once both are configured, push to `v1` or rerun the workflow
-on `v1` to publish. Its `deploy` job downloads only the current run's tested
-installer artifact and uploads its `website/` directory using pinned Wrangler.
-
-## Checks and maintenance
-
-- Run `python build/check_pages.py <website-directory>` before publishing.
-  It checks required assets/licenses, browser headers, manifest/vendor checksums,
-  unexpected root files, and Pages file-count/per-file limits.
-- Keep `_headers` in the upload root. All responses need
-  `Cross-Origin-Opener-Policy: same-origin` and
-  `Cross-Origin-Embedder-Policy: require-corp` for the WASM transport. Preserve
-  `Permissions-Policy: serial=(self), usb=(self)` too.
-- On the live site, confirm `crossOriginIsolated === true` in desktop Chrome/Edge,
-  package count 238, the complete file list, and successful WASM initialization.
-  Verify the calculator ZIP, source ZIPs and WASM URLs return their expected
-  bytes/MIME types, not the fallback HTML page. A device chooser requires a user
-  gesture; actual USB transfer and calculator execution remain hardware checks.
-- The initial artifact contains 28 files. Its largest asset, `webtilp-source.zip`,
-  is 25,642,244 bytes, below Pages' 25 MiB (26,214,400-byte) limit. Preserve this
-  corresponding-source download for the distributed WebTILP code. Future vendor
-  upgrades must pass the size check rather than silently removing the archive.
-- Failed builds leave the previous Pages deployment intact. Use Pages' deployment
-  history to roll back if needed. Direct Upload projects cannot switch to native
-  Git integration; GitHub Actions supplies automatic deployments here.
-
-Official references: [Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/),
-[CI deployment and scoped token](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/),
-[custom domains](https://developers.cloudflare.com/pages/configuration/custom-domains/),
-[headers](https://developers.cloudflare.com/pages/configuration/headers/), and
-[limits](https://developers.cloudflare.com/pages/platform/limits/).
+Official references: [Git integration](https://developers.cloudflare.com/workers/ci-cd/builds/git-integration/),
+[build settings](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/),
+[static assets](https://developers.cloudflare.com/workers/static-assets/),
+[custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/),
+and [headers](https://developers.cloudflare.com/workers/static-assets/headers/).

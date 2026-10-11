@@ -36,6 +36,13 @@ graphics shims and do not replace an EVO run.
 
 ## Build locally
 
+`main` contains all calculator and website source. Successful builds publish the
+complete website to the generated `pages` branch. Connect a Cloudflare Worker
+to **pages**, leave its build command empty, and use
+`npx --yes wrangler@4.149.0 deploy` as the deploy command. See
+[HOSTING.md](docs/HOSTING.md) for dashboard setup and the custom domain.
+The `v1` branch is retained for history; make new changes on main.
+
 Use Python 3.14 in a virtual environment:
 
 ```text
@@ -59,8 +66,9 @@ The build minifies source, creates native initializer modules with no engine
 `exec`, compiles MPY v5.3 using pinned MicroPython v1.12, then converts and
 round-trips every EVO object with TIVarsLib. The downloadable ZIP is deterministic
 and checksummed. The old `cas-evo-v1.zip` is an internal source input only.
-GitHub Actions builds both downloadable artifacts on pushes, pull requests and
-manual dispatch; the workflow contains the exact compiler revision and flags.
+GitHub Actions builds both downloadable artifacts on main pushes, pull requests
+to main and manual dispatch; the workflow contains the exact compiler revision
+and flags. Only successful main builds update the deployment branch.
 
 The action checks source compatibility on MicroPython 1.29 and actual MPY v5
 bytecode on 1.12: UI arithmetic, calculus/recovery and all 55 diagnostics with

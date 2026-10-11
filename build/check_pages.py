@@ -1,4 +1,4 @@
-"""Check that a built installer is ready for Cloudflare Pages Direct Upload."""
+"""Check a built installer against Cloudflare static-asset deployment limits."""
 import argparse
 import hashlib
 import json
@@ -24,11 +24,11 @@ def check(directory):
             raise ValueError('missing publication asset: ' + name)
     files = sorted(path for path in directory.rglob('*') if path.is_file())
     if len(files) > MAX_FILES:
-        raise ValueError('Cloudflare Pages file-count limit exceeded')
+        raise ValueError('Cloudflare static-asset file-count limit exceeded')
     for path in files:
         relative = path.relative_to(directory)
         if path.stat().st_size > MAX_FILE_BYTES:
-            raise ValueError('Cloudflare Pages 25 MiB limit exceeded: ' + str(relative))
+            raise ValueError('Cloudflare static-asset 25 MiB limit exceeded: ' + str(relative))
         if path.is_symlink() or any(part.startswith('.') and part != '.nojekyll'
                                     for part in relative.parts):
             raise ValueError('unexpected hidden file or symlink: ' + str(relative))
@@ -51,7 +51,7 @@ def check(directory):
         if hashlib.sha256((directory / 'vendor' / name).read_bytes()).hexdigest() != digest:
             raise ValueError('runtime asset checksum mismatch: ' + name)
     largest = max(files, key=lambda path: path.stat().st_size)
-    print('Pages ready: %d files; largest %s = %d bytes (limit %d)' % (
+    print('Cloudflare ready: %d files; largest %s = %d bytes (limit %d)' % (
         len(files), largest.name, largest.stat().st_size, MAX_FILE_BYTES))
 
 

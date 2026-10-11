@@ -1,6 +1,6 @@
 # cas-evo handover
 
-Updated: 2026-10-11. Branch: v1.
+Updated: 2026-10-11. Source branch: main. Deployment branch: pages.
 Remote: https://github.com/connerglover/cas-evo.git (private).
 
 ## Current outcome
@@ -22,13 +22,13 @@ Those checks did not establish physical compatibility.
 
 ## Next step
 
-The user now requests Cloudflare Pages hosting on their existing domain. Use
-**cas.connerglover.com**, Pages project **cas-evo**, production branch **v1**.
-Deployment preparation is implemented. The user then requested instructions
-instead of further account automation. Cloudflare authentication was not
-completed (Wrangler OAuth timed out); no Pages project, deployment, DNS record,
-custom-domain binding or deployment secret was created. The site is not live.
-The user will perform the one-time setup in docs/HOSTING.md.
+The user chose a **Cloudflare Worker connected to GitHub**, requested separate
+pages/main branches, and authorized merging v1 into main. Connect Worker
+**cas-evo** to the generated **pages** branch, then attach
+**cas.connerglover.com**. Source development continues on main; v1 is retained.
+Use the exact dashboard settings in docs/HOSTING.md. No Cloudflare account setup,
+live deployment or DNS change has been performed by this agent. Hosting remains
+unverified until the user completes that dashboard connection.
 
 Once hosting is configured, the next acceptance step is the user's physical
 EVO: use the installer, run CASEVO, then run CVTEST in a fresh Python session.
@@ -41,23 +41,31 @@ The user requests no questions, wants commits pushed, and has not requested a
 PR or repository visibility change. Publishing the built installer and attaching
 the subdomain are authorized. Credentials must stay out of chat and source files.
 
-## Cloudflare hosting preparation
+## Branch separation and Worker hosting
 
-- `.github/workflows/build.yml` now has a Pages deployment job after the existing
-  complete build. Only `v1` push/manual builds deploy; PRs never publish. It uses
-  that run's `cas-evo-web-installer` artifact, pinned Wrangler 4.149.0 and Node 22.
-- Configure repository secret `CLOUDFLARE_API_TOKEN` (account-scoped Pages Edit),
-  then repository variable `CLOUDFLARE_ACCOUNT_ID` to enable it. Neither was set
-  when this task began. Without the account variable the deploy job is skipped.
-- `build/check_pages.py` checks the exact upload folder for Pages limits,
-  required files/licenses, isolation headers, manifest/vendor hashes and stray
-  root files. The existing downloaded CI artifact passes: 28 files, largest
-  25,642,244 bytes, below the 26,214,400-byte limit. GPL source ZIPs remain served.
-- Workflow validation: actionlint 1.7.12 passes (official release SHA-256 checked).
-- `docs/HOSTING.md` documents Direct Upload, custom-domain binding, token setup
-  and production verification. PRODUCT.md records the new hosting authorization.
-- Local `.wrangler/` state is ignored. Deploy only the built `website/` folder;
-  preserve private repository/design briefs and unrelated DNS records.
+- `.github/workflows/build.yml` builds main pushes and PRs targeting main. A
+  successful main push/manual build publishes its exact installer artifact to
+  pages using the built-in GitHub token. The previous direct Pages deploy job
+  and Cloudflare-secret dependency are removed.
+- `build/publish_site.py` creates an independent deployment history and appends
+  ordinary commits. It does not switch branches, change main, force push, or
+  publish a stale build after main advances. An unrelated pages branch is
+  rejected. Website blobs preserve exact bytes even on Windows.
+- `build/cloudflare/` contains generated-branch templates: a static-only Worker
+  config serving public/, setup README, ignore/attribute rules. deployment.json
+  records the source commit/run. No source briefs or CI workflows enter pages.
+- `build/check_pages.py` validates Cloudflare asset limits, required files and
+  licenses, headers, manifest/vendor hashes and unexpected root files. The
+  historical filename now covers Workers static assets. The site has 28 files;
+  largest is 25,642,244 bytes, below 26,214,400. GPL source ZIPs stay downloadable.
+- `tests/test_publish_site.py` uses actual local Git remotes to cover independent
+  publication, exact bytes, main preservation, history/stale-asset updates,
+  idempotence, stale-build rejection and unrelated-branch/corrupt-input guards.
+- docs/HOSTING.md documents dashboard GitHub connection: production branch
+  pages, root /, no build command, deploy `npx --yes wrangler@4.149.0 deploy`,
+  disable other-branch builds. Add cas.connerglover.com as a Worker Custom Domain.
+- Merge, remote branch publication and full CI verification are being completed
+  in this milestone; replace this line with their final results before stopping.
 
 ## Final delivery verification
 
