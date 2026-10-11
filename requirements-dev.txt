@@ -1,0 +1,5 @@
+# Desktop build and test dependencies; the calculator needs only CASEVO.py.
+# Versions match the verified local development environment.
+pytest==9.1.1
+sympy==1.14.0
+mpy-cross==1.29.0.post2

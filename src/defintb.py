@@ -71,7 +71,9 @@ def g_quad(f, x, a, b, budget=R.MODS['def'].MAXEVAL):                        #@L
     except K.CasSoft:
         yield None
         return
-    cache = {}
+    # Dyadic nodes share an integer grid; avoid float-key dict growth/fragmentation.
+    grid = 1 << R.MODS['def'].MAXLEVEL
+    cache = [None] * (7 * grid + 1)
     count = 0
     largest = 0.0
     previous = None
@@ -80,7 +82,8 @@ def g_quad(f, x, a, b, budget=R.MODS['def'].MAXEVAL):                        #@L
         total = 0.0
         for j in range(-int(3.5 / h), int(3.5 / h) + 1):
             t = j * h
-            value = cache.get(t)
+            slot = 7 * grid // 2 + j * (1 << (R.MODS['def'].MAXLEVEL - level))
+            value = cache[slot]
             if value is None:
                 if count >= budget:
                     yield None
@@ -102,7 +105,7 @@ def g_quad(f, x, a, b, budget=R.MODS['def'].MAXEVAL):                        #@L
                 if value is None:
                     yield None
                     return
-                cache[t] = value
+                cache[slot] = value
             total += value
             largest = max(largest, abs(value))
         current = total * h

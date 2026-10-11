@@ -628,6 +628,9 @@ def need(key):                                                  #@L 3
         for p in PARTS.get(f, (f,)):
             want = COST.get(p, 0) + PEAKB * LINES.get(p, 0) + FRAG
             while MEMFREE is not None and MEMFREE() < want:
+                gc.collect()            # reclaim prior decode buffers before evicting/refusing
+                if MEMFREE() >= want:
+                    break
                 v = None
                 for x in LOADED:
                     if x not in PINNED and not LIVE.get(x, 0) and USE[x] != now and (

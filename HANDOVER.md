@@ -1,146 +1,137 @@
 # cas-evo handover
 
-Updated: 2026-10-11, UI milestone. Whoever is working on this rewrites this file at every milestone.
+Updated: 2026-10-11, single-file build and native compatibility milestone.
+Rewrite this file at each milestone. Branch: v1.
 
-## What this is
+## Current outcome
 
-cas-evo is a computer algebra system for the **TI-84 EVO**, written in the calculator's Python. It is a
-spiritual port of [FlowCE](https://github.com/tommyb3ll/FlowCE), a giac-based CAS for the TI-84 Plus CE.
-The EVO runs only Python, so the math is a new, small CAS. giac is only a reference for algorithms.
+T1, T2, T3 and the calculator UI are implemented, with bounded algorithms and
+documented unsupported cases. The build produces one minified, compressed
+runtime file, dist/CASEVO.py, plus an optional standalone CVTEST.py.
+GitHub Actions builds, tests and packages these automatically on push, pull
+request and manual dispatch. The local repository currently has no Git remote;
+the workflow has been checked locally, not executed on GitHub.
 
-The owner is Conner. It's a personal project for GitHub with no licence yet. Don't ask him questions
-while he's away; make the reasonable choice and record it.
+**The user's requested finished calculator v1 is NOT yet established. Heap fit
+is the remaining release blocker.** Do not equate passing desktop/native tests
+with completion on the EVO. The current artifact is a device test build and may
+fail during startup on the real calculator.
 
-## Read these first
+## Next step
 
-1. `docs/DESIGN.md`: the authoritative spec. §0 is the one-screen summary, §21 the milestone and task
-   tables, and the "Design review log" at the end records later changes.
-2. `docs/notes/<TASK>.md`: one file per finished task. Each covers what was built, the API as
-   implemented, deviations from the design, gaps, and requests to other tasks.
-3. `docs/reference/`: research on device facts (`device-python.md`), algorithms (`algorithms.md`), and
-   FlowCE's input and answer formats.
+Resolve the memory architecture before declaring v1 complete. Preserve the full
+T1-T3/UI behavior and single-file requirement. Do not repeat completed feature
+work or merely raise the heap limit. The existing device probes measured
+**173,360 bytes of free Python heap** after native imports; the user's roughly
+500 KB of total accessible RAM is not all available to Python.
 
-## Hard device constraints (measured on the real EVO)
+The current provisional stage subtotal is **236,690 bytes**, before namespace
+overhead, working data, lazy families and some compilation temporaries. The
+single-file archive retains **87,456 bytes** even when compiled definitions are
+evicted. No verified EVO API permits reading/paging source from the same file;
+open is absent. More aggressive phasing alone has not established a viable
+full-calculus footprint. Further work needs a materially smaller representation
+or new device evidence, not another optimistic budget adjustment.
 
-- **About 10 nested Python calls in total.** Every call counts, not just recursion. So there is no
-  recursion anywhere in `src/`: code uses explicit stacks, a generator trampoline and `#@L n` level
-  annotations. The desktop depth checker in `tests/support/evodepth.py` enforces this in every test.
-- Python reports 3.4.0 (MicroPython-like). No f-strings, `cmath`, `re`, `fractions` or `functools`.
-  `eval`/`exec` work. One user module can import another. Module names are at most 8 uppercase
-  letters (the bundler renames them).
-- About 175 KB of heap. Code is lazy-loaded per command family; see DESIGN §18.
-- Key codes are TI-BASIC `getKey` codes. 2nd and alpha arrive as separate keys.
-- Drawing is done with `ti_graphics`.
+After resolving this, repeat the source/bundled/native checks, regenerate the
+package, commit and update this handover. Physical transfer, depth calibration,
+graphics and heap checks remain deferred to Conner under the existing project
+instructions. Never claim those gates passed without results.
 
-## Settled scope
+## User instructions and project rules
 
-v1 is three milestones, each with a commit:
-- **T1, exact core:** rationals, radicals, complex numbers, simplify, expand, factor, solve, Ans,
-  variables, history.
-- **T2, calculus:** derivatives, limits, integrals, Taylor series.
-- **T3:** improper integrals, sums, Riemann sums, ODEs, gradients, multiple integrals,
-  polar/parametric areas.
+- Work autonomously; do not ask Conner questions. Complete all milestones and
+  the downloadable app, rather than stopping after T1/T2/T3.
+- Commit at milestones; end messages with
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>.
+- Produce one .py runtime file and an automatic GitHub Action. Minify for
+  limited storage and especially heap. No graphing in v1.
+- Read docs/DESIGN.md and docs/notes/<TASK>.md for APIs, bounds and deviations.
+  docs/reference/device-python.md records measured versus assumed device facts.
+- Target the EVO's Python 3.4 subset. No recursion; use explicit stacks and the
+  generator trampoline. Strict desktop depth budget: eight; measured ceiling:
+  about ten total Python calls. Native/dunder costs require device calibration.
+- Reference repositories are read-only: C:/Users/conner/.cache/cas-evo-ref/FlowCE
+  and C:/Users/conner/.cache/cas-evo-ref/ti-ce-giac.
+- The project is personal and has no licence yet. No push or publication occurred.
 
-After those come the UI (1D editor, 2D answers, F1–F5 menus) and a bundle for the device. There is no
-graphing in v1. DESIGN §2 and Appendix C list every default.
+## Implemented milestones
 
-## How to work
-
-- Branch `v1`. One commit per milestone (`T1: exact core`, ...); WIP commits are fine. End commit
-  messages with the co-author line used in `git log`.
-- Tests: `.venv\Scripts\python -m pytest -q -m "not slow"` from the repo root. The venv has pytest and
-  sympy; recreate it with `python -m venv .venv` and `pip install pytest sympy`. Use
-  `--strict-depth` for the strict frame budget.
-- Each task in DESIGN §21 lists the files it owns. Write tests first. A task is done when its
-  acceptance tests pass, the full suite is green, and lint and FRAMELINT are clean.
-- Reference sources, read-only and never executed: FlowCE at `C:\Users\conner\.cache\cas-evo-ref\FlowCE`,
-  giac at `C:\Users\conner\.cache\cas-evo-ref\ti-ce-giac`.
-- The device gates (PROBE6, PRBMEM calibration, T1.15) are deferred until Conner runs the probes;
-  until then use the provisional numbers. `probe/README.md` and `probe/README-MEM.md` tell him what to
-  run.
-
-## Status
-
-| milestone | state |
+| Milestone | Evidence / commit |
 |---|---|
-| Design and M0 foundations | done; real-device calibration deferred |
-| T1 exact core and integration (T1.1-T1.13) | complete, desktop verified |
-| T1.14 bundle / full B.1 | underway with final v1 packaging |
-| T2 calculus | complete, desktop verified; release integration underway |
-| T3 | complete, bounded fallbacks documented and desktop verified |
-| UI U.1-U.4 and CVTEST D.1 | implemented, desktop tested; packaging underway |
+| T1 exact core | 841cbfe; rational/radical/complex arithmetic, normalization, factor/solve, sessions; split lazy units |
+| T2 calculus | 2273a6d; derivatives, Laurent/Taylor series, limits and verified integration strategies |
+| T3 | c08edd0; definite/improper/nested integrals, sums/Riemann, ODEs, gradients/geometric macros |
+| UI and diagnostic | d767ade; editor/history, 2D answers, F1-F5 menus/forms/help, cancellation/panic; 55-command CVTEST |
+| MicroPython compatibility | 699cc12; unsupported stepped slices replaced with loops and subset-lint gates |
+| Single-file/CI packaging | This milestone; see docs/notes/B.1.md |
 
-**Next step:** continue through ALL T2, T3, UI, and packaging without stopping at a milestone.
-The user's explicit continuation instruction requires a downloadable complete v1 application.
-Finish integration strategies, definite/improper integrals and ODEs; split every lazy compile
-unit; implement the interface, phase-2 bundler and CVTEST; run source and bundled strict tests;
-produce a single minified `CASEVO.py`, an automatic GitHub Actions build, and installation instructions. Commit at milestones and update this handover.
-Do not claim actual EVO validation: the device probes remain deferred to Conner.
+T2/T3 notes list deliberate bounds and remaining DESIGN differences, including
+generic infinite-series tests, general numerical singularity isolation and the
+independent quadrature cross-check. Unsupported cases stay formal; do not
+describe this as an unrestricted symbolic mathematics engine.
 
-## This continuation (2026-10-11)
+## Build and artifacts
 
-- Finished solver review and split into solve/solveb/solvec/solved/solvee:
-  136/129/150/139/109 minified lines. Inverse templates moved to solvee; verification and
-  numerical roots moved to solved. No forwarding frames were added.
-- Split the normalizer into norm/normb/normc: 144/112/122 lines. Replaced size xfails with gates.
-- Added T1 acceptance corpus, session integration, nested-command, hash-seed determinism,
-  arena recovery and repeated-command tests. All 39 new/focused strict checks pass.
-- Installed mpy-cross and ran the first real compiled-size estimate. The original resident
-  budgets were too optimistic: five core modules estimate 111.8 KB at provisional factor1.8,
-  before UI and working data. Final bundling must address this and publish measured estimates.
-- Derivatives, Laurent/Taylor series, and limits now have dedicated strict acceptance tests.
-  These and the other calculus files remain work in progress until the T2 commit.
+Use .venv/Scripts/python on this Windows checkout. Dependencies are pinned in
+requirements-dev.txt. mpy-cross checks the final Python and supplies provisional
+compiled-size estimates; the factor 1.8 is uncalibrated, not a measured heap bound.
 
-## Verification
+    python -m pip install -r requirements-dev.txt
+    python tests/support/lint.py src
+    python tests/support/framelint.py
+    python -m pytest -q -m "not slow" --strict-depth
+    python build/release.py
+    python -m pytest -q -m "not slow" --strict-depth --bundled
+    python build/check_release.py
+    python build/micro_smoke.py --run /path/to/micropython --heap 500000
 
-- Full tracked T1 non-slow strict suite: 2,078 passed, one failure in a previously dormant
-  derivative-template test activated by T2's new diff module. Its allowed-name list omitted
-  sign; fixed the test contract and reran both template oracle cases successfully.
-- Normalizer, solver, factor, runner and build cross-family checks: 504 passed; one stale
-  solver INV location assertion was updated and independently passed.
-- The T1 compile-unit size assertions are now ordinary passing tests (no size xfails).
-- Device-subset lint and FRAMELINT clean for the completed T1 changes.
-- Real-device depth, heap calibration, graphics and transfer smoke remain unrun.
+- dist/CASEVO.py: **262,679 bytes**; the only runtime file to transfer.
+- dist/CVTEST.py: independent optional diagnostic, **267,644 bytes**.
+- dist/cas-evo-v1.zip: app, diagnostic, installation guide, release.json
+  metadata and SHA256SUMS. Generated files are Git-ignored.
+- docs/INSTALL.md: transfer steps, controls, acceptance commands and candid
+  heap/physical-validation status. README describes local and Actions downloads.
+- dist/device and dist/blocks: inspectable desktop build intermediates;
+  neither is needed on the calculator.
 
-## Known limitations and release work
+The release pipeline shrinks identifiers, uses native dictionary namespaces,
+packs bounded source blocks, and evicts input/print/UI phases. Compressed binary
+literals save resident memory compared with base85 at the cost of ASCII file
+size; the result is well below the 3.5 MB storage budget. A deterministic LZ/Huffman
+decoder needs no third-party calculator modules or file access. Checksums,
+fixed ZIP metadata and LF output support reproducible builds. The action reports
+heap fit as unresolved rather than silently substituting 500 KB.
 
-- Solver numerical search is bounded (-10 to 10 outside trig), not a completeness guarantee.
-- Overall heap fit remains a release engineering concern. Splitting caps compile transients
-  but does not lower total steady resident memory. Phase eviction and identifier shrinking
-  are still required; do not silently increase the provisional 175 KB device heap.
-- Pending agent-owned files are not part of the T1 milestone commit.
+## Verification for this milestone
 
-### T2 checkpoint
+- Full source strict non-slow suite: **2,780 passed**, 55 slow tests deselected,
+  in 460.81 seconds. Command also used --ignore=tests/test_release.py because
+  the bundled run includes the actual-artifact suite. A clean checkout skips
+  those artifact tests until the single-file program has been built.
+- Full bundled strict non-slow suite: **2,856 passed**, 55 slow tests deselected,
+  in 746.31 seconds. This includes 76 tests of the actual compressed artifact,
+  its dynamic frames, real event loop, phase transitions and failure recovery.
+- Device-subset lint, FRAMELINT and actionlint 1.7.12 pass.
+- Current actual CASEVO.py: native MicroPython 1.29, 64-bit, 500,000-byte heap:
+  boot, real key replay 2+3, answer 5, and normal quit pass.
+- Current actual standalone CVTEST.py: **55/55 pass**, plus native depth
+  3/6/8 and math checks. The native graphics shim allocates no framebuffer.
+- Native testing exposed stepped-slice incompatibility, lazy-source garbage
+  retention and quadrature float-key dictionary fragmentation. The release
+  loader now collects after decoded-source execution; admission collects before
+  rejecting a load; quadrature uses a fixed 449-slot dyadic sample grid.
+- Independent builds produce identical CASEVO, CVTEST and release metadata.
+  The final package is checked against a second build and all member checksums.
+- Native 64-bit object sizes differ from the calculator. These results do not
+  establish fit in its 173,360-byte heap. A 173,360-byte native-host startup
+  experiment failed; that is not an EVO measurement either.
+- Physical transfer, font metrics, execution timing, PRBMEM/PROBE6 and device
+  acceptance remain unrun. See probe/README.md and probe/README-MEM.md.
 
-- Derivatives, Laurent/Taylor series, limits, table/substitution/tabular/rational/trig/radical/by-parts integration and primitive verification implemented. See `docs/notes/T2.md`.
-- Focused T2/T3 calculus run: 467 strict-depth tests passed. Additional limit growth and quadrature review regressions passed independently.
-- User now requires one minified `.py` file and automatic GitHub Actions artifacts. `build/release.py` is implementing compressed lazy exec namespaces, retaining the stricter measured Python heap budget.
-- Continue through final v1 release; do not stop at this checkpoint.
-
-### T3 checkpoint
-
-- Added definite/improper integrals, bounded quadrature, mapped double-integral fallback, exact/symbolic/infinite sums, Riemann sums, gradients, nested/polar/parametric integrals and ODEs.
-- Bernoulli ODEs support rational exponents, preserve implicit branches and verify zero equilibria.
-- Review regressions prevent false limit growth, false sum divergence, missed narrow peaks and silently truncated primitive jumps.
-- Focused definite/double-integral suite: 67 strict-depth tests passed; ODE suite: 59 passed. Full suite exposed stale factor test imports after deliberate calculus eviction; fixture now follows live loader instances.
-- Single-file artifact is building; compressed release and final source/bundled tests remain in progress.
-
-### UI checkpoint
-
-- Calculator editor, history, 2D mathematical layout, F1 catalog, F2 recall, F3 settings, F4 forms and F5 contextual help implemented.
-- Strict UI/menu/forms/layout suite: 65 passed. Boundary wrapping preserves input; empty calls retain editor; decimal views omit duplicate footer.
-- Panic draws directly without the layout engine, preserving input, history and Ans. Single-file entry recovery is being validated separately with phases unloaded.
-- CVTEST contains 55 device-engine acceptance commands plus bounded depth and math checks. Its source tests pass; physical execution remains deferred.
-
-### Native Python compatibility checkpoint
-
-- The actual single-file artifact runs on native 64-bit MicroPython 1.29 with a
-  500,000-byte heap. Boot and `2+3=5` pass; this is not an EVO emulator.
-- Native CVTEST exposed three unsupported stepped slices in node/factor/poly
-  routines. Replaced them with explicit loops and added subset-lint regression
-  checks. Node/lint: 213 strict tests passed; factor/poly: 159 passed.
-- The full bundled desktop suite before these equivalent loop replacements
-  passed 2,838 tests, 55 slow tests deselected. Final native/source checks continue.
-- The release now reports a provisional 236,684-byte stage subtotal before
-  runtime-data exclusions against the measured 173,360-byte Python heap. Do not
-  describe this as hardware-ready or silently substitute the 500 KB total RAM.
+Native interpreter built from MicroPython commit
+0fd6c573ea815774668bbb16b8e197c8822368b2 (v1.29.0). Local WSL executable:
+/tmp/cas-evo-micropython/ports/unix/build-cas64/micropython in cachyos.
+Use wsl -d cachyos --exec and an absolute /mnt/c/... script path; the user's
+login shell resets the working directory. build/micro_smoke.py recopies the
+unchanged release into dist/micro-smoke and verifies copied hashes.

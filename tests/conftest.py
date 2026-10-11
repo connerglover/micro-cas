@@ -112,8 +112,19 @@ def _setup_keyscript():
     if STATE.bundled and STATE.entry_files:
         keyscript.SRC = STATE.device_dir
         keyscript.ENTRY = STATE.entry_files[0]
+        if _session_aliases not in keyscript.AFTER_RUN:
+            keyscript.AFTER_RUN.insert(0, _session_aliases)
     if _session_check not in keyscript.AFTER_RUN:
         keyscript.AFTER_RUN.append(_session_check)
+
+
+def _session_aliases(sess):
+    """Expose the device session under source names for shared keyscript assertions."""
+    for finder in sys.meta_path:
+        if isinstance(finder, _DeviceAlias):
+            for source, device in finder.names.items():
+                if device in sess.mods:
+                    sess.mods[source] = sess.mods[device]
 
 
 def _strings_in(x, depth=3):

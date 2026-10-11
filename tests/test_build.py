@@ -258,7 +258,7 @@ def test_manifest_is_consistent_with_the_design_and_the_lint_map():
         assert lint.alias_for(mod) is not None
     # parts (DESIGN 4.3)
     for src in ('rulesb', 'polyb', 'polyc', 'normb', 'factorb', 'solveb', 'solvec', 'seriesb',
-                'limitb', 'integb', 'integ2b', 'integ3b', 'defintb', 'sumsb', 'odeb', 'odec',
+                'limitb', 'limitc', 'integ2b', 'integ3b', 'defintb', 'sumsb', 'odeb', 'odec',
                 'menub', 'catalogb'):
         assert rows[src][2] in ('L', 'U')
     assert rows['node'][1] == 'CVNODE' and rows['integ2b'][1] == 'CVINT2B'
@@ -267,9 +267,9 @@ def test_manifest_is_consistent_with_the_design_and_the_lint_map():
     assert man.KEYS == framelint.KEYS
     # families (DESIGN 4.3, 15.1)
     assert man.PARTS['poly'] == ('poly', 'polyb', 'polyc')
-    assert man.PARTS['int'] == ('int', 'intb')
-    assert 'int2' not in man.PARTS and 'menu' not in man.PARTS   # one-part families
-    assert man.FAMILY['intb'] == 'int' and man.FAMILY['polyc'] == 'poly'
+    assert 'int' not in man.PARTS and 'int2' not in man.PARTS
+    assert man.PARTS['menu'] == ('menu', 'menub')
+    assert man.FAMILY['menub'] == 'menu' and man.FAMILY['polyc'] == 'poly'
     # the memory numbers are the M0.5 gate's to set (DESIGN 18.7); only their shape is pinned
     assert isinstance(man.LAZYMAX, int) and man.PEAKB > 0 and man.FACTOR > 0
     for r in man.MODULES:

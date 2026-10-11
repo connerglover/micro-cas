@@ -4559,3 +4559,25 @@ function level changed. The total is 515 lines, still above the original 280-lin
 this split controls compilation peak only. Section 18's device memory estimates remain
 provisional until T1.15. Rational `HOLD` answers display negative prime powers as denominators,
 consistent with ordinary products; their exact value is unchanged.
+
+### Single-file deployment and automatic builds (2026-10-11)
+
+The user now explicitly requires one minified Python runtime file and automatic
+GitHub Actions builds. This replaces the transfer layout in section 19; the
+short-name module layout remains an intermediate build and test representation.
+`build/release.py` emits `CASEVO.py`, with compressed ASCII code blocks and native
+dictionary namespaces loaded through `exec`. No filesystem API or external
+project module is required on the calculator. Identifier shrinking, LZ/Huffman
+compression and UI/input/print eviction reduce footprint. Source modules and
+their API contracts remain independently testable. See `notes/B.1.md`.
+
+This change does **not** increase the measured Python heap. The latest provisional
+model exceeds 173,360 bytes before several runtime costs; downloadable artifacts
+are device test builds. Native 64-bit MicroPython compatibility with a 500,000-byte
+heap is a separate gate and is not an EVO heap measurement. T1.15 and physical UI,
+transfer, depth and memory acceptance are still open. A green action must not be
+presented as proof of hardware readiness.
+
+Native compatibility testing also banned stepped slices and replaced the
+quadrature floating-key dictionary with a fixed dyadic sample grid. The lazy
+loader collects reclaimable compilation buffers before rejecting admission.

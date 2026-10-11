@@ -691,6 +691,8 @@ def code_lines(name):
         import bundle
     finally:
         sys.path.pop(0)
+    if name.startswith('CV'):
+        name = next(row[0] for row in bundle.load_manifest().MODULES if row[1] == name)
     with open(os.path.join(ROOT, 'src', name + '.py'), encoding='utf-8') as fh:
         return len(bundle.minify(fh.read(), name).lines)
 

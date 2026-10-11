@@ -1,0 +1,86 @@
+name: Build calculator app
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test and package CASEVO.py
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      # Full commit pins verified against the official actions/* Git refs API.
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install build dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Check device subset and frame levels
+        run: |
+          python tests/support/lint.py src
+          python tests/support/framelint.py
+
+      - name: Run source acceptance tests
+        run: python -m pytest -q -m 'not slow' --strict-depth
+
+      - name: Build the single-file calculator app
+        run: python build/release.py
+
+      - name: Run bundled acceptance tests
+        run: python -m pytest -q -m 'not slow' --strict-depth --bundled
+
+      - name: Build pinned native MicroPython for compatibility checks
+        run: |
+          git init "$RUNNER_TEMP/micropython"
+          git -C "$RUNNER_TEMP/micropython" remote add origin https://github.com/micropython/micropython.git
+          git -C "$RUNNER_TEMP/micropython" fetch --depth 1 origin 0fd6c573ea815774668bbb16b8e197c8822368b2
+          git -C "$RUNNER_TEMP/micropython" checkout --detach FETCH_HEAD
+          make -C "$RUNNER_TEMP/micropython/ports/unix" -j2 VARIANT=standard MICROPY_PY_SSL=0 MICROPY_PY_BTREE=0 MICROPY_PY_FFI=0 FROZEN_MANIFEST=
+
+      - name: Check actual artifact in native MicroPython with 500000-byte heap
+        # Native host compatibility check; this is not an EVO emulator or heap calibration.
+        run: python build/micro_smoke.py --run "$RUNNER_TEMP/micropython/ports/unix/build-standard/micropython" --heap 500000
+
+      - name: Prepare downloadable files
+        run: |
+          test -s dist/CASEVO.py
+          test -s dist/CVTEST.py
+          test -s dist/release.json
+          test -s dist/SHA256SUMS
+
+      - name: Verify release checksums
+        working-directory: dist
+        run: sha256sum --check SHA256SUMS
+
+      - name: Upload calculator app and documentation
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cas-evo-v1
+          path: |
+            dist/CASEVO.py
+            dist/CVTEST.py
+            dist/INSTALL.md
+            dist/release.json
+            dist/SHA256SUMS
+            dist/cas-evo-v1.zip
+          if-no-files-found: error
+          retention-days: 14
