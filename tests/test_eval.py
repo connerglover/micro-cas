@@ -813,6 +813,33 @@ def test_tcode_caches():
     assert K.TCACHE == {}
 
 
+def test_tcode_cache_retains_only_latest_template():
+    for value in range(32):
+        template = 'x^2+%d' % value
+        code = P.tcode(template)
+        assert list(K.TCACHE) == [template]
+        assert K.TCACHE[template] is code
+        assert P.tcode(template) is code
+
+
+def test_tcode_eviction_preserves_previously_returned_program():
+    previous = P.tcode('U^2+1')
+    saved = list(previous)
+    latest = P.tcode('V+2')
+    env = [0] * P.NSLOT
+    env[P.WSLOT['U'][0]] = K.num(3)
+    env[P.WSLOT['V'][0]] = K.num(5)
+    assert P.inst(previous, env) == K.TEN
+    assert P.inst(latest, env) == K.num(7)
+    assert previous == saved and list(K.TCACHE) == ['V+2']
+    assert K.TCACHE['V+2'] is latest
+    K.reset()
+    env = [0] * P.NSLOT
+    env[P.WSLOT['U'][0]] = K.num(4)
+    assert P.inst(previous, env) == K.num(17)
+    assert previous == saved and not K.TCACHE
+
+
 def test_inst_patterns():
     m = K.NN
     pats = [P.inst(P.tcode(s), None) for s in ('L^N', 'cos(U)^2*R', 'x', 'sin(L)', 'e^L',

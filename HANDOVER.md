@@ -19,26 +19,29 @@ invalidated before building. No oversized-development override remains.
 
 ## Next step
 
-Finish constrained 32-bit native validation, final package/converter checks,
-commit and push v1, then verify the GitHub Actions build and downloadable ZIP.
-Update this handover with final results before stopping. The first paged native
-32-bit test at 173,360B booted the UI but passed only 21/55 diagnostic commands.
-Moving preload after input-frame return and safely reusing short global/local
-names improved this to 38/55 (before correcting one renamed probe expectation).
-Calculus still exhausts heap. Do not claim heap acceptance from a model.
+Finish production integration of native function pages, rerun exact-artifact and
+constrained native tests, refresh converter evidence, update these results, then
+commit and push v1 and verify GitHub Actions. Do not stop before the download is
+ready. User explicitly authorized the push.
 
-Current package is 110 files / 264,489 source bytes. 101 focused shrink and
-actual-artifact tests pass, including strict depth and failure recovery. The
-converter capture still describes the earlier package and must be refreshed.
-Experimental generator paging and dynamic node backing are isolated under
-ignored dist; neither is adopted in the production builder yet.
+The isolated function-page experiment now passes CVTEST **55/55** on native
+32-bit MicroPython with a **173,360-byte total heap**. It keeps level-seven leaves
+and escaped complex callbacks resident, gives each generator its own code page,
+and caches only the currently imported page. Cleanup also runs after input,
+at trampoline boundaries, before printing, and on command exit. This result is
+from dist/single-gen-cache, not yet proof of the production release.
 
-The current provisional stage subtotal is about 139KB, below the unchanged
-173,360B measured free Python heap, but excludes namespaces, working data, lazy
-families and some compiler temporaries. The old 87,456B resident archive and
-decoder have been removed. `_read` imports one CODE-string carrier, removes it
-from sys.modules, and collects; `_load` execs source into shared dictionaries
-and collects source after use. Existing UI/input/print eviction stays in place.
+Source backing tables now start at 64 slots, grow to the unchanged 768-node cap,
+and shrink on reset. A failed partial allocation leaves the intern/hash state
+intact for retry. Template compilation retains only the most recent RPN program.
+229 node/evaluator tests and 13 focused allocation/cache regressions pass with
+strict depth. Source subset/frame checks and complete suites are pending.
+
+The production builder integration is in progress in build/function_pages.py.
+It must preserve default arguments from source constants, namespace evaluation,
+function ownership, live globals, depth limits and failure cleanup. Refresh the
+actual TI converter capture after the final build. Existing docs still describe
+the earlier 110-file / 264,489-byte package.
 
 Physical transfer, depth calibration, graphics and heap validation remain
 Conner's device checks. Never report them as passed from host evidence.

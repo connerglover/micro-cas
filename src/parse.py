@@ -1040,9 +1040,11 @@ def exact(v):                                                   #@L 5
 
 def tcode(s):                                                   #@L 5
     """A template or rule string -> RPN (DESIGN 7.8, 9.4): lex and rpn only, so rule strings
-    write every '*'. Cached in K.TCACHE, which K.reset() clears with the command."""
+    write every '*'. Keep only the most recent template: rule patterns already
+    have compiled nodes, so their RPN must not accumulate in the small heap."""
     c = K.TCACHE.get(s)
     if c is None:
+        K.TCACHE.clear()
         c = rpn(lex(s))
         K.TCACHE[s] = c
     return c

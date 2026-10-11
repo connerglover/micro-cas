@@ -298,7 +298,8 @@ def test_preallocated_ids_and_literal_tables():
     for i in range(1, 15):                  # the literal H/NX/B agree with mk's own hashing
         assert K.H[i] == invariants.ref_hash(K.N[i], K.H)
         assert K.mk(K.N[i]) == i
-    assert len(K.N) == len(K.H) == len(K.NX) == len(K.V) == K.NMAX == 768
+    assert len(K.N) == len(K.H) == len(K.NX) == len(K.V) == K.NINIT == 64
+    assert K.NMAX == 768
     assert invariants.scan(K) == []
     assert K.mk((K.NUM, 7, 0, 1)) == K.BASE
 
@@ -317,6 +318,82 @@ def test_mk_interns_and_hashes_per_section_5_7():
     assert K.V[s] == K.V[x] == 1
     big = K.mk((K.NUM, 10 ** 40 + 7, -3, 10 ** 30))
     assert K.H[big] < (1 << 25)
+
+
+def test_node_capacity_growth_preserves_ids_and_invariants():
+    tables = (K.N, K.H, K.NX, K.V)
+    x = K.sym('x')
+    sx = K.fn_(K.SIN, x)
+    original = [(i, K.N[i], K.H[i], K.V[i]) for i in range(1, K.NN)]
+    numbers = []
+    for value in range(1000, 1000 + 2 * K.NINIT):
+        numbers.append((value, K.num(value)))
+    assert K.NN > 2 * K.NINIT
+    assert all(len(table) == 3 * K.NINIT for table in tables)
+    assert all(table is current for table, current in zip(tables, (K.N, K.H, K.NX, K.V)))
+    assert [(i, K.N[i], K.H[i], K.V[i]) for i, _, _, _ in original] == original
+    top = K.NN
+    assert K.sym('x') == x and K.fn_(K.SIN, x) == sx
+    for value, node in numbers:
+        assert K.num(value) == node
+    assert K.NN == top
+    assert invariants.scan(K) == []
+
+
+def test_reset_reclaims_grown_node_capacity():
+    tables = (K.N, K.H, K.NX, K.V)
+    initial_buckets = list(K.B)
+    initial_nodes = K.N[:K.BASE]
+    for value in range(1000, 1000 + 2 * K.NINIT):
+        K.num(value)
+    assert all(len(table) > K.NINIT for table in tables)
+    K.reset()
+    assert K.NN == K.BASE and K.N[:K.BASE] == initial_nodes
+    assert all(len(table) == K.NINIT for table in tables)
+    assert all(table is current for table, current in zip(tables, (K.N, K.H, K.NX, K.V)))
+    assert list(K.B) == initial_buckets
+    assert invariants.scan(K) == []
+    assert K.num(1000) == K.BASE
+
+
+@pytest.mark.parametrize('backing', ('N', 'H', 'NX', 'V'))
+@pytest.mark.parametrize('partial', (0, 3))
+def test_node_capacity_partial_failure_preserves_table_and_retries(monkeypatch, backing, partial):
+    class FailExtendOnce(list):
+        armed = True
+
+        def extend(self, values):
+            if self.armed:
+                self.armed = False
+                super().extend(values[:partial])
+                raise MemoryError('injected backing allocation failure')
+            super().extend(values)
+
+    # Isolate all four lists so restoring the monkeypatch cannot revive stale ids.
+    with monkeypatch.context() as patch:
+        for name in ('N', 'H', 'NX', 'V'):
+            values = getattr(K, name)
+            patch.setattr(K, name, FailExtendOnce(values) if name == backing else list(values))
+        try:
+            while K.NN < K.NINIT:
+                K.num(1000 + K.NN)
+            before = {name: list(getattr(K, name)) for name in ('N', 'H', 'NX', 'V')}
+            buckets = list(K.B)
+            top = K.NN
+            wanted = (K.NUM, 99991, 0, 1)
+            with pytest.raises(MemoryError, match='injected backing'):
+                K.mk(wanted)
+            assert K.NN == top and list(K.B) == buckets
+            assert len(getattr(K, backing)) == K.NINIT + partial
+            for name, values in before.items():
+                assert list(getattr(K, name)[:top]) == values
+            assert invariants.scan(K) == []
+            node = K.mk(wanted)
+            assert node == top and K.N[node] == wanted and K.NN == top + 1
+            assert K.mk(wanted) == node and K.NN == top + 1
+            assert invariants.scan(K) == []
+        finally:
+            K.reset()
 
 
 def test_symbol_masks_and_overflow_bit():

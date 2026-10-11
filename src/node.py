@@ -71,6 +71,7 @@ OVF = 1 << 29
 NB = 1024
 NBM = NB - 1
 NMAX = 768
+NINIT = 64
 LOWMEM = 24576
 MAXBITS = 65536
 TRIAL = 10000
@@ -91,11 +92,11 @@ OMEGA = (None, (NUM, 1, 1, 2), None, (NUM, -1, 1, 2), None, (NUM, -1, -1, 2), No
 # -- the table (5.1); ids 1..14 hold the preallocated nodes (generated, tests/test_node.py) ------
 N = [None, (NUM, 0, 0, 1), (NUM, 1, 0, 1), (NUM, -1, 0, 1), (NUM, 2, 0, 1), (NUM, 1, 0, 2),
      (NUM, 0, 1, 1), (CON, 0), (CON, 1), (CON, 2), (CON, 3), (NUM, 10, 0, 1), (LN, 11),
-     (CON, 4), (CON, 5)] + [None] * (NMAX - BASE)
+     (CON, 4), (CON, 5)] + [None] * (NINIT - BASE)
 H = [0, 1, 9, 33554113, 17, 10, 3, 12288, 12305, 12322, 12339, 81, 1233, 12356,
-     12373] + [0] * (NMAX - BASE)
-NX = [0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0] + [0] * (NMAX - BASE)
-V = [0] * NMAX
+     12373] + [0] * (NINIT - BASE)
+NX = [0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0] + [0] * (NINIT - BASE)
+V = [0] * NINIT
 B = array.array('i', [0] * NB)
 B[0], B[1], B[3], B[9], B[10], B[17], B[34] = 7, 1, 6, 2, 5, 8, 9
 B[51], B[68], B[81], B[85], B[209], B[705] = 10, 13, 11, 14, 12, 3
@@ -208,6 +209,17 @@ def mk(t):                                                      #@L 7
         gc.collect()
         if MEMFREE() < LOWMEM:
             raise CasMemory()
+    # Grow only when needed, preserving the same NMAX bound. Each backing list
+    # is checked separately so an interrupted allocation can safely be retried.
+    # No node or hash-chain link changes until all four capacities are ready.
+    if i >= len(N):
+        N.extend([None] * min(NINIT, NMAX - len(N)))
+    if i >= len(H):
+        H.extend([0] * min(NINIT, NMAX - len(H)))
+    if i >= len(NX):
+        NX.extend([0] * min(NINIT, NMAX - len(NX)))
+    if i >= len(V):
+        V.extend([0] * min(NINIT, NMAX - len(V)))
     N[i] = t
     H[i] = h
     NX[i] = B[b]
@@ -328,6 +340,10 @@ def reset():                                                    #@L 4
             B[H[i] & NBM] = NX[i]
         N[i] = None
     NN = BASE
+    del N[NINIT:]
+    del H[NINIT:]
+    del NX[NINIT:]
+    del V[NINIT:]
     del SYMN[:]
     SYMI.clear()
     RULECACHE.clear()
