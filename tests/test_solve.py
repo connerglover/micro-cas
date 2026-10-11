@@ -331,14 +331,14 @@ def test_check_uses_g_iszero_not_text():
     not zero is rejected."""
     x = K.sym('x')
     f = nd('x-sqrt(2)')
-    assert drive(SO.g_ok((f,), (), (x,), (nd('sqrt(2)'),))) == 1
-    assert drive(SO.g_ok((f,), (), (x,), (nd('sqrt(3)'),))) == 0
+    assert drive(R.MODS['solved'].g_ok((f,), (), (x,), (nd('sqrt(2)'),))) == 1
+    assert drive(R.MODS['solved'].g_ok((f,), (), (x,), (nd('sqrt(3)'),))) == 0
     g = nd('sin(x)^2+cos(x)^2-1+x-2')
-    assert drive(SO.g_ok((g,), (), (x,), (nd('2'),))) == 1
+    assert drive(R.MODS['solved'].g_ok((g,), (), (x,), (nd('2'),))) == 1
     # a denominator that vanishes at the root
-    assert drive(SO.g_ok((nd('x-1'),), (nd('x^2-1'),), (x,), (nd('1'),))) == 0
+    assert drive(R.MODS['solved'].g_ok((nd('x-1'),), (nd('x^2-1'),), (x,), (nd('1'),))) == 0
     # an undefined substitution
-    assert drive(SO.g_ok((nd('ln(x)'),), (), (x,), (nd('0'),))) == 0
+    assert drive(R.MODS['solved'].g_ok((nd('ln(x)'),), (), (x,), (nd('0'),))) == 0
 
 
 def test_abs_equations():
@@ -590,9 +590,9 @@ def test_guard_equal_to_the_bound():
 
 def test_inv_table_shape():
     """The table holds the design's rows (9.3) in its format; test_rules.py runs the 9.8
-    check f(template) = T under the guard on solveb.INV too."""
-    assert set(SB.INV) >= {K.SIN, K.COS, K.TAN, K.LN, K.ABS}
-    for op, (tmpls, guard) in SB.INV.items():
+    check f(template) = T under the guard on solvee.INV too."""
+    assert set(R.MODS['solvee'].INV) >= {K.SIN, K.COS, K.TAN, K.LN, K.ABS}
+    for op, (tmpls, guard) in R.MODS['solvee'].INV.items():
         for s in tmpls + ((guard,) if guard else ()):
             for ch in s:
                 assert not ch.isupper() or ch == 'T', s
@@ -646,11 +646,11 @@ def test_numeric_fallback():
 
 def test_nsolve_drops_poles():
     x = K.sym('x')
-    vs = SC.nsolve(nd('tan(x)-x'), x, 0.5, 10.0)
+    vs = R.MODS['solved'].nsolve(nd('tan(x)-x'), x, 0.5, 10.0)
     for v in vs:
         assert abs(math.tan(v) - v) < 1e-8
     assert len(vs) == 2     # 4.4934, 7.7253; the poles pi/2, 3pi/2, 5pi/2 are not roots
-    assert SC.nsolve(nd('1/(x-1)'), x, -3.0, 3.0) == []
+    assert R.MODS['solved'].nsolve(nd('1/(x-1)'), x, -3.0, 3.0) == []
 
 
 # -- linear systems and elimination (11.2) ---------------------------------------------------------
@@ -837,11 +837,9 @@ def code_lines(name):
         return len(bundle.minify(fh.read(), name).lines)
 
 
-@pytest.mark.xfail(strict=True, reason='CVSOLVE is over LAZYMAX per part (docs/notes/T1.12.md: '
-                   'a 5-part seam needs run.py, manifest.py and lint rows)')
 def test_parts_fit_lazymax():
-    assert max(code_lines(n) for n in ('solve', 'solveb', 'solvec')) <= LAZYMAX
+    assert max(code_lines(n) for n in ('solve', 'solveb', 'solvec', 'solved', 'solvee')) <= LAZYMAX
 
 
 def test_parts_size_is_bounded():
-    assert sum(code_lines(n) for n in ('solve', 'solveb', 'solvec')) <= 700
+    assert sum(code_lines(n) for n in ('solve', 'solveb', 'solvec', 'solved', 'solvee')) <= 700

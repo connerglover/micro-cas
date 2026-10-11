@@ -1,6 +1,6 @@
 # cas-evo handover
 
-Updated: 2026-10-11 00:52 CDT. Whoever is working on this rewrites this file at every milestone.
+Updated: 2026-10-11, T1 integration milestone. Whoever is working on this rewrites this file at every milestone.
 
 ## What this is
 
@@ -63,59 +63,49 @@ graphing in v1. DESIGN §2 and Appendix C list every default.
 
 | milestone | state |
 |---|---|
-| Design | done (commit 4ee35da) |
-| M0 foundations (M0.1-M0.5) | done |
-| T1.1 node, T1.2 poly, T1.3 tokens, T1.4 dec10, T1.5 builders, T1.8 alg | done (commits cdcfeab, 1e6d423) |
-| T1.6 runner, T1.7 printer, T1.9 rules, T1.10 norm | done; included in this continuation checkpoint |
-| T1.11 factor | done; four parts fit LAZYMAX, strict acceptance tests pass |
-| T1.12 solve | inherited implementation checkpointed; 116 strict tests pass; completion review and part split pending (see notes) |
-| T1.13 integration, T1 review and fixes, T1.14 bundle-lite | todo |
-| UI (U.1-U.4), full bundler (B.1), CVTEST (D.1) | todo (planned right after T1, so Conner can test on the device) |
-| T2 (T2.1-T2.8) | todo |
-| T3 (T3.1-T3.8) | todo |
+| Design and M0 foundations | done; real-device calibration deferred |
+| T1 exact core and integration (T1.1-T1.13) | complete, desktop verified |
+| T1.14 bundle / full B.1 | underway with final v1 packaging |
+| T2 calculus | derivatives, series, limits, table/substitution done; remaining strategies in progress |
+| T3 | gradients done; sums and Riemann implemented; ODE and definite/improper integration in progress |
+| UI U.1-U.4 and CVTEST D.1 | pending in this same continuation |
 
-**Next step:** run `git status`, then read `docs/notes/T1.11.md` and the new
-`docs/notes/T1.12.md` checkpoint note. Finish **T1.12 Solve**, following DESIGN section 21.4:
-review the existing implementation against section 11.2, split its oversized compile units,
-finish its API/deviation notes, and run the full strict suite. Then proceed to T1.13's corpus,
-nesting, determinism and memory integration tests. Do not mark the full T1 milestone complete
-before T1.13 passes.
+**Next step:** continue through ALL T2, T3, UI, and packaging without stopping at a milestone.
+The user's explicit continuation instruction requires a downloadable complete v1 application.
+Finish integration strategies, definite/improper integrals and ODEs; split every lazy compile
+unit; implement the interface, phase-2 bundler and CVTEST; run source and bundled strict tests;
+produce a ZIP plus installation instructions. Commit at milestones and update this handover.
+Do not claim actual EVO validation: the device probes remain deferred to Conner.
 
 ## This continuation (2026-10-11)
 
-- Preserved and checkpointed the inherited uncommitted runner, printer, rule engine, normalizer,
-  factor and solver work. The solver was further along than the original status table said.
-- Fixed the stale PRBMEM dry-run test. It now checks both the real generated probe modules and
-  an intentionally missing-module case, retaining the fallback coverage.
-- Finished the factoring task's compile-unit split: `factor/factorb/factorc/factord` have
-  **131/121/129/134 minified lines** (515 total), all below provisional `LAZYMAX = 150`.
-  Updated loader, manifest, lint and FRAMELINT maps together. The family still loads/evicts as
-  a unit, with no added wrapper frames. `factc.g_mfac` and `factd.nroots` are the new helper
-  locations; `factb` still owns the search budgets and `FACTBUG`.
-- Factored fractions print with a denominator: `factor(360/7)` -> `2^3*3^2*5/7`,
-  `factor(1/36)` -> `1/(2^2*3^2)`. Tests verify exact values, output and re-parsing.
-- Updated DESIGN section 4.3, the implementation log, T1.7/T1.11 notes and this handover.
-  Created a T1.12 checkpoint note so the next continuation does not repeat the inventory.
+- Finished solver review and split into solve/solveb/solvec/solved/solvee:
+  136/129/150/139/109 minified lines. Inverse templates moved to solvee; verification and
+  numerical roots moved to solved. No forwarding frames were added.
+- Split the normalizer into norm/normb/normc: 144/112/122 lines. Replaced size xfails with gates.
+- Added T1 acceptance corpus, session integration, nested-command, hash-seed determinism,
+  arena recovery and repeated-command tests. All 39 new/focused strict checks pass.
+- Installed mpy-cross and ran the first real compiled-size estimate. The original resident
+  budgets were too optimistic: five core modules estimate 111.8 KB at provisional factor1.8,
+  before UI and working data. Final bundling must address this and publish measured estimates.
+- Derivatives, Laurent/Taylor series, and limits now have dedicated strict acceptance tests.
+  These and the other calculus files remain work in progress until the T2 commit.
 
 ## Verification
 
-- `.venv\Scripts\python -m pytest -q -m "not slow" --strict-depth`:
-  **1,942 passed, 2 skipped, 55 deselected, 3 xfailed**, no failures (313.92 s).
-- All factor tests including slow oracle cases: **113 passed**, with `--strict-depth`.
-- Factor/solve/build/runner/lint cross-family checks before the fraction display change:
-  **484 passed, 1 skipped, 1 xfailed** under strict depth.
-- Device-subset lint and FRAMELINT: clean.
-- Device probes and heap calibration remain deferred; no on-device verification claimed.
+- Full tracked T1 non-slow strict suite: 2,078 passed, one failure in a previously dormant
+  derivative-template test activated by T2's new diff module. Its allowed-name list omitted
+  sign; fixed the test contract and reran both template oracle cases successfully.
+- Normalizer, solver, factor, runner and build cross-family checks: 504 passed; one stale
+  solver INV location assertion was updated and independently passed.
+- The T1 compile-unit size assertions are now ordinary passing tests (no size xfails).
+- Device-subset lint and FRAMELINT clean for the completed T1 changes.
+- Real-device depth, heap calibration, graphics and transfer smoke remain unrun.
 
-## Known issues
+## Known limitations and release work
 
-- **Compile-unit sizes:** `norm/normb` are 210/164 minified lines; `solve/solveb/solvec` are
-  225/232/196. Three existing strict xfails record these overruns. Split them before bundling;
-  do not raise LAZYMAX without device evidence. The factoring size xfail is resolved.
-- **Overall heap:** resident modules (especially node, parse, alg, printer and run) remain well
-  above the original section 4.1 estimates. Splitting factoring caps compile peak only; it does
-  not prove the whole application fits the approximately 175 KB heap. Recalibrate at T1.15.
-- `mpy-cross` is not installed in the venv, so the two existing compiler-dependent tests skip.
-- `invariants.py` flags some correct non-simplifications of complex constants (see T1.1 notes).
-- Solver review is still pending; its generic numerical search samples a finite interval
-  (-10 to 10 outside trig), so it is not a general root-completeness guarantee.
+- Solver numerical search is bounded (-10 to 10 outside trig), not a completeness guarantee.
+- Overall heap fit remains a release engineering concern. Splitting caps compile transients
+  but does not lower total steady resident memory. Phase eviction and identifier shrinking
+  are still required; do not silently increase the provisional 175 KB device heap.
+- Pending agent-owned files are not part of the T1 milestone commit.

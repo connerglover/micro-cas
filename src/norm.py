@@ -18,17 +18,6 @@ M_LARGE = 'too large'
 GAVEUP = [0]        # NORMAL_GAVE_UP: 1 when the last normal returned its input unchanged
 
 
-def kmono(k, ks):                                               #@L 7
-    # the exponent tuple of kernel k (1 in its slot), giving k the first free slot if new
-    i = 0
-    while ks[i] and ks[i] != k:
-        i += 1
-    ks[i] = k
-    u = [0] * len(ks)
-    u[i] = 1
-    return tuple(u)
-
-
 def pmul(a, b, rl):                                             #@L 6
     # a*b reduced by the relations rl (slot k: None or (q, c), x_k^q = c; a and b are
     # reduced, so one step per slot is enough). More than MAXTERMS terms (or MAXCELLS
@@ -81,70 +70,6 @@ def ppow(a, n, rl):                                             #@L 5
     return r
 
 
-def tonode(n, d, ks, ex):                                       #@L 4
-    # the node of the fraction n/d over the kernels ks. ex (expand): d is a constant that
-    # divides every term. Else the common monomial, the gcd (Kronecker substitution, checked by
-    # exact division; the content only above KRONMAX) and the contents are cancelled, giving
-    # k*N/D with N, D primitive; the constructors normalize the signs.
-    if not n:
-        return K.ZERO
-    nv = len(ks)
-    PC = R.MODS['polyc']
-    if ex:
-        for z in d:                                             #@unordered-ok (one term)
-            cn = cd = d[z]
-    else:
-        a = PC.mmono(n, nv)
-        b = PC.mmono(d, nv)
-        u = []
-        v = []
-        for i in range(nv):
-            u.append(-a[i])
-            v.append(-b[i])
-        n = PC.mmul(n, {tuple(u): 1})
-        d = PC.mmul(d, {tuple(v): 1})
-        u = PC.mdeg(n, nv)
-        v = PC.mdeg(d, nv)
-        D = []
-        s = 1
-        for i in range(nv):
-            g = a[i] if a[i] < b[i] else b[i]
-            a[i] -= g
-            b[i] -= g
-            D.append((u[i] if u[i] > v[i] else v[i]) + 1)
-            s *= D[i]
-        if s <= KRONMAX:
-            g = R.MODS['poly'].pgcd(PC.mkron(n, D), PC.mkron(d, D))
-            if len(g) > 1:
-                g = PC.munkron(g, D)
-                u = PC.mdivex(n, g)
-                v = PC.mdivex(d, g)
-                if u is not None and v is not None:
-                    n = u
-                    d = v
-        n = PC.mmul(n, {tuple(a): 1})
-        d = PC.mmul(d, {tuple(b): 1})
-        cn = PC.mcont(n)
-        cd = PC.mcont(d)
-    out = []
-    for p, q in ((n, cn), (d, cd)):
-        ts = []
-        for z in p:                                             #@unordered-ok (add_ sorts)
-            ps = []
-            for i in range(nv):
-                if z[i]:
-                    ps.append((ks[i], K.num(z[i])))
-            v = K.nnorm(p[z], 0, q)
-            if v == K.Q1 and len(ps) == 1 and ps[0][1] == K.ONE:
-                ts.append(ps[0][0])                             # a bare kernel (TRUE, a list)
-            else:
-                ts.append(K.mul_(v, ps))
-        out.append(ts[0] if len(ts) == 1 else K.add_(ts))
-    if out[1] == K.ONE and cn == cd:
-        return out[0]
-    return K.mul_(K.nnorm(cn, 0, cd), [(out[0], K.ONE), (out[1], K.MONE)])
-
-
 def normal(e, ex=0):                                            #@L 3
     # ex 0: normal (8.6), the canonical k*N/D with the gcd cancelled; kernels (function nodes
     # with normalized arguments, u^(1/q) for u^(p/q), other powers, symbols) are variables.
@@ -181,7 +106,7 @@ def normal(e, ex=0):                                            #@L 3
                 if t[1]:
                     x[0][Z] = t[1]
                 if t[2]:
-                    x[0][kmono(K.I, ks)] = t[2]
+                    x[0][R.MODS['normc'].kmono(K.I, ks)] = t[2]
             elif op == K.ADD:
                 x = rf[t[1]]
                 for j in range(2, len(t), 2):
@@ -201,11 +126,11 @@ def normal(e, ex=0):                                            #@L 3
                     p = w[1] if w[0] == K.NUM and not w[2] else 0
                     if not p or (p < 0 and ex):             # a power kept whole: a kernel
                         c = rf[t[j + 1]]
-                        y = ({kmono(K.mul_(K.ONE, [(tonode(y[0], y[1], ks, ex),
-                                                   tonode(c[0], c[1], ks, ex))]), ks): 1}, one)
+                        y = ({R.MODS['normc'].kmono(K.mul_(K.ONE, [(R.MODS['normc'].tonode(y[0], y[1], ks, ex),
+                                                   R.MODS['normc'].tonode(c[0], c[1], ks, ex))]), ks): 1}, one)
                         p = 1
                     elif w[3] > 1:                          # u^(p/q) = (u^(1/q))^p
-                        z = kmono(K.mul_(K.ONE, [(tonode(y[0], y[1], ks, ex),
+                        z = R.MODS['normc'].kmono(K.mul_(K.ONE, [(R.MODS['normc'].tonode(y[0], y[1], ks, ex),
                                                   K.num(1, 0, w[3]))]), ks)
                         c = y[0].get(Z)
                         if y[1] == one and len(y[0]) == 1 and c:
@@ -223,12 +148,12 @@ def normal(e, ex=0):                                            #@L 3
                     x = {}
                     for j in range(1, len(t)):
                         y = rf[t[j]]
-                        x[t[j]] = tonode(y[0], y[1], ks, ex)
+                        x[t[j]] = R.MODS['normc'].tonode(y[0], y[1], ks, ex)
                     k = A.rebuild(m, x)
-                x = ({kmono(k, ks): 1}, one)
+                x = ({R.MODS['normc'].kmono(k, ks): 1}, one)
             rf[m] = x
         x = rf[e]
-        return tonode(x[0], x[1], ks, ex)
+        return R.MODS['normc'].tonode(x[0], x[1], ks, ex)
     except (K.CasError, K.CasSoft):
         if ex:
             raise
@@ -242,7 +167,7 @@ def g_expand(args, ctx):                                        #@L 2
 
 def g_together(args, ctx):                                      #@L 2
     # one fraction (14): normal, the denominator factored when that is not bigger
-    yield R.MODS['normb'].dfac(normal(args[0]))
+    yield R.MODS['normc'].dfac(normal(args[0]))
 
 
 def g_simplify(args, ctx):                                      #@L 2

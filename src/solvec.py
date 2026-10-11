@@ -9,58 +9,6 @@ import alg as A
 import run as R
 
 MAXVARS = 8
-NS = 400            # samples of the numeric root finder
-
-
-def nsolve(g, x, lo, hi):                                       #@L 3
-    # the real roots of g in x in [lo, hi), ascending floats: sign changes over NS samples,
-    # refined by Illinois regula falsi; a root is kept only if g vanishes there within its
-    # propagated tolerance (A.ntol), which drops the poles of tan and 1/u. A soft failure
-    # when g has no numeric value (an unknown function f(x)) or vanishes on an interval
-    try:
-        p = A.nprog(g, (x,))
-    except K.CasSoft:
-        raise K.CasSoft('cannot solve')
-    r = [0.0] * len(p)
-    out = []
-    a = fa = None
-    for i in range(NS + 1):
-        if not i & 63 and K.ESC is not None and K.ESC():
-            raise K.Cancel()
-        b = lo + (hi - lo) * i / NS                                     #@float-ok
-        try:
-            fb = A.nrun(p, (b,), r)
-            if type(fb) is complex or A.LEFTREAL[0]:
-                fb = None
-        except K.CasSoft:
-            fb = None
-        if fb == 0.0 and fa == 0.0:     # zero on an interval (floor): no isolated roots
-            raise K.CasSoft('cannot solve')
-        z = b if fb == 0.0 else None
-        if fb and fa and fa * fb < 0.0:
-            u, fu, w, fw = a, fa, b, fb
-            for k in range(100):
-                z = (u * fw - w * fu) / (fw - fu)                       #@float-ok
-                try:
-                    v = A.nrun(p, (z,), r)
-                except K.CasSoft:
-                    v = None
-                if type(v) is not float or not v or abs(w - u) <= 1e-15 * (abs(u) + abs(w)):
-                    break
-                if v * fw < 0.0:
-                    u, fu = w, fw
-                else:
-                    fu *= 0.5
-                w, fw = z, v
-        if z is not None and z < hi and len(out) <= 24:
-            try:
-                v = A.nrun(p, (z,), r)
-                if abs(v) <= A.ntol(p, r, [0.0] * len(p)):
-                    out.append(z)
-            except K.CasSoft:
-                pass
-        a, fa = b, fb
-    return out
 
 
 def lsys(rs, vs):                                               #@L 3
@@ -151,7 +99,7 @@ def g_sys(e, v, md):                                            #@L 2
         ss = yield g_elim(tuple(rs), vs, 0, md)
         if ss is None:
             return
-    ss = yield SO.g_fin(fs, (), vs, ss)
+    ss = yield R.MODS['solved'].g_fin(fs, (), vs, ss)
     out = []
     for z in ss:
         q = [K.LST]

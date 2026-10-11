@@ -37,6 +37,7 @@ MODULES = (
     ('polyb',     'CVPOLYB',   'L',   150,       3),
     ('polyc',     'CVPOLYC',   'L',   150,       3),
     ('norm',      'CVNORM',    'L',   150,       4),
+    ('normc',     'CVNORMC',   'L',   150,       4),
     ('normb',     'CVNORMB',   'L',   150,       4),
     ('ident',     'CVIDENT',   'L',   150,       3),
     ('factor',    'CVFACT',    'L',   150,       3),
@@ -45,6 +46,8 @@ MODULES = (
     ('factord',   'CVFACTD',   'L',   150,       3),
     ('solve',     'CVSOLVE',   'L',   150,       3),
     ('solveb',    'CVSOLVEB',  'L',   150,       3),
+    ('solved',    'CVSOLVED',  'L',   150,       4),
+    ('solvee',    'CVSOLVEE',  'L',   150,       4),
     ('solvec',    'CVSOLVEC',  'L',   150,       3),
     ('forms',     'CVFORM',    'L',   150,       3),
     ('diff',      'CVDIFF',    'L',   150,       3),
@@ -89,9 +92,9 @@ KEYS = {
 PARTS = {
     'rules': ('rules', 'rulesb'),
     'poly': ('poly', 'polyb', 'polyc'),
-    'norm': ('norm', 'normb'),
+    'norm': ('norm', 'normb', 'normc'),
     'fact': ('fact', 'factb', 'factc', 'factd'),
-    'solve': ('solve', 'solveb', 'solvec'),
+    'solve': ('solve', 'solveb', 'solvec', 'solved', 'solvee'),
     'ser': ('ser', 'serb'),
     'lim': ('lim', 'limb'),
     'int': ('int', 'intb'),
@@ -104,7 +107,7 @@ PARTS = {
 # Must agree with PARTS (checked).
 FAMILY = {
     'rulesb': 'rules', 'polyb': 'poly', 'polyc': 'poly', 'normb': 'norm', 'factb': 'fact',
-    'factc': 'fact', 'factd': 'fact',
+    'factc': 'fact', 'factd': 'fact', 'normc': 'norm', 'solved': 'solve', 'solvee': 'solve',
     'solveb': 'solve', 'solvec': 'solve', 'serb': 'ser', 'limb': 'lim', 'intb': 'int',
     'defb': 'def', 'sumb': 'sum', 'odeb': 'ode', 'odec': 'ode',
 }

@@ -1388,7 +1388,7 @@ def test_derivative_templates_equal_sympy_diff(label, table):
         tmpl = table[op]
         assert not any(t[4] & P.F_IMPL for t in P.ti_implicit(list(P.lex(tmpl)))), tmpl
         assert set(_names(tmpl)) <= {'U', 'sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'sqrt',
-                                     'cosh', 'sinh', 'tanh', 'abs'}, tmpl
+                                     'cosh', 'sinh', 'tanh', 'abs', 'sign'}, tmpl
         f = ex(tmpl, U=sx())
         F = K.fn_(op, sx())
         dF = sympy.diff(to_sympy(F), X_)

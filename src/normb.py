@@ -14,70 +14,6 @@ AUTOMAX = 100       # the default path leaves results of this size or more alone
 RS = ('', '', 'trigsin', 'trigcos', 'tlin', 'lncollect', 'expmerge')
 
 
-def kinds(e):                                                   #@L 6
-    # bits: 1 e has sin..cot; 2 e is not a rational function of symbols (a function, a
-    # constant, a non-integer power); 4 e has a negative power
-    f = 0
-    for m in A.postorder(e):
-        t = K.N[m]
-        op = t[0]
-        if K.SIN <= op <= K.COT:
-            f |= 1
-        if op == K.MUL:
-            for j in range(3, len(t), 2):
-                w = K.N[t[j]]
-                if w[0] or w[2] or w[3] != 1:
-                    f |= 2
-                elif w[1] < 0:
-                    f |= 4
-        elif op != K.NUM and op != K.SYM and op != K.ADD:
-            f |= 2
-    return f
-
-
-def dden(r):                                                    #@L 7
-    # the sum D of a normal form k*N/D (or k*N*D^-1*...), else 0
-    t = K.N[r]
-    D = 0
-    for j in range(2, len(t), 2):
-        if t[0] == K.MUL and t[j + 1] == K.MONE and K.N[t[j]][0] == K.ADD:
-            D = t[j]
-    return D
-
-
-def dfac(r):                                                    #@L 3
-    # r = k*N/D (a normal form: D primitive over Z) with D factored over Q (Yun's square-free
-    # parts, their rational roots) when D is a polynomial in one kernel u and the factored
-    # form is not bigger (14, FlowCE one fraction); else r
-    D = dden(r)
-    u = K.N[D][2] if D else 0
-    if u and K.N[u][0] == K.MUL:
-        u = K.N[u][2]
-    n = A.degree(D, u) if D else 0
-    cs = A.pco(D, u, n) if n > 0 else None
-    if cs is None:
-        return r
-    a = []
-    for c in cs:
-        a.append(0)
-        for z, w in c:
-            if z != K.ONE or w[0] or w[2] or w[3] != 1:
-                return r
-            a[-1] += w[1]
-    c, fs = R.MODS['poly'].yun(a)
-    ps = []
-    for f, m in fs:
-        rs, f, ok = R.MODS['polyb'].ratroots(f)
-        for p, q, k in rs:
-            ps.append((K.add_([K.mul_(K.num(q), [(u, K.ONE)]), K.num(-p)]), K.num(k * m)))
-        ts = []
-        for i in range(len(f)):
-            ts.append(K.mul_(K.num(f[i]), [(u, K.num(i))]))
-        ps.append((K.add_(ts), K.num(m)))
-    v = K.mul_(K.ONE, [(r, K.ONE), (D, K.ONE), (K.mul_(K.num(c), ps), K.MONE)])
-    return v if A.size(v, True) <= A.size(r, True) else r
-
-
 def g_iszero(e):                                                #@L 2
     # 8.6: YES when e is exactly 0, A.NO when it is not, A.LIKELY when only the numeric probe
     # (real points) says 0 or it finds no usable point. Steps: expand, ln of rationals over
@@ -94,14 +30,14 @@ def g_iszero(e):                                                #@L 2
             r = R.MODS['ident'].lnsplit(NO.normal(e, 1))
         except K.CasError:
             r = e
-        if kinds(r) & 1:
+        if R.MODS['normc'].kinds(r) & 1:
             x = yield R.MODS['rules'].g_rewrite(r, 'zbasis', 0, BUD)
             if x is not None:
                 r = x
         r = NO.normal(r)
         if r == K.ZERO:
             v = YES
-        elif not kinds(r) & 2 or A.nprobe(e) == A.NO:
+        elif not R.MODS['normc'].kinds(r) & 2 or A.nprobe(e) == A.NO:
             v = A.NO
     K.keep(m0, None)
     yield v
@@ -143,7 +79,7 @@ def g_one(e, full):                                             #@L 2
     m0 = K.NN
     best = e
     bs = A.size(e, True)
-    f = kinds(e)
+    f = R.MODS['normc'].kinds(e)
     for k in range(9):
         r = None
         if 1 < k < 7 and (f & 1 if k < 5 else full):
@@ -162,27 +98,27 @@ def g_one(e, full):                                             #@L 2
                 for j in range(2, len(t), 2):
                     if op == K.MUL and not f & 6:
                         x.append((NO.normal(t[j]), t[j + 1]))
-                cs = [K.mul_(t[1], x) if len(x) > 1 else dfac(NO.normal(e))]
+                cs = [K.mul_(t[1], x) if len(x) > 1 else R.MODS['normc'].dfac(NO.normal(e))]
             elif k == 1 and op == K.ADD:
                 x = [t[1]]
                 y = []
                 for j in range(2, len(t), 2):
-                    (y if kinds(t[j]) & 2 else x).append(K.mul_(t[j + 1], [(t[j], K.ONE)]))
+                    (y if R.MODS['normc'].kinds(t[j]) & 2 else x).append(K.mul_(t[j + 1], [(t[j], K.ONE)]))
                 if len(x) > 2 and y:
-                    cs = [K.add_([dfac(NO.normal(K.add_(x)))] + y)]
+                    cs = [K.add_([R.MODS['normc'].dfac(NO.normal(K.add_(x)))] + y)]
             elif r is not None and k < 4:
                 cs.append(NO.normal(r))
             elif k == 7 and full:
                 cs = [R.MODS['ident'].denest(e)]
             elif k == 8 and full:                           # D = a+b*sqrt(n): times a-b*sqrt(n)
                 r = NO.normal(e)
-                x = dden(r)
+                x = R.MODS['normc'].dden(r)
                 if x:
                     D = K.N[x]
                     y = [D[1]]
                     for j in range(2, len(D), 2):
                         c = K.N[D[j + 1]]
-                        y.append(K.mul_(K.nneg(c) if kinds(D[j]) & 2 else c, [(D[j], K.ONE)]))
+                        y.append(K.mul_(K.nneg(c) if R.MODS['normc'].kinds(D[j]) & 2 else c, [(D[j], K.ONE)]))
                     y = K.add_(y)
                     cs = [NO.normal(K.mul_(K.ONE, [(r, K.ONE), (x, K.ONE), (y, K.ONE), (
                         NO.normal(K.mul_(K.ONE, [(x, K.ONE), (y, K.ONE)]), 1), K.MONE)]))]

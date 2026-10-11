@@ -252,17 +252,17 @@ def numden(e):
 # -- the API and the parts --------------------------------------------------------------------
 
 def test_api():
-    for f in ('normal', 'tonode', 'pmul', 'ppow', 'kmono', 'g_expand', 'g_together',
+    for f in ('normal', 'pmul', 'ppow', 'g_expand', 'g_together',
               'g_simplify', 'g_autosimp', 'MAXTERMS', 'KRONMAX', 'GAVEUP'):
         assert hasattr(NO, f), f
-    for f in ('g_iszero', 'g_simp', 'g_one', 'dfac', 'dden', 'kinds', 'SIMPBUG', 'YES'):
+    for f in ('g_iszero', 'g_simp', 'g_one', 'SIMPBUG', 'YES'):
         assert hasattr(NB, f), f
     assert (A.NO, A.LIKELY, NB.YES) == (0, 1, 2)
     assert NO.MAXTERMS == 400 and NO.KRONMAX == 64
     for name in ('simplify', 'expand', 'together'):          # the registry reaches them
         ent = R.CMDS[name]
         assert ent[0] == 'norm' and hasattr(NO, ent[1])
-    assert R.PARTS['norm'] == ('norm', 'normb')
+    assert R.PARTS['norm'] == ('norm', 'normb', 'normc')
 
 
 def code_lines(name):
@@ -275,14 +275,12 @@ def code_lines(name):
         return len(bundle.minify(fh.read(), name).lines)
 
 
-@pytest.mark.xfail(strict=True, reason='CVNORM is over LAZYMAX per part (docs/notes/T1.10.md: '
-                   'a third part normc needs run.py/manifest.py rows)')
-@pytest.mark.parametrize('part', ['norm', 'normb'])
+@pytest.mark.parametrize('part', ['norm', 'normb', 'normc'])
 def test_parts_fit_lazymax(part):
     assert code_lines(part) <= LAZYMAX
 
 
-@pytest.mark.parametrize('part', ['norm', 'normb'])
+@pytest.mark.parametrize('part', ['norm', 'normb', 'normc'])
 def test_parts_size_is_bounded(part):
     assert code_lines(part) <= 210      # the documented overrun (T1.10 notes), not more
 
@@ -619,15 +617,15 @@ def test_together(src, want):
 
 
 def test_dfac_on_normal_forms():
-    r = NB.dfac(NO.normal(nd('1/(x^3-3*x^2+3*x-1)')))
+    r = R.MODS['normc'].dfac(NO.normal(nd('1/(x^3-3*x^2+3*x-1)')))
     assert r == nd('1/(x-1)^3')
-    r = NB.dfac(NO.normal(nd('x/(x^2-4*x+4)')))
+    r = R.MODS['normc'].dfac(NO.normal(nd('x/(x^2-4*x+4)')))
     assert r == nd('x/(x-2)^2')
-    r = NB.dfac(NO.normal(nd('1/(sin(x)^2+2*sin(x)+1)')))
+    r = R.MODS['normc'].dfac(NO.normal(nd('1/(sin(x)^2+2*sin(x)+1)')))
     assert r == nd('1/(sin(x)+1)^2')
     for s in ('x+1', '1/(x*y+1)', '1/(x^2+y)', '(x+1)/2'):  # nothing to factor
         e = NO.normal(nd(s))
-        assert NB.dfac(e) == e
+        assert R.MODS['normc'].dfac(e) == e
 
 
 # -- the zero test (8.6) -----------------------------------------------------------------------

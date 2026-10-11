@@ -1,0 +1,32 @@
+# input	check	reference	note
+sqrt(72)	eq	6*sqrt(2)	algorithms section 6 T1 acceptance
+sqrt(8/27)	eq	2*sqrt(6)/9	algorithms section 6 T1 acceptance
+(-8)^(1/3)	eq	-2	algorithms section 6 T1 acceptance
+sqrt(3+2*sqrt(2))	eq	1+sqrt(2)	algorithms section 6 T1 acceptance
+1/sqrt(2)	eq	sqrt(2)/2	algorithms section 6 T1 acceptance
+sqrt(-4)	eq	2*i	algorithms section 6 T1 acceptance
+cos(5*pi/12)	eq	(sqrt(6)-sqrt(2))/4	algorithms section 6 T1 acceptance
+tan(pi/12)	eq	2-sqrt(3)	algorithms section 6 T1 acceptance
+cos(pi/5)	eq	(1+sqrt(5))/4	algorithms section 6 T1 acceptance
+atan(sqrt(3))	eq	pi/3	algorithms section 6 T1 acceptance
+simplify((x+1)^2-x^2-2*x)	eq	1	algorithms section 6 T1 acceptance
+x/x	eq	1	algorithms section 6 T1 acceptance
+expand((x+y)^3)	eq	x^3+3*x^2*y+3*x*y^2+y^3	algorithms section 6 T1 acceptance
+together((x^2-1)/(x-1))	eq	x+1	algorithms section 6 T1 acceptance
+factor(x^4+4)	eq	(x^2-2*x+2)*(x^2+2*x+2)	algorithms section 6 T1 acceptance
+factor(x^6-1)	eq	x^6-1	algorithms section 6 T1 acceptance
+factor(6*x^3-11*x^2+6*x-1)	eq	(x-1)*(2*x-1)*(3*x-1)	algorithms section 6 T1 acceptance
+factor(x^2-y^2)	eq	(x-y)*(x+y)	algorithms section 6 T1 acceptance
+factor(2*x^3-4*x^2-6*x)	eq	2*x*(x-3)*(x+1)	algorithms section 6 T1 acceptance
+factor(x^5-x+1)	eq	x^5-x+1	algorithms section 6 T1 acceptance
+factor(360/7)	eq	360/7	algorithms section 6 T1 acceptance
+solve(x^2-5*x+6,x)	roots	2;3	algorithms section 6 T1 acceptance
+solve(x^2+1,x)	msg	no solution	algorithms section 6 T1 acceptance
+solve(2^x=8,x)	roots	3	algorithms section 6 T1 acceptance
+solve(sin(x)=1/2,x)	roots	pi/6;5*pi/6	algorithms section 6 T1 acceptance
+solve(sqrt(x+3)=x-3,x)	roots	6	algorithms section 6 T1 acceptance
+solve(ln(x)=2,x)	roots	e^2	algorithms section 6 T1 acceptance
+solve([x+y+z=6,x-y=0,z=2],[x,y,z])	text	x=2,y=2,z=2	algorithms section 6 T1 acceptance
+x-x=1	msg	no solution	algorithms section 6 T1 acceptance
+x+1=x+1	msg	every x is a solution	algorithms section 6 T1 acceptance
+2<3	text	true	algorithms section 6 T1 acceptance
