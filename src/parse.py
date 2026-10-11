@@ -1386,8 +1386,12 @@ def g_eval(code, ctx):                                          #@L 2
                 elif ent is not None:
                     if n < ent[2] or n > ent[3]:
                         raise K.CasError(M_ARGS)
-                    M = S.need(ent[0])                                  #@calls 3
-                    x = yield getattr(M, ent[1])(tuple(a), ctx)         #@calls 2
+                    if nm == 'integrate' and n == 4 and ent[1] == 'g_integrate':
+                        M = S.need('def')                               #@calls 3
+                        x = yield M.g_defint(tuple(a), ctx)             #@calls 2
+                    else:
+                        M = S.need(ent[0])                              #@calls 3
+                        x = yield getattr(M, ent[1])(tuple(a), ctx)     #@calls 2
                     if x is None:
                         return
                     fl = ent[4]

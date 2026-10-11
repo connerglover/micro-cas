@@ -1,6 +1,6 @@
 # cas-evo handover
 
-Updated: 2026-10-11, T2 calculus milestone. Whoever is working on this rewrites this file at every milestone.
+Updated: 2026-10-11, T3 mathematics milestone. Whoever is working on this rewrites this file at every milestone.
 
 ## What this is
 
@@ -67,7 +67,7 @@ graphing in v1. DESIGN §2 and Appendix C list every default.
 | T1 exact core and integration (T1.1-T1.13) | complete, desktop verified |
 | T1.14 bundle / full B.1 | underway with final v1 packaging |
 | T2 calculus | complete, desktop verified; release integration underway |
-| T3 | implemented; final numeric fallback and correctness review underway |
+| T3 | complete, bounded fallbacks documented and desktop verified |
 | UI U.1-U.4 and CVTEST D.1 | implemented, desktop tested; packaging underway |
 
 **Next step:** continue through ALL T2, T3, UI, and packaging without stopping at a milestone.
@@ -116,3 +116,11 @@ Do not claim actual EVO validation: the device probes remain deferred to Conner.
 - Focused T2/T3 calculus run: 467 strict-depth tests passed. Additional limit growth and quadrature review regressions passed independently.
 - User now requires one minified `.py` file and automatic GitHub Actions artifacts. `build/release.py` is implementing compressed lazy exec namespaces, retaining the stricter measured Python heap budget.
 - Continue through final v1 release; do not stop at this checkpoint.
+
+### T3 checkpoint
+
+- Added definite/improper integrals, bounded quadrature, mapped double-integral fallback, exact/symbolic/infinite sums, Riemann sums, gradients, nested/polar/parametric integrals and ODEs.
+- Bernoulli ODEs support rational exponents, preserve implicit branches and verify zero equilibria.
+- Review regressions prevent false limit growth, false sum divergence, missed narrow peaks and silently truncated primitive jumps.
+- Focused definite/double-integral suite: 67 strict-depth tests passed; ODE suite: 59 passed. Full suite exposed stale factor test imports after deliberate calculus eviction; fixture now follows live loader instances.
+- Single-file artifact is building; compressed release and final source/bundled tests remain in progress.

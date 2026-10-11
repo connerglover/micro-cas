@@ -1,0 +1,17 @@
+# command	expected
+integrate(1/x^2,x,1,oo)	1
+integrate(1/sqrt(x),x,0,1)	2
+integrate(e^(-x),x,0,oo)	1
+sum(k^2,k,1,n)	n*(n+1)*(2*n+1)/6
+sum(1/(k*(k+1)),k,1,n)	n/(n+1)
+sum(1/(k*(k+1)),k,1,oo)	1
+sum(1/k^2,k,1,oo)	pi^2/6
+sum((-1)^k/k,k,1,oo)	-ln(2)
+sum(x^k/k!,k,0,oo)	e^x
+sum(k*2^k,k,1,n)	(n-1)*2^(n+1)+2
+riemann(x^2,x,0,1,n,right)	(n+1)*(2*n+1)/(6*n^2)
+limit(riemann(x^2,x,0,1,n,right),n,oo)	1/3
+integrate(integrate(x*y,y,0,x),x,0,1)	1/8
+polararea(2*cos(t),t,-pi/2,pi/2)	pi
+paramarea(t-sin(t),1-cos(t),t,0,2*pi)	3*pi
+arclen(x^(3/2),x,0,4)	8*(10*sqrt(10)-1)/27

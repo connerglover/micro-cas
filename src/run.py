@@ -52,16 +52,17 @@ HINT = {'simplify': 'simplify(e)', 'expand': 'expand(e)', 'factor': 'factor(e,[x
 DEPS = {'norm': ('poly', 'rules', 'ident'), 'fact': ('poly', 'norm'),
         'solve': ('poly', 'norm', 'fact', 'rules'), 'diff': ('norm', 'poly', 'rules', 'ident'),
         'int': ('itab', 'rules', 'diff', 'norm', 'poly'), 'lim': ('ser', 'diff', 'norm', 'poly'),
-        'ser': ('norm', 'poly'), 'int2': ('poly', 'norm'), 'int2b': ('poly', 'norm', 'fact'),
+        'ser': ('norm', 'poly'), 'int2': ('poly', 'norm'), 'int2b': ('int2', 'poly', 'norm', 'fact'),
         'int3': ('diff', 'norm', 'poly'), 'int3b': ('norm', 'poly'),
-        'def': ('int',),                # soft: solve, then lim, one phase at a time (11.3)
-        'sum': ('poly', 'norm', 'lim'),
-        'ode': ('int', 'poly', 'norm'),  # soft: solve after the integration phase (11.4)
-        'form': ('norm', 'fact')}
+        'def': ('poly', 'norm'),        # integration, solve and limits are separate phases
+        'sum': ('poly', 'norm'),
+        'ode': ('poly', 'norm'),
+        'form': ('norm', 'fact'), 'menu': ('cat',)}
 DEV = {'cat': 'catalog',
  'catb': 'catalogb',
  'def': 'defint',
  'defb': 'defintb',
+ 'defc': 'defintc',
  'diff': 'diff',
  'fact': 'factor',
  'factb': 'factorb',
@@ -74,10 +75,10 @@ DEV = {'cat': 'catalog',
  'int2b': 'integ2b',
  'int3': 'integ3',
  'int3b': 'integ3b',
- 'intb': 'integb',
  'itab': 'itab',
  'lim': 'limit',
  'limb': 'limitb',
+ 'limc': 'limitc',
  'menu': 'menu',
  'menub': 'menub',
  'norm': 'norm',
@@ -86,6 +87,7 @@ DEV = {'cat': 'catalog',
  'ode': 'ode',
  'odeb': 'odeb',
  'odec': 'odec',
+ 'oded': 'oded',
  'poly': 'poly',
  'polyb': 'polyb',
  'polyc': 'polyc',
@@ -99,28 +101,32 @@ DEV = {'cat': 'catalog',
  'solved': 'solved',
  'solvee': 'solvee',
  'sum': 'sums',
- 'sumb': 'sumsb'}
-PARTS = {'def': ('def', 'defb'),
+ 'sumb': 'sumsb',
+ 'sumc': 'sumsc'}
+PARTS = {'def': ('def', 'defb', 'defc'),
  'fact': ('fact', 'factb', 'factc', 'factd'),
- 'int': ('int', 'intb'),
- 'lim': ('lim', 'limb'),
+ 'lim': ('lim', 'limb', 'limc'),
+ 'menu': ('menu', 'menub'),
  'norm': ('norm', 'normb', 'normc'),
- 'ode': ('ode', 'odeb', 'odec'),
+ 'ode': ('ode', 'odeb', 'odec', 'oded'),
  'poly': ('poly', 'polyb', 'polyc'),
  'rules': ('rules', 'rulesb'),
  'ser': ('ser', 'serb'),
  'solve': ('solve', 'solveb', 'solvec', 'solved', 'solvee'),
- 'sum': ('sum', 'sumb')}
+ 'sum': ('sum', 'sumb', 'sumc')}
 FAMILY = {'defb': 'def',
+ 'defc': 'def',
  'factb': 'fact',
  'factc': 'fact',
  'factd': 'fact',
- 'intb': 'int',
  'limb': 'lim',
+ 'limc': 'lim',
+ 'menub': 'menu',
  'normb': 'norm',
  'normc': 'norm',
  'odeb': 'ode',
  'odec': 'ode',
+ 'oded': 'ode',
  'polyb': 'poly',
  'polyc': 'poly',
  'rulesb': 'rules',
@@ -129,30 +135,30 @@ FAMILY = {'defb': 'def',
  'solvec': 'solve',
  'solved': 'solve',
  'solvee': 'solve',
- 'sumb': 'sum'}
+ 'sumb': 'sum',
+ 'sumc': 'sum'}
 CLOSURE = {'cat': ('cat',),
  'catb': ('catb',),
- 'def': ('itab', 'rules', 'poly', 'ident', 'norm', 'diff', 'int', 'def'),
+ 'def': ('poly', 'rules', 'ident', 'norm', 'def'),
  'diff': ('poly', 'rules', 'ident', 'norm', 'diff'),
  'fact': ('poly', 'rules', 'ident', 'norm', 'fact'),
  'form': ('poly', 'rules', 'ident', 'norm', 'fact', 'form'),
  'ident': ('ident',),
  'int': ('itab', 'rules', 'poly', 'ident', 'norm', 'diff', 'int'),
  'int2': ('poly', 'rules', 'ident', 'norm', 'int2'),
- 'int2b': ('poly', 'rules', 'ident', 'norm', 'fact', 'int2b'),
+ 'int2b': ('poly', 'rules', 'ident', 'norm', 'int2', 'fact', 'int2b'),
  'int3': ('poly', 'rules', 'ident', 'norm', 'diff', 'int3'),
  'int3b': ('poly', 'rules', 'ident', 'norm', 'int3b'),
  'itab': ('itab',),
  'lim': ('poly', 'rules', 'ident', 'norm', 'ser', 'diff', 'lim'),
- 'menu': ('menu',),
- 'menub': ('menub',),
+ 'menu': ('cat', 'menu'),
  'norm': ('poly', 'rules', 'ident', 'norm'),
- 'ode': ('itab', 'rules', 'poly', 'ident', 'norm', 'diff', 'int', 'ode'),
+ 'ode': ('poly', 'rules', 'ident', 'norm', 'ode'),
  'poly': ('poly',),
  'rules': ('rules',),
  'ser': ('poly', 'rules', 'ident', 'norm', 'ser'),
  'solve': ('poly', 'rules', 'ident', 'norm', 'fact', 'solve'),
- 'sum': ('poly', 'rules', 'ident', 'norm', 'ser', 'diff', 'lim', 'sum')}
+ 'sum': ('poly', 'rules', 'ident', 'norm', 'sum')}
 COST = {}           # part key -> steady bytes; LINES: part key -> lines (the bundler's numbers)
 LINES = {}
 PEAKB = 80          # compile peak per line (18.7)
@@ -204,6 +210,8 @@ LINE = ''           # the input with autoclose applied (the history text)
 CTX = None          # the evaluation context [deg, mainvar, approx, inert]
 FLAGS = 0           # the record flags found by start
 TARGET = None       # the variable that rules 2-3 store into
+FORMINDEX = 0
+FORMNAME = 'exact'
 
 # -- records: (kind, text, approx, flags) --------------------------------------------------------
 R_ANS = 'ans'
@@ -362,10 +370,11 @@ def go(job):                                                    #@L 1
 def start(job):                                                 #@L 2
     """The text passes and the runner's input rules (7.1, 7.9), then the preload (18.4).
     Returns (code, ctx), or (None, message) for purge and definitions."""
-    global LINE, CTX, FLAGS, TARGET
+    global LINE, CTX, FLAGS, TARGET, FORMINDEX
     ks = []                              # the families to preload, and the rule sets
     rs = []
     if job[0] != 'eval':                 # F4: the entry's original answer text, inert (14)
+        FORMINDEX = job[1]
         e = HIST[job[1]]
         code = P.rpn(P.tokens(e[5][0][1] if e[5] else e[1], 0))
         FLAGS = e[4] & F_DEG
@@ -511,11 +520,11 @@ def start(job):                                                 #@L 2
                 f = ALIAS.get(it[1], it[1])
                 e = CMDS.get(f)
                 if e is not None:
-                    if e[0] not in ks:
-                        ks.append(e[0])
-                    if f == 'integrate' and it[2] == 4 and 'def' not in ks:
-                        ks.append('def')     # a definite integral (15.1)
-                    for r in e[5]:
+                    definite = f == 'integrate' and it[2] == 4 and e[1] == 'g_integrate'
+                    family = 'def' if definite else e[0]
+                    if family not in ks:
+                        ks.append(family)
+                    for r in (() if definite else e[5]):
                         if r not in rs:
                             rs.append(r)
     for k in ks:                         # the preload (18.4), before the node table grows
@@ -534,7 +543,23 @@ def finish(job, rec):                                           #@L 2
     """After the reset: the store of rules 2-3, the history and Ans (eval jobs only). The
     history entry is made first, so a MemoryError there leaves VARS and ANS unchanged."""
     global ANS
-    if job[0] != 'eval' or rec is None:
+    if job[0] != 'eval':
+        e = HIST[job[1]]
+        if e[5] is None:
+            e[5] = [('exact', e[1])]
+        if rec is not None and rec[0] == R_ANS:
+            if FORMNAME == 'exact':
+                e[5] = e[5][:1]
+            elif (FORMNAME, rec[1]) not in e[5]:
+                e[5].append((FORMNAME, rec[1]))
+            e[1] = rec[1]
+            ANS = rec[1]
+        else:
+            e[1] = e[5][0][1]
+            e[5] = e[5][:1]
+            ANS = e[1]
+        return rec
+    if rec is None:
         return rec
     nm = None
     if rec[0] == R_ANS:

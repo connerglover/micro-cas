@@ -140,6 +140,10 @@ def generic(key):
         out += ['import parse as P', 'def g_form(code, ctx):',
                 '    L.events.append(("form", list(ctx)))',
                 '    r = yield P.g_eval(code, ctx)', '    yield r']
+    if key == 'def':
+        out += ['def g_defint(args, ctx):',
+                '    L.events.append(("integrate", args, list(ctx), list(R.PINNED)))',
+                '    yield K.mk((K.CALL, K.sym("integrate")) + tuple(args))']
     return '\n'.join(out) + '\n'
 
 
@@ -835,10 +839,10 @@ def test_preload_and_rule_sets(env):
     assert R.LOADED == ['poly', 'rules', 'ident', 'norm']
     del env.log[:]
     ev('integrate(x,x,0,1)')
-    assert 'def' in R.LOADED and 'int' in R.LOADED
+    assert 'def' in R.LOADED and 'int' not in R.LOADED
     ((_, args, ctx, pinned),) = [e for e in env.log if e[0] == 'integrate']
     assert 'def' in pinned and pinned[-1] == 'def'
-    assert ('rset', 'itab') in env.log
+    assert ('rset', 'itab') not in env.log       # compiled during the soft integration phase
 
 
 def test_no_preload_for_plain_expressions(env):

@@ -60,6 +60,10 @@ def sess(monkeypatch):
     monkeypatch.setattr(R, 'CLOCK', [0])
     monkeypatch.setattr(P, 'SESS', R)
     R.need('fact')
+    # A previous calculus command may have evicted/reloaded the factor family.
+    # Patch and inspect the actual loaded instances, not collection-time imports.
+    for alias, key in (('FA', 'fact'), ('FB', 'factb'), ('FD', 'factd'), ('PO', 'poly')):
+        monkeypatch.setattr(sys.modules[__name__], alias, R.MODS[key])
     FB.FACTBUG = 0
     yield
     assert R.MODS['factb'].FACTBUG == 0, 'a factorization failed its product check'
