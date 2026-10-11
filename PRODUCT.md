@@ -14,7 +14,7 @@ application server or upload of calculator contents is needed. The user requeste
 Cloudflare Worker hosting connected to GitHub on their existing connerglover.com
 domain. Main contains source; successful builds publish the generated pages
 branch for Cloudflare. The proposed hostname is cas.connerglover.com; local use
-remains available. See docs/HOSTING.md and HANDOVER.md for deployment status.
+remains available. See docs/HOSTING.md and docs/STATUS.md for deployment status.
 
 ## Users
 
@@ -53,7 +53,7 @@ is a functional reference, not a request to copy its identity.
 
 ## Evidence on Hand
 
-HANDOVER.md records the verified calculator package, GitHub build and memory
+docs/STATUS.md records the verified calculator package, GitHub build and memory
 checks. docs/INSTALL.md describes current transfer and launch steps. The new
 web installer must distinguish completed browser/protocol tests from physical
 calculator validation. No customer, usage or reliability claims are supplied.

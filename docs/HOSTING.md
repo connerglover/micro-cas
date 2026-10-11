@@ -50,7 +50,7 @@ merge the generated pages branch into main.
 The name pages refers to a Git branch; this setup deploys a Cloudflare Worker.
 The earlier Pages Direct Upload job has been removed. Do not configure the old
 CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID GitHub settings for this setup, and do
-not enable GitHub Pages. See HANDOVER.md for what has actually been verified.
+not enable GitHub Pages. See [STATUS.md](STATUS.md) for what has actually been verified.
 
 ## Verification and maintenance
 

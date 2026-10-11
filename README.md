@@ -81,6 +81,7 @@ The calculator uses only its native Python modules. `sympy`, `pytest`, and
 `mpy-cross` are development dependencies. Source and transformed code target the
 calculator's Python 3.4 subset. The strict desktop call-depth budget is eight.
 
-[HANDOVER.md](HANDOVER.md) records current work and the next step.
+[AGENTS.md](AGENTS.md) is the shared development guide;
+[delivery status](docs/STATUS.md) records verified results and remaining checks.
 [DESIGN.md](docs/DESIGN.md) defines the architecture and bounded algorithms;
 [task notes](docs/notes/) record implementation details and limitations.
