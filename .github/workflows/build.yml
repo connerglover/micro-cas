@@ -53,15 +53,23 @@ jobs:
 
       - name: Build pinned native MicroPython for compatibility checks
         run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y gcc-multilib
           git init "$RUNNER_TEMP/micropython"
           git -C "$RUNNER_TEMP/micropython" remote add origin https://github.com/micropython/micropython.git
           git -C "$RUNNER_TEMP/micropython" fetch --depth 1 origin 0fd6c573ea815774668bbb16b8e197c8822368b2
           git -C "$RUNNER_TEMP/micropython" checkout --detach FETCH_HEAD
           make -C "$RUNNER_TEMP/micropython/ports/unix" -j2 VARIANT=standard MICROPY_PY_SSL=0 MICROPY_PY_BTREE=0 MICROPY_PY_FFI=0 FROZEN_MANIFEST=
+          make -C "$RUNNER_TEMP/micropython/ports/unix" -j2 VARIANT=standard BUILD=build-32 CC="gcc -m32" MICROPY_PY_SSL=0 MICROPY_PY_BTREE=0 MICROPY_PY_FFI=0 FROZEN_MANIFEST=
 
       - name: Check actual artifact in native MicroPython with 500000-byte heap
         # Native host compatibility check; this is not an EVO emulator or heap calibration.
         run: python build/micro_smoke.py --run "$RUNNER_TEMP/micropython/ports/unix/build-standard/micropython" --heap 500000
+
+      - name: Check actual artifact in 32-bit MicroPython with 173360-byte heap
+        # Matches the measured free-heap budget conservatively as a total heap.
+        # Graphics are shimmed; physical EVO acceptance remains separate.
+        run: python build/micro_smoke.py --run "$RUNNER_TEMP/micropython/ports/unix/build-32/micropython" --heap 173360
 
       - name: Prepare downloadable files
         run: |

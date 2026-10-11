@@ -66,9 +66,10 @@ def test_packaged_corpora(app, command, kind, expected):
 
 def test_dynamic_function_frames_are_observed(app):
     assert app.go('diff(x^3,x)')[1] == '3*x^2'
-    assert any(Path(path).stem in app.meta['payloads'] and name == app.name('g_eval')
+    assert any(Path(path).stem in app.meta['function_pages'] and name == app.name('g_eval')
                for path, name in app.seen)
-    assert any(Path(path).stem == 'CVDIFF' and name == app.name('g_deriv')
+    assert any(app.meta['function_pages'].get(Path(path).stem, {}).get('module') == 'CVDIFF'
+               and name == app.name('g_deriv')
                for path, name in app.seen)
     assert 1 < app.max_depth <= 8
     assert 'CVDIFF' in app.imports
@@ -236,9 +237,23 @@ def test_package_integrity_compatibility_and_paging(booted):
         assert len(content) == info['bytes'] < 65509
         assert hashlib.sha256(content).hexdigest() == info['sha256']
         ast.parse(content.decode('ascii'), feature_version=(3, 4))
+    for name, info in booted.meta['function_pages'].items():
+        mapping = booted.meta['linemap'][name]
+        for fn in info['functions']:
+            assert fn['source_span'] is not None
+            assert fn['src'].startswith('src/')
+            assert mapping['lines'][fn['output_first_line'] - 1] == fn['source_span']
+            assert fn['output_first_line'] <= fn['output_last_line'] <= len(mapping['lines'])
     with booted.traced():
         for name in booted.meta['sources']:
-            source = booted.globals['_read'](name)
+            if name in booted.meta['function_pages']:
+                source = (booted.dist / (name + '.py')).read_text('ascii')
+                page = booted._import(name)
+                for row in booted.meta['function_pages'][name]['functions']:
+                    assert callable(getattr(page, row['name']))
+                booted.carriers.clear()
+            else:
+                source = booted.globals['_read'](name)
             assert len(source.encode('ascii')) == booted.meta['sources'][name]
             assert source == (booted.dist / 'blocks' / (name + '.py')).read_text('ascii')
             assert not booted.carriers
@@ -261,3 +276,22 @@ def test_failed_companion_load_does_not_poison_namespace(booted, monkeypatch):
     monkeypatch.setitem(booted.builtins, '__import__', original)
     assert booted.go('diff(x^3,x)')[1] == '3*x^2'
     booted.assert_clean()
+
+
+def test_native_page_compile_failure_cleans_and_recovers(app, monkeypatch):
+    original = app._import
+    failed = []
+
+    def no_space(name, *args, **kwargs):
+        if name in app.meta['function_pages'] and not failed:
+            failed.append(name)
+            raise MemoryError('page compiler')
+        return original(name, *args, **kwargs)
+
+    monkeypatch.setitem(app.builtins, '__import__', no_space)
+    assert app.go('diff(x^3,x)')[:2] == ('msg', 'Out of memory')
+    assert failed and not app.carriers
+    app.assert_clean()
+    monkeypatch.setitem(app.builtins, '__import__', original)
+    assert app.go('diff(x^3,x)')[1] == '3*x^2'
+    app.assert_clean()

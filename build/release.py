@@ -23,6 +23,7 @@ import phases
 import shrink
 import memory_report
 import transfer
+import function_pages
 
 
 INPUT = 'fnpre fnin mclose cutname scan ti_rewrite ti_implicit untok tokens expand_names'.split()
@@ -239,13 +240,14 @@ def build(dist=ROOT / 'dist'):
     dist.mkdir(parents=True, exist_ok=True)
     invalidate(dist)
     output, meta = prepare(dist)
+    output, native_pages = function_pages.pack(output, meta)
     entry = output.pop('CASEVO')
     meta['sources'].pop('CASEVO', None)
     code = LOADER + '\n# RUN\n' + entry
     # Native imports fetch one source string at a time. The loader drops the
     # carrier module immediately, then drops the string after exec/collection.
     # No source archive or decompressor remains resident in calculator RAM.
-    files = {name + '.py': ('CODE=' + repr(source) + '\n').encode('ascii')
+    files = {name + '.py': (source if name in native_pages else 'CODE=' + repr(source) + '\n').encode('ascii')
              for name, source in sorted(output.items())}
     files['CASEVO.py'] = code.encode('ascii')
     probe = bundle.minify((ROOT/'probe/CVTEST.py').read_text()).text

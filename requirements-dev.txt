@@ -1,4 +1,4 @@
-# Desktop build and test dependencies; the calculator needs only CASEVO.py.
+# Desktop build and test dependencies; the calculator needs the release ZIP's .py files.
 # Versions match the verified local development environment.
 pytest==9.1.1
 sympy==1.14.0

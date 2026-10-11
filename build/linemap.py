@@ -4,6 +4,7 @@
     python build/linemap.py CVNODE:123
     python build/linemap.py --tb [FILE]       # annotate a device traceback (FILE or stdin)
     python build/linemap.py --map PATH ...    # another linemap.json (default dist/linemap.json)
+    python build/linemap.py --map dist/release.json CVF00001:8  # release function span
 
 A device error reports only a file and a line. The bundler writes one device line per logical
 source line, so each device line maps to a span of source lines (first, last).
@@ -26,7 +27,8 @@ TB = re.compile(r'File "([A-Za-z][A-Za-z0-9]{0,7})(?:\.py)?", line (\d+)')
 
 def load(path=DEFAULT):
     with open(path, encoding='utf-8') as fh:
-        return json.load(fh)
+        table = json.load(fh)
+    return table.get('linemap', table)
 
 
 def _dev(name):
@@ -45,6 +47,8 @@ def lookup(table, dev, line):
     lines = ent['lines']
     if not 1 <= line <= len(lines):
         raise IndexError('%s has %d lines, not %d' % (_dev(dev), len(lines), line))
+    if lines[line - 1] is None:
+        raise KeyError('generated loader code has no source location')
     a, b = lines[line - 1]
     return ent['src'], a, b
 

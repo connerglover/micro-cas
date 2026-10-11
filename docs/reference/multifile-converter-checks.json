@@ -4,662 +4,1668 @@
   "physical_transfer": false,
   "files": [
     {
-      "convertedBytes": 1083,
+      "convertedBytes": 1112,
       "name": "CASEVO.py",
-      "sourceBytes": 986,
+      "sha256": "98fe6d718a95a1b9d8e08cdf8e536cfb48fb58d860f656a28bf01091cc241241",
+      "sourceBytes": 1015,
       "status": 0
     },
     {
-      "convertedBytes": 1411,
+      "convertedBytes": 1375,
       "name": "CVALG.py",
-      "sourceBytes": 1317,
+      "sha256": "e682a5182a26d4a0dca9f8fbd57c3291838921bf4f12434f148c832a6dccb84e",
+      "sourceBytes": 1281,
       "status": 0
     },
     {
-      "convertedBytes": 4748,
+      "convertedBytes": 4747,
       "name": "CVCAT.py",
-      "sourceBytes": 4654,
+      "sha256": "341f09002f76b4d394c98c874954e18565079ec3d8e2fd8388960ecd37a483a4",
+      "sourceBytes": 4653,
       "status": 0
     },
     {
-      "convertedBytes": 4016,
+      "convertedBytes": 282,
       "name": "CVDEF.py",
-      "sourceBytes": 3922,
+      "sha256": "f7ed646e12566ad800a51a57f9a8877ae180bfb13604ab3700c808cf8dfc5dba",
+      "sourceBytes": 190,
       "status": 0
     },
     {
-      "convertedBytes": 4329,
+      "convertedBytes": 907,
       "name": "CVDEFB.py",
-      "sourceBytes": 4232,
+      "sha256": "444b5a5db7c9678cfd2450711952203a25f6b53d969ed89e43cb739899b86d4e",
+      "sourceBytes": 810,
       "status": 0
     },
     {
-      "convertedBytes": 3887,
+      "convertedBytes": 251,
       "name": "CVDEFC.py",
-      "sourceBytes": 3790,
+      "sha256": "a77687e75d42f64c196882475e9f52d49aab2b85e5bda82810d454aa4301e738",
+      "sourceBytes": 156,
       "status": 0
     },
     {
-      "convertedBytes": 3535,
+      "convertedBytes": 609,
       "name": "CVDIFF.py",
-      "sourceBytes": 3438,
+      "sha256": "5ab9b033b1492aac0f710d14840fdae6353093305d222d0f48d6be86053203a3",
+      "sourceBytes": 512,
       "status": 0
     },
     {
-      "convertedBytes": 1463,
+      "convertedBytes": 1461,
       "name": "CVDRAW.py",
-      "sourceBytes": 1366,
+      "sha256": "24dacd72f62481f19c72dbffdb05ea6fd99c2e9f52e7cebbe407b2daadc6c475",
+      "sourceBytes": 1364,
       "status": 0
     },
     {
-      "convertedBytes": 3130,
+      "convertedBytes": 1615,
+      "name": "CVF00001.py",
+      "sha256": "453dc2e9f24bd6a35f7c42c59543052f9732eadd9f8f89610a3622b07ba19c8d",
+      "sourceBytes": 1512,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2536,
+      "name": "CVF00002.py",
+      "sha256": "6177c19e6bc4fdd70a89880db04d230ecf26f817fd5718a71870f1eaef9864c1",
+      "sourceBytes": 2433,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1610,
+      "name": "CVF00003.py",
+      "sha256": "61d500dd4f1a10d627967def2d9ca8c453de8cf173c6c179e057da18b17da208",
+      "sourceBytes": 1507,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1524,
+      "name": "CVF00004.py",
+      "sha256": "dead6315e2280da03438c69eb4ff26991ec909c52707dc2e7aa564b585c37366",
+      "sourceBytes": 1421,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1943,
+      "name": "CVF00005.py",
+      "sha256": "c01ff880d907c32d48b9125ea40020c00ecb60cdbf543981991218eac3447cf1",
+      "sourceBytes": 1840,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1722,
+      "name": "CVF00006.py",
+      "sha256": "9cf63839191c834be09d76eda0960dc89048e1e0c108fbd56105b74f83319168",
+      "sourceBytes": 1619,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2121,
+      "name": "CVF00007.py",
+      "sha256": "1a2c177eb48fa046d6855259d4a6d583dcbd24e6830be97b7025cf59bc16daf8",
+      "sourceBytes": 2018,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1446,
+      "name": "CVF00008.py",
+      "sha256": "d57388afb299039953ce2403b48c66495ab715db23dbb31dbdffcf015dadbb07",
+      "sourceBytes": 1343,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1028,
+      "name": "CVF00009.py",
+      "sha256": "c3483bece636754a2a6e4ee138d5f168861125fca7b692fd5b8cc8e70ed4eb95",
+      "sourceBytes": 925,
+      "status": 0
+    },
+    {
+      "convertedBytes": 3582,
+      "name": "CVF00010.py",
+      "sha256": "91ae2d1850a000a8c0855567dedd04e330619119be5141a377e74573f74e54ca",
+      "sourceBytes": 3479,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1083,
+      "name": "CVF00011.py",
+      "sha256": "66408b08c8a2c6f859660518317a14df8a43dafe77a77cc5936326ea8689a06f",
+      "sourceBytes": 980,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1610,
+      "name": "CVF00012.py",
+      "sha256": "421c56ba9a6a8dc79e973e4c46b4908ea40b75a2fd8bcb45beb9701f05f1d5e2",
+      "sourceBytes": 1507,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1660,
+      "name": "CVF00013.py",
+      "sha256": "5a699818dcd2d23ad2adf29ee787d9f61af7eb86992919ede5710ca328bd1048",
+      "sourceBytes": 1557,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1573,
+      "name": "CVF00014.py",
+      "sha256": "32ad2be7cab62b036212a64c3e6da94044726d1cced9d01aa7aa4bec529b4610",
+      "sourceBytes": 1470,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2115,
+      "name": "CVF00015.py",
+      "sha256": "091d89290bf7ea44a8cdd7b50a4fdc1cfc57f3c5fd7bbbac05de7a8ea29bb37d",
+      "sourceBytes": 2012,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1126,
+      "name": "CVF00016.py",
+      "sha256": "62a3a65570260f18a1b80eb2c92feb48c4d2bb791808f71402f58cf5b872d20b",
+      "sourceBytes": 1023,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1257,
+      "name": "CVF00017.py",
+      "sha256": "ec0279d3f4c737901d76cfcae309ff6d40a6aa203e0aeb46d212584474106406",
+      "sourceBytes": 1154,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1795,
+      "name": "CVF00018.py",
+      "sha256": "8a188311f569c3eefbc113c12835031b9e8bb204aa384bdaf39dce7a02b689de",
+      "sourceBytes": 1692,
+      "status": 0
+    },
+    {
+      "convertedBytes": 812,
+      "name": "CVF00019.py",
+      "sha256": "0b539a36af25b6000616e15d6841274871ba971bfaeb08a142ea948e8a230cda",
+      "sourceBytes": 709,
+      "status": 0
+    },
+    {
+      "convertedBytes": 719,
+      "name": "CVF00020.py",
+      "sha256": "a4f02c292a2f4c5ea785d35d3942bb148481cd4b67dd72f2e47f1e7e38a5fe62",
+      "sourceBytes": 616,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1634,
+      "name": "CVF00021.py",
+      "sha256": "263099a5fac928c12c6d55caad336d760b4d6c4f8550c716a641e805a100a551",
+      "sourceBytes": 1531,
+      "status": 0
+    },
+    {
+      "convertedBytes": 696,
+      "name": "CVF00022.py",
+      "sha256": "034082054e016e06afa683163aa4710d249e88c1a56d09132726ed3de04e7dc5",
+      "sourceBytes": 593,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1736,
+      "name": "CVF00023.py",
+      "sha256": "a6bd426e12ae5efaee4a3c6c60dca38ea999372bdc9b96368dda37cb82a74668",
+      "sourceBytes": 1633,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1447,
+      "name": "CVF00024.py",
+      "sha256": "de1dda4f6969bd507c3195ad1c675f39176e1dba8ab786515411e5b788e77e51",
+      "sourceBytes": 1344,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1706,
+      "name": "CVF00025.py",
+      "sha256": "2d06c65d6554549ddb82d8e05c91b8d4c0cb24a63b375db21fadfd38b4c75808",
+      "sourceBytes": 1603,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2540,
+      "name": "CVF00026.py",
+      "sha256": "7a93d5422ef80f934a87e8bcbf4f948d178f2e97d68690817bd82575a2f2eb8e",
+      "sourceBytes": 2437,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2039,
+      "name": "CVF00027.py",
+      "sha256": "a36add4ac7ed17473bf40fbb2c59a45cfa0252bef39ef04d4837eda012be1bb9",
+      "sourceBytes": 1936,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1049,
+      "name": "CVF00028.py",
+      "sha256": "42e3df8822cb6ee3966a5adf3e946587fac1e86748365218393952ab7d201fa7",
+      "sourceBytes": 946,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1527,
+      "name": "CVF00029.py",
+      "sha256": "fa5b57a5156d9721b7ec9ee4646a53906857c54546140f8815052938d730ec64",
+      "sourceBytes": 1424,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1818,
+      "name": "CVF00030.py",
+      "sha256": "a25ae812049145868c4842c1d0ffa98678bf3d93f6feb1199855dd4fb9a2085d",
+      "sourceBytes": 1715,
+      "status": 0
+    },
+    {
+      "convertedBytes": 317,
+      "name": "CVF00031.py",
+      "sha256": "f9e23ad56f5989caa3d6917eccfc2f3a59b3ecdd7081d697d18a5a89f91419a6",
+      "sourceBytes": 216,
+      "status": 0
+    },
+    {
+      "convertedBytes": 497,
+      "name": "CVF00032.py",
+      "sha256": "f46b67cc86551ad9a0f1b1fd5289035199c4773b144eeeee0b60e1ce2a28df6b",
+      "sourceBytes": 394,
+      "status": 0
+    },
+    {
+      "convertedBytes": 970,
+      "name": "CVF00033.py",
+      "sha256": "837ae8c16e0cb8bb543ad1863be5088eb0f77ffd666b51fc887c447db071efd5",
+      "sourceBytes": 867,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1209,
+      "name": "CVF00034.py",
+      "sha256": "65f55e0197771e8dcb0c714b33d71d6c087c3f75c4f424bfe8da0c6339a09421",
+      "sourceBytes": 1106,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1416,
+      "name": "CVF00035.py",
+      "sha256": "767d99645936ac2608e15080d85212d5372a1b98a4878f8c1fef6230a401677a",
+      "sourceBytes": 1313,
+      "status": 0
+    },
+    {
+      "convertedBytes": 868,
+      "name": "CVF00036.py",
+      "sha256": "cd7da6b9eba842e31f902c5d6fb01cfcf3501e739bbb883255a5de1060e6cc13",
+      "sourceBytes": 765,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1034,
+      "name": "CVF00037.py",
+      "sha256": "d6cbbe041e4633faf292b240b753acc5f52ae8ed371a8397161a95102a951010",
+      "sourceBytes": 931,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1877,
+      "name": "CVF00038.py",
+      "sha256": "96cf2390606d925fafecd8d223718aa3f1c15c2b1b905d9ab9362958c35d9355",
+      "sourceBytes": 1774,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2752,
+      "name": "CVF00039.py",
+      "sha256": "5f2837a20fa6cb5c12c65facfdfc996615d2bfd2bac8be82f5a626de1f896cf4",
+      "sourceBytes": 2649,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2082,
+      "name": "CVF00040.py",
+      "sha256": "7a5f47152d1771e75b7cb160ceef4556213538a738b729e36a7573c346a0102b",
+      "sourceBytes": 1979,
+      "status": 0
+    },
+    {
+      "convertedBytes": 870,
+      "name": "CVF00041.py",
+      "sha256": "225e949aa931009e48be71ff54c63473e3eeb00b95d2d84899eeba20017e6ff6",
+      "sourceBytes": 767,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1723,
+      "name": "CVF00042.py",
+      "sha256": "c1545978e00fc61db1f08e9c4d9021848ebeafa07798b4abffc7b30868de0e35",
+      "sourceBytes": 1620,
+      "status": 0
+    },
+    {
+      "convertedBytes": 738,
+      "name": "CVF00043.py",
+      "sha256": "f0299a3d83090307729f3952dc8b79258bc60065c566e0f20ca376330f1dcf4f",
+      "sourceBytes": 635,
+      "status": 0
+    },
+    {
+      "convertedBytes": 3062,
+      "name": "CVF00044.py",
+      "sha256": "2a3c411ee6ee359dad42713929ab3dcd6486c79665f5f899171fcc5a0ccac662",
+      "sourceBytes": 2959,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2300,
+      "name": "CVF00045.py",
+      "sha256": "2dcfd3f0cdb7e1a532815195b48e0b123b6e4157d5a1af9b2e294b1c81e8f421",
+      "sourceBytes": 2197,
+      "status": 0
+    },
+    {
+      "convertedBytes": 370,
+      "name": "CVF00046.py",
+      "sha256": "bb311b6490cd92a1d6178414e38a49c8bafb14b379a969440adb94e2d5341141",
+      "sourceBytes": 267,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2592,
+      "name": "CVF00047.py",
+      "sha256": "0defca747f3980cc3fc014a6b72de54edb371dd16562ef62975e53abd2cf24b4",
+      "sourceBytes": 2489,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1164,
+      "name": "CVF00048.py",
+      "sha256": "18a22a445e0e83843bced71f0163abd77df37b681089c4a17b62a3be7a05d9aa",
+      "sourceBytes": 1061,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1183,
+      "name": "CVF00049.py",
+      "sha256": "63d1143e79ebfa78cf2b3c1605646f8121fd8aba3d61cc8daa93e06fd3f7b9fd",
+      "sourceBytes": 1080,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1398,
+      "name": "CVF00050.py",
+      "sha256": "39d563e97ace717773f6e2fa6d8e00fa595182ad6b72580fd631543bec865de9",
+      "sourceBytes": 1295,
+      "status": 0
+    },
+    {
+      "convertedBytes": 737,
+      "name": "CVF00051.py",
+      "sha256": "3bbdd8f9c50ae3d2081bb8b7c2cd5737ac5d8a049e1167b57dc54395478000ff",
+      "sourceBytes": 634,
+      "status": 0
+    },
+    {
+      "convertedBytes": 565,
+      "name": "CVF00052.py",
+      "sha256": "cbc06f06c7a24c95f68a04c8a590eaabcd530bc3e829b3cee49be1394267bac3",
+      "sourceBytes": 462,
+      "status": 0
+    },
+    {
+      "convertedBytes": 507,
+      "name": "CVF00053.py",
+      "sha256": "27c6c3596350765c03dec88ac575dde9614cda52aac74dc74023a8eb2d47d8af",
+      "sourceBytes": 404,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1558,
+      "name": "CVF00054.py",
+      "sha256": "3b10107ba1a625dd677361abb1d7b4efd9922aa62210823593355f0acdc9e163",
+      "sourceBytes": 1455,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1540,
+      "name": "CVF00055.py",
+      "sha256": "30c1191c2ebb27e5e92f75b4da61c62575c462a4662aa0a0f7313f1820f2d0ca",
+      "sourceBytes": 1437,
+      "status": 0
+    },
+    {
+      "convertedBytes": 751,
+      "name": "CVF00056.py",
+      "sha256": "c82e66c3f757f24afd59388e5c456344726a0466038461cd319830b12c4124d1",
+      "sourceBytes": 648,
+      "status": 0
+    },
+    {
+      "convertedBytes": 3191,
+      "name": "CVF00057.py",
+      "sha256": "ed5ab4905117584ceef245caa9938d0f62bf5b6de388971c881a262c389ce4e2",
+      "sourceBytes": 3088,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1085,
+      "name": "CVF00058.py",
+      "sha256": "d78fbfedab1cf52c6321ed01a2aae828004af7405a1429ee240de49af9b2415e",
+      "sourceBytes": 982,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1667,
+      "name": "CVF00059.py",
+      "sha256": "8a3f62957d692f376d0f4180273b8f365b44b93e0cb028077022efbad371824e",
+      "sourceBytes": 1564,
+      "status": 0
+    },
+    {
+      "convertedBytes": 4720,
+      "name": "CVF00060.py",
+      "sha256": "042604f0c79d7997906f7867b552ffaa1181c4725e1a3d6284150eeedf2c68c5",
+      "sourceBytes": 4617,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1221,
+      "name": "CVF00061.py",
+      "sha256": "c5341abe22ac36a785aaf6bd3d21422f16ce8501de393c09d457cdf58bb83aeb",
+      "sourceBytes": 1118,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1135,
+      "name": "CVF00062.py",
+      "sha256": "3e838786260b656ef00487d96f0236ec6205efb50069e2481da1c2e186c6825a",
+      "sourceBytes": 1032,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2821,
+      "name": "CVF00063.py",
+      "sha256": "f826ff4d19c921c770d289d40feeffddd50646a60f5d01b131a7c64b00ab29a8",
+      "sourceBytes": 2718,
+      "status": 0
+    },
+    {
+      "convertedBytes": 293,
+      "name": "CVF00064.py",
+      "sha256": "5b2d1703588f16fc31ac8782047c8cc7d23b7aba2f143d915db10d73e0c272f0",
+      "sourceBytes": 192,
+      "status": 0
+    },
+    {
+      "convertedBytes": 345,
+      "name": "CVF00065.py",
+      "sha256": "227ece31472a383300fa3905742fc2a99bcef0885d32cb1d1f0382ec0b437f79",
+      "sourceBytes": 242,
+      "status": 0
+    },
+    {
+      "convertedBytes": 328,
+      "name": "CVF00066.py",
+      "sha256": "46995dc8e2d90e3b372ea0c170c9ba72f84d4b11d55ffb10fc5958b402832fba",
+      "sourceBytes": 227,
+      "status": 0
+    },
+    {
+      "convertedBytes": 316,
+      "name": "CVF00067.py",
+      "sha256": "a2ff7aea914697062ad8566aaaeb22e091f8da1c37b35562bdde43ef2feb3116",
+      "sourceBytes": 215,
+      "status": 0
+    },
+    {
+      "convertedBytes": 878,
+      "name": "CVF00068.py",
+      "sha256": "529d5af41bbe465cb5344e48b0a3509ec2ad03e2de6b90a0200faaebe7d92d9d",
+      "sourceBytes": 775,
+      "status": 0
+    },
+    {
+      "convertedBytes": 984,
+      "name": "CVF00069.py",
+      "sha256": "3f74cfc02da319d7cfdaf818572c0328ffa1f73b2f72ca067a940ebb5c307ac1",
+      "sourceBytes": 881,
+      "status": 0
+    },
+    {
+      "convertedBytes": 685,
+      "name": "CVF00070.py",
+      "sha256": "199a39135afebc56b8336728ca99e98b7022c0748d00ff49ad858bc214dd73b4",
+      "sourceBytes": 582,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2765,
+      "name": "CVF00071.py",
+      "sha256": "9271ab53dd2890ab686cfb7564f2b50aceaaa167b21322c1ac4b5b55f5ed7078",
+      "sourceBytes": 2662,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1977,
+      "name": "CVF00072.py",
+      "sha256": "abb277870b2cad3a817b9fabff8d822b28698ca607886c4bcbfb944020c73dd9",
+      "sourceBytes": 1874,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1305,
+      "name": "CVF00073.py",
+      "sha256": "f175775bbfb70909f0b27068807aa519f0d878f9ef57110df4fddaf0216732d4",
+      "sourceBytes": 1202,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1603,
+      "name": "CVF00074.py",
+      "sha256": "7b027fcf44e696fde569c1f3b2ac36a17b3a530b627b946f95c2b041a6399290",
+      "sourceBytes": 1500,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1045,
+      "name": "CVF00075.py",
+      "sha256": "e3875499161da0442260323b005cfce9e5440c68bfc80c422660c50d02d4fe62",
+      "sourceBytes": 942,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2539,
+      "name": "CVF00076.py",
+      "sha256": "b9a06b57c5548b4554ef1c562575b6eb6ed6e11f88426cdcc1ce6df9359d8cfe",
+      "sourceBytes": 2436,
+      "status": 0
+    },
+    {
+      "convertedBytes": 462,
+      "name": "CVF00077.py",
+      "sha256": "f47280f263ebd6b917c28c0e8417e2157aacf388aa5c4a6b7a3b480da0fd81ba",
+      "sourceBytes": 359,
+      "status": 0
+    },
+    {
+      "convertedBytes": 852,
+      "name": "CVF00078.py",
+      "sha256": "1f88c4da93b19c255bf6196ec33727da37f5f7fe495cdb7a38d642c8bef8532f",
+      "sourceBytes": 749,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1092,
+      "name": "CVF00079.py",
+      "sha256": "72b5ebe19898a22cf3c07ab4e984877e2f526cf2723869150f73c36a26db2a67",
+      "sourceBytes": 989,
+      "status": 0
+    },
+    {
+      "convertedBytes": 3588,
+      "name": "CVF00080.py",
+      "sha256": "90d09ee68838da2f1dad23e72c899def1a9259987cc4a0dabb5db75b610b80c6",
+      "sourceBytes": 3485,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1007,
+      "name": "CVF00081.py",
+      "sha256": "71d40a77db9ecbd77c69bcf451429fb243c0d7e371623ddd4028a4526fceb1f7",
+      "sourceBytes": 904,
+      "status": 0
+    },
+    {
+      "convertedBytes": 3986,
+      "name": "CVF00082.py",
+      "sha256": "b27486274f358a9c34619800278a7a5fa552b3e62fb230566c7de2c198806381",
+      "sourceBytes": 3883,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2712,
+      "name": "CVF00083.py",
+      "sha256": "6b2b93b89baad88b5e5ea05033dbd48addced7e877e07aed4b186f8a90f64851",
+      "sourceBytes": 2609,
+      "status": 0
+    },
+    {
+      "convertedBytes": 3455,
+      "name": "CVF00084.py",
+      "sha256": "9fccf6bba8aecb1e3e1e778a240313885d9c54aa14fd8d0ea19f228b2876df0c",
+      "sourceBytes": 3352,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1813,
+      "name": "CVF00085.py",
+      "sha256": "5ede23ff3aa1563f103c27b4d3737792d36d6a9a6bd7b7310ef1b7a4045e9369",
+      "sourceBytes": 1710,
+      "status": 0
+    },
+    {
+      "convertedBytes": 4270,
+      "name": "CVF00086.py",
+      "sha256": "4915e880064581fd4d9006769b4e43265fe19d59486d392d1f218642bf3e758a",
+      "sourceBytes": 4167,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2484,
+      "name": "CVF00087.py",
+      "sha256": "27730775ec4f0689ce0920b9b563c105df9adad328ac8e9a9b75a9ba67e545c0",
+      "sourceBytes": 2381,
+      "status": 0
+    },
+    {
+      "convertedBytes": 403,
+      "name": "CVF00088.py",
+      "sha256": "68f03062ae1e85b41dde6127d115bbe21d9083156d5d81605b0cc64ccad1fda9",
+      "sourceBytes": 300,
+      "status": 0
+    },
+    {
+      "convertedBytes": 3147,
+      "name": "CVF00089.py",
+      "sha256": "b711d6475e1d96ce5e38f5ed8737cd1ce4209c5761f011ebd374ea2e932d5c7f",
+      "sourceBytes": 3044,
+      "status": 0
+    },
+    {
+      "convertedBytes": 852,
+      "name": "CVF00090.py",
+      "sha256": "68b1371499493603a50ac60d4dc09dbe3f0227633831cba7741c210e2f15de9a",
+      "sourceBytes": 749,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1893,
+      "name": "CVF00091.py",
+      "sha256": "0a08ed53b121ab6ff82f2153d9dc052d9d6948761d9944489ba31242d057e257",
+      "sourceBytes": 1790,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2176,
+      "name": "CVF00092.py",
+      "sha256": "1d91732aaa46a6ff46d2d120b06616ac0a0c36692b5d93bb8a01e9f127ef4bdb",
+      "sourceBytes": 2073,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2967,
+      "name": "CVF00093.py",
+      "sha256": "8ce1cdb2b063c5969cdeb53d8cb4eab7622dec711633bc54c73535d1ac3e5741",
+      "sourceBytes": 2864,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2897,
+      "name": "CVF00094.py",
+      "sha256": "68c4f36e611d2861fea791cd574167ea4c177e76453573aa705c2ddd55c45e97",
+      "sourceBytes": 2794,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1621,
+      "name": "CVF00095.py",
+      "sha256": "7327ac49ba7d2f004f03eb1ce954298c0e2226eda9bb9be90e01da2245920663",
+      "sourceBytes": 1518,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1770,
+      "name": "CVF00096.py",
+      "sha256": "98c4ef819d88acc0b55208498df01e32a85d3a967b732723e3def17bec1f594d",
+      "sourceBytes": 1667,
+      "status": 0
+    },
+    {
+      "convertedBytes": 812,
+      "name": "CVF00097.py",
+      "sha256": "36fdb718d26687fd9791360938be017368829400f82c0d6c09767a99b02e6365",
+      "sourceBytes": 709,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2824,
+      "name": "CVF00098.py",
+      "sha256": "dca6ddd53ee8a36cd7984094d7640c2d189c3dc88b46916ac1ae0f4944bfffb7",
+      "sourceBytes": 2721,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1312,
+      "name": "CVF00099.py",
+      "sha256": "11cf21cb0ca7be8c1319829ac827cf544ba82f53a3df550f8d9b4234048d08e5",
+      "sourceBytes": 1209,
+      "status": 0
+    },
+    {
+      "convertedBytes": 651,
+      "name": "CVF00100.py",
+      "sha256": "b209c2eda3a080797c2443b724d8a2db7e3c680ddda8ecfba2f0c3daca4e50a4",
+      "sourceBytes": 548,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2922,
+      "name": "CVF00101.py",
+      "sha256": "46e66a561dd32909918e553c20416ee99abcc4d1da858fe28c50c4074ea74b31",
+      "sourceBytes": 2819,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2040,
+      "name": "CVF00102.py",
+      "sha256": "87854f717676b8dc1276c230adf26193010fc914537dda9e25f79fb174a17756",
+      "sourceBytes": 1937,
+      "status": 0
+    },
+    {
+      "convertedBytes": 971,
+      "name": "CVF00103.py",
+      "sha256": "b303e1536abf1b52ab7cd4a315694ad67c8c69da5c695097fe05d474e46f331a",
+      "sourceBytes": 868,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1695,
+      "name": "CVF00104.py",
+      "sha256": "473fb8e44aaf1ce7ac2b68ba7620a799338a713f76f812d45453e80a4aa9c3e6",
+      "sourceBytes": 1592,
+      "status": 0
+    },
+    {
+      "convertedBytes": 3150,
+      "name": "CVF00105.py",
+      "sha256": "6bb2a65a6e6f5ada87ceae49d7c8d797ec49db2004ca22848112042c3b883b59",
+      "sourceBytes": 3047,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1822,
+      "name": "CVF00106.py",
+      "sha256": "62addd162c07f55c03b5a27f1ac332352ad9086e206f158bf13f28fc87f77e28",
+      "sourceBytes": 1719,
+      "status": 0
+    },
+    {
+      "convertedBytes": 756,
+      "name": "CVF00107.py",
+      "sha256": "ac7a9ae06fdc3b4224abcb8c932aebbc01c6f7edb387f7ee50e39583ede5194a",
+      "sourceBytes": 653,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1393,
+      "name": "CVF00108.py",
+      "sha256": "734bb4b4be397e5adb00efd173251d137b7bc413774ad2b28d314b336308556e",
+      "sourceBytes": 1290,
+      "status": 0
+    },
+    {
+      "convertedBytes": 667,
+      "name": "CVF00109.py",
+      "sha256": "0fde83e9b80d44db3e0cf1498a996557461f5a05a79f85acbc6631cdfb21275f",
+      "sourceBytes": 564,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1807,
+      "name": "CVF00110.py",
+      "sha256": "5a3066e924a067efeea2f842674d9da982690a53925dea2aa029dd9253d480df",
+      "sourceBytes": 1704,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1932,
+      "name": "CVF00111.py",
+      "sha256": "d0ee12fb03d41973f5a7f3fce8b2cf9742317342594478008a6fc5d44c6a7390",
+      "sourceBytes": 1829,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2592,
+      "name": "CVF00112.py",
+      "sha256": "a6b495365170b6bbf09f8c7cd117b82039e395e5355faef8feee42861d8e4f39",
+      "sourceBytes": 2489,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1403,
+      "name": "CVF00113.py",
+      "sha256": "c9381ca73e7be4aa491b74b82a373fc041881c0544ea7b476dfafce9739bfbac",
+      "sourceBytes": 1300,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1556,
+      "name": "CVF00114.py",
+      "sha256": "1f042907812285bc8ea2ed10e27b7c85a2af341b76ae40b56e7d3ceff287a4b6",
+      "sourceBytes": 1453,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1490,
+      "name": "CVF00115.py",
+      "sha256": "85157e17f1df6c640f28a87ce43033b6ccf59984dcfc37c386c0d8510a31ae39",
+      "sourceBytes": 1387,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1310,
+      "name": "CVF00116.py",
+      "sha256": "4c4a50611c8da05642ff745e905627873c9a13754766a8ccbec04fe64e31d611",
+      "sourceBytes": 1207,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1035,
+      "name": "CVF00117.py",
+      "sha256": "ec379716e87f26821b8d1cebe5d12c788681bd47c564f945e7e5259950297478",
+      "sourceBytes": 932,
+      "status": 0
+    },
+    {
+      "convertedBytes": 917,
+      "name": "CVF00118.py",
+      "sha256": "b5f480348c8c1c39e896d6292aafe585c1fb2473643cba8cd0731dea68a1802e",
+      "sourceBytes": 814,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1391,
+      "name": "CVF00119.py",
+      "sha256": "635c26f97a004415b0d5dcd23810d180ab56e0917519838e6440cab52734295a",
+      "sourceBytes": 1288,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1066,
+      "name": "CVF00120.py",
+      "sha256": "ff380e9ee0f5ec79de931202ddb82ca237b77bc6e77729bda85df656af90300a",
+      "sourceBytes": 963,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2686,
+      "name": "CVF00121.py",
+      "sha256": "00d99916d50f38e2c50af1ca554bb0249fd7e684b1d422749ffb823d6bcac808",
+      "sourceBytes": 2583,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1926,
+      "name": "CVF00122.py",
+      "sha256": "3ef3de0b34a6a1d80bbea17936309960d719a32209a726116e17a1331536a6ef",
+      "sourceBytes": 1823,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1272,
+      "name": "CVF00123.py",
+      "sha256": "b625bc1ec3a9457f430b8bdbd9d5e6d20348b8ccee685e67fff27138987520b1",
+      "sourceBytes": 1169,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1962,
+      "name": "CVF00124.py",
+      "sha256": "193fe7da97a38b95708a844aae9cbea5bc0b3c24452171c67a2f1ddfcc0c89b5",
+      "sourceBytes": 1859,
+      "status": 0
+    },
+    {
+      "convertedBytes": 452,
+      "name": "CVF00125.py",
+      "sha256": "aff790eb729489c1a1deca26df4c30d866ccd2dd3f912f2d35c48d5521eb2175",
+      "sourceBytes": 349,
+      "status": 0
+    },
+    {
+      "convertedBytes": 2122,
+      "name": "CVF00126.py",
+      "sha256": "1309a141547e8972fc28ac2e12f2f4c60fec44e8161678af78e9a9da6599e6dc",
+      "sourceBytes": 2019,
+      "status": 0
+    },
+    {
+      "convertedBytes": 1109,
+      "name": "CVF00127.py",
+      "sha256": "fa25ddc5e1266b6c2184a1c964ff81fa284c81074a03257b378396f3622b5239",
+      "sourceBytes": 1006,
+      "status": 0
+    },
+    {
+      "convertedBytes": 4194,
+      "name": "CVF00128.py",
+      "sha256": "a3c235f9b6c5f428940230911300424ba03059fab48775f8433b85928d12feec",
+      "sourceBytes": 4091,
+      "status": 0
+    },
+    {
+      "convertedBytes": 281,
       "name": "CVFACT.py",
-      "sourceBytes": 3033,
+      "sha256": "4e678f796a5d59efe18f535a07865e440ba85216607787f7d15a5af2713a5c2f",
+      "sourceBytes": 186,
       "status": 0
     },
     {
-      "convertedBytes": 2778,
+      "convertedBytes": 220,
       "name": "CVFACTB.py",
-      "sourceBytes": 2678,
+      "sha256": "174f7570ef48f5eae08bb1fffbb365e007399f245bf0a27aadc8eb5eb74af20f",
+      "sourceBytes": 122,
       "status": 0
     },
     {
-      "convertedBytes": 2493,
+      "convertedBytes": 158,
       "name": "CVFACTC.py",
-      "sourceBytes": 2393,
+      "sha256": "70280ed39e8a634e202ed17cce8010e4ec041039983ff2d0058da67dd57da4e1",
+      "sourceBytes": 60,
       "status": 0
     },
     {
-      "convertedBytes": 2862,
+      "convertedBytes": 351,
       "name": "CVFACTD.py",
-      "sourceBytes": 2762,
+      "sha256": "262efd86448d6df257f934b8c66e5fbf8ff183f9afdfa669cd3abc4bdd9843e5",
+      "sourceBytes": 251,
       "status": 0
     },
     {
-      "convertedBytes": 1513,
+      "convertedBytes": 284,
       "name": "CVFORM.py",
-      "sourceBytes": 1416,
+      "sha256": "4e469794a0ed420e0ea624b59108164cae8354b050459b94836da77d28cd826e",
+      "sourceBytes": 189,
       "status": 0
     },
     {
-      "convertedBytes": 2872,
+      "convertedBytes": 1533,
       "name": "CVIDENT.py",
-      "sourceBytes": 2772,
+      "sha256": "9625df595c3d42cb4db60d6ff85668e9abb90665837533671c3c8cfd794edfba",
+      "sourceBytes": 1433,
       "status": 0
     },
     {
-      "convertedBytes": 3093,
+      "convertedBytes": 354,
       "name": "CVINT.py",
-      "sourceBytes": 2999,
+      "sha256": "6d8e90b93fa388b9bd216397d1cc28cc4caad463a9272c80c8206553c42368e5",
+      "sourceBytes": 260,
       "status": 0
     },
     {
-      "convertedBytes": 4475,
+      "convertedBytes": 260,
       "name": "CVINT2.py",
-      "sourceBytes": 4378,
+      "sha256": "8cefe64ef43d85f0334dc3c1ba21d47940037ab0aaaf4ace51be6e0c58b5f510",
+      "sourceBytes": 165,
       "status": 0
     },
     {
-      "convertedBytes": 3703,
+      "convertedBytes": 226,
       "name": "CVINT2B.py",
-      "sourceBytes": 3603,
+      "sha256": "b11f175743f89470c99ad69f037aef109a5091499cbb038dc041c5541344815f",
+      "sourceBytes": 128,
       "status": 0
     },
     {
-      "convertedBytes": 3596,
+      "convertedBytes": 283,
       "name": "CVINT3.py",
-      "sourceBytes": 3499,
+      "sha256": "529b911e8cf2d30958747d222c950a4ae8eabc61a45a7ddf90d5d17e112d7757",
+      "sourceBytes": 188,
       "status": 0
     },
     {
-      "convertedBytes": 1957,
+      "convertedBytes": 176,
       "name": "CVINT3B.py",
-      "sourceBytes": 1857,
+      "sha256": "e02a2c76cd40d1d15d3391b9fd5b55a316997e4450ee5134146d17a37a42bb1b",
+      "sourceBytes": 78,
       "status": 0
     },
     {
       "convertedBytes": 1042,
       "name": "CVITAB.py",
+      "sha256": "ce05a8c1f36c1eab1959eb20a8d91150e2746cda021d9d029f4450af7d578b0f",
       "sourceBytes": 945,
       "status": 0
     },
     {
-      "convertedBytes": 3269,
+      "convertedBytes": 288,
       "name": "CVLIM.py",
-      "sourceBytes": 3175,
+      "sha256": "8d15140e99a8066a36b0bc712972f63a1ef5174165d641a2ac0840389fe6d89b",
+      "sourceBytes": 196,
       "status": 0
     },
     {
-      "convertedBytes": 3303,
+      "convertedBytes": 253,
       "name": "CVLIMB.py",
-      "sourceBytes": 3206,
+      "sha256": "5eb4967f0536eb59aa584a9196fdd36eb8fe9fadaa492d333d521dfd6a9c0348",
+      "sourceBytes": 158,
       "status": 0
     },
     {
-      "convertedBytes": 4438,
+      "convertedBytes": 223,
       "name": "CVLIMC.py",
-      "sourceBytes": 4341,
+      "sha256": "ad5d23c8c3b67bc77aea3c3e3e1767eea312d3b30a162c72da5154d2cbb5a55d",
+      "sourceBytes": 128,
       "status": 0
     },
     {
-      "convertedBytes": 5270,
+      "convertedBytes": 666,
       "name": "CVMENU.py",
-      "sourceBytes": 5173,
+      "sha256": "c1fc7271bc193440ca831238e8595834a6cba424c3d3c1fe192c97f077828064",
+      "sourceBytes": 569,
       "status": 0
     },
     {
-      "convertedBytes": 1270,
+      "convertedBytes": 241,
       "name": "CVMENUB.py",
-      "sourceBytes": 1170,
+      "sha256": "5bfadd6cc87ae8cf8c1a96f4bf7f0372a8b23616ca1ebe6c932806a6701f0b4b",
+      "sourceBytes": 143,
       "status": 0
     },
     {
-      "convertedBytes": 3538,
+      "convertedBytes": 3529,
       "name": "CVNODE.py",
-      "sourceBytes": 3441,
+      "sha256": "44b82859e7904eaf778c70778d7c973dae7abd08accd553eef57edff8b1089cc",
+      "sourceBytes": 3432,
       "status": 0
     },
     {
-      "convertedBytes": 3337,
+      "convertedBytes": 318,
       "name": "CVNORM.py",
-      "sourceBytes": 3240,
+      "sha256": "c1596f34a620f54c3ea43e11cdd109bc679f15a0fbe82a0e6aba303fbabc6fd1",
+      "sourceBytes": 223,
       "status": 0
     },
     {
-      "convertedBytes": 3538,
+      "convertedBytes": 310,
       "name": "CVNORMB.py",
-      "sourceBytes": 3438,
+      "sha256": "e7634fec51cf32d6d700aed5867df232a58cccb65b43fe4a92a33ce26eee5d44",
+      "sourceBytes": 212,
       "status": 0
     },
     {
-      "convertedBytes": 2862,
+      "convertedBytes": 493,
       "name": "CVNORMC.py",
-      "sourceBytes": 2762,
+      "sha256": "2d6c7f78e86a0bbbc1fc0d25d3dcf7352faf731da3393df77ddcea8a9647a719",
+      "sourceBytes": 393,
       "status": 0
     },
     {
-      "convertedBytes": 4120,
+      "convertedBytes": 281,
       "name": "CVODE.py",
-      "sourceBytes": 4026,
+      "sha256": "82820331e77dd4662198904a67f4392faa8f0174fb1a44898e5af0ed955ac275",
+      "sourceBytes": 189,
       "status": 0
     },
     {
-      "convertedBytes": 3808,
+      "convertedBytes": 218,
       "name": "CVODEB.py",
-      "sourceBytes": 3711,
+      "sha256": "e7c4c307f59cf0c78c2200f29ea528392243e2bf3fe6c7c209413ccf816475cb",
+      "sourceBytes": 123,
       "status": 0
     },
     {
-      "convertedBytes": 4940,
+      "convertedBytes": 203,
       "name": "CVODEC.py",
-      "sourceBytes": 4843,
+      "sha256": "fc0f9d394c410bf2bf940599ee727ce75e12dfcdea5b3970c03a7ff42995ceca",
+      "sourceBytes": 108,
       "status": 0
     },
     {
-      "convertedBytes": 3289,
+      "convertedBytes": 173,
       "name": "CVODED.py",
-      "sourceBytes": 3192,
+      "sha256": "999c7ccb22f01d4821b5d74c53014088bbc4d55ecc241265232143555a209299",
+      "sourceBytes": 78,
       "status": 0
     },
     {
-      "convertedBytes": 1715,
+      "convertedBytes": 486,
       "name": "CVP00000.py",
-      "sourceBytes": 1612,
+      "sha256": "7bf349689015b043ec041c0f072deb1dd8e7726d77fa85e06b0701b323180b6b",
+      "sourceBytes": 383,
       "status": 0
     },
     {
-      "convertedBytes": 2274,
+      "convertedBytes": 154,
       "name": "CVP00001.py",
-      "sourceBytes": 2171,
+      "sha256": "2ad0a2224c29578b63291330ceb303ebe801dd93ceef0769eb72fc70ac3c46c8",
+      "sourceBytes": 53,
       "status": 0
     },
     {
-      "convertedBytes": 2092,
+      "convertedBytes": 156,
       "name": "CVP00002.py",
-      "sourceBytes": 1989,
+      "sha256": "210781a94c2e0a251180faf7bf093730c38de098a178122c3c712d2ec3b7300c",
+      "sourceBytes": 55,
       "status": 0
     },
     {
-      "convertedBytes": 2097,
+      "convertedBytes": 1924,
       "name": "CVP00003.py",
-      "sourceBytes": 1994,
+      "sha256": "8ab8f722f2179f2a0b66f8294b30db461eaa00769747c18b73a688c0183086a4",
+      "sourceBytes": 1821,
       "status": 0
     },
     {
-      "convertedBytes": 2323,
+      "convertedBytes": 2327,
       "name": "CVP00004.py",
-      "sourceBytes": 2220,
+      "sha256": "47efc9b48ab176a4340ecca652a9276a060716177702dfeb4f9f5c7d0458ad93",
+      "sourceBytes": 2224,
       "status": 0
     },
     {
-      "convertedBytes": 492,
+      "convertedBytes": 124,
       "name": "CVP00005.py",
-      "sourceBytes": 389,
+      "sha256": "23eb510201741d067a29b20d491db9bd681011ebed4ccf5c821ddc7318484fdf",
+      "sourceBytes": 23,
       "status": 0
     },
     {
-      "convertedBytes": 1591,
+      "convertedBytes": 124,
       "name": "CVP00006.py",
-      "sourceBytes": 1488,
+      "sha256": "749366948848220d7509433324d1183830e39ce48db5161299810fae142c9003",
+      "sourceBytes": 23,
       "status": 0
     },
     {
-      "convertedBytes": 1488,
+      "convertedBytes": 124,
       "name": "CVP00007.py",
-      "sourceBytes": 1385,
+      "sha256": "010baffac7f491e3b4d66ed03b9d33b659fe99cd6227c1ebde7b79a193adb94c",
+      "sourceBytes": 23,
       "status": 0
     },
     {
-      "convertedBytes": 1840,
+      "convertedBytes": 139,
       "name": "CVP00008.py",
-      "sourceBytes": 1737,
+      "sha256": "431b8999dd887b2152925fa13b2a17f3273d134f7aaced0d46fdb291da839a49",
+      "sourceBytes": 38,
       "status": 0
     },
     {
-      "convertedBytes": 1140,
+      "convertedBytes": 124,
       "name": "CVP00009.py",
-      "sourceBytes": 1037,
+      "sha256": "f51b794d18882f3628de088b84053a3119f7b8638e1d0d24dd29d2193d13649e",
+      "sourceBytes": 23,
       "status": 0
     },
     {
       "convertedBytes": 300,
       "name": "CVP00010.py",
+      "sha256": "0645853238b60097aeda8fa6cd67a505c0b900898b64b4d6d8126558739f4789",
       "sourceBytes": 199,
       "status": 0
     },
     {
-      "convertedBytes": 3139,
+      "convertedBytes": 2767,
       "name": "CVP00011.py",
-      "sourceBytes": 3036,
+      "sha256": "b631f48696db2790b085e4d840c892c5950e6d9b98b13fb727a121458c2aeacd",
+      "sourceBytes": 2664,
       "status": 0
     },
     {
-      "convertedBytes": 3714,
+      "convertedBytes": 3251,
       "name": "CVP00012.py",
-      "sourceBytes": 3611,
+      "sha256": "9b9fc14c68c8830df7aad0794a6a7ad466b4a2f94516dcee8a903c4fcd975ac7",
+      "sourceBytes": 3148,
       "status": 0
     },
     {
-      "convertedBytes": 2379,
+      "convertedBytes": 2160,
       "name": "CVP00013.py",
-      "sourceBytes": 2276,
+      "sha256": "0b99d2bde307e3a1a2dbabff1fb4ad6be2467dd2bf8d5d2a924b52c566ae0dc0",
+      "sourceBytes": 2057,
       "status": 0
     },
     {
-      "convertedBytes": 270,
+      "convertedBytes": 261,
       "name": "CVP00014.py",
-      "sourceBytes": 169,
+      "sha256": "91530aeae749607f4bf7146b3cc444db54d23e0ea3a8c7b448f79aae0509f8af",
+      "sourceBytes": 160,
       "status": 0
     },
     {
-      "convertedBytes": 1363,
+      "convertedBytes": 1544,
       "name": "CVP00015.py",
-      "sourceBytes": 1260,
+      "sha256": "3d671069559ed0720573649ee465a617141706a247c7127c1be963e23a8616e6",
+      "sourceBytes": 1441,
       "status": 0
     },
     {
-      "convertedBytes": 1967,
+      "convertedBytes": 2026,
       "name": "CVP00016.py",
-      "sourceBytes": 1864,
+      "sha256": "56f9132311e62382fe91f2a099904b3734760399b43241532df69e16b12c1502",
+      "sourceBytes": 1923,
       "status": 0
     },
     {
-      "convertedBytes": 2140,
+      "convertedBytes": 2149,
       "name": "CVP00017.py",
-      "sourceBytes": 2037,
+      "sha256": "9ad54a04384113eb7b94087c99fe898ade74e86140f58a64d14fe9f9cab31cc8",
+      "sourceBytes": 2046,
       "status": 0
     },
     {
-      "convertedBytes": 1739,
+      "convertedBytes": 1751,
       "name": "CVP00018.py",
-      "sourceBytes": 1636,
+      "sha256": "8d36e4829c74fec84d0cecf0fe21b4797bb0f3b82e30117fb32ce2c09f24f894",
+      "sourceBytes": 1648,
       "status": 0
     },
     {
-      "convertedBytes": 1764,
+      "convertedBytes": 1758,
       "name": "CVP00019.py",
-      "sourceBytes": 1661,
+      "sha256": "47bce4ef0797c27faf14591b16ab2c2508600bb899d2226c36fba6cae292d5cb",
+      "sourceBytes": 1655,
       "status": 0
     },
     {
-      "convertedBytes": 2281,
+      "convertedBytes": 2263,
       "name": "CVP00020.py",
-      "sourceBytes": 2178,
+      "sha256": "fb1f36859f201c641808de4be1703c24b7feea731be3b94cf962f29c9ed99517",
+      "sourceBytes": 2160,
       "status": 0
     },
     {
-      "convertedBytes": 1879,
+      "convertedBytes": 1849,
       "name": "CVP00021.py",
-      "sourceBytes": 1776,
+      "sha256": "77b273fd9d1a4a2dfd7308e149969a2102329b5f65e8b9f23a7cb4c265fb4c1d",
+      "sourceBytes": 1746,
       "status": 0
     },
     {
-      "convertedBytes": 1604,
+      "convertedBytes": 1602,
       "name": "CVP00022.py",
-      "sourceBytes": 1501,
+      "sha256": "7ac80f0b98a9a0ca66ab5582b01dc29f4131ad6d4576053c23e4c06d6a2c7800",
+      "sourceBytes": 1499,
       "status": 0
     },
     {
-      "convertedBytes": 3865,
+      "convertedBytes": 3839,
       "name": "CVP00023.py",
-      "sourceBytes": 3762,
+      "sha256": "6852c0af14e915fec51823e925a8251eb30c15716478aae71802c51ab2884495",
+      "sourceBytes": 3736,
       "status": 0
     },
     {
-      "convertedBytes": 3220,
+      "convertedBytes": 3219,
       "name": "CVP00024.py",
-      "sourceBytes": 3117,
+      "sha256": "74e432d2afdc0ec4dc3df8beeff9387d431ebb63b6bdd148aa56cac0517aa45e",
+      "sourceBytes": 3116,
       "status": 0
     },
     {
-      "convertedBytes": 486,
+      "convertedBytes": 488,
       "name": "CVP00025.py",
-      "sourceBytes": 383,
+      "sha256": "dd6677ddf86f9dc1b0103ca732be59edbd8bcf5bd492882530b9c98e43fe59e6",
+      "sourceBytes": 385,
       "status": 0
     },
     {
-      "convertedBytes": 2556,
+      "convertedBytes": 1005,
       "name": "CVP00026.py",
-      "sourceBytes": 2453,
+      "sha256": "6102e210e2096057f364b2acedde65fb0afcea9afb67163a84efe92402bf93fe",
+      "sourceBytes": 902,
       "status": 0
     },
     {
-      "convertedBytes": 1452,
+      "convertedBytes": 1449,
       "name": "CVP00027.py",
-      "sourceBytes": 1349,
+      "sha256": "a398b8699da4aea1b448860a6b18c1ccdb797715c021f26c9ba389380472bd75",
+      "sourceBytes": 1346,
       "status": 0
     },
     {
-      "convertedBytes": 3953,
+      "convertedBytes": 124,
       "name": "CVP00028.py",
-      "sourceBytes": 3850,
+      "sha256": "507e59bf0ab6d11eaad972e2844d6920765505bd76ee6cb6e1be4130423166e6",
+      "sourceBytes": 23,
       "status": 0
     },
     {
-      "convertedBytes": 2361,
+      "convertedBytes": 124,
       "name": "CVP00029.py",
-      "sourceBytes": 2258,
+      "sha256": "668b161ae3ff53b33526dc1d55ef9fd0b9da8381eb9c4b2ba28f1e3fa2fa6b42",
+      "sourceBytes": 23,
       "status": 0
     },
     {
-      "convertedBytes": 1500,
+      "convertedBytes": 1426,
       "name": "CVP00030.py",
-      "sourceBytes": 1397,
+      "sha256": "005492e2f7617aa6df8d2eee1395c5f7fd9fdc1278048d44f9a5e8ffdade0557",
+      "sourceBytes": 1323,
       "status": 0
     },
     {
-      "convertedBytes": 2898,
+      "convertedBytes": 124,
       "name": "CVP00031.py",
-      "sourceBytes": 2795,
+      "sha256": "2e23258272253ba52dbb071efa8d66e459337528759a6d7a08a21f603c7f76c7",
+      "sourceBytes": 23,
       "status": 0
     },
     {
-      "convertedBytes": 2341,
+      "convertedBytes": 2269,
       "name": "CVP00032.py",
-      "sourceBytes": 2238,
+      "sha256": "5ca28df12ec037509bc1acd27a6e6bc437c9f2092a87ba6ca23cd869f08e673a",
+      "sourceBytes": 2166,
       "status": 0
     },
     {
-      "convertedBytes": 2125,
+      "convertedBytes": 157,
       "name": "CVP00033.py",
-      "sourceBytes": 2022,
+      "sha256": "c60a7d3a7337b45693e04f20f92b58aa165ff23ec203031e8d2a9d6b41f89b24",
+      "sourceBytes": 56,
       "status": 0
     },
     {
-      "convertedBytes": 1649,
+      "convertedBytes": 202,
       "name": "CVP00034.py",
-      "sourceBytes": 1546,
+      "sha256": "46f788c804087a9e2ea64d556c2c00f3dd9d30ff36c6e1833fef53995b7d5f79",
+      "sourceBytes": 101,
       "status": 0
     },
     {
-      "convertedBytes": 2578,
+      "convertedBytes": 128,
       "name": "CVP00035.py",
-      "sourceBytes": 2475,
+      "sha256": "8c9a79f6d087bfea4dadee736026e58eae7ade0a9cbe3c93af0d16c4a1c19c7c",
+      "sourceBytes": 27,
       "status": 0
     },
     {
-      "convertedBytes": 2532,
+      "convertedBytes": 124,
       "name": "CVP00036.py",
-      "sourceBytes": 2429,
+      "sha256": "d5b71724f270ccce6ead169a7e793ff19100ac74316ca8ea5ccc629225039648",
+      "sourceBytes": 23,
       "status": 0
     },
     {
-      "convertedBytes": 972,
+      "convertedBytes": 968,
       "name": "CVP00037.py",
-      "sourceBytes": 869,
+      "sha256": "23a8d02991f374b2eca4693d8c9dd238fe28415709ac2e6b52eabc312d327ea4",
+      "sourceBytes": 865,
       "status": 0
     },
     {
-      "convertedBytes": 1897,
+      "convertedBytes": 1896,
       "name": "CVP00038.py",
-      "sourceBytes": 1794,
+      "sha256": "15981c5e206cae84f0c0f458923ee09227f3304b4bab9c350c24b2ac28229c5f",
+      "sourceBytes": 1793,
       "status": 0
     },
     {
-      "convertedBytes": 1808,
+      "convertedBytes": 1783,
       "name": "CVP00039.py",
-      "sourceBytes": 1705,
+      "sha256": "130ae05e516bd80dba69eb4cf48a87aa82bdb8636beb7ede7df67ce6c00b9883",
+      "sourceBytes": 1680,
       "status": 0
     },
     {
-      "convertedBytes": 1183,
+      "convertedBytes": 1170,
       "name": "CVP00040.py",
-      "sourceBytes": 1080,
+      "sha256": "ae97d50bf8165d83bde5c1412be337e9cbdb07e30a830584a6255db45549995f",
+      "sourceBytes": 1067,
       "status": 0
     },
     {
-      "convertedBytes": 3933,
+      "convertedBytes": 3923,
       "name": "CVP00041.py",
-      "sourceBytes": 3830,
+      "sha256": "4d7ee6b721c2b67efde3b825078cf3abb8fa95e8778d17c3823921fd38388388",
+      "sourceBytes": 3820,
       "status": 0
     },
     {
-      "convertedBytes": 3681,
+      "convertedBytes": 3594,
       "name": "CVP00042.py",
-      "sourceBytes": 3578,
+      "sha256": "ebe8d326cb530d734124efe4e63233588f5d8f0cf39b33b6955f3fdca216c134",
+      "sourceBytes": 3491,
       "status": 0
     },
     {
-      "convertedBytes": 2645,
+      "convertedBytes": 2690,
       "name": "CVP00043.py",
-      "sourceBytes": 2542,
+      "sha256": "08d2ef44288ddb3be8f933b520dd12b6e95873605ddb9610589183abf753b703",
+      "sourceBytes": 2587,
       "status": 0
     },
     {
-      "convertedBytes": 1163,
+      "convertedBytes": 1132,
       "name": "CVP00044.py",
-      "sourceBytes": 1060,
+      "sha256": "bf37a2d389c554a053b11677722a123ca51a9c62d73739c19bc526d23b36b1ac",
+      "sourceBytes": 1029,
       "status": 0
     },
     {
       "convertedBytes": 128,
       "name": "CVP00045.py",
+      "sha256": "f4a9341af8111735fca154cc771d47e6e28c1e5316a7aa84d9f3b5fec10f2e16",
       "sourceBytes": 27,
       "status": 0
     },
     {
-      "convertedBytes": 405,
+      "convertedBytes": 404,
       "name": "CVP00046.py",
-      "sourceBytes": 302,
+      "sha256": "865bbbfca9d68829d7b8411e9bec337255d49aadbe061075420668f63b551029",
+      "sourceBytes": 301,
       "status": 0
     },
     {
-      "convertedBytes": 2500,
+      "convertedBytes": 3288,
       "name": "CVP00047.py",
-      "sourceBytes": 2397,
+      "sha256": "dab67361ad49b185eb721b3d74eb9e31221d723e78895f47bff8747400046889",
+      "sourceBytes": 3185,
       "status": 0
     },
     {
-      "convertedBytes": 4181,
+      "convertedBytes": 3989,
       "name": "CVP00048.py",
-      "sourceBytes": 4078,
+      "sha256": "aa708a40f5ec8a389d15a79d1843bfecd634e9cd72be692436b807ccb5830690",
+      "sourceBytes": 3886,
       "status": 0
     },
     {
-      "convertedBytes": 2516,
+      "convertedBytes": 2466,
       "name": "CVP00049.py",
-      "sourceBytes": 2413,
+      "sha256": "ca3ebadd5308f17f1ccc9b5da4e8cfa434c0871c2c46fc7df00787d5b1498aa9",
+      "sourceBytes": 2363,
       "status": 0
     },
     {
-      "convertedBytes": 400,
+      "convertedBytes": 426,
       "name": "CVP00050.py",
-      "sourceBytes": 297,
+      "sha256": "38f76460b20632029990b0be513e106e832166883ae79d1345c7a9d66402aaa9",
+      "sourceBytes": 323,
       "status": 0
     },
     {
-      "convertedBytes": 3068,
+      "convertedBytes": 2974,
       "name": "CVP00051.py",
-      "sourceBytes": 2965,
+      "sha256": "c002d2307e82003433b5223b26158789512d833e8964909a3185d89053d77163",
+      "sourceBytes": 2871,
       "status": 0
     },
     {
-      "convertedBytes": 2751,
+      "convertedBytes": 2707,
       "name": "CVP00052.py",
-      "sourceBytes": 2648,
+      "sha256": "16f599c52bbd9bb909a5a4964de7792a8443a93d68db222adbe6826f12344b3e",
+      "sourceBytes": 2604,
       "status": 0
     },
     {
-      "convertedBytes": 324,
+      "convertedBytes": 319,
       "name": "CVP00053.py",
-      "sourceBytes": 223,
+      "sha256": "b8a09dfe5bf5447a72f785fa05fae6f4eec8aeba2d1ab898610a70626bfaeff5",
+      "sourceBytes": 218,
       "status": 0
     },
     {
-      "convertedBytes": 270,
+      "convertedBytes": 262,
       "name": "CVP00054.py",
-      "sourceBytes": 169,
+      "sha256": "239de3b3132f0a965631a7d4048863ee1ef36d9931b0576388cc801ad3bfcd07",
+      "sourceBytes": 161,
       "status": 0
     },
     {
-      "convertedBytes": 810,
+      "convertedBytes": 790,
       "name": "CVP00055.py",
-      "sourceBytes": 707,
+      "sha256": "6513f8f94fe9586eeed2df5164134329f09ba677c480b3e6365b5c19dafe2bae",
+      "sourceBytes": 687,
       "status": 0
     },
     {
-      "convertedBytes": 3588,
+      "convertedBytes": 3578,
       "name": "CVPARSE.py",
-      "sourceBytes": 3488,
+      "sha256": "fd2cef8ea20c214473b8bfc2e17ccf460c0c9a8880a5b180d2e2f8cdb48a4282",
+      "sourceBytes": 3478,
       "status": 0
     },
     {
-      "convertedBytes": 2497,
+      "convertedBytes": 2360,
       "name": "CVPH.py",
-      "sourceBytes": 2406,
+      "sha256": "d654a99839bdfa41ba71baff263627a4fe431ec87573032fab7e7d000ceb7835",
+      "sourceBytes": 2269,
       "status": 0
     },
     {
-      "convertedBytes": 2199,
+      "convertedBytes": 1114,
       "name": "CVPOLY.py",
-      "sourceBytes": 2102,
+      "sha256": "d721c3a886d839e824e438525d8dd77703f93999804849989ec11fa96f6ad39a",
+      "sourceBytes": 1017,
       "status": 0
     },
     {
-      "convertedBytes": 2945,
+      "convertedBytes": 1328,
       "name": "CVPOLYB.py",
-      "sourceBytes": 2845,
+      "sha256": "2e817f63b74c3f5da9c07c7fb53f4b439d512bb0b245d16479532f8d424e2125",
+      "sourceBytes": 1228,
       "status": 0
     },
     {
-      "convertedBytes": 2188,
+      "convertedBytes": 1620,
       "name": "CVPOLYC.py",
-      "sourceBytes": 2088,
+      "sha256": "fb84ef276ba24a8bd298bfa4d9d1eb44f1b6904a8056c3dbb665d46dc0dc7026",
+      "sourceBytes": 1520,
       "status": 0
     },
     {
-      "convertedBytes": 1033,
+      "convertedBytes": 1032,
       "name": "CVPRINT.py",
-      "sourceBytes": 933,
+      "sha256": "3ea2490ef3eea26369de3cf02a2c308f3bd56f9f7f22fa0d11a6fcb6a7e25106",
+      "sourceBytes": 932,
       "status": 0
     },
     {
-      "convertedBytes": 3353,
+      "convertedBytes": 291,
       "name": "CVRULE.py",
-      "sourceBytes": 3256,
+      "sha256": "9f6ff979ebd57a22d574d594ca2d5e0bee32b8332c0de2687e7c82378eea329d",
+      "sourceBytes": 196,
       "status": 0
     },
     {
-      "convertedBytes": 3216,
+      "convertedBytes": 201,
       "name": "CVRULEB.py",
-      "sourceBytes": 3116,
+      "sha256": "d651c14a183647b46b1de34a4bf8108ef66f892d678b8e6969e3bca9698361e2",
+      "sourceBytes": 103,
       "status": 0
     },
     {
-      "convertedBytes": 6408,
+      "convertedBytes": 6332,
       "name": "CVRUN.py",
-      "sourceBytes": 6314,
+      "sha256": "4fa7d2dcd8887c51dfdd4cd07a0d8d2afa26eafae780afeacfe7be4253c3f2ff",
+      "sourceBytes": 6238,
       "status": 0
     },
     {
-      "convertedBytes": 3466,
+      "convertedBytes": 220,
       "name": "CVSER.py",
-      "sourceBytes": 3372,
+      "sha256": "416603c430b942110aebbff9e64d00354394e2dcda3403763f32a090f824cfdd",
+      "sourceBytes": 128,
       "status": 0
     },
     {
-      "convertedBytes": 3816,
+      "convertedBytes": 445,
       "name": "CVSERB.py",
-      "sourceBytes": 3719,
+      "sha256": "f4f905759dc7a0a721ee0b7950c8d9a471ee7c7d27e62d7d2de22d5b3f6cd260",
+      "sourceBytes": 348,
       "status": 0
     },
     {
-      "convertedBytes": 3269,
+      "convertedBytes": 338,
       "name": "CVSOLVE.py",
-      "sourceBytes": 3169,
+      "sha256": "9ecb2179ceb1340db09cf1a63756d5e56481ad0328e25fe25599ecbec7259cc0",
+      "sourceBytes": 238,
       "status": 0
     },
     {
-      "convertedBytes": 3526,
+      "convertedBytes": 243,
       "name": "CVSOLVEB.py",
-      "sourceBytes": 3423,
+      "sha256": "f5cdd017f6224697f022873ec73392b99a53274ecec1543143df0a5fabdc0a17",
+      "sourceBytes": 142,
       "status": 0
     },
     {
-      "convertedBytes": 3516,
+      "convertedBytes": 215,
       "name": "CVSOLVEC.py",
-      "sourceBytes": 3413,
+      "sha256": "99ea6e64b0a6ad2e9096d3292a78484d677b068bb233be84f2db4e64f3924f6e",
+      "sourceBytes": 114,
       "status": 0
     },
     {
-      "convertedBytes": 3227,
+      "convertedBytes": 282,
       "name": "CVSOLVED.py",
-      "sourceBytes": 3124,
+      "sha256": "a297f6b87778741d4a5208cde7b7250be0c76c43b6a83ea8b6b7c9da3c6d7a3f",
+      "sourceBytes": 181,
       "status": 0
     },
     {
-      "convertedBytes": 3329,
+      "convertedBytes": 789,
       "name": "CVSOLVEE.py",
-      "sourceBytes": 3226,
+      "sha256": "fb60e2e7de839fc4aae7629d117307c637e5478e73048c032b06390c4e43ac1d",
+      "sourceBytes": 686,
       "status": 0
     },
     {
-      "convertedBytes": 3894,
+      "convertedBytes": 491,
       "name": "CVSUM.py",
-      "sourceBytes": 3800,
+      "sha256": "2e11ba47c38d00b7382a2b02ed382501cb493ddf7bde136018cda07842a93d38",
+      "sourceBytes": 397,
       "status": 0
     },
     {
-      "convertedBytes": 2300,
+      "convertedBytes": 203,
       "name": "CVSUMB.py",
-      "sourceBytes": 2203,
+      "sha256": "bc636da59ca1465cb452c8a2653f4d9ce117f15453ff09cbe8ad437f801b17f4",
+      "sourceBytes": 108,
       "status": 0
     },
     {
-      "convertedBytes": 3324,
+      "convertedBytes": 282,
       "name": "CVSUMC.py",
-      "sourceBytes": 3227,
+      "sha256": "1f6ff91f764a09cd1d7ca5ea874fe0ab09b1a87ad37b352e4553eba1631cadf1",
+      "sourceBytes": 187,
       "status": 0
     },
     {
-      "convertedBytes": 6048,
+      "convertedBytes": 5966,
       "name": "CVTEST.py",
-      "sourceBytes": 5951,
+      "sha256": "bde5fc835a19f86faa51292a10a4d87be36778c6db4ed0ed15398dce28e9474c",
+      "sourceBytes": 5869,
       "status": 0
     },
     {
       "convertedBytes": 1271,
       "name": "CVUI.py",
+      "sha256": "c3de89e269c483655958d1b397517958ada7a08540d0e75b29e5f75b2422c653",
       "sourceBytes": 1180,
       "status": 0
     }

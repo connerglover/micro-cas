@@ -1,7 +1,7 @@
 # Install cas-evo on the TI-84 EVO
 
-The package preserves the full v1 feature set across **110 small Python files**.
-The largest is 6,314 bytes; total Python source is 272,097 bytes. Every file
+The package preserves the full v1 feature set across **238 small Python files**.
+The largest is 6,238 bytes; total Python source is 317,277 bytes. Every file
 passed TI Connect Evo's actual converter. Physical transfer and execution on an
 EVO still need testing.
 
@@ -22,7 +22,7 @@ Use the ZIP's files, not development files under `src/` or `dist/device/`.
 1. Turn on the EVO and connect it to the computer with a USB data cable.
 2. Open [TI Connect Evo](https://connectevo.ti.com) in a browser supported by TI.
    Select **Connect to Calculator**, choose the EVO, and connect.
-3. Open **Send Files**, then **Send to Calculator**. Select **all 110 `.py`
+3. Open **Send Files**, then **Send to Calculator**. Select **all 238 `.py`
    files from the extracted folder** together. Do not select the ZIP, JSON,
    Markdown or checksum files. Keep every Python filename unchanged. Allow
    CASEVO/CVTEST to replace earlier versions and wait for transfer to finish.
@@ -33,7 +33,7 @@ Use the ZIP's files, not development files under `src/` or `dist/device/`.
 Keep the companions on the calculator: CASEVO imports them on demand. Only
 CASEVO and CVTEST are entry programs. Running a support module individually
 will not start the app. If a module is missing, re-send all `.py` files from the
-same ZIP. Avoid mixing builds. Python objects use about 0.28 MB before device
+same ZIP. Avoid mixing builds. Python objects use about 0.33 MB before device
 storage bookkeeping, below the 3.5 MB total allowance.
 
 TI documents the connection and file-transfer controls in its
@@ -101,9 +101,10 @@ Photograph each page and press ENTER to continue; CLEAR at a page prompt stops.
 The expected final line is `CVTEST: 55/55 PASS`.
 
 The EVO probes measured **173,360 bytes of free Python heap** after native
-imports. The paged build's provisional core/phase subtotal is 139,442 bytes,
-before namespace overhead, working data, loaded lazy families and compilation
-temporaries. This estimate is not a hardware measurement. If either program
+imports. The release passes all 55 diagnostics and an arithmetic/quit UI check
+on native 32-bit MicroPython with a 173,360-byte total heap. Graphics are shimmed,
+so this is not a calculator measurement. Code loads in small pages, node storage
+grows only as needed, and temporary code/cache data is released. If either program
 fails before drawing its first screen, keep the complete traceback and any
 free-heap value. Restarting Python creates a fresh session. Small programs in
 `probe/` can measure device capabilities without loading the CAS.

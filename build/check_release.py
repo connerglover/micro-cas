@@ -76,6 +76,12 @@ class Release:
         self.builtins = dict(vars(builtins), __import__=self._import)
         self.carriers = {}
         self.sys = SimpleNamespace(modules=self.carriers)
+        # Heap acceptance runs in native MicroPython. CPython's reference
+        # counting/automatic GC manages these host objects; forcing a full host
+        # collection on every page import would also scan the unrelated SymPy
+        # test heap thousands of times. Keep this stand-in a native callable so
+        # it introduces no Python callback frame in the depth model.
+        self.gc = SimpleNamespace(mem_free=self.memory, collect={}.clear)
         self.globals = {'__name__': 'CASEVO', '__builtins__': self.builtins, 'exec': self._exec}
         self.levels = {}
         for module, table in self.meta['levels'].items():
@@ -102,6 +108,7 @@ class Release:
     def is_function(self, frame, module, old):
         owner = Path(frame.f_code.co_filename).stem
         owner = self.meta['payloads'].get(owner, {}).get('module', owner)
+        owner = self.meta.get('function_pages', {}).get(owner, {}).get('module', owner)
         return owner == module and frame.f_code.co_name == self.name(old)
 
     def module(self, name):
@@ -120,6 +127,8 @@ class Release:
         self.imports.append(name)
         if name == 'sys':
             return self.sys
+        if name == 'gc':
+            return self.gc
         if name in self.meta['sources']:
             if name not in self.carriers:
                 path = self.dist / (name + '.py')

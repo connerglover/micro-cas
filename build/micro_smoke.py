@@ -16,6 +16,7 @@ from pathlib import Path
 import shlex
 import shutil
 import subprocess
+import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +47,10 @@ def drawString(text, x, y):
 
 SYSTEM = '''# Replay 2+3 ENTER, then 2nd MODE; probe pages always receive ENTER.
 import gc
+import sys
+# The runners execute with cwd set to this directory. Avoid interning the host
+# checkout's absolute path once per imported page in the constrained heap.
+sys.path[0]=''
 KEYS = (93, 95, 94, 105, 21, 22)
 POS = 0
 PROBE = False
@@ -85,6 +90,40 @@ assert len(CASEVO.R[{hist}]) == 1, 'expected one evaluated input'
 assert CASEVO.R[{hist}][0][2] == 'ans', CASEVO.R[{hist}][0]
 print('UI PASS: 2+3 = 5; normal quit')
 '''
+
+UI_CASES = (
+    ('2+3', '5'),
+    ('integrate(1/(2+cos(x)),x,0,2*pi)', '2*sqrt(3)*pi/3'),
+    ('integrate(integrate(x*y,y,0,x),x,0,1)', '1/8'),
+    ('polararea(2*cos(t),t,0,pi)', 'pi'),
+    ('paramarea(t-sin(t),1-cos(t),t,0,2*pi)', '3*pi'),
+    ('arclen(x^(3/2),x,0,4)', '8*(10*sqrt(10)-1)/27'),
+    ('2+3', '5'),
+)
+
+
+def calculus_ui(names):
+    """Replay the heap-sensitive cases through real editing and result drawing."""
+    sys.path.insert(0, str(ROOT / 'tests/support'))
+    import keyscript
+    script = ''.join(command + '{enter}' for command, _ in UI_CASES) + '{2nd,mode}'
+    keys = tuple(keyscript.parse(script))
+    assert all(type(key) is int for key in keys)
+    return '''import ti_system as TS
+import ti_graphics as G
+TS.KEYS={keys}
+import CASEVO
+assert TS.POS==len(TS.KEYS), 'key replay did not finish'
+assert G.ERROR is None,G.ERROR
+history=CASEVO.R[{hist}]
+expected={expected}
+assert len(history)==len(expected),history
+for row,want in zip(history,expected):
+ assert row[2]=='ans' and row[1]==want,row
+assert CASEVO.R[{ans}]=='5'
+print('UI CALCULUS PASS: 7 commands; normal quit')
+'''.format(keys=repr(keys), hist=repr(names.get('HIST', 'HIST')),
+           ans=repr(names.get('ANS', 'ANS')), expected=repr(tuple(value for _, value in UI_CASES)))
 
 PROBE = '''# Import the unchanged self-contained release probe; auto-advance pages.
 import gc
@@ -128,6 +167,7 @@ def prepare(dist, output):
                            status=repr(names.get('STATUS', 'STATUS')),
                            hist=repr(names.get('HIST', 'HIST'))),
         'probe.py': PROBE,
+        'ui_calculus.py': calculus_ui(names),
     }
     for name, source in scripts.items():
         ast.parse(source, filename=name, feature_version=(3, 4))
@@ -154,7 +194,7 @@ def main(argv=None):
     parser.add_argument('--run', metavar='MICROPYTHON', help='explicitly run this native executable')
     parser.add_argument('--heap', type=int, default=512000,
                         help='native MicroPython heap bytes (default 512000 = 500 KiB)')
-    parser.add_argument('--suite', choices=('all', 'ui', 'probe'), default='all')
+    parser.add_argument('--suite', choices=('all', 'ui', 'ui_calculus', 'probe'), default='all')
     args = parser.parse_args(argv)
     if args.heap <= 0:
         parser.error('--heap must be a positive byte count')
@@ -162,7 +202,7 @@ def main(argv=None):
     print('Prepared ' + str(output))
     print('Not an EVO emulator; native object sizes and limits differ, especially on 64-bit hosts.')
     print('No framebuffer is allocated. Each script runs in its own process.')
-    scripts = ('ui.py', 'probe.py') if args.suite == 'all' else (args.suite + '.py',)
+    scripts = ('ui.py', 'ui_calculus.py', 'probe.py') if args.suite == 'all' else (args.suite + '.py',)
     executable = args.run or 'micropython'
     if args.run and Path(executable).is_file():
         executable = str(Path(executable).resolve())

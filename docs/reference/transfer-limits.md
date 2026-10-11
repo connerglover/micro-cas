@@ -53,10 +53,11 @@ For the rejected build it exits 1 and reports:
 ## Multi-file correction
 
 After this diagnosis the user authorized companion files to preserve functionality.
-The new build contains 110 Python files, 272,097 source bytes combined, with a
-largest file of 6,314 bytes. All 110 were passed through the same actual converter
+The new build contains 238 Python files, 317,277 source bytes combined, with a
+largest file of 6,238 bytes. All 238 were passed through the same actual converter
 and returned XFR_SUCCESS (0). Captured results are in
-`multifile-converter-checks.json`; SHA256SUMS/release.json identify package bytes.
+`multifile-converter-checks.json`, including each source SHA-256;
+SHA256SUMS/release.json identify the complete package bytes.
 No USB connection was requested during these checks.
 
 `build/transfer_probe.js` accepts a global `casFiles` array of [filename, source]
@@ -65,8 +66,10 @@ observed size bound for every entry and carrier before packaging. It removes
 stale generated deliverables first, including prior single-file ZIPs. There is
 no oversized-development override. CI independently gates all generated files.
 
-The runtime now imports small source carriers and releases their modules and
-source strings after compilation. This removes the retained 87,456-byte archive
-and the decoder, while keeping the full feature set and bounded loading phases.
-The provisional stage model is 139,442 bytes before exclusions; actual device
-heap/graphics/depth acceptance remains a physical test. See INSTALL.md.
+The runtime imports small source carriers and native function pages, releasing
+unused modules and source strings. Generators retain their own individual pages;
+deep leaves and callback functions remain resident to preserve the frame budget.
+This removes the retained 87,456-byte archive and decoder while keeping all v1
+features. The actual release boots and passes 55/55 diagnostic calculations in
+32-bit MicroPython with a 173,360-byte total heap, using graphics shims. Physical
+EVO heap/graphics/depth acceptance remains a device test. See INSTALL.md.

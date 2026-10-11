@@ -340,10 +340,13 @@ def reset():                                                    #@L 4
             B[H[i] & NBM] = NX[i]
         N[i] = None
     NN = BASE
-    del N[NINIT:]
-    del H[NINIT:]
-    del NX[NINIT:]
-    del V[NINIT:]
+    # The host debug arena preallocates its full capacity: keep() deliberately
+    # copies live nodes into fresh ids there instead of compacting in place.
+    if not DEBUG_ARENA:
+        del N[NINIT:]
+        del H[NINIT:]
+        del NX[NINIT:]
+        del V[NINIT:]
     del SYMN[:]
     SYMI.clear()
     RULECACHE.clear()

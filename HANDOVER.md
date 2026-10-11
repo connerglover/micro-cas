@@ -1,107 +1,115 @@
 # cas-evo handover
 
-Updated: 2026-10-11, transfer fix committed; heap optimizations in progress.
-Branch: v1. Remote: https://github.com/connerglover/cas-evo.git (private).
+Updated: 2026-10-11. Branch: v1.
+Remote: https://github.com/connerglover/cas-evo.git (private).
 
 ## Current outcome
 
-T1, T2, T3 and the calculator UI are implemented. The user explicitly authorized
-multiple files after the original CASEVO.py transfer failed. They also requested
-commit and push when finished. Preserve all features; no single-file constraint
-remains. The build now emits CASEVO/CVTEST plus minified source carriers, 110
-Python files in one cas-evo-v1.zip. All 110 first-revision files passed TI's actual
-converter; the largest is 6,314 bytes. No USB/device transfer was performed.
+T1, T2, T3 and the calculator UI are implemented. The user authorized multiple
+files after the oversized single-file build was rejected, and explicitly
+requested a final commit and push. The v1 download is dist/cas-evo-v1.zip:
+238 minified Python files, 317,277 source bytes total, largest file 6,238 bytes.
+Extract the ZIP, send every .py file together, and run CASEVO. CVTEST is the
+optional 55-command diagnostic. Do not send files from src/ or dist/device/.
 
-The old single-file CASEVO (262,679B) exceeded its 65,511B per-program limit.
-Boundary experiments prove source bytes + 18 + module-name length must not
-exceed 65,535. build/transfer.py gates every new output; stale deliverables are
-invalidated before building. No oversized-development override remains.
+All 238 final files passed TI Connect Evo 7.1.0.792's actual converter, with
+matching source hashes recorded in docs/reference/multifile-converter-checks.json.
+The old CASEVO.py was 262,679 bytes, beyond the 65,511-byte per-program limit.
+The build enforces source bytes + 18 + module-name bytes <= 65,535 for every
+file, checks combined storage and compilation, and produces a deterministic ZIP.
+
+The actual final calculator bytes pass native MicroPython UI arithmetic/quit,
+seven UI calculus/recovery commands, and CVTEST 55/55 on both a 173,360-byte
+32-bit total heap and a 500,000-byte 64-bit total heap. The physical EVO probe
+measured 173,360 free Python bytes; total user RAM is not Python heap. The host
+harness uses short import paths so checkout path length does not change the
+memory test. Graphics shims allocate no framebuffer. Physical EVO transfer,
+graphics, speed and depth calibration remain device checks, not completed work.
 
 ## Next step
 
-Finish production integration of native function pages, rerun exact-artifact and
-constrained native tests, refresh converter evidence, update these results, then
-commit and push v1 and verify GitHub Actions. Do not stop before the download is
-ready. User explicitly authorized the push.
+Commit the release milestone, push v1, and verify GitHub Actions and
+its downloadable artifact. Record the successful run here before stopping.
+No feature work remains in the agreed v1 scope. After publication, the next
+external step is Conner's physical calculator acceptance using docs/INSTALL.md.
+Do not describe native or desktop checks as a physical calculator run.
 
-The isolated function-page experiment now passes CVTEST **55/55** on native
-32-bit MicroPython with a **173,360-byte total heap**. It keeps level-seven leaves
-and escaped complex callbacks resident, gives each generator its own code page,
-and caches only the currently imported page. Cleanup also runs after input,
-at trampoline boundaries, before printing, and on command exit. This result is
-from dist/single-gen-cache, not yet proof of the production release.
+## Validation
 
-Source backing tables now start at 64 slots, grow to the unchanged 768-node cap,
-and shrink on reset. A failed partial allocation leaves the intern/hash state
-intact for retry. Template compilation retains only the most recent RPN program.
-229 node/evaluator tests and 13 focused allocation/cache regressions pass with
-strict depth. Source subset/frame checks and complete suites are pending.
+- Final actual-package/paging/transfer acceptance: 100 tests pass, strict depth.
+- Corrected node/debug-arena, normalizer, solver, mapping and build regressions:
+  418 tests pass. Build/paging/transfer/memory tests: 84 pass.
+- Full final bundled regression: 2,906 pass; 55 slow/oracle tests deselected.
+  The debug-arena reset bug found in the earlier run is fixed and its affected
+  algebra/node tests pass. Final actual-package strict depth remains eight.
+- Native 32-bit/173,360 bytes and 64-bit/500,000 bytes: all three smoke suites
+  pass against final immutable calculator bytes. Logs are ignored under dist/.
+- Source subset lint, FRAMELINT, actionlint 1.7.12 and git diff checks pass.
+- ZIP members, SHA256SUMS, release metadata, smoke copies and converter captures
+  match exactly. Independent builds produce the identical 245,512-byte ZIP:
+  SHA256 983a0be93eb525a1239d9ab93c8b4b2d700bb1242754a135a960f554319a0a79.
 
-The production builder integration is in progress in build/function_pages.py.
-It must preserve default arguments from source constants, namespace evaluation,
-function ownership, live globals, depth limits and failure cleanup. Refresh the
-actual TI converter capture after the final build. Existing docs still describe
-the earlier 110-file / 264,489-byte package.
+## Packaging architecture
 
-Physical transfer, depth calibration, graphics and heap validation remain
-Conner's device checks. Never report them as passed from host evidence.
+See docs/notes/PACKAGING.md. Source stays in ordinary modules. The release uses
+live namespace dictionaries, bounded source carriers, phased input/output/UI
+code and 128 native function pages for 180 functions. Each generator owns its
+page; cold imports never add a Python forwarding frame. Deep level-seven leaves
+and escaped complex callbacks remain resident. Page caches clear on imports,
+phase transitions, trampoline steps and command exits, including failures.
 
-## User instructions and project rules
+Node tables start at 64 slots and grow to the unchanged 768-node cap. Reset
+shrinks normal backing tables but preserves the host debug arena's explicit
+preallocation. Partial allocation cannot modify the intern/hash state. The
+RPN template cache retains only its most recent program. Bounds and formal
+fallbacks from T2/T3 are unchanged; this is not an unrestricted symbolic engine.
 
-- Work autonomously, no questions. Finish the downloadable v1, commit milestones.
-- Multiple files explicitly allowed to preserve functionality; automatic GitHub
-  Action and minification still required. User explicitly requests a final push.
-- Commit footer: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>.
-- Read docs/DESIGN.md and task notes for APIs, bounds and deviations. No graphing.
-- Target EVO Python 3.4 subset. No recursion; explicit stacks/generator trampoline.
-  Desktop strict depth budget eight. Native/dunder costs need device calibration.
-- Reference repositories under C:/Users/conner/.cache/cas-evo-ref are read-only.
-- No PR requested. Push the existing v1 branch; do not change repository visibility.
+Source spans survive AST rewriting in release.json, including native-page
+output positions and pre-transform origin_linemap. Use:
 
-## Implemented milestones
+    python build/linemap.py --map dist/release.json CVF00001:8
 
-T1 841cbfe; T2 2273a6d; T3 c08edd0; UI d767ade; MicroPython compatibility 699cc12;
-previous single-file/CI packaging f19de2b; transferable companions cffa02e.
-The next milestone reuses names across separate namespaces and frees the input
-frame before compiling math families. It preserves the original eight-frame
-budget, memory guards, and mathematical behavior.
+The desktop artifact harness uses synthetic free memory and native no-op
+collection to avoid repeatedly scanning the unrelated SymPy heap. Runtime heap
+acceptance is performed by the native MicroPython tests, not that harness or
+the provisional memory model (117,619 bytes before documented exclusions).
 
-T2/T3 notes document bounds and unsupported cases: this is not an unrestricted
-symbolic math engine. Preserve the implemented behavior and formal fallbacks.
+## Build and project rules
 
-## Build and validation
+Use .venv/Scripts/python locally; requirements-dev.txt pins build dependencies.
 
-Use .venv/Scripts/python in this Windows checkout. requirements-dev.txt pins
-build dependencies. Generated files under dist are ignored; the ZIP contains
-all required .py files, INSTALL.md, release.json and SHA256SUMS.
-
-    python -m pip install -r requirements-dev.txt
     python tests/support/lint.py src
     python tests/support/framelint.py
     python -m pytest -q -m "not slow" --strict-depth
     python build/release.py
     python -m pytest -q -m "not slow" --strict-depth --bundled
     python build/check_release.py
-    python build/micro_smoke.py
+    python build/micro_smoke.py --run /path/to/32-bit/micropython --heap 173360
 
-Current validation before the final GC change:
-- 76 actual-package strict acceptance tests pass, including corrected native
-  __import__ depth accounting as well as exec; max depth stays eight.
-- 32 transfer/memory tests pass, including rejected builds in a reused directory.
-- Full bundled run: 2,795 pass, 55 slow deselected; two mock-fixture failures were
-  corrected and re-run successfully in the focused suite above. The long run
-  had loaded the earlier test functions before the correction.
-- Device subset/FRAMELINT and actionlint 1.7.12 pass.
-- Native64, 500,000B: UI arithmetic/quit and CVTEST 55/55 pass.
-- Native32, 173,360B: UI pass (56,784B boot free); calculus failures under diagnosis.
-- ZIP audit: all 110 declared Python files and metadata/checksums match.
+GitHub Actions builds/tests on push, pull requests and manual dispatch, including
+both native word sizes. The artifact cas-evo-v1 contains cas-evo-v1.zip.
+Generated files and experiments under dist/ are ignored; only ZIP members in
+release.json belong on the calculator. Never rebuild a directory while a test
+process is reading its artifacts; use a separate --dist for comparison builds.
 
-Native MicroPython pinned commit: 0fd6c573ea815774668bbb16b8e197c8822368b2, v1.29.0.
-WSL cachyos checkout: /tmp/cas-evo-micropython. Unix binaries: ports/unix/build-cas64
-and build-cas32/micropython. The 32-bit build uses a private extracted sysroot
-/tmp/cas-evo-i686; no system packages were installed. Launch via its
-usr/lib32/ld-linux.so.2 --library-path /tmp/cas-evo-i686/usr/lib32 BINARY
--X heapsize=173360 /mnt/c/Users/conner/Documents/GitHub/cas-evo/dist/micro-smoke/probe.py.
-Use wsl --exec with absolute script paths; login shells change working directory.
-`build/micro_smoke.py` restores unchanged release copies before testing; previous
-diagnostic copies were temporarily instrumented and must not be published.
+- Work autonomously; no questions. Preserve the v1 feature set; multiple files
+  explicitly allowed. Commit milestones, update HANDOVER and push v1 when done.
+- Commit footer: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>.
+- Read docs/DESIGN.md and task notes for APIs/bounds/deviations. No graphing.
+- Target Python 3.4 subset; no recursion, use explicit stacks/trampoline.
+  Desktop strict depth budget eight; device/native costs need calibration.
+- Reference repos under C:/Users/conner/.cache/cas-evo-ref are read-only.
+- No PR requested; do not change repository visibility.
+
+## Milestones and native environment
+
+T1 841cbfe; T2 2273a6d; T3 c08edd0; UI d767ade; compatibility 699cc12;
+original CI/single-file build f19de2b; transferable companions cffa02e;
+identifier/input overlap 08ad2dd; dynamic storage/template cache 54ac8d5.
+The current pending milestone adds native function paging and final release checks.
+
+Pinned MicroPython v1.29.0: 0fd6c573ea815774668bbb16b8e197c8822368b2.
+WSL cachyos: /tmp/cas-evo-micropython/ports/unix/build-cas32/micropython
+and build-cas64/micropython. Native32 uses the private extracted sysroot
+/tmp/cas-evo-i686, launched through usr/lib32/ld-linux.so.2 with
+--library-path /tmp/cas-evo-i686/usr/lib32. No local system packages were installed.

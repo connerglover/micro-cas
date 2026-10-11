@@ -6,9 +6,10 @@ series, sums, differential equations, gradients and geometric integrals. Include
 a calculator editor, history, stored variables/functions and 2D answers.
 
 The calculator build is now a **multi-file package**. Small companion modules
-load only when needed, preserving the full feature set. All 110 files passed
-TI's actual converter; the largest is 6,314 bytes. Combined Python source is
-about 272 KB. This replaces the rejected single-file build.
+load only when needed, preserving the full feature set. The package has 238
+minified Python files totaling about 317 KB, well below the 3.5 MB storage
+allowance. All 238 files passed TI Connect Evo's actual converter. This replaces
+the rejected single-file build.
 
 ## Download and run
 
@@ -21,11 +22,11 @@ Open the Python app and run **CASEVO**. `CVTEST` runs the optional 55-command
 diagnostic against the same companions. Keep filenames unchanged.
 See [INSTALL.md](docs/INSTALL.md) for controls and acceptance examples.
 
-Physical calculator execution is still pending. Paging removes the old 87 KB
-resident archive. The provisional core/phase subtotal is now about 139 KB
-against a measured 173,360-byte Python heap, before documented exclusions.
-Native MicroPython and desktop tests do not replace an EVO run. About 500 KB
-of total user RAM is not the Python heap.
+Physical calculator execution is still pending. The actual release boots and
+passes all 55 diagnostic calculations on 32-bit MicroPython with a 173,360-byte
+total heap. The EVO probe measured that amount as free Python heap; about
+500 KB of total user RAM is not the Python heap. Native tests use minimal
+graphics shims and do not replace an EVO run.
 
 ## Build locally
 
@@ -47,10 +48,10 @@ checksums. GitHub Actions builds and tests on pushes, pull requests and manual
 dispatch. An invalid build cannot leave an old release ZIP in the output folder.
 
 The action also builds pinned MicroPython 1.29 and runs the actual app and all
-55 diagnostic commands with a 500,000-byte native heap. Locally, prepare those
-checks with `python build/micro_smoke.py`, or pass `--run /path/to/micropython
---heap 500000`. The tiny shims allocate no framebuffer; this checks interpreter
-compatibility, not calculator graphics or the smaller EVO Python heap.
+55 diagnostic commands with both a 173,360-byte 32-bit heap and a 500,000-byte
+64-bit heap. Locally, prepare those checks with `python build/micro_smoke.py`,
+or pass `--run /path/to/micropython --heap 173360` for a 32-bit executable.
+The tiny shims allocate no framebuffer; calculator graphics remain a device test.
 
 The calculator uses only its native Python modules. `sympy`, `pytest`, and
 `mpy-cross` are development dependencies. Source and transformed code target the

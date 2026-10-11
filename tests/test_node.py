@@ -283,6 +283,15 @@ API = ('NUM FLT SYM CON WILD COMP ADD MUL CALL LST EQ NE LT LE BIGO DNE DIVG HOL
 def test_frozen_api_names_exist():
     missing = [n for n in API if not hasattr(K, n)]
     assert missing == []
+
+
+def test_reset_preserves_explicit_debug_arena_capacity(arena):
+    capacity = len(K.N)
+    assert capacity == NMAXDBG
+    K.num(123)
+    K.reset()
+    assert K.NN == K.BASE
+    assert [len(a) for a in (K.N, K.H, K.NX, K.V)] == [capacity] * 4
     assert issubclass(K.Undefined, K.CasSoft) and issubclass(K.CasSoft, Exception)
     assert issubclass(K.Cancel, BaseException) and not issubclass(K.Cancel, Exception)
     assert issubclass(K.CasMemory, BaseException) and not issubclass(K.CasMemory, Exception)

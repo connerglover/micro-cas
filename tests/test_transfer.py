@@ -82,6 +82,7 @@ def test_release_gate_runs_before_artifact_write(tmp_path, monkeypatch, stale):
     monkeypatch.setattr(release, 'prepare', lambda path:
                         ({'CASEVO': 'pass\n', 'CVDUMMY': '#' + 'x' * 70000},
                          {'names': {}, 'sources': {}}))
+    monkeypatch.setattr(release.function_pages, 'pack', lambda sources, meta: (sources, set()))
     if stale:
         for name in ('CASEVO.py', 'CVTEST.py', 'cas-evo-v1.zip', 'cas-evo-development.zip',
                      'SHA256SUMS', 'INSTALL.md', 'CVOLD.py'):

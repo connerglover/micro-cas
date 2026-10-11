@@ -25,6 +25,18 @@ import linemap  # noqa: E402
 import lint  # noqa: E402
 
 
+def test_release_traceback_map_accepts_spans_and_generated_lines(tmp_path):
+    path = tmp_path / 'release.json'
+    path.write_text(json.dumps({'linemap': {'CVF00001': {'src': 'src/example.py',
+                            'lines': [None, [10, 25]]}}}))
+    table = linemap.load(path)
+    assert linemap.lookup(table, 'CVF00001', 2) == ('src/example.py', 10, 25)
+    with pytest.raises(KeyError, match='generated loader'):
+        linemap.lookup(table, 'CVF00001', 1)
+    text = 'File "CVF00001.py", line 1\nFile "CVF00001.py", line 2'
+    assert linemap.translate(text, table) == text + '  [src/example.py:10]'
+
+
 def _d(s):
     return textwrap.dedent(s).lstrip('\n')
 

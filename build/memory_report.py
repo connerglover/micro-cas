@@ -157,6 +157,7 @@ def report(output, metadata, archive, decoder, sizer, factor=1.8, heap=173360, e
                 'qstr pool and native-module allocations not represented by .mpy scaling',
                 'working data, nodes beyond backing arrays, session/history and caches',
                 'loaded lazy families, their code/data and command-specific dependencies',
+                'native function pages, including suspended generator code and globals',
                 'decoded source buffers and compiler temporaries beyond fixed reserve',
                 'phase overlap or lingering references if the unloading contract fails']
     if 'CASEVO' not in output:
