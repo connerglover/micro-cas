@@ -93,6 +93,8 @@ def kinds(e):                                                   #@L 6
         if op == K.MUL:
             for j in range(3, len(t), 2):
                 w = K.N[t[j]]
+                if K.huge(t[j - 1], t[j]):
+                    continue                    # a power too large to fold is a number (5.3)
                 if w[0] or w[2] or w[3] != 1:
                     f |= 2
                 elif w[1] < 0:

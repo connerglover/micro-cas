@@ -104,16 +104,19 @@ def test_gaussian_folding_in_the_constructors():
 
 
 def test_maxbits_guard_is_immediate():
+    """npowi still refuses a result over MAXBITS; the constructors keep such a power whole
+    instead (DESIGN 5.3, 6.1), at once."""
     t0 = time.perf_counter()
     with pytest.raises(K.CasError) as ei:
-        pw(q(2), 10 ** 6)
+        K.npowi((K.NUM, 2, 0, 1), 10 ** 6)
     assert ei.value.args[0] == 'number too large'
     with pytest.raises(K.CasError):
         K.npowi((K.NUM, 3, 0, 7), -(10 ** 9))
     with pytest.raises(K.CasError):
         K.npowi((K.NUM, 1, 1, 1), 10 ** 6)
-    with pytest.raises(K.CasError):
-        pw(q(1, 3), 1, 10 ** 5)                       # rationalizing would need 3^99999
+    assert K.N[pw(q(2), 10 ** 6)] == (K.MUL, K.ONE, q(2), q(10 ** 6))
+    r = pw(q(1, 3), 1, 10 ** 5)                       # 3^(99999/100000)/3: no 3^99999 built
+    assert K.N[r] == (K.MUL, q(1, 3), q(3), q(99999, 10 ** 5))
     assert time.perf_counter() - t0 < 1.0
     assert K.npowi((K.NUM, 2, 0, 1), 16000) == (K.NUM, 2 ** 16000, 0, 1)
 

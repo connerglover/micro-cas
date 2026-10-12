@@ -340,22 +340,24 @@ def test_huge_integer_never_converted():
     assert time.perf_counter() - t0 < 0.5
     assert r == ('msg', 'Done', None, 0)
     x = sym('x')
-    assert PR.text(mul((x, K.ONE), k=num(1, 0, n)), None) is None
+    # n + 1 is odd: a power of 2 in the coefficient would be kept whole by mul_ (DESIGN 6.1)
+    assert PR.text(mul((x, K.ONE), k=num(1, 0, n + 1)), None) is None
+    assert PR.text(mul((x, K.ONE), k=num(1, 0, n)), None) == 'x/2^100000'
     assert PR.text(mul((x, num(n))), None) is None
     assert PR.text(num(3, n), None) is None
 
 
 def test_review_cases_printing():
-    """DESIGN 20.12 'printing': x>3, log(8,2), 2^(10^6) at once, a 30,000-digit Done."""
+    """DESIGN 20.12 'printing': x>3, log(8,2), 2^(10^6) at once (kept as a power, 6.1), a
+    30,000-digit Done."""
     assert show('x>3') == 'x>3'
     assert show('log(8,2)') == '3'
     t0 = time.perf_counter()
-    with pytest.raises(K.CasError) as ei:
-        ev('2^(10^6)')
-    assert ei.value.args[0] == 'number too large'
+    assert show('2^(10^6)') == '2^1000000'
     assert time.perf_counter() - t0 < 0.5
-    e, ctx = ev('10^16000*10^14000')         # 30,001 digits (each power is under MAXBITS)
-    assert K.N[e][1] == 10 ** 30000
+    assert show('10^16000*10^14000') == '10^30000'      # a product of folded powers too
+    e, ctx = ev('(10^16000+1)*(10^14000+1)')            # 30,001 digits, no prime power kept
+    assert K.N[e][1] == (10 ** 16000 + 1) * (10 ** 14000 + 1)
     t0 = time.perf_counter()
     assert PR.record(e, ('eval', 's', ctx, 0)) == ('msg', 'Done', None, 0)
     assert time.perf_counter() - t0 < 0.5

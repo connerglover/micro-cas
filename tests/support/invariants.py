@@ -17,8 +17,10 @@ Checks (names usable with ``skip=`` and the ``invariants_skip(...)`` marker):
     buckets   every id is on exactly its bucket's chain, newest first
     num       NUM (a, b, d): ints, d >= 1, gcd(a, b, d) == 1; FLT finite, no -0.0
     arity     composite shapes (ADD/MUL pair counts, relations, functions, CALL, HOLD)
-    add       section 5.3 ADD invariants
-    mul       section 5.3 MUL invariants, radicals (6.2) and constructor rules 5-9 (8.2)
+    add       section 5.3 ADD invariants; a term coefficient shares no prime with a power kept
+              whole (6.1)
+    mul       section 5.3 MUL invariants, radicals (6.2), powers kept whole (6.1) and
+              constructor rules 5-9 (8.2)
     order     ADD/MUL pairs in (H, tiefix) order (5.7)
     special   fn_ normal forms (6.4): sin(0), ln(1), ln(e), ln(e^u), trig at k*pi/12,
               inverse cancellation, ln of non-prime-power arguments, numbers in sign/floor/
@@ -447,6 +449,12 @@ def _check_add(c, i, t, bad, isnum, iszero):
             bad('add', i, 'term %d is a nested ADD' % x)
         elif tx[0] == op['MUL'] and tx[1] != c.id['ONE']:
             bad('add', i, 'term %d is a MUL whose coefficient is not 1' % x)
+    for x, k in zip(terms, coefs):                             # 5.3, as in a MUL
+        if N[x][0] == op['MUL'] and N[k][0] == op['NUM']:
+            q = _shares(N[k], _huge_primes(c, N[x]))
+            if q:
+                bad('add', i, 'coefficient of term %d shares the prime %d with a power kept '
+                              'whole' % (x, q))
     if len(set(terms)) != len(terms):
         bad('add', i, 'like terms not collected')
     if len(terms) == 1 and t[1] == c.id['ZERO']:
@@ -465,6 +473,7 @@ def _check_mul(c, i, t, bad, isnum, iszero, realnum, isint):
     exps = t[3::2]
     if len(set(bases)) != len(bases):
         bad('mul', i, 'equal bases not merged')
+    huge = []                                                  # (base, exponent) kept whole
     for b, e in zip(bases, exps):
         tb = N[b]
         te = N[e]
@@ -481,10 +490,22 @@ def _check_mul(c, i, t, bad, isnum, iszero, realnum, isint):
             ea, eb, ed = te[1], te[2], te[3]
             if eb != 0:
                 continue                                       # a non-real exponent: kept
-            if ed == 1:
-                bad('mul', i, 'number %d under an integer exponent: should fold' % b)
+            if tb[2] != 0 and ed == 1:                         # a non-real power kept whole
+                _check_gauss_huge(c, i, b, ea, bad)
             elif tb[2] != 0:
                 continue                                       # non-real base, rule 4
+            elif (ed == 1 or ea < 0 or ea > ed) and \
+                    4 * abs(ea // ed) * len('%x' % abs(tb[1])) <= _limits(c)[0] >> 4:
+                if ed == 1:                                    # clearly in the fold range
+                    bad('mul', i, 'number %d under an integer exponent: should fold' % b)
+                else:
+                    bad('mul', i, 'radical exponent %d/%d not in (0, 1)' % (ea, ed))
+            elif ed == 1 or ea < 0 or ea > ed:                 # a real power kept whole
+                if tb[3] != 1 or tb[1] < 2:
+                    bad('mul', i, 'numeric base %r of a power kept whole is not an integer '
+                                  '>= 2' % (tb,))
+                else:
+                    huge.append((tb[1], te))
             elif tb[3] == 1 and tb[1] >= 2:
                 if not (0 < ea < ed):
                     bad('mul', i, 'radical exponent %d/%d not in (0, 1)' % (ea, ed))
@@ -515,11 +536,113 @@ def _check_mul(c, i, t, bad, isnum, iszero, realnum, isint):
                 bad('mul', i, 'e^(n*ln(u)): should be u^n (rule 8)')
         if tb[0] == op['ABS'] and isint(e) and N[e][1] % 2 == 0:
             bad('mul', i, 'abs(u)^even: should be u^even (rule 9)')
+    if huge:
+        _check_huge(c, i, N[k], huge, bad)
     if len(bases) == 1 and exps[0] == c.id['ONE']:
         if k == c.id['ONE']:
             bad('mul', i, 'k == 1 with one pair (b, 1): should be b')
         elif N[bases[0]][0] == op['ADD'] and k == c.id['MONE']:
             bad('mul', i, '-(sum): should be distributed')
+
+
+# -- powers kept whole because they are too large to fold (DESIGN 5.3, 6.1) --------------------
+
+def _limits(c):
+    m = getattr(c.K, 'MAXBITS', 65536)
+    return m, getattr(c.K, 'MAXFOLD', 2 * m)
+
+
+def _primes(n):
+    """{prime: multiplicity} of n >= 1 as far as the engine factors a base kept whole (ifac, or
+    pfac over 4,000 bits): trial division below 10^4 (below 256 for a big n), then the
+    cofactor as one factor."""
+    out = {}
+    lim = 256 if len('%x' % n) > 1000 else 10 ** 4
+    p = 2
+    while p < lim and p * p <= n:
+        while n % p == 0:
+            out[p] = out.get(p, 0) + 1
+            n //= p
+        p += 1
+    if n > 1:
+        out[n] = out.get(n, 0) + 1
+    return out
+
+
+def _is_huge(c, b, e):
+    """The reference of K.huge: a NUM base under an integer, or a real one under a rational
+    outside (0, 1), with a weight 4*|floor(e)|*hexlen(|re|+|im|) over MAXBITS/16."""
+    tb = c.N[b]
+    te = c.N[e]
+    num = c.op['NUM']
+    return tb[0] == num and te[0] == num and te[2] == 0 and (
+        te[3] == 1 or (tb[2] == 0 and (te[1] < 0 or te[1] > te[3]))) and \
+        4 * abs(te[1] // te[3]) * len('%x' % (abs(tb[1]) + abs(tb[2]))) > _limits(c)[0] >> 4
+
+
+def _huge_primes(c, x):
+    """The primes of the real bases kept whole in the MUL tuple x."""
+    ps = set()
+    for j in range(2, len(x), 2):
+        if _is_huge(c, x[j], x[j + 1]) and c.N[x[j]][2] == 0 and c.N[x[j]][1] >= 2:
+            ps.update(_primes(c.N[x[j]][1]))
+    return ps
+
+
+def _shares(k, ps):
+    """A prime of ps divides the content or the denominator of the NUM tuple k."""
+    for q in ps:
+        if (k[1] % q == 0 and k[2] % q == 0) or k[3] % q == 0:
+            return q
+    return 0
+
+
+def _check_gauss_huge(c, i, b, n, bad):
+    """A non-real base under an integer: primitive, not a unit, and over the npowi estimate."""
+    tb = c.N[b]
+    m, _ = _limits(c)
+    w = max(abs(tb[1]), abs(tb[2]), tb[3])
+    if tb[3] != 1 or math.gcd(tb[1], tb[2]) != 1 or tb[1] ** 2 + tb[2] ** 2 == 1:
+        bad('mul', i, 'non-real base %r kept whole: not a primitive non-unit' % (tb,))
+    elif 4 * abs(n) * len('%x' % w) <= m:
+        bad('mul', i, 'non-real base %r under %d: should fold' % (tb, n))
+
+
+def _check_huge(c, i, k, huge, bad):
+    """6.1: one base per exponent, squarefree bases, every kept prime over MAXBITS by the weight
+    4*|floor(x)|*hexlen(q) unless the foldable total exceeds MAXFOLD, the exponent within
+    MAXBITS, and a coefficient sharing no kept prime."""
+    m, mf = _limits(c)
+    pr = {}
+    xs = set()
+    for base, te in huge:
+        x = (te[1], te[3])
+        if x in xs:
+            bad('mul', i, 'two bases kept whole under %d/%d: should be one (rule 11)' % x)
+        xs.add(x)
+        if len('%x' % abs(te[1])) + len('%x' % te[3]) > m >> 2:
+            bad('mul', i, 'exponent %d/%d of a power kept whole is over MAXBITS' % x)
+        f = _primes(base)
+        if any(v != 1 for v in f.values()):
+            bad('mul', i, 'base %d kept whole is not squarefree' % base)
+        for q in f:
+            pr[q] = te
+    w = 0
+    small = []
+    for q in sorted(pr):
+        te = pr[q]
+        v = 4 * len('%x' % q) * abs(te[1] // te[3])
+        if v <= m >> 4:
+            bad('mul', i, 'prime %d kept whole with a weight of %d: should fold' % (q, v))
+        elif v <= m:
+            w += v
+            small.append(q)
+    if small and w <= mf:
+        bad('mul', i, 'primes %r kept whole although they fold (6.1)' % (small,))
+    if k[0] == c.op['NUM']:
+        q = _shares(k, pr)
+        if q:
+            bad('mul', i, 'coefficient shares the prime %d with a power kept whole' % q)
 
 
 def _check_special(c, i, name, u, bad, realnum, isint, neginf):
@@ -626,6 +749,11 @@ def _check_abs(c, i, u, bad, isnum, realnum, isint, neginf):
         if tu[1] == c.id['ONE'] and len(tu) == 4 and isint(tu[3]) and N[tu[3]][1] % 2 == 0:
             bad('abs', i, 'abs(w^(2k)) should be w^(2k)')
     if tu[0] == op['ADD']:
+        for j in range(2, len(tu), 2):                         # a sum holding a power kept
+            x = N[tu[j]]                                       # whole keeps its content (5.3)
+            if x[0] == op['MUL'] and any(_is_huge(c, x[h], x[h + 1])
+                                         for h in range(2, len(x), 2)):
+                return
         nums = []
         dens = []
         for j in range(1, len(tu), 2):

@@ -25,7 +25,7 @@ ENTRY_BUDGET = (30, 1)          # max lines, KB (DESIGN 4.1)
 # build/release.py phases the resident sources and reports the separate heap model.
 MODULES = (
     # src         device       class  max lines  KB budget
-    ('node',      'CVNODE',    'R',   1200,       28),
+    ('node',      'CVNODE',    'R',   1450,       34),
     ('alg',       'CVALG',     'R',   850,       19),
     ('parse',     'CVPARSE',   'R',   1250,       33),
     ('printer',   'CVPRINT',   'R',   900,       21),
@@ -38,7 +38,7 @@ MODULES = (
     ('poly',      'CVPOLY',    'L',   150,       3),
     ('polyb',     'CVPOLYB',   'L',   150,       3),
     ('polyc',     'CVPOLYC',   'L',   150,       3),
-    ('norm',      'CVNORM',    'L',   150,       4),
+    ('norm',      'CVNORM',    'L',   150,       5),
     ('normc',     'CVNORMC',   'L',   150,       4),
     ('normb',     'CVNORMB',   'L',   150,       4),
     ('ident',     'CVIDENT',   'L',   150,       5),
