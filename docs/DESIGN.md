@@ -238,6 +238,7 @@ written as parts (§4.3).
 |---|---|---|---|---|---|---|---|
 | `casevo.py` | `CASEVO` | entry | – | Imports resident modules leaf-first. Runs the event loop at module level. | 30 | 1 | UI |
 | `node.py` | `CVNODE` | R | `K` | Intern table, regions, number kernels, constructors (`add_`, `mul_`, `fn_`, `rel_`, `neg_`, `absn`), radicals, special values, the ∞ folding table, exceptions, `ESC` poll hook | 520 | 11 | T1 |
+| `nodeb.py` | `CVNODEB` | R | `KB` | Powers too large to fold (§6.1): the fold rule, `huge`, `nval`, the sum, ln and kernel rules. Imported by `node`; on the calculator an aux pack (`CASBIG`) loaded on first use | 320 | 8 | T1 |
 | `parse.py` | `CVPARSE` | R | `P` | Lexer, TI rewrite, name cutter, implicit `*`, token-level macro/variable expansion, shunting-yard, `inst`, `g_eval` | 420 | 9 | T1 |
 | `printer.py` | `CVPRINT` | R | `PR` | 1D printer, display order, decimal formatter, messages | 330 | 7 | T1 |
 | `alg.py` | `CVALG` | R | `A` | `postorder`, `subst`, predicates (`linear`, `quadratic`, `split_const`, `degree`, `simplify_candidate`), `size`, numeric evaluator `nev`, numeric zero probe | 300 | 7 | T1 |
@@ -399,7 +400,7 @@ SYMN, SYMI                    per-command symbol bit table: bit -> name, name ->
 - A `bi` is a number only in three cases:
   - a positive integer >= 2 that is s-th-power-free, under a rational exponent r/s with 0 < r/s < 1
     (a radical, §6.2);
-  - a power **kept whole** because it is too large to fold (§6.1), `K.huge(b, e)` (which also
+  - a power **kept whole** because it is too large to fold (§6.1), `KB.huge(b, e)` (which also
     asks for a weight `4·|floor(e)|·hexlen(b)` over `MAXBITS/16`, so the small powers of a HOLD's
     display product are not taken for one): a squarefree
     integer >= 2 under a rational exponent outside [0, 1) (`2^100000`, `10^(10^6)`,
@@ -738,7 +739,7 @@ def nmul(x, y):                                                 #@L 7
   - The fold rule is applied whenever its answer could differ from a direct `npowi`: a real
     `b^n` with `24·|n|·hexlen` over `MAXBITS` is first bounded by its valuations at 2..13 (cheap),
     and goes to the radical table only if a prime could be kept whole. `b^±1` is never factored.
-    A base over 4,000 bits is factored only below 256 (`pfac`); the rest is one cofactor.
+    A base over 4,000 bits is factored only below 256 (in `KB.hpow`); the rest is one cofactor.
   - A coefficient over `2^16384` (a product of folded numbers, `2^10000*2^10000`) is searched for
     the primes below 256, so it obeys the same rule; when none is kept whole it keeps its value.
   - Non-real bases are not factored: their content `g/d` is split off, a unit folds, and another
@@ -757,6 +758,24 @@ def nmul(x, y):                                                 #@L 7
     no decimal line (§12.6), `approx` keeps it exact, and the numeric probe skips it. `simplify`
     therefore keeps an expression holding one as built (its candidates cannot be verified, §8.7);
     `expand`, `normal`, `together`, `factor` treat each such power as one kernel.
+  - **Where the code lives.** Giant powers are rare, so their rules are in `nodeb.py` (alias
+    `KB`), an aux pack on the calculator that loads the first time a command meets one; `node`
+    keeps only cheap tests in its hot paths. `mul_` calls `KB.hpow` for a number to an integer
+    power when `16·|n|·len('%x%x%x' % (a, b, d))` exceeds `MAXBITS` (a bound on every case the
+    rule above can send to the radical table or keep whole), and `KB.hfold` at the end of the
+    product when `20·hexlen(k) + Σ 4·|n|·hexlen(q)` over the radical table exceeds `MAXBITS` (a
+    bound on the weights once the coefficient's primes join them, so below it the rule always
+    folds everything, as the plain loop does). Every other hook (`add_`, `absn`, `fn_` for `ln`,
+    `mul_`'s `(Π B^X)^e`, and `huge` in `nprog`, `normal`, `kinds`, `factor`) first reads
+    `K.HUGE`, which is 1 once the command has kept a power whole; a power kept whole exists only
+    after that. So `2^1000`, radicals and every command without a giant power never load the
+    pack.
+  - `nodeb` cannot import `node` (`node` imports it, and the import graph is acyclic, §4.2): its
+    `K = None  #@lazy node` is bound by node's module body, `KB.K = __import__(__name__)`, and
+    the pack compiler turns that into plain references to node's pack (`build/packs.py`). `add_`
+    is level 6 and the leaves it would need (`mk`, `ifac`, `tiefix`, `nadd`) are level 7, so its
+    rule, `KB.hsum` (level 7), calls nothing: it puts each call it needs on a list that `add_`
+    carries out, and is run again with the answers so far until it is done.
   - The printer never calls `str()` on an integer whose estimated decimal length
     (`1.21 × hex length`) is over 4,000 digits, because `str()` of a big int is quadratic and has
     no cancel poll. The record becomes `Done` at once.
@@ -1375,6 +1394,7 @@ is what makes text-only session state safe.
    coefficient's factors of that power's primes moved into the exponent (regrouped as rule 11),
    and terms that then coincide are collected again: `2^100000+2^100000 = 2^100001`. (If an
    exponent would have to fold, or a regrouped base meets another pair, the term is left.)
+   This is `KB.hsum`, which asks `add_` for the level-7 calls it needs (§6.1).
    `absn` keeps the content of such a sum (`abs(x/2+2^99999)`), since scaling it would undo this.
 5. Sort the pairs by `(H, id)` and run `tiefix`.
 6. Collapse: no pairs gives the constant; one pair with a zero constant gives the product `k·t`.

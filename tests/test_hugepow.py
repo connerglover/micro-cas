@@ -18,6 +18,7 @@ import pytest
 
 import alg as A
 import node as K
+import nodeb as KB
 import normb as NB
 import parse as P
 import printer as PR
@@ -158,6 +159,7 @@ TEXT = [
     ('12^100000', '2^200000*3^100000'), ('(3+4*i)^100000', '(3+4*i)^100000'),
     ('(1+i)^100000*x', '(1+i)^100000*x'), ('x/2+2^99999', 'x/2+2^99999'),
     ('30030^16384', '30030^16384'), ('30^16385', '30^16385'),
+    ('sqrt(-2^100001)', 'sqrt(-2^100001)'), ('(-3*2^100001)^(1/3)', '(-3*2^100001)^(1/3)'),
 ]
 
 
@@ -179,20 +181,28 @@ def test_fold_total_cap():
 
 
 def test_kernels():
-    assert K.nval((K.NUM, 48, 0, 5), 2) == (4, (K.NUM, 3, 0, 5))
-    assert K.nval((K.NUM, 3, 0, 40), 2) == (-3, (K.NUM, 3, 0, 5))
-    assert K.nval((K.NUM, 6, 4, 7), 2) == (1, (K.NUM, 3, 2, 7))
-    assert K.nval((K.NUM, 2 ** 5000 * 3, 0, 1), 2) == (5000, (K.NUM, 3, 0, 1))
-    assert K.nval(K.Q0, 2) == (0, K.Q0)
-    assert K.pfac(12) == K.ifac(12)
-    big = 2 ** 5000 * 3 ** 7 * 257
-    assert K.pfac(big) == (2, 5000, 3, 7, 257, 1)
+    """The giant-power code lives in nodeb (an aux pack on the calculator, DESIGN 6.1)."""
+    assert KB.nval((K.NUM, 48, 0, 5), 2) == (4, (K.NUM, 3, 0, 5))
+    assert KB.nval((K.NUM, 3, 0, 40), 2) == (-3, (K.NUM, 3, 0, 5))
+    assert KB.nval((K.NUM, 6, 4, 7), 2) == (1, (K.NUM, 3, 2, 7))
+    assert KB.nval((K.NUM, 2 ** 5000 * 3, 0, 1), 2) == (5000, (K.NUM, 3, 0, 1))
+    assert KB.nval(K.Q0, 2) == (0, K.Q0)
+    # A base over 4,000 bits is factored only below 256 and the rest stays one cofactor (hpow):
+    # 257 comes out alone, 257*263 stays one base.
+    big = 2 ** 5000 * 3 ** 7
+    n = 5462                                    # every prime power is kept whole
+    e = K.mul_(K.ONE, [(num(big * 257), num(n))])
+    assert K.N[e][0] == K.MUL and len(K.N[e]) == 8
+    assert e == K.mul_(K.ONE, [(num(2), num(5000 * n)), (num(3), num(7 * n)), (num(257), num(n))])
+    e = K.mul_(K.ONE, [(num(big * 257 * 263), num(n))])
+    assert e == K.mul_(K.ONE, [(num(2), num(5000 * n)), (num(3), num(7 * n)),
+                               (num(257 * 263), num(n))])
     two = num(2)
-    assert K.huge(two, num(16385)) and K.huge(two, num(-200001, 2))
-    assert K.huge(two, num(200001, 2)) and K.huge(K.num(3, 4), num(100000))
-    assert not K.huge(two, num(1, 2)) and not K.huge(two, K.sym('x'))
-    assert not K.huge(K.num(3, 4), num(1, 2))
-    assert not K.huge(two, num(3)) and not K.huge(two, num(-5, 2))  # a HOLD's 2^3: small
+    assert KB.huge(two, num(16385)) and KB.huge(two, num(-200001, 2))
+    assert KB.huge(two, num(200001, 2)) and KB.huge(K.num(3, 4), num(100000))
+    assert not KB.huge(two, num(1, 2)) and not KB.huge(two, K.sym('x'))
+    assert not KB.huge(K.num(3, 4), num(1, 2))
+    assert not KB.huge(two, num(3)) and not KB.huge(two, num(-5, 2))  # a HOLD's 2^3: small
 
 
 def test_hold_display_product_still_evaluates():

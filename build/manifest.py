@@ -25,7 +25,8 @@ ENTRY_BUDGET = (30, 1)          # max lines, KB (DESIGN 4.1)
 # build/release.py phases the resident sources and reports the separate heap model.
 MODULES = (
     # src         device       class  max lines  KB budget
-    ('node',      'CVNODE',    'R',   1450,       34),
+    ('node',      'CVNODE',    'R',   1200,       29),   # 28 + the giant-power hooks (6.1)
+    ('nodeb',     'CVNODEB',   'R',   320,        8),
     ('alg',       'CVALG',     'R',   850,       19),
     ('parse',     'CVPARSE',   'R',   1250,       33),
     ('printer',   'CVPRINT',   'R',   900,       21),
@@ -38,7 +39,7 @@ MODULES = (
     ('poly',      'CVPOLY',    'L',   150,       3),
     ('polyb',     'CVPOLYB',   'L',   150,       3),
     ('polyc',     'CVPOLYC',   'L',   150,       3),
-    ('norm',      'CVNORM',    'L',   150,       5),
+    ('norm',      'CVNORM',    'L',   150,       4),
     ('normc',     'CVNORMC',   'L',   150,       4),
     ('normb',     'CVNORMB',   'L',   150,       4),
     ('ident',     'CVIDENT',   'L',   150,       5),
@@ -138,6 +139,9 @@ PACKS = (
     ('CASAX', ('alg.cpow', 'alg.cval', 'alg.degree', 'alg.linear', 'alg.nev', 'alg.nprobe',
                'alg.nprog', 'alg.nrun', 'alg.ntol', 'alg.pco', 'alg.quadratic', 'alg.rebuild',
                'alg.size', 'alg.split_const', 'alg.subst'), 'aux'),
+    # Powers too large to fold (DESIGN 5.3, 6.1): node calls it only for a giant power, or once
+    # a command has built one (K.HUGE), so a session without one never loads it.
+    ('CASBIG', ('nodeb',), 'aux'),
     # The interactive UI: keys, screens and 2D layout. A 'view' pack is unloaded only while a
     # computation runs (run.go), since menus load families from inside key(). busy, status,
     # panic and the drawing primitives stay in CASUI for use during and after a computation.

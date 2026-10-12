@@ -7,6 +7,7 @@
 # and the factored denominator; the generators here that g_eval reaches through
 # R.need('norm') forward to it.
 import node as K
+import nodeb as KB
 import alg as A
 import run as R
 
@@ -85,7 +86,7 @@ def normal(e, ex=0):                                            #@L 3
         if t[0] == K.MUL:
             for j in range(3, len(t), 2):
                 w = N[t[j]]
-                if w[0] or w[2] or w[3] != 1 or (w[1] < 0 and ex) or N[t[j - 1]][0] == K.NUM:
+                if w[0] or w[2] or w[3] != 1 or (w[1] < 0 and ex) or not N[t[j - 1]][0]:
                     nv += 1
         elif t[0] > K.NUM and t[0] != K.ADD:
             nv += NVMAX if (m == K.OO or m == K.UNDEF) and not ex else 1
@@ -97,6 +98,7 @@ def normal(e, ex=0):                                            #@L 3
         ks = [K.I] + [0] * (nv - 1)
         rl = [(2, -1)] + [None] * (nv - 1)
         PC = R.MODS['polyc']
+        NC = R.MODS['normc']
         rf = {}
         for m in po:
             t = N[m]
@@ -106,7 +108,7 @@ def normal(e, ex=0):                                            #@L 3
                 if t[1]:
                     x[0][Z] = t[1]
                 if t[2]:
-                    x[0][R.MODS['normc'].kmono(K.I, ks)] = t[2]
+                    x[0][NC.kmono(K.I, ks)] = t[2]
             elif op == K.ADD:
                 x = rf[t[1]]
                 for j in range(2, len(t), 2):
@@ -124,19 +126,14 @@ def normal(e, ex=0):                                            #@L 3
                     y = rf[t[j]]
                     w = N[t[j + 1]]
                     p = w[1] if w[0] == K.NUM and not w[2] else 0
-                    c = K.huge(t[j], t[j + 1]) and K.mul_(K.ONE, [(t[j], K.mk(K.nneg(w)) if
-                                                                   p < 0 and not ex else t[j + 1])])
-                    h = c and N[c][0] == K.MUL and N[c][1] == K.ONE     # too large to fold
-                    if h:                                   # (5.3): one kernel, b^-x as (b^x)^-1
-                        y = ({R.MODS['normc'].kmono(c, ks): 1}, one)        # (a HOLD's folds)
-                        p = -1 if p < 0 and not ex else 1
-                    if not h and (not p or (p < 0 and ex)):     # a power kept whole: a kernel
-                        c = rf[t[j + 1]]
-                        y = ({R.MODS['normc'].kmono(K.mul_(K.ONE, [(R.MODS['normc'].tonode(y[0], y[1], ks, ex),
-                                                   R.MODS['normc'].tonode(c[0], c[1], ks, ex))]), ks): 1}, one)
-                        p = 1
-                    elif w[3] > 1 and not h:                # u^(p/q) = (u^(1/q))^p
-                        z = R.MODS['normc'].kmono(K.mul_(K.ONE, [(R.MODS['normc'].tonode(y[0], y[1], ks, ex),
+                    h = K.HUGE and KB.hker(t[j], t[j + 1], ex)    # too large to fold (5.3):
+                    if h or not p or (p < 0 and ex):        # a power kept whole: a kernel (a
+                        c = rf[t[j + 1]]                    # giant one: b^-x is (b^x)^-1)
+                        y = ({NC.kmono(h or K.mul_(K.ONE, [(NC.tonode(y[0], y[1], ks, ex),
+                                                   NC.tonode(c[0], c[1], ks, ex))]), ks): 1}, one)
+                        p = -1 if h and p < 0 and not ex else 1
+                    elif w[3] > 1:                          # u^(p/q) = (u^(1/q))^p
+                        z = NC.kmono(K.mul_(K.ONE, [(NC.tonode(y[0], y[1], ks, ex),
                                                   K.num(1, 0, w[3]))]), ks)
                         c = y[0].get(Z)
                         if y[1] == one and len(y[0]) == 1 and c:
@@ -154,12 +151,12 @@ def normal(e, ex=0):                                            #@L 3
                     x = {}
                     for j in range(1, len(t)):
                         y = rf[t[j]]
-                        x[t[j]] = R.MODS['normc'].tonode(y[0], y[1], ks, ex)
+                        x[t[j]] = NC.tonode(y[0], y[1], ks, ex)
                     k = A.rebuild(m, x)
-                x = ({R.MODS['normc'].kmono(k, ks): 1}, one)
+                x = ({NC.kmono(k, ks): 1}, one)
             rf[m] = x
         x = rf[e]
-        return R.MODS['normc'].tonode(x[0], x[1], ks, ex)
+        return NC.tonode(x[0], x[1], ks, ex)
     except (K.CasError, K.CasSoft):
         if ex:
             raise

@@ -47,6 +47,10 @@ def sess(monkeypatch):
     monkeypatch.setattr(R, 'CLOCK', [0])
     monkeypatch.setattr(P, 'SESS', R)
     R.need('norm')
+    # A previous calculus command (test_defint) may have evicted and reloaded the norm family:
+    # patch and inspect the loaded instances, not the collection-time imports (as test_factor).
+    for alias, key in (('NO', 'norm'), ('NB', 'normb')):
+        monkeypatch.setattr(sys.modules[__name__], alias, R.MODS[key])
     yield
 
 

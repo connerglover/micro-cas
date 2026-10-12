@@ -3,6 +3,9 @@
 import array
 import gc
 import math
+import nodeb as KB
+
+KB.K = __import__(__name__)  # giant powers (5.3, 6.1): node itself, for nodeb (an aux pack)
 
 # -- op codes (5.2) ------------------------------------------------------------------------------
 NUM = 0
@@ -74,7 +77,6 @@ NMAX = 768
 NINIT = 64
 LOWMEM = 24576
 MAXBITS = 65536
-MAXFOLD = 2 * MAXBITS        # estimated bits of prime powers that one product folds (6.1)
 TRIAL = 10000
 M_COMPLEX = 'expression too complex'
 M_BIG = 'number too large'
@@ -107,7 +109,7 @@ SYMI = {}
 RULECACHE = {}
 TCACHE = {}
 FCACHE = {}
-HUGE = [0]                   # 1 once this command has built a power too large to fold (5.3)
+HUGE = 0                     # 1 once this command has built a power too large to fold (5.3)
 DEBUG_ARENA = False
 
 ESC = None  #@native
@@ -341,7 +343,7 @@ def keep(m, y):                                                 #@L 4
 
 def reset():                                                    #@L 4
     # end of a command: truncate the table to BASE and clear the per-command caches
-    global NN
+    global NN, HUGE
     if ONRESET is not None:
         ONRESET()
     for i in range(NN - 1, BASE - 1, -1):
@@ -362,7 +364,7 @@ def reset():                                                    #@L 4
     RULECACHE.clear()
     TCACHE.clear()
     FCACHE.clear()
-    HUGE[0] = 0
+    HUGE = 0
 
 
 # -- number kernels on (NUM, a, b, d) and (FLT, re, im) tuples (6.1) -----------------------------
@@ -605,39 +607,6 @@ def fpow(x, y):                                                 #@L 7
     return (FLT, z.real + 0.0, z.imag + 0.0)
 
 
-def nval(x, q):                                                 #@L 7
-    # (v, y) with x == q^v * y for a NUM tuple x and an int q >= 2, y free of q: v > 0 from
-    # the content of a + b*i, v < 0 from the denominator (0 for x == 0). Divides by a
-    # word-sized power of q first, so a large valuation costs about one pass per 30 bits.
-    a = x[1]
-    b = x[2]
-    d = x[3]
-    if ((a % q or b % q) and d % q) or (not a and not b):      # the common case: no q at all
-        return (0, x)
-    m = q
-    k = 1
-    while m * q < 0x40000000:
-        m *= q
-        k += 1
-    v = 0
-    while not a % m and not b % m:
-        a //= m
-        b //= m
-        v += k
-    while not a % q and not b % q:
-        a //= q
-        b //= q
-        v += 1
-    if not v:                                                   # gcd(a, b, d) == 1
-        while not d % m:
-            d //= m
-            v -= k
-        while not d % q:
-            d //= q
-            v -= 1
-    return (v, (NUM, a, b, d) if v else x)
-
-
 def ifac(n):                                                    #@L 7
     # n >= 1 -> (p1, a1, p2, a2, ...): primes ascending, complete below TRIAL^2; above, the
     # last base may be a cofactor whose prime factors all exceed TRIAL, written as a perfect
@@ -697,47 +666,11 @@ def rootsplit(n, s):                                            #@L 6
     return (o, r)
 
 
-def pfac(n):                                                    #@L 6
-    # n >= 1 -> (p1, a1, ...) as ifac for the base of a power kept whole (6.1). Over 4,000 bits
-    # only the primes below 256 come out (by nval) and the rest stays one cofactor, so the
-    # cost is linear in the size of n rather than TRIAL divisions of it.
-    if len('%x' % n) <= 1000:
-        return ifac(n)
-    out = []
-    x = (NUM, n, 0, 1)
-    q = 2
-    while q < 256:
-        v, x = nval(x, q)
-        if v:
-            out.append(q)
-            out.append(v)
-        q += 1 if q == 2 else 2
-    if x[1] > 1:
-        out.append(x[1])
-        out.append(1)
-    return tuple(out)
-
-
 # -- predicates and ordering ---------------------------------------------------------------------
 
 def isninf(x):                                                  #@L 7
     t = N[x]
     return t[0] == MUL and len(t) == 4 and t[2] == OO and t[1] == MONE and t[3] == ONE
-
-
-def huge(b, e):                                                 #@L 7
-    # True for the pair (b, e) of a power kept whole because its value is too large to fold
-    # (5.3, 6.1): a NUM base under an integer, or a real base under a rational outside (0, 1),
-    # with a weight 4*|floor(e)|*hexlen(|re|+|im|) over MAXBITS/16, as every kept prime has.
-    # (A HOLD's display product, 2^3*3^2*5, has small ones.)
-    tb = N[b]
-    te = N[e]
-    if tb[0] != NUM or te[0] != NUM or te[2] or not (
-            te[3] == 1 or (not tb[2] and (te[1] < 0 or te[1] > te[3]))):
-        return False
-    n = te[1] // te[3]
-    a = (tb[1] if tb[1] > 0 else -tb[1]) + (tb[2] if tb[2] > 0 else -tb[2])
-    return 4 * (n if n > 0 else -n) * len('%x' % a) > MAXBITS >> 4
 
 
 def negfirst(u):                                                #@L 7
@@ -963,61 +896,11 @@ def add_(terms, k=None):                                        #@L 6
             inf |= 1 if m[1] > 0 else 2
             continue
         acc[e] = nadd(acc[e], m) if e in acc else m
-    if HUGE[0]:                         # 5.3: a coefficient shares no prime with a huge power
-        st = list(acc)                                          #@unordered-ok (a fixed point)
-        while st:
-            e = st.pop()
-            m = acc.get(e)
-            t = N[e]
-            if m is None or m[0] or t[0] != MUL:
-                continue
-            hl = []
-            ps = []
-            g = 0
-            for j in range(2, len(t), 2):
-                w = N[t[j + 1]]
-                if huge(t[j], t[j + 1]) and not N[t[j]][2]:
-                    f = N[t[j]][1]
-                    f = ifac(f) if len('%x' % f) <= 1000 else (f, 1)   # as pfac's cofactor
-                    for i in range(0, len(f), 2):
-                        v, m = nval(m, f[i])
-                        x = nadd(w, (NUM, v, 0, 1)) if v else w
-                        if v:                   # the new weight must stay over MAXBITS/16
-                            v = x[1] // x[3]
-                            v = 4 * len('%x' % f[i]) * (v if v > 0 else -v) > MAXBITS >> 4
-                            g = 1 if g >= 0 and v else -1
-                        hl.append((x[3], x[1], f[i]))
-                else:
-                    ps.append((H[t[j]], t[j], t[j + 1]))
-            if g <= 0:                  # nothing to move, or an exponent would have to fold
-                continue
-            hl.sort()
-            i = 0
-            while i < len(hl):                                  # rule 11: one base per exponent
-                x = hl[i]
-                f = 1
-                while i < len(hl) and hl[i][:2] == x[:2]:
-                    f *= hl[i][2]
-                    i += 1
-                b = mk((NUM, f, 0, 1))
-                ps.append((H[b], b, mk((NUM, x[1], 0, x[0]))))
-            ps.sort()
-            tiefix(ps)
-            out = [MUL, ONE]
-            for j in range(len(ps)):
-                if j and ps[j][1] == ps[j - 1][1]:
-                    out = None                  # a regrouped base meets another pair: keep e
-                    break
-                out.append(ps[j][1])
-                out.append(ps[j][2])
-            if out is None:
-                continue
-            del acc[e]
-            e = mk(tuple(out))
-            if e in acc:
-                m = nadd(acc[e], m)
-                st.append(e)
-            acc[e] = m
+    if HUGE:                            # 5.3: no coefficient shares a prime with a power kept
+        s = []                          # whole. KB.hsum (level 7) puts each call it needs on
+        while KB.hsum(acc, s):          # s; add_ makes it, and hsum reruns with the answers
+            r = s[-1]
+            s[-1] = r[0](*r[1]) or r[1][0]                      #@calls 7
     lst = []
     hold = False                                                # x*oo is kept as a term
     for e in acc:                                               #@unordered-ok (sorted below)
@@ -1106,14 +989,9 @@ def absn(u):                                                    #@L 6
     elif op == MUL:
         u = t[2] if len(t) == 4 and t[3] == ONE else mk((MUL, ONE) + t[2:])
         t = N[u]
-    g = t[0] == ADD
-    if g and HUGE[0]:                   # a sum with a huge power keeps its content: scaling
-        for j in range(2, len(t), 2):   # its coefficients could undo add_'s rule (5.3)
-            x = N[t[j]]
-            for i in range(2, len(x) if x[0] == MUL else 0, 2):
-                if huge(x[i], x[i + 1]):
-                    g = False
-    if g:                                                       # the rational content
+    if t[0] == ADD and not (HUGE and KB.huge(u)):               # the rational content (a sum
+                                                                # with a power kept whole keeps
+                                                                # it: scaling could undo 5.3)
         g = 0
         dl = 1
         for j in range(1, len(t), 2):
@@ -1198,59 +1076,11 @@ def mul_(k, pairs):                                             #@L 5
                 c = c if g > 0 else Q0
                 continue
         elif ob <= FLT and oe <= FLT:                           # a number to a number power
-            if ie and ob == NUM and not tb[1] and not tb[2]:
-                if te[1] < 0:
-                    raise Undefined()                           # 0^-n
-                c = Q0
-                continue
-            if ie:                                              # rule 2
-                n = te[1] if te[1] > 0 else -te[1]
-                u = ob == NUM and n > 1 and (tb[3] > 1 or tb[1] > 1 or tb[1] < -1 or tb[2] > 1
-                                             or tb[2] < -1 or (tb[1] and tb[2]))
-                a = tb[1] if u and tb[1] > 0 else -tb[1] if u else 0   # a non-unit exact base
-                h = len('%x' % a) + len('%x' % tb[3]) if u else 0
-                if u and tb[2]:                                 # non-real: the npowi estimate
-                    g = a                                       # decides (6.1)
-                    if a < tb[2] or a < -tb[2]:
-                        a = tb[2] if tb[2] > 0 else -tb[2]
-                    if 4 * n * len('%x' % (a if a > tb[3] else tb[3])) > MAXBITS:
-                        h = tb[2]
-                        while h:
-                            g, h = h, g % h
-                        g = g if g > 0 else -g
-                        if g > 1 or tb[3] > 1:                  # ((a+bi)/d)^n: the real
-                            st.append((mk((NUM, g, 0, tb[3])), e))      # content g/d apart
-                            st.append((mk((NUM, tb[1] // g, tb[2] // g, 1)), e))
-                            continue
-                        if len('%x' % n) > MAXBITS >> 2:
-                            raise CasError(M_BIG)               # the exponent itself
-                        HUGE[0] = 1
-                        n = 0                                   # keep the pair (5.3)
-                elif u and 24 * n * h > MAXBITS:
-                    # real: could a prime power q^(n f) of the result be kept whole by the
-                    # rule at the end of mul_? For q >= 16 its weight 4 n f hexlen(q) is at
-                    # most 2 n log2(q^f); below 16 the valuations are measured. If it could,
-                    # the primes of the base go to rad instead (6.1).
-                    x = tb
-                    g = 0
-                    w = 0
-                    for q in (2, 3, 5, 7, 11, 13):
-                        v, x = nval(x, q)
-                        v = v if v > 0 else -v
-                        g = v if v > g else g
-                        w += v
-                    g *= 4
-                    v = 8 * len('%x' % (a if a > tb[3] else tb[3]))
-                    if n * (v if v > g else g) > MAXBITS or n * (8 * h + 4 * w) > MAXFOLD:
-                        c = nneg(c) if tb[1] < 0 and n & 1 else c
-                        for j in (0, 1):
-                            f = pfac(tb[3] if j else a)
-                            for i in range(0, len(f), 2):
-                                rad[f[i]] = nadd(rad.get(f[i], Q0),
-                                                 (NUM, f[i + 1] * (-te[1] if j else te[1]), 0, 1))
-                        continue
-                if n:
-                    c = nmul(c, npowi(tb, te[1]))
+            if ie:                                              # rule 2; KB.hpow when b^e may
+                x = nmul(c, npowi(tb, te[1])) if ob or 16 * abs(te[1]) * len(  # not fold (6.1)
+                    '%x%x%x' % tb[1:]) <= MAXBITS else KB.hpow(c, b, e, st, rad)
+                if x:                                           # None: the pair is kept (5.3)
+                    c = x
                     continue
             elif ob == FLT or oe == FLT:
                 c = nmul(c, fpow(tb, te))
@@ -1291,15 +1121,6 @@ def mul_(k, pairs):                                             #@L 5
             st.append((tb[1], e))
             st.append((tb[2] if len(tb) == 4 and tb[3] == ONE else mk((MUL, ONE) + tb[2:]), e))
             continue
-        elif ob == MUL and tb[1] == ONE and oe == NUM and not te[2] and huge(tb[2], tb[3]) and \
-                not N[tb[2]][2]:                                # (prod B^X)^e = prod B^(X e):
-            j = 2                                               # every huge base B is > 0
-            while j < len(tb) and huge(tb[j], tb[j + 1]) and not N[tb[j]][2]:
-                j += 2
-            if j == len(tb):
-                for j in range(2, len(tb), 2):
-                    st.append((tb[j], mk(nmul(N[tb[j + 1]], te))))
-                continue
         elif ob == MUL and tb[1] == ONE and len(tb) == 4 and oe == NUM and not te[2] and (
                 V[tb[2]] or isreal(tb[2])):                     # rule 7: (u^2k)^e, u real
             w = N[tb[3]]
@@ -1327,6 +1148,8 @@ def mul_(k, pairs):                                             #@L 5
         elif ob == ABS and ie and not te[1] & 1 and (V[tb[1]] or isreal(tb[1])):
             st.append((tb[1], e))                               # rule 9: abs(u)^2k = u^2k
             continue
+        if HUGE and ob == MUL and KB.hmpow(tb, te, st):         # (prod B^X)^e, B kept whole
+            continue
         if ob == ADD and ie and negfirst(b):                    # (-S)^n = (-1)^n S^n (6.4)
             b = neg_(b)
             c = nneg(c) if te[1] & 1 else c
@@ -1336,53 +1159,20 @@ def mul_(k, pairs):                                             #@L 5
             st.append((b, mk(nadd(w, te)) if w[0] <= FLT and oe <= FLT else add_([x, e])))
         else:
             acc[b] = e
-    # 6.1: a prime power q^n folds into c when its weight 4*|n|*hexlen(q) is at most MAXBITS
-    # (the npowi estimate, prime by prime); otherwise q keeps its whole exponent as a pair
-    # (5.3), and c holds no factor q. If the folding weights over MAXBITS/16 total more than
-    # MAXFOLD, those primes are kept whole as well (bounded memory). A coefficient over
-    # 2^16384 (a product of folded numbers) may hide such a power: it is searched for the
-    # primes below 256, and keeps its value when none is kept whole.
-    k = c
-    g = not rad
-    if c[0] == NUM and (rad or len('%x' % c[1]) + len('%x' % c[2]) + len('%x' % c[3]) > 4096):
-        q = 2 if len('%x' % c[1]) + len('%x' % c[2]) + len('%x' % c[3]) > 4096 else 256
-        while q < 256:
-            v, c = nval(c, q)
-            if v:
-                rad[q] = nadd(rad.get(q, Q0), (NUM, v, 0, 1))
-            q += 1 if q == 2 else 2
-        for q in rad:                                           #@unordered-ok (per prime)
-            v, c = nval(c, q)
-            if v:
-                rad[q] = nadd(rad[q], (NUM, v, 0, 1))
-    w = 0                               # the weights over MAXBITS >> 4 that would fold
-    for q in rad:                                               #@unordered-ok (a sum)
-        n = rad[q][1] // rad[q][3]
-        n = 4 * len('%x' % q) * (n if n > 0 else -n)
-        if n > MAXBITS:
-            g = False
-        elif n > MAXBITS >> 4:
-            w += n
-    if w > MAXFOLD:                     # too much to fold at once: those primes stay too
-        g = False
-    if g:                               # only the search found primes, and all fold
-        c = k
-        rad = {}
-    lst = []
+    w = 20 * len('%x%x%x' % c[1:]) if c[0] == NUM else 0     # w bounds the weights 4*|n|*
+    k = c                                                       # hexlen(q) of the primes q^n,
+    lst = []                                                    # c's primes joined (6.1)
     for q in rad:                                               #@unordered-ok (sorted below)
         x = rad[q]
         n = x[1] // x[3]
-        v = 4 * len('%x' % q) * (n if n > 0 else -n)
-        if v > MAXBITS or (w > MAXFOLD and v > MAXBITS >> 4):
-            if len('%x' % x[1]) + len('%x' % x[3]) > MAXBITS >> 2:
-                raise CasError(M_BIG)                           # the exponent itself (6.1)
-            HUGE[0] = 1
-            lst.append((x[3], x[1], q))                         # q^x kept whole
-            continue
-        if n:
-            c = nmul(c, (NUM, q ** n, 0, 1) if n > 0 else (NUM, 1, 0, q ** -n))
+        w += 4 * len('%x' % q) * abs(n)
+        if w > MAXBITS:
+            break
+        c = nmul(c, npowi((NUM, q, 0, 1), n))
         if x[1] - n * x[3]:
             lst.append((x[3], x[1] - n * x[3], q))
+    if w > MAXBITS:                     # a power may be too large to fold: KB.hfold decides
+        c, lst = KB.hfold(k, rad)
     lst.sort()
     j = 0
     while j < len(lst):                                         # rule 11: one base per exponent
@@ -1519,42 +1309,8 @@ def fn_(op, a):                                                 #@L 5
                     x = mk((LN, mk((NUM, q, 0, 1))))
                     lst.append(x if w == Q1 else mk((MUL, mk(w), x, ONE)))
             r = add_(lst)
-        elif t[0] == MUL and HUGE[0] and N[t[1]][0] == NUM and not N[t[1]][2] and \
-                N[t[1]][1] > 0:                 # a positive number with powers kept whole (6.1):
-            x = {}                              # its primes, as for a NUM just above
-            for j in range(1, len(t)):
-                w = N[t[j]]
-                if j > 1 and not j & 1 and (not huge(t[j], t[j + 1]) or w[2] or
-                                            N[t[j + 1]][3] != 1):
-                    x = None
-                    break
-                if j == 1 or not j & 1:
-                    for i in (1, 3) if j == 1 else (1,):
-                        f = ifac(w[i]) if len('%x' % w[i]) <= 1000 else (w[i], 1)
-                        for h in range(0, len(f), 2):
-                            x[f[h]] = x.get(f[h], 0) + f[h + 1] * (
-                                (1 if i == 1 else -1) if j == 1 else N[t[j + 1]][1])
-            lst = []
-            for s in (1, -1) if x else ():      # numerator, then denominator: g * ln(q)
-                p = 0
-                for q in x:                                     #@unordered-ok (a gcd)
-                    h = x[q] * s
-                    while h > 0:
-                        p, h = h, p % h
-                q = 1
-                w = 0
-                for h in x:                                     #@unordered-ok (a product)
-                    if p and x[h] * s > 0:
-                        w += 4 * len('%x' % h) * (x[h] * s // p)
-                        q = q * h ** (x[h] * s // p) if w <= MAXBITS else q
-                if w > MAXBITS:
-                    lst = None                  # q itself would be kept whole: no split
-                    break
-                if q > 1:
-                    v = mk((LN, mk((NUM, q, 0, 1))))
-                    lst.append(v if p * s == 1 else mk((MUL, mk((NUM, p * s, 0, 1)), v, ONE)))
-            if lst:
-                r = add_(lst)
+        elif HUGE and t[0] == MUL:              # a number with powers kept whole (6.1)
+            r = add_(KB.hln(a))
     elif a == ZERO and SINH <= op <= TANH:
         r = ONE if op == COSH else ZERO
     elif op == SIGN:

@@ -44,7 +44,9 @@ def terms(e, ks, out):                                          #@L 4
             b = prs[j]
             w = K.N[prs[j + 1]]
             n = 1
-            if w[0] == K.NUM and not w[2] and w[1] > 0 and not K.huge(b, prs[j + 1]):
+            if w[0] == K.NUM and not w[2] and w[1] > 0 and not (
+                    K.HUGE and K.N[b][0] == K.NUM and (w[3] == 1 or not K.N[b][2] and
+                                                       w[1] > w[3])):   # kept whole (nodeb.huge)
                 n = w[1]
                 if w[3] > 1:                                    # u^(n/q) = (u^(1/q))^n
                     b = K.mul_(K.ONE, [(b, K.num(1, 0, w[3]))])
