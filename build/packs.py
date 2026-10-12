@@ -45,7 +45,7 @@ class PackError(ValueError):
     pass
 
 
-KINDS = ('ui', 'core', 'family', 'soft')
+KINDS = ('ui', 'core', 'family', 'soft', 'view', 'aux')
 # MicroPython's compiler gives these bare names a meaning: const(x) must fold to an integer.
 COMPILER = ('const',)
 
@@ -122,6 +122,7 @@ class Module(object):
         self.natives = {}               # module-level alias -> native module name
         self.values = {}                # name -> literal value of its only plain assignment
         self.mutates = set()            # globals assigned inside functions
+        self.lazy = set()               # aliases a function binds later (global N; import X as N)
         for stmt in self.tree.body:
             if isinstance(stmt, ast.Import):
                 for a in stmt.names:
@@ -181,7 +182,10 @@ class Plan(object):
         for d in sources:
             if d not in self.owner and d != 'CASEVO':
                 raise PackError('%s is in no pack' % d)
-        self.soft = set(p for p in self.kind if self.kind[p] == 'soft')
+        # Soft and view packs are never held: code reaches them through __import__ only. A view
+        # pack (UI code) may run while run.need loads a family, so only a computation unloads it.
+        # An aux pack holds computation code that cannot reach the loader; it gives way last.
+        self.soft = set(p for p in self.kind if self.kind[p] in ('soft', 'view', 'aux'))
         self.run = run
         self.keys = _runtime_keys(sources[run])
         self.modules = {}
@@ -197,12 +201,14 @@ class Plan(object):
                 if isinstance(stmt, ast.Import):
                     for a in stmt.names:
                         (m.aliases if a.name in self.owner else m.natives)[a.asname or a.name] = a.name
-            if m.home in self.soft and m.mutates:
+            if m.home in self.soft and m.mutates - set(m.aliases):
                 raise PackError('%s lives in soft pack %s but assigns globals %s: a reload '
                                 'would lose them' % (m.name, m.home, sorted(m.mutates)))
             clash = set(self.kind) & set(m.bindings)
             if clash:
                 raise PackError('%s binds a pack name: %s' % (m.name, sorted(clash)))
+        self._lazy()
+        self._check_aux()
         self.rename = {}                # (device module, name) -> new name
         used = set()
         for m in self.modules.values():
@@ -218,8 +224,11 @@ class Plan(object):
             for d in homes:
                 m = self.modules[d]
                 for name in sorted(m.bindings):
-                    if name in m.aliases or self.place.get((d, name), pack) != pack:
-                        continue        # project aliases vanish; placed functions live elsewhere
+                    if self.place.get((d, name), pack) != pack:
+                        continue        # placed functions live elsewhere
+                    if name in m.aliases and name not in m.lazy and \
+                            self.owner[m.aliases[name]] in (pack,) + tuple(self.soft):
+                        continue        # same-pack and soft aliases bind nothing in a pack
                     entries.append((d, name))
             entries.extend(placed)
             for d, name in entries:
@@ -248,8 +257,59 @@ class Plan(object):
                 if isinstance(node, ast.Constant) and isinstance(node.value, str):
                     self.strings.add(node.value)
 
+    def _check_aux(self):
+        """Code in an aux pack runs while run.need may unload packs, so it must never reach the
+        loader: its module may not import run, even through other project modules."""
+        for (d, fn), pack in self.place.items():
+            if self.kind[pack] != 'aux':
+                continue
+            seen, todo = set(), [d]
+            while todo:
+                x = todo.pop()
+                if x in seen:
+                    continue
+                seen.add(x)
+                if x == self.run:
+                    raise PackError('%s.%s is in aux pack %s but %s reaches run' % (d, fn, pack, d))
+                todo.extend(self.modules[x].aliases.values())
+            stmt = [s for s in self.modules[d].tree.body
+                    if isinstance(s, ast.FunctionDef) and s.name == fn][0]
+            if any(isinstance(n, (ast.Yield, ast.YieldFrom)) for n in ast.walk(stmt)):
+                raise PackError('%s.%s: a generator cannot live in aux pack %s' % (d, fn, pack))
+
+    def _lazy(self):
+        """Lazy aliases (ui.engine): a module-level 'N = None' that some function of the pack
+        binds with 'global N' and 'import X as N'. Every module of the pack binding N shares it."""
+        for pack, kind, homes, placed in self.order:
+            found = {}
+            for d in homes:
+                for stmt in self.modules[d].tree.body:
+                    if not isinstance(stmt, ast.FunctionDef):
+                        continue
+                    declared = _function_locals(stmt)[1]
+                    for sub in ast.walk(stmt):
+                        if isinstance(sub, ast.Import):
+                            for a in sub.names:
+                                n = a.asname or a.name
+                                if a.name in self.owner and n in declared:
+                                    if found.get(n, a.name) != a.name:
+                                        raise PackError('%s: lazy alias %s names two modules' % (pack, n))
+                                    found[n] = a.name
+            for d in homes:
+                m = self.modules[d]
+                for n, x in found.items():
+                    if n in m.bindings:
+                        if n not in m.values or m.values[n] is not None:
+                            raise PackError('%s: lazy alias %s must start as None' % (d, n))
+                        m.aliases[n] = x
+                        m.lazy.add(n)
+
     def _shared(self, a, b, name):
-        """Both modules bind name to the same literal, or import the same native module."""
+        """Both modules bind name to the same literal, import the same native module, or alias
+        modules of the same pack."""
+        if name in a.aliases or name in b.aliases:
+            return (name in a.aliases and name in b.aliases and
+                    self.owner[a.aliases[name]] == self.owner[b.aliases[name]])
         if name in a.natives or name in b.natives:
             return a.natives.get(name) == b.natives.get(name) and name in a.natives
         if name in a.values and name in b.values:
@@ -368,8 +428,44 @@ class Rewrite(ast.NodeTransformer):
         self.resolve = Resolver(plan, name, aliases)
 
     # -- references --------------------------------------------------------------------------
-    def ref(self, device, name, ctx, node):
-        """An expression for a module-level binding of a device module, read or written here."""
+    def alias_name(self, via):
+        """The name an alias of this module (or a local import alias) has in the pack."""
+        if self.fn is not None and via in self.locals:
+            return via
+        if self.client:
+            return via
+        return self.plan.rename.get((self.name, via), via)
+
+    def lazy_elsewhere(self, via):
+        """A lazy alias read by code placed away from its home: the engine is bound there at
+        run time, and importing it here would load it too early (at boot for the UI)."""
+        if self.client or (self.fn is not None and via in self.locals):
+            return False
+        m = self.plan.modules.get(self.name)
+        return m is not None and via in m.lazy and self.here != m.home
+
+    def home_alias(self, via, node):
+        home = self.plan.owner[self.name]
+        self.use(home)
+        return ast.copy_location(ast.Attribute(value=ast.Name(id=home, ctx=ast.Load()),
+                                               attr=self.alias_name(via), ctx=ast.Load()), node)
+
+    def bound(self, via, device):
+        """Does the alias via (naming device) exist where this code runs? Module aliases exist
+        in the module's home pack only; import aliases of the pack itself or of a soft pack are
+        never bound."""
+        pack = self.plan.owner.get(device)
+        if pack == self.here or pack in self.plan.soft:
+            return False
+        if self.fn is not None and via in self.locals:
+            return True
+        if self.client:
+            return via in self.aliases
+        return self.here == self.plan.owner.get(self.name) and via in self.aliases
+
+    def ref(self, device, name, ctx, node, via=None):
+        """An expression for a module-level binding of a device module, read or written here.
+        via: the alias name the source used for the module, if any; it reaches the pack."""
         plan = self.plan
         loc = plan.where(device, name)
         new = plan.rename.get((device, name), name)
@@ -385,6 +481,10 @@ class Rewrite(ast.NodeTransformer):
                 raise PackError('%s: module code reaches %s.%s in soft pack %s and would keep '
                                 'it loaded' % (self.name, device, name, loc))
             value = _import(loc, node)
+        elif via is not None and plan.owner.get(device) == loc and self.bound(via, device):
+            value = ast.copy_location(ast.Name(id=self.alias_name(via), ctx=ast.Load()), node)
+        elif via is not None and plan.owner.get(device) == loc and self.lazy_elsewhere(via):
+            value = self.home_alias(via, node)
         else:
             self.use(loc)
             value = ast.copy_location(ast.Name(id=loc, ctx=ast.Load()), node)
@@ -398,13 +498,17 @@ class Rewrite(ast.NodeTransformer):
                     return
         self.uses.add(pack)
 
-    def module_value(self, device, node):
+    def module_value(self, device, node, via=None):
         """An expression for the module object of a device module (its home pack)."""
         pack = self.plan.owner[device]
         if pack == self.here and not self.client:
             return _import(pack, node)
         if pack in self.plan.soft:
             return _import(pack, node)
+        if via is not None and self.bound(via, device):
+            return ast.copy_location(ast.Name(id=self.alias_name(via), ctx=ast.Load()), node)
+        if via is not None and self.lazy_elsewhere(via):
+            return self.home_alias(via, node)
         self.use(pack)
         return ast.copy_location(ast.Name(id=pack, ctx=ast.Load()), node)
 
@@ -420,12 +524,15 @@ class Rewrite(ast.NodeTransformer):
             if node.id in self.resolve.local and isinstance(self.resolve.local[node.id], tuple):
                 device = self.resolve.local[node.id][1]
                 if isinstance(node.ctx, ast.Load):
-                    return self.module_value(device, node)
+                    return self.module_value(device, node, node.id)
             return node
         if node.id in self.aliases:
-            if not isinstance(node.ctx, ast.Load):
+            lazy = self.id_lazy(node.id)
+            if not isinstance(node.ctx, ast.Load) and not lazy:
                 raise PackError('%s rebinds the module alias %s' % (self.name, node.id))
-            return self.module_value(self.aliases[node.id], node)
+            if not isinstance(node.ctx, ast.Load):
+                return self.ref(self.name, node.id, node.ctx, node)   # the lazy global itself
+            return self.module_value(self.aliases[node.id], node, node.id)
         if self.own_global(node.id):
             return self.ref(self.name, node.id, node.ctx, node)
         return node
@@ -438,8 +545,10 @@ class Rewrite(ast.NodeTransformer):
         if target is None or target == '#mods':
             return self.generic_visit(node)
         if target == '*':
-            if node.attr in self.plan.renamed:
-                raise PackError('%s: .%s of a run-time module is renamed in a pack' %
+            loaded = set(self.plan.keys.values())
+            if any(t in loaded and n == node.attr for t, n in self.plan.rename) or \
+                    any(t in loaded and f == node.attr for t, f in self.plan.place):
+                raise PackError('%s: .%s of a run-time module is renamed or placed in a pack' %
                                 (self.name, node.attr))
             return self.generic_visit(node)
         static = self.resolve.static(node.value)
@@ -450,7 +559,8 @@ class Rewrite(ast.NodeTransformer):
             if self.plan.owner.get(target) == self.here and not self.client:
                 static = target
         if static is not None:
-            return self.ref(static, node.attr, node.ctx, node)
+            via = node.value.id if isinstance(node.value, ast.Name) else None
+            return self.ref(static, node.attr, node.ctx, node, via)
         loc = self.plan.where(target, node.attr)
         if loc != self.plan.owner[target]:
             raise PackError('%s: %s.%s is placed in %s, but this code reaches it through the '
@@ -477,27 +587,44 @@ class Rewrite(ast.NodeTransformer):
                         new = self.plan.rename.get((target, key.value), key.value)
                         node.args[1] = ast.copy_location(ast.Constant(new), key)
                 else:
+                    # A run-time module ('*') is one the loader can return: a family module.
+                    loaded = set(self.plan.keys.values())
+                    reach = lambda t: t == target or (target == '*' and t in loaded)
                     names = sorted(n for t, n in self.plan.rename
-                                   if target in ('*', t) and n in self.plan.strings)
+                                   if reach(t) and n in self.plan.strings)
                     names += sorted(f for (t, f) in self.plan.place
-                                    if target in ('*', t) and f in self.plan.strings)
+                                    if reach(t) and f in self.plan.strings)
                     if names:
                         raise PackError('%s: computed %s may name renamed or placed %s'
                                         % (self.name, fn.id, names))
         return self.generic_visit(node)
 
     # -- statements ----------------------------------------------------------------------------
+    def id_lazy(self, name):
+        m = self.plan.modules.get(self.name)
+        return m is not None and name in m.lazy
+
     def visit_Import(self, node):
         kept = []
         out = []
         for a in node.names:
             if a.name in self.plan.owner:
                 pack = self.plan.owner[a.name]
+                alias = a.asname or a.name
                 if pack in self.plan.soft:
                     continue                # soft packs are reached through __import__ only
-                if pack != self.here or self.client:
-                    if all(s.names[0].name != pack for s in out):
-                        out.append(ast.copy_location(ast.Import(names=[ast.alias(name=pack)]), node))
+                if pack == self.here and not self.client:
+                    continue                # the pack itself: plain globals
+                if self.fn is not None and alias in self.declared:
+                    # global N; import X as N (ui.engine): bind the pack to the global
+                    target = self.visit_Name(ast.copy_location(
+                        ast.Name(id=alias, ctx=ast.Store()), node))
+                    out.append(ast.copy_location(ast.Assign(
+                        targets=[target], value=_import(pack, node)), node))
+                    continue
+                name = self.alias_name(alias)
+                out.append(ast.copy_location(ast.Import(names=[ast.alias(
+                    name=pack, asname=name if name != pack else None)]), node))
             else:
                 alias = a.asname or a.name
                 new = alias
@@ -509,6 +636,23 @@ class Rewrite(ast.NodeTransformer):
         if not out:
             return ast.copy_location(ast.Pass(), node)
         return out if len(out) > 1 else out[0]
+
+    def visit_Assign(self, node):
+        value = self.resolve.static(node.value) if isinstance(node.value, ast.Name) else None
+        if value is not None and self.plan.owner[value] in self.plan.soft:
+            for t in node.targets:          # only the wiring of a lazy alias may store it
+                ok = False
+                if isinstance(t, ast.Name):
+                    ok = self.plan.modules[self.name].aliases.get(t.id) == value
+                elif isinstance(t, ast.Attribute):
+                    d = self.resolve.static(t.value)
+                    ok = d is not None and d in self.plan.modules and \
+                        self.plan.modules[d].aliases.get(t.attr) == value
+                if not ok:
+                    raise PackError('%s stores soft module %s: it would stay loaded'
+                                    % (self.name, value))
+            return ast.copy_location(ast.Pass(), node)
+        return self.generic_visit(node)
 
     def visit_Global(self, node):
         names = []
@@ -688,6 +832,13 @@ def merge(sources, man, clients=()):
                     meta['dev'] = _dev_table(plan, holder)
                 elif table == 'SOFT':
                     _set(holder, 'SOFT', tuple(p for p, k, _, _ in plan.order if k == 'soft'))
+                elif table == 'VIEW':
+                    _set(holder, 'VIEW', tuple(p for p, k, _, _ in plan.order if k == 'view'))
+                elif table == 'AUX':
+                    _set(holder, 'AUX', tuple(p for p, k, _, _ in plan.order if k == 'aux'))
+                elif table == 'DROPEVICT':
+                    import os as _os
+                    _set(holder, 'DROPEVICT', int(_os.environ.get('DROPEVICT', '1')))
                 elif table == 'EVDICT':
                     _set(holder, 'EVDICT', 1)       # see run.unload
                 elif table == 'SHEDAT':

@@ -283,18 +283,26 @@ def test_manifest_is_consistent_with_the_design_and_the_lint_map():
     assert man.PARTS['int'] == ('int', 'itab', 'int2', 'int2b', 'int3', 'int3b')
     assert man.PARTS['menu'] == ('menu', 'menub', 'cat')
     assert man.FAMILY['menub'] == 'menu' and man.FAMILY['polyc'] == 'norm'
-    packed = {}
-    for name, mods, kind in man.PACKS:
-        assert kind in ('ui', 'core', 'family') and len(name) <= 8 and name[:3] == 'CAS'
+    packed, placed = {}, {}
+    for name, members, kind in man.PACKS:
+        assert kind in ('ui', 'core', 'family', 'soft') and len(name) <= 8 and name[:3] == 'CAS'
+        mods = [m for m in members if '.' not in m]
+        for item in members:
+            if '.' in item:                        # a function placed away from its module
+                mod, fn = item.split('.')
+                assert mod in rows and item not in placed, item
+                placed[item] = name
         for mod in mods:
             assert mod in rows and mod not in packed, mod
             packed[mod] = name
         if kind == 'family':
             keys = tuple(man.key_of(m) for m in mods)
             fam = man.family_of(keys[0])
-            assert sorted(keys) == sorted(man.parts_of(fam)), name
+            assert sorted(keys) == sorted(man.parts_of(fam)) and len(mods) == len(members), name
         else:
             assert all(rows[m][2] == 'R' for m in mods), name
+    for phase, pack in man.ROOMS.items():          # each phase admits a soft pack
+        assert [k for p, _, k in man.PACKS if p == pack] == ['soft'], phase
     for mod in rows:                               # every module with a source file is packed
         if os.path.exists(os.path.join(SRC, mod + '.py')):
             assert mod in packed, mod

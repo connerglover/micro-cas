@@ -44,7 +44,8 @@ MACROS = {'polararea': (4, 4, 'integrate((#1)^2/2,#2,#3,#4)'),
 # COST, LINES, PEAKB and FRAG (build/bundle.py). Desktop DEV: runtime key -> src module.
 DEPS = {'norm': (),                     # poly, rules, ident and diff are parts of norm
         'fact': ('norm',), 'solve': ('norm', 'fact'),
-        'int': ('norm',),               # partial fractions call need('fact') themselves
+        'int': ('norm',), 'int2': ('norm',), 'int3': ('norm',), 'int3b': ('norm',),
+        'int2b': ('norm', 'int2'),      # partial fractions call need('fact') themselves
         'lim': ('norm',),
         'def': ('norm',),               # integration, solve and limits are separate phases
         'sum': ('norm',),
@@ -97,7 +98,7 @@ DEV = {'cat': 'catalog',
  'sumc': 'sumsc'}
 PARTS = {'def': ('def', 'defb', 'defc'),
  'fact': ('fact', 'factb', 'factc', 'factd', 'form'),
- 'int': ('int', 'itab', 'int2', 'int2b', 'int3', 'int3b'),
+ 'int': ('int', 'itab'),
  'lim': ('lim', 'limb', 'limc', 'ser', 'serb'),
  'menu': ('menu', 'menub', 'cat'),
  'norm': ('norm', 'normb', 'normc', 'poly', 'polyb', 'polyc', 'rules', 'rulesb', 'ident', 'diff'),
@@ -113,10 +114,6 @@ FAMILY = {'cat': 'menu',
  'factd': 'fact',
  'form': 'fact',
  'ident': 'norm',
- 'int2': 'int',
- 'int2b': 'int',
- 'int3': 'int',
- 'int3b': 'int',
  'itab': 'int',
  'limb': 'lim',
  'limc': 'lim',
@@ -143,6 +140,10 @@ CLOSURE = {'catb': ('catb',),
  'def': ('norm', 'def'),
  'fact': ('norm', 'fact'),
  'int': ('norm', 'int'),
+ 'int2': ('norm', 'int2'),
+ 'int2b': ('norm', 'int2', 'int2b'),
+ 'int3': ('norm', 'int3'),
+ 'int3b': ('norm', 'int3b'),
  'lim': ('norm', 'lim'),
  'menu': ('menu',),
  'norm': ('norm',),
@@ -155,6 +156,10 @@ PEAKB = 80          # compile peak per line (18.7)
 FRAG = 3072
 EVDICT = 0          # 1: clear a module's globals before deleting it (device; see unload)
 SOFT = ()           # device: stateless packs to unload when no family can give way (FASTBOOT)
+VIEW = ()           # device: UI packs; only unloaded while go() computes (none of their code runs)
+AUX = ()            # device: computation code that never reaches the loader; unloaded last
+INGO = False        # go() is computing
+DROPEVICT = 1       # drop() evicts at once (else need() evicts when memory runs short)
 ROOM = {}           # device: phase -> (soft pack, bytes it needs to load); see room()
 SHEDAT = 0          # device: below this many free bytes after parsing, idle soft packs unload
 KEEPFREE = 40960    # between commands, evict LRU families until this much is free (18.5)
@@ -252,7 +257,8 @@ def okname(v):                                                  #@L 7
 def go(job):                                                    #@L 1
     """job: ('eval', text) or ('form', history index). Returns a record; never raises, except
     KeyboardInterrupt, which is re-raised after the reset (10.4, 18.6)."""
-    global LINE, CTX, FLAGS, TARGET
+    global LINE, CTX, FLAGS, TARGET, INGO
+    INGO = True
     for attempt in (0, 1):   # an Out of memory with stale families loaded is retried once
         before = list(LOADED)
         rec = None
@@ -363,7 +369,7 @@ def go(job):                                                    #@L 1
         for f in before:             # have caused the failure; the retry runs without them
             if f not in PINNED:
                 spare = True
-        for n in SOFT:
+        for n in SOFT + VIEW + AUX:
             if n in sys.modules:
                 spare = True
         del PINNED[:]
@@ -375,6 +381,7 @@ def go(job):                                                    #@L 1
         else:
             trim()
         break
+    INGO = False
     if err is KBI:
         raise KeyboardInterrupt()
     try:
@@ -650,6 +657,8 @@ def need(key):                                                  #@L 3
                     continue
                 v = victim(now)
                 if v is None:
+                    if shed(None, AUX):
+                        continue
                     raise K.CasMemory()
                 evict(v)
             while True:
@@ -660,9 +669,10 @@ def need(key):                                                  #@L 3
                     unload(n)                # MicroPython 1.12 keeps the half-run module
                     if not shed():
                         v = victim(now)
-                        if v is None:
+                        if v is not None:
+                            evict(v)
+                        elif not shed(None, AUX):
                             raise
-                        evict(v)
                     gc.collect()
                 except BaseException:        # [on] in the middle of the body
                     unload(n)
@@ -699,7 +709,7 @@ def drop(keys):                                                 #@L 3
                 LIVE[c] -= 1
         if f in PINNED:
             PINNED.remove(f)
-        if f in LOADED and not LIVE.get(f, 0):
+        if f in LOADED and not LIVE.get(f, 0) and DROPEVICT:
             evict(f)
 
 
@@ -736,10 +746,12 @@ def trim():                                                     #@L 2
         evict(v)
 
 
-def shed(keep=None):                                            #@L 4
+def shed(keep=None, packs=None):                                #@L 4
     """Unload one cached soft pack (input, printer, layout) other than keep; False when none
     is loaded. Code reaches soft packs only through __import__, so the next use reloads it."""
-    for n in SOFT:
+    if packs is None:
+        packs = (VIEW + SOFT) if INGO else SOFT
+    for n in packs:
         if n != keep and n in sys.modules:
             unload(n)
             gc.collect()
@@ -767,7 +779,7 @@ def room(phase):                                                #@L 2
                 v = x
         if v is not None:
             evict(v)
-        elif not shed(name):
+        elif not shed(name) and not shed(name, AUX):
             break
     try:
         __import__(name)                 # the body runs one level deeper; defines only
@@ -788,6 +800,6 @@ def evict_all():                                                #@L 2
         unload(DEV.get(p))
     MODS.clear()
     del LOADED[:]
-    for n in SOFT:
+    for n in ((VIEW + SOFT) if INGO else SOFT) + AUX:
         unload(n)
     gc.collect()

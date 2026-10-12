@@ -29,9 +29,9 @@ MODULES = (
     ('alg',       'CVALG',     'R',   850,       19),
     ('parse',     'CVPARSE',   'R',   1250,       33),
     ('printer',   'CVPRINT',   'R',   900,       21),
-    ('run',       'CVRUN',     'R',   550,       22),
+    ('run',       'CVRUN',     'R',   600,       22),
     ('draw',      'CVDRAW',    'R',   350,       13),
-    ('ui',        'CVUI',      'R',   400,       10),
+    ('ui',        'CVUI',      'R',   500,       16),
     # lazy (L) and lazy UI (U) modules and parts, DESIGN 4.1 and 4.3
     ('rules',     'CVRULE',    'L',   150,       4),
     ('rulesb',    'CVRULEB',   'L',   150,       4),
@@ -74,7 +74,7 @@ MODULES = (
     ('odeb',      'CVODEB',    'L',   150,       4),
     ('odec',      'CVODEC',    'L',   150,       6),
     ('oded',      'CVODED',    'L',   150,       4),
-    ('menu',      'CVMENU',    'U',   150,       7),
+    ('menu',      'CVMENU',    'U',   200,       7),
     ('menub',     'CVMENUB',   'U',   150,       3),
     ('catalog',   'CVCAT',     'U',   150,       8),
     ('catalogb',  'CVCATB',    'U',   150,       4),
@@ -100,7 +100,7 @@ PARTS = {
              'diff'),
     'fact': ('fact', 'factb', 'factc', 'factd', 'form'),
     'solve': ('solve', 'solveb', 'solvec', 'solved', 'solvee'),
-    'int': ('int', 'itab', 'int2', 'int2b', 'int3', 'int3b'),
+    'int': ('int', 'itab'),   # strategies load one at a time (integ.EXTRA: need, then drop)
     'lim': ('lim', 'limb', 'limc', 'ser', 'serb'),
     'def': ('def', 'defb', 'defc'),
     'sum': ('sum', 'sumb', 'sumc'),
@@ -120,7 +120,9 @@ del _f, _p
 # members, kind. A member is a src module (its home pack, load order) or 'module.function' (a
 # function placed away from its home). 'ui' loads at boot; 'core' loads with the engine and
 # stays resident; 'family' packs hold exactly the parts of one family (PARTS) and are loaded and
-# evicted by run.need; 'soft' packs hold no state and are evicted only when memory runs short.
+# evicted by run.need; 'soft' packs hold no state and are evicted only when memory runs short;
+# 'view' packs are soft packs that only a running computation may unload; 'aux' packs hold
+# computation code that never reaches the loader and gives way last.
 # A pack must compile to at most PACKMAX bytes of bytecode (one TI variable).
 PACKS = (
     ('CASUI', ('draw', 'ui'), 'ui'),
@@ -129,13 +131,29 @@ PACKS = (
     # Soft packs stay cached but give way when a computation needs memory (one reload later).
     ('CASIN', ('parse.fnpre', 'parse.fnin', 'parse.mclose', 'parse.cutname', 'parse.scan',
                'parse.ti_rewrite', 'parse.ti_implicit', 'parse.untok', 'parse.tokens',
-               'parse.expand_names', 'run.start'), 'soft'),
+               'parse.expand_names', 'parse.approx', 'run.start'), 'soft'),
     ('CASPR', ('printer',), 'soft'),
+    # Computation helpers that never reach the loader (alg imports only node): loaded on first
+    # use, and the last code to give way when a family needs memory.
+    ('CASAX', ('alg.cpow', 'alg.cval', 'alg.degree', 'alg.linear', 'alg.nev', 'alg.nprobe',
+               'alg.nprog', 'alg.nrun', 'alg.ntol', 'alg.pco', 'alg.quadratic', 'alg.rebuild',
+               'alg.size', 'alg.split_const', 'alg.subst'), 'aux'),
+    # The interactive UI: keys, screens and 2D layout. A 'view' pack is unloaded only while a
+    # computation runs (run.go), since menus load families from inside key(). busy, status,
+    # panic and the drawing primitives stay in CASUI for use during and after a computation.
+    ('CASUX', ('ui.key', 'ui.show', 'ui.redraw', 'ui.boot', 'ui.engine', 'ui.insert',
+               'ui.enclosing', 'ui.empty_slot', 'ui.wrapped', 'draw.leaf', 'draw.row',
+               'draw.frame', 'draw.large', 'draw.tree', 'draw.measure', 'draw.place',
+               'draw.layout', 'draw.render', 'draw.paint'), 'view'),
     ('CASALG', ('poly', 'polyb', 'polyc', 'rules', 'rulesb', 'ident', 'norm', 'normb', 'normc',
                 'diff'), 'family'),
     ('CASFAC', ('factor', 'factorb', 'factorc', 'factord', 'forms'), 'family'),
     ('CASSOL', ('solve', 'solveb', 'solvec', 'solved', 'solvee'), 'family'),
-    ('CASINT', ('itab', 'integ', 'integ2', 'integ2b', 'integ3', 'integ3b'), 'family'),
+    ('CASINT', ('itab', 'integ'), 'family'),
+    ('CASIN2', ('integ2',), 'family'),
+    ('CASIN2B', ('integ2b',), 'family'),
+    ('CASIN3', ('integ3',), 'family'),
+    ('CASIN3B', ('integ3b',), 'family'),
     ('CASLIM', ('series', 'seriesb', 'limit', 'limitb', 'limitc'), 'family'),
     ('CASDEF', ('defint', 'defintb', 'defintc'), 'family'),
     ('CASSUM', ('sums', 'sumsb', 'sumsc'), 'family'),
@@ -144,7 +162,7 @@ PACKS = (
 )
 PACKMAX = 60000
 # run.room(phase): the soft pack each phase loads, so memory is made for it first.
-ROOMS = {'input': 'CASIN', 'print': 'CASPR'}
+ROOMS = {'input': 'CASIN', 'print': 'CASPR', 'layout': 'CASUX'}
 
 # Memory model (DESIGN 4.1, 18.1, 18.7). CALIBRATION says where the numbers come from:
 # 'provisional' = the DESIGN 18 estimates, because the M0.5 device run (PRBMEM on the
@@ -153,7 +171,8 @@ ROOMS = {'input': 'CASIN', 'print': 'CASPR'}
 CALIBRATION = 'provisional'
 FACTOR = 1.8      # RAM bytes per .mpy byte; set by the M0.5 gate (section 18.7)
 PEAKB = 80        # compile peak in bytes per source line; set by the M0.5 gate
-LAZYMAX = 150     # lines per lazy part; set by the M0.5 gate
+LAZYMAX = 200     # lines per lazy part. Was 150 while parts compiled on the calculator; packs
+                  # are precompiled (FASTBOOT.md), so PACKMAX and measured heap now bind
 NMAX = 768        # node slots preallocated at boot (DESIGN 5.1); set by the M0.5 gate
 EVICT = 'modules'           # eviction: 'modules', 'dict' (__dict__.clear() first) or 'none'
 DRAW_EVICTABLE = False      # ladder step 4 (DESIGN 18.8): CVDRAW evictable during a command

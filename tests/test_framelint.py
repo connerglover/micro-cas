@@ -865,7 +865,8 @@ def test_only_ui_engine_imports_in_the_ui():
             import run as R
             return R
     ''')
-    assert errs == ['ui.py:3: import inside boot(): only run.need, run.go and ui.engine import']
+    assert errs == ['ui.py:3: import inside boot(): only run.need, run.go, run.room and '
+                    'ui.engine import']
 
 
 def test_entry_obtains_a_lazy_engine():

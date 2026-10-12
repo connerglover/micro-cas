@@ -20,6 +20,7 @@ while True:
         if a is not None:
             R = U.engine()
             r = R.go(a)
+            R.room('layout')        # on the calculator: make room before the UI code reloads
             U.show(a, r)
     except MemoryError:
         U.panic(0)
