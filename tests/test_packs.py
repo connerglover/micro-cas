@@ -270,3 +270,36 @@ def test_loader_tables_and_clients(tmp_path, monkeypatch):
     assert 'import CASK as K' in clients['CLIENT']
     namespace = load(out, tmp_path, monkeypatch, clients['CLIENT'])
     assert namespace['X'] == 3
+
+
+def test_a_global_never_captures_a_builtin_another_module_of_the_pack_calls(tmp_path, monkeypatch):
+    src = {'node': '', 'run': RUN,
+           'fa': 'def total(xs):\n    return sum(xs)\n',
+           'fb': 'def sum(a, b=0):\n    return "fb.sum"\ndef both():\n    return sum(1)\n'}
+    out, clients, meta = merged(src, CORE)
+    assert meta['renames'].get('CVFB.sum')
+    load(out, tmp_path, monkeypatch)
+    import CASF
+    assert CASF.total([1, 2, 3]) == 6 and CASF.both() == 'fb.sum'
+
+
+def test_mutable_or_rebound_literals_are_never_shared(tmp_path, monkeypatch):
+    src = {'node': '', 'run': RUN,
+           'fa': 'CACHE = {}\nLIMIT = 8\ndef fa_get(x):\n    CACHE[x] = x * 2\n    return CACHE[x]\n'
+                 'def fa_limit():\n    return LIMIT\n',
+           'fb': 'CACHE = {}\nLIMIT = 8\ndef fb_get(x):\n    CACHE[x] = x * 3\n    return CACHE[x]\n'
+                 'def fb_raise():\n    global LIMIT\n    LIMIT = 100\n'}
+    out, clients, meta = merged(src, CORE)
+    load(out, tmp_path, monkeypatch)
+    import CASF
+    assert CASF.fa_get(5) == 10 and CASF.fb_get(5) == 15
+    CASF.fb_raise()
+    assert CASF.fa_get(5) == 10 and CASF.fa_limit() == 8
+
+
+def test_a_computed_upper_case_key_may_not_name_a_renamed_table():
+    src = {'node': '', 'run': RUN + 'def rset(name):\n    return getattr(MODS["fb"], name.upper())\n'
+                                      'SETS = ("trig",)\n',
+           'fa': 'TRIG = ("fa table",)\n', 'fb': 'TRIG = ("fb table",)\n'}
+    with pytest.raises(packs.PackError, match='computed'):
+        merged(src, CORE)

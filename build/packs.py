@@ -51,6 +51,7 @@ Anything this compiler cannot prove raises PackError instead of producing a subt
 This is a desktop build helper; nothing here runs on the calculator.
 """
 import ast
+import builtins
 import copy
 
 
@@ -105,6 +106,12 @@ def _comprehension_targets(tree):
     return out
 
 
+def _immutable(v):
+    if isinstance(v, tuple):
+        return all(_immutable(x) for x in v)
+    return v is None or isinstance(v, (bool, int, float, complex, str, bytes))
+
+
 def _function_locals(fn):
     names = {a.arg for a in fn.args.args}
     names.update(a.arg for a in (fn.args.vararg, fn.args.kwarg) if a)
@@ -121,6 +128,28 @@ def _function_locals(fn):
         elif isinstance(node, ast.Import):
             names.update(a.asname or a.name for a in node.names)
     return names - declared, declared
+
+
+BUILTINS = frozenset(dir(builtins))
+
+
+def _free_builtins(m, only=None):
+    """Builtin names that module m (or only its function `only`) reads without binding them:
+    in a pack they would resolve to another module's top-level binding of the same name."""
+    out = set()
+    for stmt in m.tree.body:
+        fn = isinstance(stmt, ast.FunctionDef)
+        if only is not None and not (fn and stmt.name == only):
+            continue
+        local = _function_locals(stmt)[0] if fn else set()
+        for node in ast.walk(stmt):
+            if isinstance(node, ast.comprehension):
+                local = local | set(n.id for n in ast.walk(node.target) if isinstance(n, ast.Name))
+        for node in ast.walk(stmt):
+            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and \
+                    node.id in BUILTINS and node.id not in local and node.id not in m.bindings:
+                out.add(node.id)
+    return out
 
 
 class Module(object):
@@ -227,6 +256,11 @@ class Plan(object):
         self._lazy()
         self._backrefs()
         self._check_aux()
+        self.stored = set()             # names some module stores as an attribute (A.NAME = v)
+        for m in self.modules.values():
+            for node in ast.walk(m.tree):
+                if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Store):
+                    self.stored.add(node.attr)
         self.rename = {}                # (device module, name) -> new name
         used = set()
         for m in self.modules.values():
@@ -249,8 +283,24 @@ class Plan(object):
                         continue        # same-pack and soft aliases bind nothing in a pack
                     entries.append((d, name))
             entries.extend(placed)
+            free = {}                   # builtin name -> modules of this pack that read it
+            for d in homes:
+                for n in _free_builtins(self.modules[d]):
+                    free.setdefault(n, set()).add(d)
+            for d, fn in placed:
+                for n in _free_builtins(self.modules[d], fn):
+                    free.setdefault(n, set()).add(d)
             for d, name in entries:
                 m = self.modules[d]
+                if free.get(name, set()) - set([d]):
+                    # another module of this pack calls the builtin `name`: keep it reaching
+                    # the builtin, not this module's global
+                    new = '%s_%s' % (name, d[2:].lower())
+                    while new in used:
+                        new += '_'
+                    used.add(new)
+                    self.rename[(d, name)] = new
+                    continue
                 if name in COMPILER:
                     new = '%s_%s' % (name, d[2:].lower())
                     while new in used:
@@ -367,7 +417,11 @@ class Plan(object):
         if name in a.natives or name in b.natives:
             return a.natives.get(name) == b.natives.get(name) and name in a.natives
         if name in a.values and name in b.values:
-            return a.values[name] == b.values[name] and type(a.values[name]) is type(b.values[name])
+            va, vb = a.values[name], b.values[name]
+            if name in a.mutates or name in b.mutates or name in self.stored or \
+                    not _immutable(va):
+                return False        # one shared object or global would couple the modules
+            return va == vb and type(va) is type(vb)
         return False
 
     def where(self, device, name):
@@ -647,10 +701,9 @@ class Rewrite(ast.NodeTransformer):
                     # A run-time module ('*') is one the loader can return: a family module.
                     loaded = set(self.plan.keys.values())
                     reach = lambda t: t == target or (target == '*' and t in loaded)
-                    names = sorted(n for t, n in self.plan.rename
-                                   if reach(t) and n in self.plan.strings)
-                    names += sorted(f for (t, f) in self.plan.place
-                                    if reach(t) and f in self.plan.strings)
+                    said = lambda n: n in self.plan.strings or n.lower() in self.plan.strings
+                    names = sorted(n for t, n in self.plan.rename if reach(t) and said(n))
+                    names += sorted(f for (t, f) in self.plan.place if reach(t) and said(f))
                     if names:
                         raise PackError('%s: computed %s may name renamed or placed %s'
                                         % (self.name, fn.id, names))
