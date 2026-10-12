@@ -118,13 +118,15 @@ def dden(r):                                                    #@L 7
 def dfac(r):                                                    #@L 3
     # r = k*N/D (a normal form: D primitive over Z) with D factored over Q (Yun's square-free
     # parts, their rational roots) when D is a polynomial in one kernel u and the factored
-    # form is not bigger (14, FlowCE one fraction); else r
+    # form is not bigger (14, FlowCE one fraction); else r. A number is no kernel (the base of
+    # a kept power, 2 in 2^100000+1), and past degree 64 the factoring costs seconds on the
+    # calculator (cubic in the degree), so those denominators stay as they are.
     D = dden(r)
     u = K.N[D][2] if D else 0
     if u and K.N[u][0] == K.MUL:
         u = K.N[u][2]
-    n = A.degree(D, u) if D else 0
-    cs = A.pco(D, u, n) if n > 0 else None
+    n = A.degree(D, u) if u and K.N[u][0] != K.NUM else 0
+    cs = A.pco(D, u, n) if 0 < n <= 64 else None
     if cs is None:
         return r
     a = []

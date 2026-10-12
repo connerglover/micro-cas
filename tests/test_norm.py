@@ -780,6 +780,25 @@ def test_simplify_matches_sympy_and_never_grows():
     assert n > 30
 
 
+def test_high_degree_denominators_are_not_factored():
+    # dfac's factoring is cubic in the degree: past 64 it would take minutes on the calculator
+    import signal
+    import time
+
+    def hang(*a):
+        raise AssertionError('no answer within 5 s')
+    old = signal.signal(signal.SIGALRM, hang)
+    signal.alarm(5)
+    try:
+        for s in ('1/(x^500-1)', '1/(x^2000+1)'):
+            t0 = time.perf_counter()
+            r = R.go(('eval', s))
+            assert r[:2] == ('ans', s) and time.perf_counter() - t0 < 0.5, (s, r)
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old)
+
+
 def test_verification_rejects_a_wrong_candidate(monkeypatch):
     real = NO.normal
 

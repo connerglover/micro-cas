@@ -245,6 +245,31 @@ def test_commands_on_giant_powers():
         assert ans(s) == want, s
 
 
+def test_quotients_by_giant_sums_answer_at_once():
+    # normc.dfac once took the base 2 of 2^100000+1 as a polynomial variable of degree 100000;
+    # the alarm turns such a hang into a failure (the calculator is about 75 times slower).
+    import signal
+
+    def hang(*a):
+        raise AssertionError('no answer within 5 s')
+    old = signal.signal(signal.SIGALRM, hang)
+    signal.alarm(5)
+    try:
+        for s, want in (
+                ('1/(2^100000+1)', '1/(2^100000+1)'),
+                ('2^100000/(2^100000+1)', '2^100000/(2^100000+1)'),
+                ('(2^100000+1)/(2^100000-1)', '(2^100000+1)/(2^100000-1)'),
+                ('1/(1-2^100000)', '-1/(2^100000-1)'),
+                ('1/(2^100000+i)', '1/(2^100000+i)'),
+                ('1/(3^(2^20)+1)', '1/(3^1048576+1)'),
+                ('1/(2^100000+3^50000)', '1/(3^50000+2^100000)'),
+                ('1/(2^16385+1)', '1/(2^16385+1)')):
+            assert ans(s) == want, s
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old)
+
+
 def test_simplify_keeps_what_it_cannot_verify():
     """simplify's candidates must pass the float probe (8.7), which a giant power cannot
     enter: the input stays as built, with no SIMPBUG."""
