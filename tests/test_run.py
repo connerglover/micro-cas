@@ -521,7 +521,7 @@ def test_casError_messages(env):
     assert ev('1+') == ('msg', 'missing operand', None, 0)
     assert ev('(1]') == ('msg', 'mismatched bracket', None, 0)
     assert ev('sin(x,y)') == ('msg', P.M_ARGS, None, 0)
-    assert ev('2^(10^6)') == ('msg', K.M_BIG, None, 0)
+    assert ev('(2^(10^16000))^(10^16000)') == ('msg', K.M_BIG, None, 0)   # exponent > MAXBITS
     assert ev("x'") == ('msg', P.M_PRIME, None, 0)
     clean()
 

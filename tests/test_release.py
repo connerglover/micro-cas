@@ -94,6 +94,31 @@ def test_families_load_once_and_stay_while_memory_allows(app):
     app.assert_clean()
 
 
+def test_giant_powers_load_their_aux_pack_only_when_met(app):
+    """DESIGN 6.1: the code for powers too large to fold is an aux pack. node's constructors
+    keep only a cheap test, so a plain session never loads it; a giant power loads it once and
+    gives the same exact answers as the source tree."""
+    big = pack(app, 'nodeb')
+    assert app.meta['kinds'][big] == 'aux' and big not in app.modules, app.modules
+    del app.loads[:]
+    for command, want in (('2+3', '5'), ('diff(x^3,x)', '3*x^2'), ('2^1000', str(2 ** 1000)),
+                          ('sqrt(8)/2', 'sqrt(2)'), ('factor(360)', '2^3*3^2*5'),
+                          ('integrate(x^2,x,0,1)', '1/3'), ('expand((x+1)^3)', 'x^3+3*x^2+3*x+1'),
+                          ('ln(8)', '3*ln(2)'), ('abs(x/2-1)', 'abs(x-2)/2')):
+        assert app.go(command)[:2] == ('ans', want), command
+        app.assert_clean()
+    assert big not in app.loads, app.loads
+    for command, want in (('3^(2^20)', '3^1048576'), ('2^100000*2', '2^100001'),
+                          ('2^100000+2^100000', '2^100001'), ('sqrt(2^100001)', '2^(100001/2)'),
+                          ('expand((2^100000+x)^2)', 'x^2+2^100001*x+2^200000'),
+                          ('log(10^100000)', '100000'), ('abs(x/2+2^99999)', 'abs(x/2+2^99999)'),
+                          ('(3+4*i)^100000/(3+4*i)^99999', '3+4*i')):
+        assert app.go(command)[:2] == ('ans', want), command
+        app.assert_clean()
+    assert app.loads.count(big) == 1, app.loads
+    assert app.max_depth <= 8
+
+
 def test_tight_heap_evicts_clears_and_reloads(app):
     commands = (('factor(x^4-1)', '(x-1)*(x+1)*(x^2+1)'), ('limit(sin(x)/x,x,0)', '1'),
                 ('integrate(x^2,x,0,1)', '1/3'), ('solve(x^2-5*x+6=0,x)', 'x=2,x=3'),

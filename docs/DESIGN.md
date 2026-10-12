@@ -239,6 +239,7 @@ written as parts (§4.3).
 |---|---|---|---|---|---|---|---|
 | `casevo.py` | `CASEVO` | entry | – | Imports resident modules leaf-first. Runs the event loop at module level. | 30 | 1 | UI |
 | `node.py` | `CVNODE` | R | `K` | Intern table, regions, number kernels, constructors (`add_`, `mul_`, `fn_`, `rel_`, `neg_`, `absn`), radicals, special values, the ∞ folding table, exceptions, `ESC` poll hook | 520 | 11 | T1 |
+| `nodeb.py` | `CVNODEB` | R | `KB` | Powers too large to fold (§6.1): the fold rule, `huge`, `nval`, the sum, ln and kernel rules. Imported by `node`; on the calculator an aux pack (`CASBIG`) loaded on first use | 320 | 8 | T1 |
 | `parse.py` | `CVPARSE` | R | `P` | Lexer, TI rewrite, name cutter, implicit `*`, token-level macro/variable expansion, shunting-yard, `inst`, `g_eval` | 420 | 9 | T1 |
 | `printer.py` | `CVPRINT` | R | `PR` | 1D printer, display order, decimal formatter, messages | 330 | 7 | T1 |
 | `alg.py` | `CVALG` | R | `A` | `postorder`, `subst`, predicates (`linear`, `quadratic`, `split_const`, `degree`, `simplify_candidate`), `size`, numeric evaluator `nev`, numeric zero probe | 300 | 7 | T1 |
@@ -397,9 +398,18 @@ SYMN, SYMI                    per-command symbol bit table: bit -> name, name ->
 - `k` is a NUM or FLT id other than zero.
 - Each `ei` is a nonzero id, either a number or any expression.
 - The `bi` are pairwise distinct; the exponents of equal bases are summed.
-- A `bi` is a number only in two cases:
+- A `bi` is a number only in three cases:
   - a positive integer >= 2 that is s-th-power-free, under a rational exponent r/s with 0 < r/s < 1
     (a radical, §6.2);
+  - a power **kept whole** because it is too large to fold (§6.1), `KB.huge(b, e)` (which also
+    asks for a weight `4·|floor(e)|·hexlen(b)` over `MAXBITS/16`, so the small powers of a HOLD's
+    display product are not taken for one): a squarefree
+    integer >= 2 under a rational exponent outside [0, 1) (`2^100000`, `10^(10^6)`,
+    `2^(200001/2)`, `2^-100000`), primes with equal exponents sharing one base as radicals do
+    (`6^100000`, not `2^100000*3^100000`); or a primitive non-real Gaussian integer that is not a
+    unit, under an integer exponent (`(3+4*i)^100000`). The coefficient `k` has no prime factor
+    of a real base kept whole, and neither has the coefficient of an ADD term containing one, so
+    `2*2^100000` is `2^100001`;
   - any number under a non-numeric exponent (`2^x`).
 - A `bi` is never a MUL under an integer exponent; such products are flattened.
 - `bi == E` means the exponential `e^ei`.
@@ -713,9 +723,60 @@ def nmul(x, y):                                                 #@L 7
 - Big integers are Python ints. Printing caps a result at 4,000 characters; a longer result is
   shown as the message `Done`, as FlowCE does.
 - **Size guards** (big-int work is otherwise unbounded and cannot be cancelled):
-  - Before `npowi`, the result size is estimated as `|n| × 4 × len('%x' % base)` bits (hex
-    conversion is linear; `int.bit_length` is absent). Above `MAXBITS = 65,536` bits it raises
-    `CasError('number too large')`, so `2^(10^6)` fails at once.
+  - `npowi` estimates the result size as `|n| × 4 × len('%x' % base)` bits (hex conversion is
+    linear; `int.bit_length` is absent) and raises `CasError('number too large')` above
+    `MAXBITS = 65,536` bits. The constructors never let it: a power too large to fold stays
+    **written as a power** (CalcPlex's giant numbers), exact and immediate, so `2^(10^6)`,
+    `3^(2^20)` and `7^7^7` are answers, not errors.
+  - **The fold rule** (`mul_`, end of the product): a real base goes to the radical table prime by
+    prime (§6.2). A prime power `q^n` (n = floor of q's exponent) has the *weight*
+    `4·|n|·len('%x' % q)`, the npowi estimate of `q^n` alone. It folds into the coefficient when
+    the weight is at most `MAXBITS`; otherwise `q` keeps its whole exponent as a pair (§5.3), and
+    the coefficient's factors `q` move into that exponent (`nval`), so `2^100000*2 = 2^100001`.
+    For a prime base this is exactly the old npowi limit (`2^16384` folds, `2^16385` stays), and 2
+    to 13 share it, so `10^16384` folds and `10^16385` stays whole. When the weights over
+    `MAXBITS/16` that would fold total more than `MAXFOLD = 2·MAXBITS`, those primes stay
+    whole too (`30030^16384`), which bounds one fold to about `MAXFOLD` bits.
+  - The fold rule is applied whenever its answer could differ from a direct `npowi`: a real
+    `b^n` with `24·|n|·hexlen` over `MAXBITS` is first bounded by its valuations at 2..13 (cheap),
+    and goes to the radical table only if a prime could be kept whole. `b^±1` is never factored.
+    A base over 4,000 bits is factored only below 256 (in `KB.hpow`); the rest is one cofactor.
+  - A coefficient over `2^16384` (a product of folded numbers, `2^10000*2^10000`) is searched for
+    the primes below 256, so it obeys the same rule; when none is kept whole it keeps its value.
+  - Non-real bases are not factored: their content `g/d` is split off, a unit folds, and another
+    primitive base stays whole when the npowi estimate exceeds `MAXBITS`.
+  - **Hard ceilings, still `number too large`:** an exponent kept whole whose numerator and
+    denominator take more than `MAXBITS` bits (`(2^(10^16000))^(10^16000)`); float overflow
+    (FLT arithmetic); `expand` of a power of a sum whose coefficients exceed `MAXBITS` (§8.5,
+    `(1+√2)^1000000`), which has no power form.
+  - **Known limits:** canonical form is exact for everything built by `mul_` and `add_`, but a sum
+    whose constant term is a NUM over `MAXBITS` (`2^16384+2^16384`) is not refactored, a factor
+    `q >= 256` hidden in a coefficient over `2^16384` is not found, and non-real bases are not
+    factored (`(1+i)^100000` is not reduced to `2^50000`). A base whose primes fold unequally
+    can print a long coefficient (`18^9000` is a 2,709-digit integer times `3^18000`); that is the
+    price of the per-prime rule, which keeps `(257^2)^3000` and `257^6000` the same node.
+  - A power kept whole has no float value: `nprog` raises `Undefined` for it (§6.6), so there is
+    no decimal line (§12.6), `approx` keeps it exact, and the numeric probe skips it. `simplify`
+    therefore keeps an expression holding one as built (its candidates cannot be verified, §8.7);
+    `expand`, `normal`, `together`, `factor` treat each such power as one kernel.
+  - **Where the code lives.** Giant powers are rare, so their rules are in `nodeb.py` (alias
+    `KB`), an aux pack on the calculator that loads the first time a command meets one; `node`
+    keeps only cheap tests in its hot paths. `mul_` calls `KB.hpow` for a number to an integer
+    power when `16·|n|·len('%x%x%x' % (a, b, d))` exceeds `MAXBITS` (a bound on every case the
+    rule above can send to the radical table or keep whole), and `KB.hfold` at the end of the
+    product when `20·hexlen(k) + Σ 4·|n|·hexlen(q)` over the radical table exceeds `MAXBITS` (a
+    bound on the weights once the coefficient's primes join them, so below it the rule always
+    folds everything, as the plain loop does). Every other hook (`add_`, `absn`, `fn_` for `ln`,
+    `mul_`'s `(Π B^X)^e`, and `huge` in `nprog`, `normal`, `kinds`, `factor`) first reads
+    `K.HUGE`, which is 1 once the command has kept a power whole; a power kept whole exists only
+    after that. So `2^1000`, radicals and every command without a giant power never load the
+    pack.
+  - `nodeb` cannot import `node` (`node` imports it, and the import graph is acyclic, §4.2): its
+    `K = None  #@lazy node` is bound by node's module body, `KB.K = __import__(__name__)`, and
+    the pack compiler turns that into plain references to node's pack (`build/packs.py`). `add_`
+    is level 6 and the leaves it would need (`mk`, `ifac`, `tiefix`, `nadd`) are level 7, so its
+    rule, `KB.hsum` (level 7), calls nothing: it puts each call it needs on a list that `add_`
+    carries out, and is run again with the answers so far until it is done.
   - The printer never calls `str()` on an integer whose estimated decimal length
     (`1.21 × hex length`) is over 4,000 digits, because `str()` of a big int is quadratic and has
     no cancel poll. The record becomes `Done` at once.
@@ -727,9 +788,12 @@ def nmul(x, y):                                                 #@L 7
 - **Canonical form:** the MUL pair `(r, p/s)` with `r >= 2` an s-th-power-free integer and
   `0 < p/s < 1`. The coefficient carries everything rational: `3√2 = MUL(3, 2, 1/2)`.
 - **Normalization in `mul_`,** for a real numeric base `q` under a rational exponent `n + p/s`:
-  1. Fold `q^n` into the coefficient.
-  2. Rationalize: `(u/v)^(p/s) = (u·v^(s-1))^(p/s) / v`. So `1/√2 = √2/2` and
-     `(2/3)^(1/2) = √6/3`.
+  1. Prime by prime: `(u/v)^x` puts `f·x` for every prime `r^f` of `u`, and `-f·x` for every
+     prime of `v`, into the radical table; the sign `(-1)^n` and the odd-root rule (step 5) go to
+     the coefficient. No power is computed here, so `(1/3)^(1/100000)` costs nothing.
+  2. At the end of the product each prime's integer part folds into the coefficient (unless it
+     is kept whole, §6.1) and the fractional part in (0, 1) stays. This is the rationalization
+     `(u/v)^(p/s) = (u·v^(s-1))^(p/s) / v`: `1/√2 = √2/2`, `(2/3)^(1/2) = √6/3`.
   3. Run `rootsplit(N, s)` (L7): trial division up to `min(10^4, N^(1/3))`, then a perfect s-th
      power test on the cofactor with an integer Newton root. It returns `(outside, inside)`. A
      cofactor with a large prime factor stays partly reduced; that is documented and still correct.
@@ -864,7 +928,8 @@ The decimal line, the numeric zero test, checks, quadrature and every numeric fa
     complex helpers `cexp`, `clog`, `csin`, `ccos` and `cpow` (L5) are built from `math`; `cmath`
     is absent.
   - Errors (`ZeroDivisionError`, `OverflowError`, a `ValueError` that has no complex meaning) are
-    caught by `nev` and raised as `Undefined`.
+    caught by `nev` and raised as `Undefined`. `nprog` raises `Undefined` for a power kept
+    whole (§6.1), which is beyond the float range either way.
   - **Every value is checked for nan and inf** (`v - v != 0`), whatever PROBE6 shows: float
     overflow gives inf without raising, and some MicroPython builds return nan from `asin(2)` or
     `log(0)` instead of raising. A nan from a native function first retries the complex helper (the
@@ -1326,6 +1391,12 @@ is what makes text-only session state safe.
 3. Split a MUL term with coefficient `c != 1` into `c` and `MUL(1, rest)`. A term `c·S`, with `S` a
    sum, is distributed (flattened) into the outer sum, so `2(x+1)+x` gives `3x+2` [M].
 4. Collect like terms in a dict `term id -> coefficient tuple` and drop zero coefficients.
+   Once the command has built a power kept whole (`K.HUGE`, §6.1), a term holding one gets its
+   coefficient's factors of that power's primes moved into the exponent (regrouped as rule 11),
+   and terms that then coincide are collected again: `2^100000+2^100000 = 2^100001`. (If an
+   exponent would have to fold, or a regrouped base meets another pair, the term is left.)
+   This is `KB.hsum`, which asks `add_` for the level-7 calls it needs (§6.1).
+   `absn` keeps the content of such a sum (`abs(x/2+2^99999)`), since scaling it would undo this.
 5. Sort the pairs by `(H, id)` and run `tiefix`.
 6. Collapse: no pairs gives the constant; one pair with a zero constant gives the product `k·t`.
 7. Infinity: `∞ + finite = ∞`, `∞ - ∞ = undef`.
@@ -1334,13 +1405,16 @@ is what makes text-only session state safe.
 the work stack:
 
 1. `e == 0`: skip. `0^0` is 1 (alg §2.1).
-2. A numeric `b` and an integer `e`: fold into `k` (`npowi`). `0^(-n)` raises `Undefined`.
+2. A numeric `b` and an integer `e`: fold into `k` (`npowi`), unless the result could be too
+   large to fold (§6.1): then a real `b` goes to the radical table prime by prime, and a
+   non-real one is kept whole. `0^n` is 0 and `0^(-n)` raises `Undefined`, at once.
 3. A real numeric `b` and a rational non-integer `e`: radical normalization (§6.2).
 4. A non-real numeric `b` and a non-integer `e`: keep the pair.
-5. `b` a MUL and `e` an integer: distribute. The coefficient goes to `k^e`, and each pair becomes
-   `(bj, ej·e)` (`ej·e` through `add_` when it is symbolic).
+5. `b` a MUL and `e` an integer: distribute. The coefficient goes back on the stack under `e`
+   (rule 2), and each pair becomes `(bj, ej·e)` (`ej·e` through `add_` when it is symbolic).
 6. `b` a MUL with a positive real rational coefficient `c` and a non-integer `e`: pull out `c^e`
-   (§8.3).
+   (§8.3). Then a MUL of real powers kept whole under a real rational `e` distributes:
+   `(Π B^X)^e = Π B^(X·e)`, as every such `B` is positive (`(2^100000)^(1/2) = 2^50000`).
 7. `b = MUL(1, u, m)`, a single pair, with `m` an even integer, `e` non-integer, and `m·e` an
    integer: gives `absn(u)^(m·e)` (§6.4: `absn` is L6, so `mul_` never calls `fn_`). If `m·e` is
    even it gives `u^(m·e)` (§8.3). So `sqrt((-x-1)^2)` and `sqrt((x+1)^2)` are both `abs(x+1)`.
@@ -1348,7 +1422,9 @@ the work stack:
 9. `b = ABS(u)` and `e` an even integer: gives `u^e`.
 10. Merge equal bases by summing exponents: numbers inline, otherwise with `add_`. For example
     `e^x·e^(2x) = e^(3x)` [M].
-11. Merge radicals with the same rational exponent (§6.2).
+11. Merge radicals with the same rational exponent (§6.2); the end of the product first applies
+    the fold rule of §6.1 to every prime of the radical table, and powers kept whole merge the
+    same way by their whole exponent.
 12. Infinity: the `mul_` rows of the ∞ table (§6.3).
 13. Assembly:
     - `k == 0` gives `ZERO`; no pairs gives `k`;
@@ -1605,6 +1681,11 @@ frames. It checks:
 - `NUM` is normalized and `FLT` is finite.
 - The ADD and MUL invariants of §5.3, including the pair order (it recomputes the sort and
   `tiefix`). The MUL inside a `HOLD` is exempt: it is display-only (§5.2).
+- Powers kept whole (§6.1), from an independent factorization: squarefree bases, one base per
+  exponent, every kept prime over `MAXBITS` by its weight (or, in the `MAXFOLD` case, over
+  `MAXBITS/16` with a total over `MAXFOLD`), the exponent within `MAXBITS`, and no coefficient
+  of the MUL or of an ADD term sharing a kept prime. A non-real base kept whole is primitive,
+  not a unit, and over the npowi estimate.
 - `H` and `V` equal a recomputation.
 - No `WILD` exists outside `RULECACHE`.
 - `fn_` normal forms: there is no `SIN(0)`, no `LN(1)`, no `LN(E)`, and no `MUL(1, E, LN u)`.
@@ -2620,7 +2701,11 @@ and runs no commands. This is what makes text-only session state safe. Floats co
     size >= 64, or results containing an unevaluated `sum(`;
   - never when the result contains `OO`, `UNDEF`, `TRUE`, `FALSE`, a sentinel (`DNE`, `DIVG`,
     `HOLD`) or a `CALL` (one scan of the result's nodes). So `limit(1/x^2,x,0)`, which gives `oo`,
-    shows no decimal line.
+    shows no decimal line;
+  - never for a result holding a power kept whole (§6.1): `nprog` raises `Undefined` for it,
+    since it overflows or underflows a float (`2^-100000` would print `0`). A logarithmic
+    estimate would not give the exact, platform-identical digits this line promises, so the
+    answer is shown exact only, like an integer, and `approx` keeps it exact.
 - **How it is computed:**
   - an exact rational uses `dec10(p, q)` directly;
   - anything else uses `nev`, then `fdec10` on each part (`nrun` has already rejected nan and

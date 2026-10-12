@@ -200,6 +200,62 @@ def test_aux_code_may_not_reach_the_loader():
         merged(src, rows)
 
 
+BACKREF = {
+    'node': '''
+        import CVNB as KB
+        KB.K = __import__(__name__)
+        FLAG = 0
+        def mk(x):
+            return x + 1
+        def go(x):
+            return KB.big(x) if x > 9 else mk(x)
+        ''',
+    'nb': '''
+        K = None
+        def big(x):
+            K.FLAG = 1
+            return K.mk(x) * 100
+        ''',
+    'run': RUN, 'fa': '', 'fb': ''}
+
+
+def test_a_back_reference_reads_its_module_pack(tmp_path, monkeypatch):
+    """node imports nb, so nb reaches node through K = None, bound by node's body: in the packs
+    both statements go, nb reads CASK by name, and node loads CASN only when it calls it."""
+    rows = (('CASK', ('node', 'run'), 'core'), ('CASN', ('nb',), 'aux'),
+            ('CASF', ('fa', 'fb'), 'family'))
+    out, _, meta = merged(BACKREF, rows)
+    assert '__import__(__name__)' not in out['CASK'] and 'CVNB' not in out['CASK']
+    assert "__import__('CASN').big" in out['CASK']
+    assert 'K = None' not in out['CASN'] and 'CASK.mk' in out['CASN']
+    load(out, tmp_path, monkeypatch)
+    import CASK
+    assert CASK.go(3) == 4 and 'CASN' not in sys.modules
+    assert CASK.go(10) == 1100 and CASK.FLAG == 1 and 'CASN' in sys.modules
+    del sys.modules['CASN']                       # evicted: the next call reloads it
+    assert CASK.go(11) == 1200
+
+
+def test_a_back_reference_needs_a_soft_pack_and_a_none_binding():
+    rows = (('CASK', ('node', 'run'), 'core'), ('CASN', ('nb',), 'core'),
+            ('CASF', ('fa', 'fb'), 'family'))
+    with pytest.raises(packs.PackError, match='not a soft pack'):
+        merged(BACKREF, rows)
+    rows = (('CASK', ('node', 'run'), 'core'), ('CASN', ('nb',), 'aux'),
+            ('CASF', ('fa', 'fb'), 'family'))
+    src = dict(BACKREF, nb='K = 1\ndef big(x):\n    return x\n')
+    with pytest.raises(packs.PackError, match='back-reference'):
+        merged(src, rows)
+
+
+def test_a_whole_aux_module_may_not_reach_the_loader():
+    rows = (('CASK', ('node', 'run'), 'core'), ('CASN', ('nb',), 'aux'),
+            ('CASF', ('fa', 'fb'), 'family'))
+    src = dict(BACKREF, nb='import CVRUN as R\nK = None\ndef big(x):\n    return x\n')
+    with pytest.raises(packs.PackError, match='reaches run'):
+        merged(src, rows)
+
+
 def test_loader_tables_and_clients(tmp_path, monkeypatch):
     rows = (('CASK', ('node', 'run'), 'core'), ('CASS', ('run.helper',), 'soft'),
             ('CASV', ('run.view',), 'view'), ('CASF', ('fa', 'fb'), 'family'))

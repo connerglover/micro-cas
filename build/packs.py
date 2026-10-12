@@ -22,6 +22,12 @@ home pack. Pack kinds:
 - ``aux``: computation code reached like a soft pack that can never reach the loader (run);
   unloaded last.
 
+Back-references: a module ``T`` that cannot import ``M`` (``M`` imports it, and the import graph
+is acyclic) declares ``X = None`` and ``M`` binds it at module level with
+``A.X = __import__(__name__)``, A being M's alias of T (node and nodeb: giant powers). In the
+packs that statement and ``X = None`` are dropped and ``X.name`` in T reads M's pack, as an
+import of M would; T's pack must then be soft (view, aux), so M never holds it.
+
 Rewriting:
 
 - a module-level project import ``import CVX as A`` becomes ``import PACK`` for CVX's home
@@ -130,6 +136,8 @@ class Module(object):
         self.values = {}                # name -> literal value of its only plain assignment
         self.mutates = set()            # globals assigned inside functions
         self.lazy = set()               # aliases a function binds later (global N; import X as N)
+        self.backref = set()            # aliases another module's body binds to that module
+        self.wiring = []                # this module's statements binding a back-reference
         for stmt in self.tree.body:
             if isinstance(stmt, ast.Import):
                 for a in stmt.names:
@@ -217,6 +225,7 @@ class Plan(object):
             if clash:
                 raise PackError('%s binds a pack name: %s' % (m.name, sorted(clash)))
         self._lazy()
+        self._backrefs()
         self._check_aux()
         self.rename = {}                # (device module, name) -> new name
         used = set()
@@ -266,12 +275,41 @@ class Plan(object):
                 if isinstance(node, ast.Constant) and isinstance(node.value, str):
                     self.strings.add(node.value)
 
+    def _backrefs(self):
+        """Module-level 'A.X = __import__(__name__)' in M, A M's alias of T and 'X = None' in T:
+        X is T's alias of M (see the module docstring). T must live in a soft pack."""
+        for m in self.modules.values():
+            for stmt in m.tree.body:
+                if not (isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and
+                        isinstance(stmt.targets[0], ast.Attribute) and
+                        isinstance(stmt.targets[0].value, ast.Name) and
+                        stmt.targets[0].value.id in m.aliases and
+                        isinstance(stmt.value, ast.Call) and
+                        isinstance(stmt.value.func, ast.Name) and
+                        stmt.value.func.id == '__import__' and len(stmt.value.args) == 1 and
+                        isinstance(stmt.value.args[0], ast.Name) and
+                        stmt.value.args[0].id == '__name__'):
+                    continue
+                t = self.modules[m.aliases[stmt.targets[0].value.id]]
+                x = stmt.targets[0].attr
+                if x not in t.values or t.values[x] is not None or x in t.aliases:
+                    raise PackError('%s binds %s.%s, which is no "%s = None" back-reference'
+                                    % (m.name, t.name, x, x))
+                if t.home not in self.soft:
+                    raise PackError('%s has a back-reference to %s but lives in %s, which is '
+                                    'not a soft pack' % (t.name, m.name, t.home))
+                t.aliases[x] = m.name
+                t.backref.add(x)
+                m.wiring.append(stmt)
+
     def _check_aux(self):
         """Code in an aux pack runs while run.need may unload packs, so it must never reach the
         loader: its module may not import run, even through other project modules."""
-        for (d, fn), pack in self.place.items():
-            if self.kind[pack] != 'aux':
-                continue
+        aux = [(d, fn) for (d, fn), pack in self.place.items() if self.kind[pack] == 'aux']
+        aux += [(d, None) for d, pack in self.owner.items() if self.kind[pack] == 'aux']
+        for d, fn in aux:
+            pack = self.place.get((d, fn), self.owner[d])
+            what = '%s.%s' % (d, fn) if fn else d
             seen, todo = set(), [d]
             while todo:
                 x = todo.pop()
@@ -279,12 +317,13 @@ class Plan(object):
                     continue
                 seen.add(x)
                 if x == self.run:
-                    raise PackError('%s.%s is in aux pack %s but %s reaches run' % (d, fn, pack, d))
+                    raise PackError('%s is in aux pack %s but %s reaches run' % (what, pack, d))
                 todo.extend(self.modules[x].aliases.values())
-            stmt = [s for s in self.modules[d].tree.body
-                    if isinstance(s, ast.FunctionDef) and s.name == fn]
-            if stmt and any(isinstance(n, (ast.Yield, ast.YieldFrom)) for n in ast.walk(stmt[0])):
-                raise PackError('%s.%s: a generator cannot live in aux pack %s' % (d, fn, pack))
+            for s in self.modules[d].tree.body:
+                if isinstance(s, ast.FunctionDef) and (fn is None or s.name == fn) and \
+                        any(isinstance(n, (ast.Yield, ast.YieldFrom)) for n in ast.walk(s)):
+                    raise PackError('%s.%s: a generator cannot live in aux pack %s'
+                                    % (d, s.name, pack))
 
     def _lazy(self):
         """Lazy aliases (ui.engine): a module-level 'N = None' that some function of the pack
@@ -838,8 +877,11 @@ def merge(sources, man, clients=()):
                     continue
                 if (isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and
                         isinstance(stmt.targets[0], ast.Name) and
-                        (d, stmt.targets[0].id) in plan.place):
+                        ((d, stmt.targets[0].id) in plan.place or
+                         stmt.targets[0].id in m.backref)):
                     continue
+                if any(stmt is w for w in m.wiring):
+                    continue                    # a back-reference: compiled away
                 emitted[pack].append((d, stmt))
         for d, fn in placed:
             stmt = [s for s in plan.modules[d].tree.body

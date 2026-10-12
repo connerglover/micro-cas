@@ -126,6 +126,12 @@ shrinking off. Lazy UI aliases (`R = None`,
 then `global R; import run as R` in `ui.engine`) bind the pack at run time, through the UI's
 home pack, so the engine never loads at boot.
 
+Later addition: a second aux pack, CASBIG, holds `nodeb` (powers too large to fold, DESIGN
+6.1). `node` keeps only cheap tests and reaches it through `__import__`, so a command without a
+giant power never loads it; `nodeb`'s back-reference to `node` (`K = None`, bound by node's
+module body) compiles to plain references to CASK1. Keeping that code out of CASK1 holds the
+95,000-byte startup at 16,912 bytes free (17,360 without the feature, 13,328 with it in CASK1).
+
 ### Loader changes (`src/run.py`)
 
 - A family whose pack is already imported binds without another import.

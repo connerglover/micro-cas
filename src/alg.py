@@ -4,6 +4,7 @@
 # LEFTREAL, which holds no ids.
 import math
 import node as K
+import nodeb as KB
 
 # program instructions (6.6): flat tuples of value indexes and Python numbers
 P_CONST = 0                  # (P_CONST, value)
@@ -684,7 +685,7 @@ def nprog(e, xs):                                               #@L 4
     # compile e into a flat program for nrun: one instruction per node, the root last; numbers
     # that are coefficients or exponents are folded into their parent's instruction. xs: a
     # tuple of SYM ids, the P_VAR slots. Raises Undefined for what has no numeric value (oo,
-    # undef, relations, lists, calls, a symbol not in xs).
+    # undef, relations, lists, calls, a symbol not in xs, a power too large to fold).
     N = K.N
     prog = []
     at = {}
@@ -714,6 +715,8 @@ def nprog(e, xs):                                               #@L 4
                 b = t[j]
                 c = t[j + 1]
                 w = N[c]
+                if K.HUGE and KB.huge(b, c):        # beyond the float range (5.3, 6.1)
+                    raise K.Undefined()
                 for g in (b, c):
                     if g not in at and N[g][0] <= K.FLT and (g == b or w[2]):
                         at[g] = len(prog)
