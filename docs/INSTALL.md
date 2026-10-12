@@ -29,8 +29,10 @@ source-build input, not the calculator download. Do not mix these packages.
    open `http://127.0.0.1:4173` in desktop Chrome or Edge. For a repository build,
    build the website first and run `python build/serve_website.py`.
 3. Choose **Connect your EVO**, select the calculator's serial port, then
-   **Install cas-evo**. The installer checks space, moves matching old source
-   companions out of RAM, sends the compiled libraries to archive, sends the
+   **Install cas-evo**. The installer checks space and reads back every
+   calculator file that has the name of an earlier cas-evo file. It deletes or
+   replaces only exact content matches of a recorded release and lists any
+   others it keeps. It then sends the compiled libraries to archive, sends the
    launchers to RAM, and verifies their locations. Wait for completion.
 4. Start a fresh **Python** session, select **CASEVO**, and run it.
 5. The screen should show `RAD`, an edit line, and the five bottom labels
@@ -41,11 +43,18 @@ For manual transfer, use [WebTILP](https://adriweb.github.io/tilibs/). Send ever
 `CVTEST.8xpy2` to **RAM**. Keep their names unchanged. Do not send JSON, Markdown,
 checksum files, raw `.mpy`, or source files from `src/` or `dist/device/`.
 WebTILP handles the older EVO 7.0 compiled-module container when needed.
+For a manual transfer, remove an earlier cas-evo first; see
+[Remove an earlier version](#remove-an-earlier-version).
 
-If you previously installed the source package, move its old companion programs
-out of RAM before opening Python. The installer checks their source hashes before
-moving them. If one differs, it leaves the file intact and identifies it for
-manual handling. It does not erase RAM, unrelated programs, or firmware.
+The browser installer removes an earlier version for you. It reads each file
+with an earlier cas-evo name back from the calculator and compares the decoded
+module or source text with the recorded v1 release (`legacy-v1.json` on the
+installer site), including the source companions that the v1 installer moved to
+archive. Only exact matches are deleted, or replaced by a new file with the same
+name. A file that differs or cannot be read is kept and listed. If such a file
+would be overwritten, or would hide a new library in Python, the installer
+changes nothing and asks you to remove it yourself. It does not erase RAM,
+unrelated programs, or firmware.
 
 Only CASEVO and CVTEST should appear as launchable programs. The compiled
 companions stay in archive and load on demand. Ordinary archived `.py` files
@@ -58,6 +67,39 @@ The EVO format and archive behavior come from
 [EVO Python transfer implementation](https://github.com/Evo-Programming/evo_usb_py).
 Physical USB transfer and execution of this cas-evo package still need hardware
 acceptance; native tests are not an EVO emulator.
+
+## Remove an earlier version
+
+The v1 release put **236 compiled libraries** in archive and the two launchers
+`CASEVO` and `CVTEST` in RAM. The new release uses far fewer, differently named
+libraries. Leftover v1 libraries are not used by the new release. Whether
+removing them changes loading time on the EVO has not been measured yet.
+
+To remove them without the browser installer, use **TI Connect Evo**: connect
+the calculator, open its list of calculator files, select the files below and
+delete them. Menu names can differ between TI Connect Evo versions. Deleting
+cannot be undone; copy anything you are unsure about to your computer first.
+
+| v1 files | Names |
+|---|---|
+| Launchers (RAM) | `CASEVO`, `CVTEST` |
+| Phase libraries (archive) | `CVP00000` to `CVP00055` (56 files) |
+| Function pages (archive) | `CVF00001` to `CVF00128` (128 files) |
+| Engine and UI libraries (archive) | `CVALG` `CVCAT` `CVDEF` `CVDEFB` `CVDEFC` `CVDIFF` `CVDRAW` `CVFACT` `CVFACTB` `CVFACTC` `CVFACTD` `CVFORM` `CVIDENT` `CVINT` `CVINT2` `CVINT2B` `CVINT3` `CVINT3B` `CVITAB` `CVLIM` `CVLIMB` `CVLIMC` `CVMENU` `CVMENUB` `CVNODE` `CVNORM` `CVNORMB` `CVNORMC` `CVODE` `CVODEB` `CVODEC` `CVODED` `CVPARSE` `CVPH` `CVPOLY` `CVPOLYB` `CVPOLYC` `CVPRINT` `CVRULE` `CVRULEB` `CVRUN` `CVSER` `CVSERB` `CVSOLVE` `CVSOLVEB` `CVSOLVEC` `CVSOLVED` `CVSOLVEE` `CVSUM` `CVSUMB` `CVSUMC` `CVUI` (52 files) |
+
+Earlier source-package copies of these modules can also exist as Python source
+files with the same names, in RAM or archive. Remove them the same way.
+
+- **Before installing the new release:** delete every file in the table,
+  including `CASEVO` and `CVTEST`, then send the new package.
+- **After installing the new release:** first compare the table with the file
+  names in the new `cas-evo-calculator.zip`. Keep `CASEVO`, `CVTEST` and every
+  file that is part of the new package, even when a new library reuses a v1
+  name. Delete only the remaining names from the table.
+
+Only delete names that appear in the table. Other programs that start with `CV`
+are not cas-evo files. If you edited a cas-evo file yourself, keep a copy before
+deleting it.
 
 ## First checks
 
