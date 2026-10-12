@@ -469,7 +469,10 @@ class Rewrite(ast.NodeTransformer):
             return True
         if self.client:
             return via in self.aliases
-        return self.here == self.plan.owner.get(self.name) and via in self.aliases
+        # Module aliases are bound as the pack's own name; a lazy alias (bound later by a
+        # function) exists in its home pack only.
+        m = self.plan.modules.get(self.name)
+        return m is not None and via in m.lazy and self.here == m.home
 
     def ref(self, device, name, ctx, node, via=None):
         """An expression for a module-level binding of a device module, read or written here.
@@ -629,6 +632,13 @@ class Rewrite(ast.NodeTransformer):
                         ast.Name(id=alias, ctx=ast.Store()), node))
                     out.append(ast.copy_location(ast.Assign(
                         targets=[target], value=_import(pack, node)), node))
+                    continue
+                if self.fn is None and not self.client:
+                    # Module aliases bind the pack under its own name: a merged pack may use
+                    # the old alias spelling as some function's local, and the shrinker's
+                    # alias analysis is scope-free.
+                    if all(not (isinstance(s, ast.Import) and s.names[0].name == pack) for s in out):
+                        out.append(ast.copy_location(ast.Import(names=[ast.alias(name=pack)]), node))
                     continue
                 name = self.alias_name(alias)
                 out.append(ast.copy_location(ast.Import(names=[ast.alias(
@@ -864,6 +874,12 @@ def merge(sources, man, clients=()):
                     _set(holder, 'FRAG', getattr(man, 'PACKFRAG', 2048))
             uses.update(rw.uses)
             for s in new:
+                if isinstance(s, ast.Import) and len(s.names) == 1 and s.names[0].asname is None \
+                        and s.names[0].name in plan.kind and \
+                        any(isinstance(b, ast.Import) and len(b.names) == 1 and
+                            b.names[0].asname is None and b.names[0].name == s.names[0].name
+                            for b in body):
+                    continue                # the pack is already imported, by another module
                 body.append(s)
                 spans.append((d, stmt.lineno, stmt.end_lineno))
         imported = set()

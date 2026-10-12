@@ -90,7 +90,7 @@ def test_same_pack_attributes_become_globals_and_stores_declare_them(tmp_path, m
               '''}
     out, clients, meta = merged(src, CORE)
     assert 'K.X' not in out['CASK'] and 'global X' in out['CASK']
-    assert 'import CASK as K' in out['CASF']
+    assert out['CASF'].count('import CASK\n') == 1 and 'CASK.X' in out['CASF']
     load(out, tmp_path, monkeypatch)
     import CASK
     assert CASK.total() == 11

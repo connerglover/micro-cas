@@ -297,6 +297,21 @@ def test_module_alias_cleared_after_use_and_session_injection(monkeypatch):
     assert getattr(module, names['parse_answer'])() == 42
 
 
+def test_explicit_seed_marks_a_session_injected_from_outside(monkeypatch):
+    # The launcher that sets SESSION is not shrunk with the modules, so the seed is given.
+    inputs = {
+        'shsession': 'def long_answer():\n return 42\nMODS={}\ndef need(key):\n return MODS[key]\n',
+        'shparser': 'SESSION=None\ndef parse_answer():\n S=SESSION\n M=S.need("active")\n out=M.long_answer()\n M=None\n return out\n'}
+    assert 'long_answer' not in shrink.make_mapping(inputs)
+    outputs, names = shrink.shrink_sources(inputs, seeds={'shparser': {'SESSION'}})
+    assert 'long_answer' in names
+    loaded = load(outputs, monkeypatch)
+    session, parser = loaded['shsession'], loaded['shparser']
+    getattr(session, names['MODS'])['active'] = session
+    setattr(parser, names['SESSION'], session)
+    assert getattr(parser, names['parse_answer'])() == 42
+
+
 def test_alias_shadowing_reserves_affected_attribute():
     inputs = {'shcore': 'def long_method():\n return 1\n',
               'shshadow': 'import shcore as M\ndef use(M):\n return M.long_method()\n'}
@@ -320,3 +335,14 @@ def test_real_source_mapping_has_useful_savings_and_compiles():
     for name, text in outputs.items():
         compile(text, name, 'exec')
         assert text.count('\n') == inputs[name].count('\n')
+
+
+def test_clearing_every_attribute_from_dir_constrains_no_spelling():
+    inputs = {'shcore': 'long_value = 1\ndef long_method():\n return long_value\n',
+              'shrun': 'import shcore as M\ndef unload(m):\n for k in dir(m):\n'
+                       '  if k[:2] != "__":\n   setattr(m, k, None)\n'
+                       'def use():\n return M.long_method()\n'}
+    mapping = shrink.make_mapping(inputs)
+    assert 'long_value' in mapping and 'long_method' in mapping
+    computed = dict(inputs, shrun=inputs['shrun'].replace('setattr(m, k, None)', 'setattr(m, k, 1)'))
+    assert 'long_method' not in shrink.make_mapping(computed)   # any other value: reflection

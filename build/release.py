@@ -51,13 +51,13 @@ def invalidate(dist):
             path.unlink()
 
 
-def _shrunk(pack_sources, clients):
+def _shrunk(pack_sources, clients, seeds=None):
     """Minify and shrink every pack, the CASEVO client and (as an extra source) CVTEST."""
     sources = dict((name, bundle.minify(text).text) for name, text in pack_sources.items())
     sources['CASEVO'] = bundle.minify(clients['CASEVO']).text
     probe = bundle.minify(clients['CVTEST']).text
     out, mapping = shrink.shrink_sources(sources, reserved=RESERVED, reuse=True,
-                                         local_names=True, extra_sources=(probe,))
+                                         local_names=True, extra_sources=(probe,), seeds=seeds)
     return out, mapping, shrink.transform(probe, mapping, allow_reuse=True)
 
 
@@ -120,10 +120,13 @@ def prepare(dist, man=None):
                'CVTEST': (ROOT / 'probe/CVTEST.py').read_text('ascii')}
     pack_sources, client_sources, meta = packs.merge(device, man, clients)
     runpack = meta['owner']['CVRUN']
+    # parse.SESS holds the run module (set by ui.engine and CVTEST): command dispatch through
+    # it is a registry lookup, as in v1's explicit seed.
+    seeds = {meta['owner']['CVPARSE']: {meta['renames'].get('CVPARSE.SESS', 'SESS')}}
     sizer = bundle.mpy_sizer()
     if sizer is None:
         raise ValueError('the release needs mpy-cross to measure pack sizes')
-    shrunk, mapping, probe = _shrunk(pack_sources, client_sources)
+    shrunk, mapping, probe = _shrunk(pack_sources, client_sources, seeds)
     sizes = _sizes(dict((k, v) for k, v in shrunk.items() if k != 'CASEVO'), sizer)
     rows = man.rows()
     family = {}
@@ -136,7 +139,7 @@ def prepare(dist, man=None):
                 for phase, pack in sorted(man.ROOMS.items()))
     pack_sources[runpack] = packs.loader_tables(pack_sources[runpack], {
         'COST': cost, 'ROOM': room, 'SHEDAT': man.SHEDAT})
-    shrunk, mapping, probe = _shrunk(pack_sources, client_sources)
+    shrunk, mapping, probe = _shrunk(pack_sources, client_sources, seeds)
     final = dict((k, v) for k, v in shrunk.items() if k != 'CASEVO')
     sizes = _sizes(final, sizer)
     for pack, size in sizes.items():

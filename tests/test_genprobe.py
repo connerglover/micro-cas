@@ -367,8 +367,11 @@ def test_manifest_holds_the_gate_constants():
     assert isinstance(man.NMAX, int) and man.NMAX % 64 == 0 and man.NMAX >= 512
     if man.CALIBRATION == 'provisional':
         # until the device run, the DESIGN 18 numbers (DESIGN 4.1 keeps CVDRAW resident)
-        for name in ('FACTOR', 'PEAKB', 'LAZYMAX', 'NMAX', 'EVICT', 'FRAG', 'MPYB'):
+        for name in ('FACTOR', 'PEAKB', 'NMAX', 'EVICT', 'FRAG', 'MPYB'):
             assert getattr(man, name) == genprobe.PROVISIONAL[name], name
+        # packs are compiled off the calculator (docs/notes/FASTBOOT.md): LAZYMAX is a line
+        # budget for the build, no longer the on-calculator compile reserve
+        assert man.LAZYMAX >= genprobe.PROVISIONAL['LAZYMAX']
         assert man.DRAW_EVICTABLE is False
 
 
@@ -420,8 +423,9 @@ def test_cli(tmp_path, capsys, monkeypatch):
     man = tmp_path / 'manifest.py'
     shutil.copy(genprobe.MANIFEST, str(man))
     monkeypatch.setattr(genprobe, 'MANIFEST', str(man))
+    before = bundle.load_manifest(genprobe.MANIFEST).LAZYMAX
     assert genprobe.main(['--derive', str(t), '--apply']) == 0
-    assert 'manifest LAZYMAX: 150 -> 140' in capsys.readouterr().out
+    assert 'manifest LAZYMAX: %d -> 140' % before in capsys.readouterr().out
     assert bundle.load_manifest(str(man)).LAZYMAX == 140
     assert genprobe.main(['--bogus']) == 2
 

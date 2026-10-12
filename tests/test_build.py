@@ -280,12 +280,15 @@ def test_manifest_is_consistent_with_the_design_and_the_lint_map():
     assert man.KEYS == framelint.KEYS
     # families (DESIGN 4.3, 15.1; docs/notes/FASTBOOT.md): one family per archive pack
     assert man.PARTS['norm'][:1] == ('norm',) and 'poly' in man.PARTS['norm']
-    assert man.PARTS['int'] == ('int', 'itab', 'int2', 'int2b', 'int3', 'int3b')
+    # integration strategies are their own families: integ.EXTRA loads one, then drops it
+    assert man.PARTS['int'] == ('int', 'itab')
+    assert not set(man.FAMILY) & {'int2', 'int2b', 'int3', 'int3b'}
     assert man.PARTS['menu'] == ('menu', 'menub', 'cat')
     assert man.FAMILY['menub'] == 'menu' and man.FAMILY['polyc'] == 'norm'
     packed, placed = {}, {}
     for name, members, kind in man.PACKS:
-        assert kind in ('ui', 'core', 'family', 'soft') and len(name) <= 8 and name[:3] == 'CAS'
+        assert kind in ('ui', 'core', 'family', 'soft', 'view', 'aux') and len(name) <= 8 and \
+            name[:3] == 'CAS'
         mods = [m for m in members if '.' not in m]
         for item in members:
             if '.' in item:                        # a function placed away from its module
@@ -301,8 +304,8 @@ def test_manifest_is_consistent_with_the_design_and_the_lint_map():
             assert sorted(keys) == sorted(man.parts_of(fam)) and len(mods) == len(members), name
         else:
             assert all(rows[m][2] == 'R' for m in mods), name
-    for phase, pack in man.ROOMS.items():          # each phase admits a soft pack
-        assert [k for p, _, k in man.PACKS if p == pack] == ['soft'], phase
+    for phase, pack in man.ROOMS.items():          # each phase admits a soft or view pack
+        assert [k for p, _, k in man.PACKS if p == pack] in (['soft'], ['view']), phase
     for mod in rows:                               # every module with a source file is packed
         if os.path.exists(os.path.join(SRC, mod + '.py')):
             assert mod in packed, mod
@@ -373,7 +376,7 @@ def test_closure_is_leaf_first_and_ends_with_the_family():
     merged = bundle.closure(DEPS_15_1, bundle.families(man), man.FAMILY)
     assert merged['norm'] == ('norm',)             # a part needing its own family is no edge
     assert merged['solve'] == ('norm', 'fact', 'solve')
-    assert merged['def'] == ('norm', 'fact', 'int', 'def')   # int2b lists fact here
+    assert merged['def'] == ('norm', 'int', 'def')   # int2b (fact) is loaded on demand
     for fam, c in cl.items():
         assert c[-1] == fam
         seen = set()

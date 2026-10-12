@@ -194,7 +194,28 @@ def _short_names():
         width += 1
 
 
-def make_mapping(sources, reserved=(), local_names=False):
+def _clears_every_name(call, parents):
+    """setattr(obj, k, None) inside 'for k in dir(obj)': it reaches every attribute that
+    exists at run time, whatever it is called, so it constrains no spelling (run.unload)."""
+    if call.func.id != 'setattr' or len(call.args) != 3 or call.keywords:
+        return False
+    obj, key, value = call.args
+    if not (isinstance(key, ast.Name) and isinstance(value, ast.Constant) and value.value is None):
+        return False
+    node = parents.get(call)
+    while node is not None:
+        if isinstance(node, ast.For) and isinstance(node.target, ast.Name) and \
+                node.target.id == key.id and isinstance(node.iter, ast.Call) and \
+                isinstance(node.iter.func, ast.Name) and node.iter.func.id == 'dir' and \
+                len(node.iter.args) == 1 and ast.dump(node.iter.args[0]) == ast.dump(obj):
+            return True
+        if isinstance(node, (ast.FunctionDef, ast.Module)):
+            return False
+        node = parents.get(node)
+    return False
+
+
+def make_mapping(sources, reserved=(), local_names=False, seeds=None):
     """Return a stable old-name -> new-name dict; keys in sources are import module names."""
     trees = {name: ast.parse(source, filename=name) for name, source in sources.items()}
     candidates = set()
@@ -214,7 +235,8 @@ def make_mapping(sources, reserved=(), local_names=False):
     computed_upper = False
     # A resident may receive its session module from boot(), e.g. P.SESS=R. Track that
     # attribute into the receiving module, including its initial None placeholder.
-    seeds = {name: set() for name in sources}
+    given = seeds or {}
+    seeds = {name: set(given.get(name, ())) for name in sources}
     for tree in trees.values():
         aliases, imports = _aliases(tree, set(sources))
         owners = {}
@@ -253,6 +275,8 @@ def make_mapping(sources, reserved=(), local_names=False):
                                                        _literal_is_one_token(source, node)):
                     blocked.add(node.value)
             elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in REFLECT:
+                if _clears_every_name(node, parents):
+                    continue                # names come from dir() at run time: any spelling
                 if len(node.args) > 1 and not isinstance(node.args[1], ast.Constant):
                     lookup = node.args[1]
                     target = lookup.func if isinstance(lookup, ast.Call) else None
@@ -383,9 +407,11 @@ def transform(source, mapping, allow_reuse=False):
     return source
 
 
-def shrink_sources(sources, reserved=(), reuse=False, extra_sources=(), local_names=False):
-    """Return ({module: transformed source}, mapping), deterministic across dict order."""
-    mapping = make_mapping(sources, reserved, local_names)
+def shrink_sources(sources, reserved=(), reuse=False, extra_sources=(), local_names=False,
+                   seeds=None):
+    """Return ({module: transformed source}, mapping), deterministic across dict order.
+    seeds: {module: names} that hold a project module at run time (e.g. parse.SESS)."""
+    mapping = make_mapping(sources, reserved, local_names, seeds)
     extra_sources = tuple(extra_sources)
     # Entry/probe text is transformed with the same map later. Its user-facing
     # strings are not reflection metadata and must never become identifiers.

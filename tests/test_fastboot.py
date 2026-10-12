@@ -47,7 +47,8 @@ def test_entry_and_ui_modules_import_no_engine_module():
     assert set(top_imports('casevo')) <= {'ti_system', 'time', 'gc', 'ui'}
     for name in ('ui', 'draw', 'menu', 'menub'):
         for m in top_imports(name):
-            assert m in ('ti_system', 'ti_draw', 'time', 'gc', 'ui', 'draw'), (name, m)
+            # sys: ui.engine removes a half-imported engine module from sys.modules
+            assert m in ('ti_system', 'ti_draw', 'time', 'gc', 'sys', 'ui', 'draw'), (name, m)
     for name in src_modules():
         with open(os.path.join(SRC, name + '.py'), encoding='utf-8') as fh:
             assert 'ti_graphics' not in fh.read(), name
