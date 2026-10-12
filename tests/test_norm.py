@@ -262,7 +262,7 @@ def test_api():
     for name in ('simplify', 'expand', 'together'):          # the registry reaches them
         ent = R.CMDS[name]
         assert ent[0] == 'norm' and hasattr(NO, ent[1])
-    assert R.PARTS['norm'] == ('norm', 'normb', 'normc')
+    assert R.PARTS['norm'][:3] == ('norm', 'normb', 'normc')
 
 
 def code_lines(name):

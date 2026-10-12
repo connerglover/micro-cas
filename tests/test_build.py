@@ -16,6 +16,7 @@ import pytest
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 BUILD = os.path.join(ROOT, 'build')
+SRC = os.path.join(ROOT, "src")
 if BUILD not in sys.path:
     sys.path.insert(0, BUILD)
 
@@ -277,11 +278,26 @@ def test_manifest_is_consistent_with_the_design_and_the_lint_map():
     assert rows['solvec'][1] == 'CVSOLVEC'
     # the runtime keys agree with FRAMELINT's
     assert man.KEYS == framelint.KEYS
-    # families (DESIGN 4.3, 15.1)
-    assert man.PARTS['poly'] == ('poly', 'polyb', 'polyc')
-    assert 'int' not in man.PARTS and 'int2' not in man.PARTS
-    assert man.PARTS['menu'] == ('menu', 'menub')
-    assert man.FAMILY['menub'] == 'menu' and man.FAMILY['polyc'] == 'poly'
+    # families (DESIGN 4.3, 15.1; docs/notes/FASTBOOT.md): one family per archive pack
+    assert man.PARTS['norm'][:1] == ('norm',) and 'poly' in man.PARTS['norm']
+    assert man.PARTS['int'] == ('int', 'itab', 'int2', 'int2b', 'int3', 'int3b')
+    assert man.PARTS['menu'] == ('menu', 'menub', 'cat')
+    assert man.FAMILY['menub'] == 'menu' and man.FAMILY['polyc'] == 'norm'
+    packed = {}
+    for name, mods, kind in man.PACKS:
+        assert kind in ('ui', 'core', 'family') and len(name) <= 8 and name[:3] == 'CAS'
+        for mod in mods:
+            assert mod in rows and mod not in packed, mod
+            packed[mod] = name
+        if kind == 'family':
+            keys = tuple(man.key_of(m) for m in mods)
+            fam = man.family_of(keys[0])
+            assert sorted(keys) == sorted(man.parts_of(fam)), name
+        else:
+            assert all(rows[m][2] == 'R' for m in mods), name
+    for mod in rows:                               # every module with a source file is packed
+        if os.path.exists(os.path.join(SRC, mod + '.py')):
+            assert mod in packed, mod
     # the memory numbers are the M0.5 gate's to set (DESIGN 18.7); only their shape is pinned
     assert isinstance(man.LAZYMAX, int) and man.PEAKB > 0 and man.FACTOR > 0
     for r in man.MODULES:
@@ -340,12 +356,16 @@ DEPS_15_1 = {'norm': ('poly', 'rules', 'ident'), 'fact': ('poly', 'norm'),
 
 def test_closure_is_leaf_first_and_ends_with_the_family():
     man = bundle.load_manifest()
-    fams = bundle.families(man)
-    cl = bundle.closure(DEPS_15_1, fams, man.FAMILY)
+    fams = tuple(sorted(set(DEPS_15_1) | set(d for v in DEPS_15_1.values() for d in v)))
+    cl = bundle.closure(DEPS_15_1, fams, {})       # one module per family: the full order
     assert cl['poly'] == ('poly',)
     assert cl['norm'] == ('poly', 'rules', 'ident', 'norm')
     assert cl['solve'] == ('poly', 'rules', 'ident', 'norm', 'fact', 'solve')
     assert cl['def'] == ('itab', 'rules', 'poly', 'ident', 'norm', 'diff', 'int', 'def')
+    merged = bundle.closure(DEPS_15_1, bundle.families(man), man.FAMILY)
+    assert merged['norm'] == ('norm',)             # a part needing its own family is no edge
+    assert merged['solve'] == ('norm', 'fact', 'solve')
+    assert merged['def'] == ('norm', 'fact', 'int', 'def')   # int2b lists fact here
     for fam, c in cl.items():
         assert c[-1] == fam
         seen = set()
@@ -363,7 +383,7 @@ def test_desktop_tables_for_run_py(tmp_path):
     assert t['DEV']['int'] == 'integ' and t['DEV']['polyb'] == 'polyb'
     assert t['DEV']['catb'] == 'catalogb' and 'node' not in t['DEV']
     assert t['PARTS'] == man.PARTS and t['FAMILY'] == man.FAMILY
-    assert t['CLOSURE']['solve'] == ('poly', 'rules', 'ident', 'norm', 'fact', 'solve')
+    assert t['CLOSURE']['solve'] == ('norm', 'fact', 'solve')
     assert 'CLOSURE' not in bundle.desktop_tables(man)
     # the command line reads DEPS from src/run.py
     src = tmp_path / 'src'
@@ -375,7 +395,7 @@ def test_desktop_tables_for_run_py(tmp_path):
     assert p.returncode == 0, p.stdout + p.stderr
     ns = {}
     exec(p.stdout, ns)
-    assert ns['CLOSURE']['fact'] == ('poly', 'rules', 'ident', 'norm', 'fact')
+    assert ns['CLOSURE']['fact'] == ('norm', 'fact')
     assert ns['DEV'] == t['DEV'] and ns['PARTS'] == man.PARTS
 
 
@@ -516,6 +536,27 @@ SAMPLE = {
 }
 
 
+def _sample_manifest():
+    """The real manifest with poly as a family of its own, like the sample tree."""
+    man = bundle.load_manifest()
+    ns = dict(vars(man))
+    parts = dict(man.PARTS)
+    parts['norm'] = tuple(p for p in parts['norm'] if p not in ('poly', 'polyb', 'polyc'))
+    parts['poly'] = ('poly', 'polyb', 'polyc')
+    ns['PARTS'] = parts
+    ns['FAMILY'] = dict((p, f) for f in parts for p in parts[f][1:])
+    return bundle.Manifest(ns)
+
+
+def _sample_manifest_file(tmp_path):
+    man = _sample_manifest()
+    path = tmp_path / 'manifest.py'
+    with open(bundle.MANIFEST, encoding='utf-8') as fh:
+        text = fh.read()
+    path.write_text(text + '\nPARTS = %r\nFAMILY = %r\n' % (man.PARTS, man.FAMILY), encoding='utf-8')
+    return str(path)
+
+
 def _write_tree(tmp_path, files=None, extra=None):
     src = tmp_path / 'src'
     src.mkdir(parents=True)
@@ -536,7 +577,7 @@ def _run(cwd, mod):
 
 def test_bundle_sample_tree_end_to_end(tmp_path):
     src, dist = _write_tree(tmp_path)
-    res = bundle.bundle(src, dist, sizer=None)
+    res = bundle.bundle(src, dist, man=_sample_manifest(), sizer=None)
     assert res.errors == [], res.errors
     dev = os.path.join(dist, 'device')
     names = sorted(os.listdir(dev))
@@ -612,7 +653,7 @@ def test_bundle_sample_tree_end_to_end(tmp_path):
 
 def test_bundle_line_map_points_at_the_source(tmp_path):
     src, dist = _write_tree(tmp_path)
-    res = bundle.bundle(src, dist, sizer=None)
+    res = bundle.bundle(src, dist, man=_sample_manifest(), sizer=None)
     assert res.errors == []
     table = linemap.load(os.path.join(dist, 'linemap.json'))
     srcnode = _d(SAMPLE['node']).splitlines()
@@ -659,7 +700,8 @@ def test_bundle_cli(tmp_path):
     env = dict(os.environ)
     env['MPY_CROSS'] = os.path.join(str(tmp_path), 'no-such-mpy-cross')
     p = subprocess.run([sys.executable, os.path.join(BUILD, 'bundle.py'), '--src', src,
-                        '--dist', dist], capture_output=True, text=True, timeout=120, env=env)
+                        '--dist', dist, '--manifest', _sample_manifest_file(tmp_path)],
+                       capture_output=True, text=True, timeout=120, env=env)
     assert p.returncode == 0, p.stdout + p.stderr
     assert 'CVNODE' in p.stdout and 'warning' in p.stdout
     assert os.path.exists(os.path.join(dist, 'device', 'CVNODE.py'))
@@ -671,7 +713,7 @@ def test_bundle_clears_stale_device_files(tmp_path):
     os.makedirs(dev)
     with open(os.path.join(dev, 'CVOLD.py'), 'w') as fh:
         fh.write('x=1\n')
-    assert bundle.bundle(src, dist, sizer=None).errors == []
+    assert bundle.bundle(src, dist, man=_sample_manifest(), sizer=None).errors == []
     assert not os.path.exists(os.path.join(dev, 'CVOLD.py'))
 
 
@@ -686,7 +728,7 @@ def test_bundle_stops_on_src_lint_errors(tmp_path):
             return [K.mk(y) for y in x]
         '''
     src, dist = _write_tree(tmp_path, bad)
-    res = bundle.bundle(src, dist, sizer=None)
+    res = bundle.bundle(src, dist, man=_sample_manifest(), sizer=None)
     assert any('comprehension' in e for e in res.errors)
     assert not os.path.exists(os.path.join(dist, 'device', 'CVNODE.py'))
 
@@ -702,7 +744,7 @@ def test_bundle_stops_on_framelint_errors(tmp_path):
             return K.mk(x)
         '''
     src, dist = _write_tree(tmp_path, bad)
-    res = bundle.bundle(src, dist, sizer=None)
+    res = bundle.bundle(src, dist, man=_sample_manifest(), sizer=None)
     assert any('callee must be > 7' in e for e in res.errors), res.errors
 
 
@@ -719,7 +761,7 @@ def test_bundle_src_name_checks(tmp_path, extra, frag):
         else:
             files[k] = v
     src, dist = _write_tree(tmp_path, files)
-    res = bundle.bundle(src, dist, sizer=None, lint=False)
+    res = bundle.bundle(src, dist, man=_sample_manifest(), sizer=None, lint=False)
     assert any(frag in e for e in res.errors), res.errors
 
 
@@ -738,7 +780,7 @@ def test_bundle_output_lint_reports_unmarked_errors_with_the_source_line(tmp_pat
     files['run'] = SAMPLE['run'].replace('    return MODS[key]',
                                          '    return MODS[key + "" / 1]  #@unordered-ok')
     src, dist = _write_tree(tmp_path, files)
-    res = bundle.bundle(src, dist, sizer=None, lint=False)
+    res = bundle.bundle(src, dist, man=_sample_manifest(), sizer=None, lint=False)
     comp = [e for e in res.errors if 'comprehension' in e]
     assert len(comp) == 1 and 'CVALG.py:3 (' in comp[0] and 'alg.py:6)' in comp[0], comp
     div = [e for e in res.errors if "'/' in an exact module" in e]
@@ -751,12 +793,12 @@ def test_bundle_warnings(tmp_path):
         "DEV = {'poly': 'poly', 'polyb': 'polyb', 'polyc': 'polyc'}\n", '').replace(
         '__import__(DEV[p])', '__import__(p)')
     src, dist = _write_tree(tmp_path, files)
-    res = bundle.bundle(src, dist, sizer=None, lint=False)
+    res = bundle.bundle(src, dist, man=_sample_manifest(), sizer=None, lint=False)
     assert res.errors == []
     assert any('no literal DEV' in w for w in res.warnings), res.warnings
     empty = tmp_path / 'empty'
     empty.mkdir()
-    res = bundle.bundle(str(empty), str(tmp_path / 'd3'), sizer=None)
+    res = bundle.bundle(str(empty), str(tmp_path / 'd3'), man=_sample_manifest(), sizer=None)
     assert res.errors == [] and any('no src files' in w for w in res.warnings)
 
 
@@ -764,11 +806,11 @@ def test_bundle_run_tables_must_agree_with_the_manifest(tmp_path):
     files = dict(SAMPLE)
     files['run'] = SAMPLE['run'].replace("('poly', 'polyb', 'polyc')}", "('poly', 'polyb')}")
     src, dist = _write_tree(tmp_path, files)
-    res = bundle.bundle(src, dist, sizer=None, lint=False)
+    res = bundle.bundle(src, dist, man=_sample_manifest(), sizer=None, lint=False)
     assert any('PARTS' in e and 'manifest' in e for e in res.errors), res.errors
     files['run'] = SAMPLE['run'].replace("'polyc': 'polyc'", "'polyc': 'poly'")
     src2, dist2 = _write_tree(tmp_path / 'b', files)
-    res = bundle.bundle(src2, dist2, sizer=None, lint=False)
+    res = bundle.bundle(src2, dist2, man=_sample_manifest(), sizer=None, lint=False)
     assert any('DEV' in e for e in res.errors), res.errors
 
 
@@ -797,12 +839,12 @@ def test_bundle_size_gate(tmp_path):
     def big(path):
         seen.append(os.path.basename(path))
         return 10 ** 6 if path.endswith('CVNODE.py') else 100
-    res = bundle.bundle(src, dist, sizer=big)
+    res = bundle.bundle(src, dist, man=_sample_manifest(), sizer=big)
     assert 'CVNODE.py' in seen and 'CVPOLY.py' in seen
     assert any('CVNODE' in e and 'KB' in e for e in res.errors), res.errors
     assert not any('mpy-cross' in w for w in res.warnings)
     # COST uses the .mpy size when there is one
-    res = bundle.bundle(src, os.path.join(str(tmp_path), 'd2'), sizer=lambda p: 100)
+    res = bundle.bundle(src, os.path.join(str(tmp_path), 'd2'), man=_sample_manifest(), sizer=lambda p: 100)
     assert res.errors == []
     man = bundle.load_manifest()
     run = open(os.path.join(str(tmp_path), 'd2', 'device', 'CVRUN.py'),
@@ -815,6 +857,6 @@ def test_bundle_with_real_mpy_cross_if_installed(tmp_path):
     if sizer is None:
         pytest.skip('mpy-cross is not installed (set MPY_CROSS or pip install mpy-cross)')
     src, dist = _write_tree(tmp_path)
-    res = bundle.bundle(src, dist, sizer=sizer)
+    res = bundle.bundle(src, dist, man=_sample_manifest(), sizer=sizer)
     assert res.errors == [], res.errors
     assert res.mpy['CVNODE'] > 0

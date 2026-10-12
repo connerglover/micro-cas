@@ -51,7 +51,7 @@ NATIVE_MARK = '#@native'
 MINLEVEL = 1
 MAXLEVEL = 7
 GEN_LEVEL = 2
-IMPORT_OK = (('run', 'need'), ('run', 'go'), ('ui', 'boot'))
+IMPORT_OK = (('run', 'need'), ('run', 'go'), ('run', 'room'), ('ui', 'boot'))
 ROOT_GEN_OK = (('run', 'go'),)
 ENTRY = ('casevo', 'CASEVO')
 
@@ -466,7 +466,7 @@ class Analysis(object):
                                       'class' if isinstance(n, ast.ClassDef) else 'def',
                                       F.name))
             if isinstance(n, (ast.Import, ast.ImportFrom)) and here not in IMPORT_OK:
-                self.errors.append('%s:%d: import inside %s(): only run.need, run.go and '
+                self.errors.append('%s:%d: import inside %s(): only run.need, run.go, run.room and '
                                    'ui.boot import' % (m.path, n.lineno, F.name))
             if F.is_gen:
                 if isinstance(n, ast.YieldFrom):
@@ -510,7 +510,7 @@ class Analysis(object):
     def _check_call(self, m, F, call, local, binds, parents, here):
         if isinstance(call.func, ast.Name) and call.func.id == '__import__' and \
                 '__import__' not in local and here not in IMPORT_OK:
-            self.errors.append('%s:%d: __import__ inside %s(): only run.need, run.go and '
+            self.errors.append('%s:%d: __import__ inside %s(): only run.need, run.go, run.room and '
                                'ui.boot import' % (m.path, call.lineno, F.name))
         kind, x = self.classify(m, call, local, binds)
         virtual = F.is_gen and self._virtual(call, parents)

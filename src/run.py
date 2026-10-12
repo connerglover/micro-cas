@@ -49,15 +49,14 @@ HINT = {'simplify': 'simplify(e)', 'expand': 'expand(e)', 'factor': 'factor(e,[x
 
 # -- the loader tables (DESIGN 4.3, 18.4); the bundler rewrites DEV, PARTS, FAMILY, CLOSURE,
 # COST, LINES, PEAKB and FRAG (build/bundle.py). Desktop DEV: runtime key -> src module.
-DEPS = {'norm': ('poly', 'rules', 'ident'), 'fact': ('poly', 'norm'),
-        'solve': ('poly', 'norm', 'fact', 'rules'), 'diff': ('norm', 'poly', 'rules', 'ident'),
-        'int': ('itab', 'rules', 'diff', 'norm', 'poly'), 'lim': ('ser', 'diff', 'norm', 'poly'),
-        'ser': ('norm', 'poly'), 'int2': ('poly', 'norm'), 'int2b': ('int2', 'poly', 'norm', 'fact'),
-        'int3': ('diff', 'norm', 'poly'), 'int3b': ('norm', 'poly'),
-        'def': ('poly', 'norm'),        # integration, solve and limits are separate phases
-        'sum': ('poly', 'norm'),
-        'ode': ('poly', 'norm'),
-        'form': ('norm', 'fact'), 'menu': ('cat',)}
+DEPS = {'norm': (),                     # poly, rules, ident and diff are parts of norm
+        'fact': ('norm',), 'solve': ('norm', 'fact'),
+        'int': ('norm',),               # partial fractions call need('fact') themselves
+        'lim': ('norm',),
+        'def': ('norm',),               # integration, solve and limits are separate phases
+        'sum': ('norm',),
+        'ode': ('norm',),
+        'menu': ()}
 DEV = {'cat': 'catalog',
  'catb': 'catalogb',
  'def': 'defint',
@@ -104,21 +103,28 @@ DEV = {'cat': 'catalog',
  'sumb': 'sumsb',
  'sumc': 'sumsc'}
 PARTS = {'def': ('def', 'defb', 'defc'),
- 'fact': ('fact', 'factb', 'factc', 'factd'),
- 'lim': ('lim', 'limb', 'limc'),
- 'menu': ('menu', 'menub'),
- 'norm': ('norm', 'normb', 'normc'),
+ 'fact': ('fact', 'factb', 'factc', 'factd', 'form'),
+ 'int': ('int', 'itab', 'int2', 'int2b', 'int3', 'int3b'),
+ 'lim': ('lim', 'limb', 'limc', 'ser', 'serb'),
+ 'menu': ('menu', 'menub', 'cat'),
+ 'norm': ('norm', 'normb', 'normc', 'poly', 'polyb', 'polyc', 'rules', 'rulesb', 'ident', 'diff'),
  'ode': ('ode', 'odeb', 'odec', 'oded'),
- 'poly': ('poly', 'polyb', 'polyc'),
- 'rules': ('rules', 'rulesb'),
- 'ser': ('ser', 'serb'),
  'solve': ('solve', 'solveb', 'solvec', 'solved', 'solvee'),
  'sum': ('sum', 'sumb', 'sumc')}
-FAMILY = {'defb': 'def',
+FAMILY = {'cat': 'menu',
+ 'defb': 'def',
  'defc': 'def',
+ 'diff': 'norm',
  'factb': 'fact',
  'factc': 'fact',
  'factd': 'fact',
+ 'form': 'fact',
+ 'ident': 'norm',
+ 'int2': 'int',
+ 'int2b': 'int',
+ 'int3': 'int',
+ 'int3b': 'int',
+ 'itab': 'int',
  'limb': 'lim',
  'limc': 'lim',
  'menub': 'menu',
@@ -127,43 +133,37 @@ FAMILY = {'defb': 'def',
  'odeb': 'ode',
  'odec': 'ode',
  'oded': 'ode',
- 'polyb': 'poly',
- 'polyc': 'poly',
- 'rulesb': 'rules',
- 'serb': 'ser',
+ 'poly': 'norm',
+ 'polyb': 'norm',
+ 'polyc': 'norm',
+ 'rules': 'norm',
+ 'rulesb': 'norm',
+ 'ser': 'lim',
+ 'serb': 'lim',
  'solveb': 'solve',
  'solvec': 'solve',
  'solved': 'solve',
  'solvee': 'solve',
  'sumb': 'sum',
  'sumc': 'sum'}
-CLOSURE = {'cat': ('cat',),
- 'catb': ('catb',),
- 'def': ('poly', 'rules', 'ident', 'norm', 'def'),
- 'diff': ('poly', 'rules', 'ident', 'norm', 'diff'),
- 'fact': ('poly', 'rules', 'ident', 'norm', 'fact'),
- 'form': ('poly', 'rules', 'ident', 'norm', 'fact', 'form'),
- 'ident': ('ident',),
- 'int': ('itab', 'rules', 'poly', 'ident', 'norm', 'diff', 'int'),
- 'int2': ('poly', 'rules', 'ident', 'norm', 'int2'),
- 'int2b': ('poly', 'rules', 'ident', 'norm', 'int2', 'fact', 'int2b'),
- 'int3': ('poly', 'rules', 'ident', 'norm', 'diff', 'int3'),
- 'int3b': ('poly', 'rules', 'ident', 'norm', 'int3b'),
- 'itab': ('itab',),
- 'lim': ('poly', 'rules', 'ident', 'norm', 'ser', 'diff', 'lim'),
- 'menu': ('cat', 'menu'),
- 'norm': ('poly', 'rules', 'ident', 'norm'),
- 'ode': ('poly', 'rules', 'ident', 'norm', 'ode'),
- 'poly': ('poly',),
- 'rules': ('rules',),
- 'ser': ('poly', 'rules', 'ident', 'norm', 'ser'),
- 'solve': ('poly', 'rules', 'ident', 'norm', 'fact', 'solve'),
- 'sum': ('poly', 'rules', 'ident', 'norm', 'sum')}
+CLOSURE = {'catb': ('catb',),
+ 'def': ('norm', 'def'),
+ 'fact': ('norm', 'fact'),
+ 'int': ('norm', 'int'),
+ 'lim': ('norm', 'lim'),
+ 'menu': ('menu',),
+ 'norm': ('norm',),
+ 'ode': ('norm', 'ode'),
+ 'solve': ('norm', 'fact', 'solve'),
+ 'sum': ('norm', 'sum')}
 COST = {}           # part key -> steady bytes; LINES: part key -> lines (the bundler's numbers)
 LINES = {}
 PEAKB = 80          # compile peak per line (18.7)
 FRAG = 3072
-EVDICT = 0          # 1: clear a module's globals before deleting it (manifest EVICT 'dict')
+EVDICT = 0          # 1: clear a module's globals before deleting it (device; see unload)
+SOFT = ()           # device: stateless packs to unload when no family can give way (FASTBOOT)
+ROOM = {}           # device: phase -> (soft pack, bytes it needs to load); see room()
+SHEDAT = 0          # device: below this many free bytes after parsing, idle soft packs unload
 KEEPFREE = 40960    # between commands, evict LRU families until this much is free (18.5)
 
 # -- loader state ------------------------------------------------------------------------------
@@ -260,102 +260,128 @@ def go(job):                                                    #@L 1
     """job: ('eval', text) or ('form', history index). Returns a record; never raises, except
     KeyboardInterrupt, which is re-raised after the reset (10.4, 18.6)."""
     global LINE, CTX, FLAGS, TARGET
-    rec = None
-    err = None
-    stack = g = val = None
-    LASTSOFT[0] = None
-    LINE = job[1] if job[0] == 'eval' else ''
-    CTX = None
-    FLAGS = 0
-    TARGET = None
-    try:
-        code, ctx = start(job)
-        if code is None:                 # purge or a definition: ctx is the message
-            rec = (R_MSG, ctx, None, 0)
+    for attempt in (0, 1):   # an Out of memory with stale families loaded is retried once
+        before = list(LOADED)
+        rec = None
+        err = None
+        stack = g = val = None
+        LASTSOFT[0] = None
+        LINE = job[1] if job[0] == 'eval' else ''
+        CTX = None
+        FLAGS = 0
+        TARGET = None
+        try:
+            room('input')
+            code, ctx, ks, rs = start(job)
+            while MEMFREE is not None and (attempt or MEMFREE() < SHEDAT) and shed():
+                pass                         # parsed: the input code is idle until the next line
+            for k in ks:                     # the preload (18.4), before the node table grows
+                need(k)
+                for c in CLOSURE.get(FAMILY.get(k, k), (k,)):
+                    if c not in PINNED:
+                        PINNED.append(c)
+            for r in rs:
+                if r not in K.RULECACHE:
+                    MODS['rules'].rset(r)
+            ks = rs = None
+            if code is None:                 # purge or a definition: ctx is the message
+                rec = (R_MSG, ctx, None, 0)
+            else:
+                if job[0] == 'eval':         # the root generator is created here, never in a helper
+                    g = P.g_eval(code, ctx)
+                else:
+                    g = MODS['form'].g_form(code, ctx)
+                stack = [g]
+                marks = [-1]
+                NEEDED.append([])
+                steps = 0
+                while stack:
+                    steps += 1
+                    if not steps & 31:
+                        if K.ESC is not None and K.ESC():
+                            raise K.Cancel()
+                        if steps > BUDGET:
+                            raise K.CasError(M_TOO_LONG)
+                        if not steps & 511 and BUSY is not None:
+                            BUSY(steps)                                     #@calls 2
+                    top = stack[-1]
+                    try:
+                        y = top.send(val)
+                    except StopIteration:
+                        y = None
+                    except K.CasSoft as e:
+                        LASTSOFT[0] = e
+                        y = None
+                    else:
+                        if y is TICK:
+                            val = None
+                            continue
+                        if type(y) is GEN or (type(y) is tuple and len(y) == 2 and
+                                              y[0] is SCOPE):
+                            if len(stack) >= MAXGEN:
+                                raise K.CasError(K.M_COMPLEX)
+                            if type(y) is GEN:
+                                stack.append(y)
+                                marks.append(-1)
+                            else:
+                                stack.append(y[1])
+                                marks.append(K.NN)
+                            NEEDED.append([])
+                            val = None
+                            continue
+                    stack.pop()
+                    for f in NEEDED.pop():   # this generator no longer keeps its families live
+                        for c in CLOSURE.get(f, (f,)):
+                            LIVE[c] -= 1
+                    m = marks.pop()
+                    if m >= 0:
+                        y = K.keep(m, y)
+                    val = y
+                stack = g = None
+                if val is None:              # the root failed: Undefined, or another soft failure
+                    e = LASTSOFT[0]
+                    if e is not None and e.args and type(e.args[0]) is str:
+                        rec = (R_MSG, e.args[0], None, 0)
+                    else:
+                        rec = (R_MSG, M_UNDEFINED, None, 0)
+                else:
+                    del PINNED[:]            # computed: its families may give way to the printer
+                    room('print')
+                    rec = PR.record(val, (job[0], LINE, ctx, FLAGS))   # text, decimal, sentinels
+        except K.Cancel:
+            err = M_INTERRUPTED
+        except K.CasError as e:
+            err = e.args
+        except K.CasSoft:                    # Undefined from start() or the printer
+            err = M_UNDEFINED
+        except (MemoryError, K.CasMemory):
+            err = M_OOM
+        except RuntimeError:                 # depth: should never fire if the tests pass
+            err = M_TOO_COMPLEX
+        except KeyboardInterrupt:
+            err = KBI                        # re-raised below, after the reset
+        except Exception as e:               # a bug: report it, never lose the session
+            err = (M_INTERNAL, type(e).__name__)
+        stack = g = val = top = y = None     # every path: drop the generator frames first (top:
+        del NEEDED[:]                        # the last one resumed), reset (18.6), then the message
+        LASTSOFT[0] = None
+        LIVE.clear()
+        spare = False                # an earlier command's families, or idle soft packs, may
+        for f in before:             # have caused the failure; the retry runs without them
+            if f not in PINNED:
+                spare = True
+        for n in SOFT:
+            if n in sys.modules:
+                spare = True
+        del PINNED[:]
+        K.reset()
+        if err is M_OOM:
+            evict_all()
+            if spare and attempt == 0:
+                continue             # once more on a heap holding only what this command needs
         else:
-            if job[0] == 'eval':         # the root generator is created here, never in a helper
-                g = P.g_eval(code, ctx)
-            else:
-                g = MODS['form'].g_form(code, ctx)
-            stack = [g]
-            marks = [-1]
-            NEEDED.append([])
-            steps = 0
-            while stack:
-                steps += 1
-                if not steps & 31:
-                    if K.ESC is not None and K.ESC():
-                        raise K.Cancel()
-                    if steps > BUDGET:
-                        raise K.CasError(M_TOO_LONG)
-                    if not steps & 511 and BUSY is not None:
-                        BUSY(steps)                                     #@calls 2
-                top = stack[-1]
-                try:
-                    y = top.send(val)
-                except StopIteration:
-                    y = None
-                except K.CasSoft as e:
-                    LASTSOFT[0] = e
-                    y = None
-                else:
-                    if y is TICK:
-                        val = None
-                        continue
-                    if type(y) is GEN or (type(y) is tuple and len(y) == 2 and
-                                          y[0] is SCOPE):
-                        if len(stack) >= MAXGEN:
-                            raise K.CasError(K.M_COMPLEX)
-                        if type(y) is GEN:
-                            stack.append(y)
-                            marks.append(-1)
-                        else:
-                            stack.append(y[1])
-                            marks.append(K.NN)
-                        NEEDED.append([])
-                        val = None
-                        continue
-                stack.pop()
-                for f in NEEDED.pop():   # this generator no longer keeps its families live
-                    for c in CLOSURE.get(f, (f,)):
-                        LIVE[c] -= 1
-                m = marks.pop()
-                if m >= 0:
-                    y = K.keep(m, y)
-                val = y
-            stack = g = None
-            if val is None:              # the root failed: Undefined, or another soft failure
-                e = LASTSOFT[0]
-                if e is not None and e.args and type(e.args[0]) is str:
-                    rec = (R_MSG, e.args[0], None, 0)
-                else:
-                    rec = (R_MSG, M_UNDEFINED, None, 0)
-            else:
-                rec = PR.record(val, (job[0], LINE, ctx, FLAGS))   # text, decimal, sentinels
-    except K.Cancel:
-        err = M_INTERRUPTED
-    except K.CasError as e:
-        err = e.args
-    except K.CasSoft:                    # Undefined from start() or the printer
-        err = M_UNDEFINED
-    except (MemoryError, K.CasMemory):
-        err = M_OOM
-    except RuntimeError:                 # depth: should never fire if the tests pass
-        err = M_TOO_COMPLEX
-    except KeyboardInterrupt:
-        err = KBI                        # re-raised below, after the reset
-    except Exception as e:               # a bug: report it, never lose the session
-        err = (M_INTERNAL, type(e).__name__)
-    stack = g = val = top = y = None     # every path: drop the generator frames first (top:
-    del NEEDED[:]                        # the last one resumed), reset (18.6), then the message
-    LASTSOFT[0] = None
-    LIVE.clear()
-    del PINNED[:]
-    K.reset()
-    if err is M_OOM:
-        evict_all()
-    else:
-        trim()
+            trim()
+        break
     if err is KBI:
         raise KeyboardInterrupt()
     try:
@@ -418,7 +444,7 @@ def start(job):                                                 #@L 2
                     del VARS[v]
                 if v in FUNCS:
                     del FUNCS[v]
-            return None, ', '.join(out) + ' purged'
+            return None, ', '.join(out) + ' purged', (), ()
         tk = P.ti_implicit(P.ti_rewrite(tk))     # stages 4-5: the line as typed, before stage 6
         n = len(tk)
         t0 = tk[0] if n else (0, '', 0, 0, 0)
@@ -448,7 +474,7 @@ def start(job):                                                 #@L 2
             FUNCS[f] = (tuple(ps), P.untok(body))
             if f in VARS:
                 del VARS[f]
-            return None, f + '(' + ','.join(ps) + ') defined'
+            return None, f + '(' + ','.join(ps) + ') defined', (), ()
         d = 0
         j = -1
         cm = 0
@@ -527,16 +553,8 @@ def start(job):                                                 #@L 2
                     for r in (() if definite else e[5]):
                         if r not in rs:
                             rs.append(r)
-    for k in ks:                         # the preload (18.4), before the node table grows
-        need(k)
-        for c in CLOSURE.get(FAMILY.get(k, k), (k,)):
-            if c not in PINNED:
-                PINNED.append(c)
-    for r in rs:
-        if r not in K.RULECACHE:
-            MODS['rules'].rset(r)
     CTX = ctx
-    return code, ctx
+    return code, ctx, ks, rs
 
 
 def finish(job, rec):                                           #@L 2
@@ -626,20 +644,36 @@ def need(key):                                                  #@L 3
         if f in LOADED:
             continue
         for p in PARTS.get(f, (f,)):
+            n = DEV[p]
+            if n in sys.modules:         # on the calculator a family's parts share one pack
+                MODS[p] = sys.modules[n]
+                continue
             want = COST.get(p, 0) + PEAKB * LINES.get(p, 0) + FRAG
             while MEMFREE is not None and MEMFREE() < want:
                 gc.collect()            # reclaim prior decode buffers before evicting/refusing
                 if MEMFREE() >= want:
                     break
-                v = None
-                for x in LOADED:
-                    if x not in PINNED and not LIVE.get(x, 0) and USE[x] != now and (
-                            v is None or USE[x] < USE[v]):
-                        v = x
+                if shed():              # input/printer/layout code is idle while computing
+                    continue
+                v = victim(now)
                 if v is None:
                     raise K.CasMemory()
                 evict(v)
-            MODS[p] = __import__(DEV[p])     # the body runs one level deeper; defines only
+            while True:
+                try:
+                    MODS[p] = __import__(n)  # the body runs one level deeper; defines only
+                    break
+                except MemoryError:          # often fragmentation: free one more thing, retry
+                    unload(n)                # MicroPython 1.12 keeps the half-run module
+                    if not shed():
+                        v = victim(now)
+                        if v is None:
+                            raise
+                        evict(v)
+                    gc.collect()
+                except BaseException:        # [on] in the middle of the body
+                    unload(n)
+                    raise
         LOADED.append(f)
     if NEEDED:
         sl = NEEDED[-1]
@@ -648,6 +682,16 @@ def need(key):                                                  #@L 3
             for f in cl:
                 LIVE[f] = LIVE.get(f, 0) + 1
     return MODS[key]
+
+
+def victim(now):                                                #@L 4
+    """The least recently used family that no pin, live generator or current closure holds."""
+    v = None
+    for x in LOADED:
+        if x not in PINNED and not LIVE.get(x, 0) and USE[x] != now and (
+                v is None or USE[x] < USE[v]):
+            v = x
+    return v
 
 
 def drop(keys):                                                 #@L 3
@@ -668,15 +712,25 @@ def drop(keys):                                                 #@L 3
 
 def evict(f):                                                   #@L 4
     for p in PARTS.get(f, (f,)):
-        m = MODS.pop(p, None)
-        if m is not None and EVDICT:
-            m.__dict__.clear()
-        n = DEV.get(p)
-        if n in sys.modules:
-            del sys.modules[n]
+        MODS.pop(p, None)
+        unload(DEV.get(p))
     if f in LOADED:
         LOADED.remove(f)
     gc.collect()
+
+
+def unload(n):                                                  #@L 5
+    """Drop a loaded module (on the calculator a pack). With EVDICT its globals become None
+    first: MicroPython's collector is conservative, and a stale word left on the C stack by the
+    import would otherwise keep the whole module alive (docs/notes/FASTBOOT.md)."""
+    if n not in sys.modules:
+        return
+    m = sys.modules[n]
+    del sys.modules[n]
+    if EVDICT:
+        for k in dir(m):
+            if k[:2] != '__':
+                setattr(m, k, None)
 
 
 def trim():                                                     #@L 2
@@ -689,14 +743,58 @@ def trim():                                                     #@L 2
         evict(v)
 
 
+def shed(keep=None):                                            #@L 4
+    """Unload one cached soft pack (input, printer, layout) other than keep; False when none
+    is loaded. Code reaches soft packs only through __import__, so the next use reloads it."""
+    for n in SOFT:
+        if n != keep and n in sys.modules:
+            unload(n)
+            gc.collect()
+            return True
+    return False
+
+
+def room(phase):                                                #@L 2
+    """Load a phase's soft pack: unpinned families, then other soft packs, give way until the
+    pack and FRAG fit, and once more if the import still fails. A no-op on the desktop (ROOM is
+    empty) and when the pack is loaded. Only called between computations (nothing is live)."""
+    if phase not in ROOM or MEMFREE is None:
+        return
+    name, cost = ROOM[phase]
+    if name in sys.modules:
+        return
+    want = cost + FRAG
+    while MEMFREE() < want:
+        gc.collect()
+        if MEMFREE() >= want:
+            return
+        v = None
+        for x in LOADED:
+            if x not in PINNED and not LIVE.get(x, 0) and (v is None or USE[x] < USE[v]):
+                v = x
+        if v is not None:
+            evict(v)
+        elif not shed(name):
+            break
+    try:
+        __import__(name)                 # the body runs one level deeper; defines only
+    except MemoryError:                  # often fragmentation, not exhaustion: everything that
+        unload(name)                     # this boundary can spare goes, then one more try
+        for f in list(LOADED):                                  #@unordered-ok
+            if f not in PINNED and not LIVE.get(f, 0):
+                evict(f)
+        while shed(name):
+            pass
+        gc.collect()
+        __import__(name)
+
+
 def evict_all():                                                #@L 2
     """After MemoryError (18.6): every lazy module, including a family cut short, then gc."""
     for p in list(MODS):                                        #@unordered-ok
-        n = DEV.get(p)
-        if EVDICT:
-            MODS[p].__dict__.clear()
-        if n in sys.modules:
-            del sys.modules[n]
+        unload(DEV.get(p))
     MODS.clear()
     del LOADED[:]
+    for n in SOFT:
+        unload(n)
     gc.collect()

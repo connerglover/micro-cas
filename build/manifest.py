@@ -91,31 +91,60 @@ KEYS = {
     'form': 'forms', 'cat': 'catalog', 'catb': 'catalogb',
 }
 
-# Families of parts (runtime keys; DESIGN 4.3, 15.1). need() loads and evicts a family as a
-# unit; the first part is the family key. A lazy module in no tuple here is a one-part family
-# (ident, itab, forms, diff, int2, int2b, int3, int3b, menu, menub, cat, catb).
+# Families of parts (runtime keys; DESIGN 4.3, 15.1, docs/notes/FASTBOOT.md). need() loads and
+# evicts a family as a unit; the first part is the family key. On the calculator every family is
+# exactly one pack (PACKS below), so a family costs one archive import. A lazy module in no tuple
+# here is a one-part family.
 PARTS = {
-    'rules': ('rules', 'rulesb'),
-    'poly': ('poly', 'polyb', 'polyc'),
-    'norm': ('norm', 'normb', 'normc'),
-    'fact': ('fact', 'factb', 'factc', 'factd'),
+    'norm': ('norm', 'normb', 'normc', 'poly', 'polyb', 'polyc', 'rules', 'rulesb', 'ident',
+             'diff'),
+    'fact': ('fact', 'factb', 'factc', 'factd', 'form'),
     'solve': ('solve', 'solveb', 'solvec', 'solved', 'solvee'),
-    'ser': ('ser', 'serb'),
-    'lim': ('lim', 'limb', 'limc'),
+    'int': ('int', 'itab', 'int2', 'int2b', 'int3', 'int3b'),
+    'lim': ('lim', 'limb', 'limc', 'ser', 'serb'),
     'def': ('def', 'defb', 'defc'),
     'sum': ('sum', 'sumb', 'sumc'),
     'ode': ('ode', 'odeb', 'odec', 'oded'),
-    'menu': ('menu', 'menub'),
+    'menu': ('menu', 'menub', 'cat'),
 }
 
 # part key -> family key, for every part that is not its family's first (need's FAMILY.get).
 # Must agree with PARTS (checked).
-FAMILY = {
-    'rulesb': 'rules', 'polyb': 'poly', 'polyc': 'poly', 'normb': 'norm', 'factb': 'fact',
-    'factc': 'fact', 'factd': 'fact', 'normc': 'norm', 'solved': 'solve', 'solvee': 'solve',
-    'solveb': 'solve', 'solvec': 'solve', 'serb': 'ser', 'limb': 'lim', 'limc': 'lim',
-    'defb': 'def', 'defc': 'def', 'sumb': 'sum', 'sumc': 'sum', 'odeb': 'ode', 'odec': 'ode', 'oded': 'ode', 'menub': 'menu',
-}
+FAMILY = {}
+for _f in PARTS:
+    for _p in PARTS[_f][1:]:
+        FAMILY[_p] = _f
+del _f, _p
+
+# Compiled archive libraries (docs/notes/FASTBOOT.md, build/packs.py). Each row: device name,
+# members, kind. A member is a src module (its home pack, load order) or 'module.function' (a
+# function placed away from its home). 'ui' loads at boot; 'core' loads with the engine and
+# stays resident; 'family' packs hold exactly the parts of one family (PARTS) and are loaded and
+# evicted by run.need; 'soft' packs hold no state and are evicted only when memory runs short.
+# A pack must compile to at most PACKMAX bytes of bytecode (one TI variable).
+PACKS = (
+    ('CASUI', ('draw', 'ui'), 'ui'),
+    ('CASK1', ('node', 'alg'), 'core'),
+    ('CASK2', ('parse', 'run'), 'core'),
+    # Soft packs stay cached but give way when a computation needs memory (one reload later).
+    ('CASIN', ('parse.fnpre', 'parse.fnin', 'parse.mclose', 'parse.cutname', 'parse.scan',
+               'parse.ti_rewrite', 'parse.ti_implicit', 'parse.untok', 'parse.tokens',
+               'parse.expand_names', 'run.start'), 'soft'),
+    ('CASPR', ('printer',), 'soft'),
+    ('CASALG', ('poly', 'polyb', 'polyc', 'rules', 'rulesb', 'ident', 'norm', 'normb', 'normc',
+                'diff'), 'family'),
+    ('CASFAC', ('factor', 'factorb', 'factorc', 'factord', 'forms'), 'family'),
+    ('CASSOL', ('solve', 'solveb', 'solvec', 'solved', 'solvee'), 'family'),
+    ('CASINT', ('itab', 'integ', 'integ2', 'integ2b', 'integ3', 'integ3b'), 'family'),
+    ('CASLIM', ('series', 'seriesb', 'limit', 'limitb', 'limitc'), 'family'),
+    ('CASDEF', ('defint', 'defintb', 'defintc'), 'family'),
+    ('CASSUM', ('sums', 'sumsb', 'sumsc'), 'family'),
+    ('CASODE', ('ode', 'odeb', 'odec', 'oded'), 'family'),
+    ('CASMNU', ('catalog', 'menu', 'menub'), 'family'),
+)
+PACKMAX = 60000
+# run.room(phase): the soft pack each phase loads, so memory is made for it first.
+ROOMS = {'input': 'CASIN', 'print': 'CASPR'}
 
 # Memory model (DESIGN 4.1, 18.1, 18.7). CALIBRATION says where the numbers come from:
 # 'provisional' = the DESIGN 18 estimates, because the M0.5 device run (PRBMEM on the

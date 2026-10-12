@@ -390,7 +390,7 @@ def test_loader_tables_match_the_manifest():
     assert R.PARTS == want['PARTS']
     assert R.FAMILY == want['FAMILY']
     assert R.CLOSURE == want['CLOSURE']
-    assert R.EVDICT == (1 if man.EVICT == 'dict' else 0)
+    assert R.EVDICT == 0                           # the device build clears evicted packs
     assert R.PEAKB == man.PEAKB and R.FRAG == man.FRAG
 
 
@@ -402,8 +402,11 @@ def test_registry_shape(monkeypatch):
         assert R.FAMILY.get(fam, fam) in R.CLOSURE, name
         assert g.startswith('g_') and 0 <= lo <= hi and fl & ~flags == 0, name
         assert P.classify(name) == P.C_FN or name == 'd'
-        if rs:                                          # a rule set needs the rules family
-            assert 'rules' in R.CLOSURE[R.FAMILY.get(fam, fam)], name
+        if rs:                                          # a rule set needs the rules part
+            parts = []
+            for f in R.CLOSURE[R.FAMILY.get(fam, fam)]:
+                parts.extend(R.PARTS.get(f, (f,)))
+            assert 'rules' in parts, name
         assert name in R.HINT
     for a in R.ALIAS:
         assert R.ALIAS[a] in R.CMDS
@@ -841,8 +844,8 @@ def test_preload_and_rule_sets(env):
     j = [k for k in range(len(env.log)) if env.log[k][0] == 'simplify'][0]
     assert i < j                                   # compiled at start, before the trampoline
     pinned = env.log[j][3]
-    assert pinned == ['poly', 'rules', 'ident', 'norm']
-    assert R.LOADED == ['poly', 'rules', 'ident', 'norm']
+    assert pinned == ['norm']                      # poly, rules and ident are parts of norm
+    assert R.LOADED == ['norm']
     del env.log[:]
     ev('integrate(x,x,0,1)')
     assert 'def' in R.LOADED and 'int' not in R.LOADED
@@ -855,7 +858,7 @@ def test_no_preload_for_plain_expressions(env):
     assert txt('x^2+2') and R.LOADED == []
     txt('1/(x+1)+x')                               # a simplify candidate: norm, at the end
     assert ('autosimp',) == tuple(e[0] for e in env.log if e[0] == 'autosimp')
-    assert R.LOADED == ['poly', 'rules', 'ident', 'norm']
+    assert R.LOADED == ['norm']
 
 
 def test_macros_and_aliases(env):
@@ -878,7 +881,7 @@ def test_form_job(env):
     R.SET['deg'] = 0
     R.go(('form', len(R.HIST) - 1))
     assert ('form', [1, None, 0, 1]) in env.log
-    assert 'form' in R.LOADED
+    assert R.FAMILY.get('form', 'form') in R.LOADED
     clean()
 
 
@@ -1132,7 +1135,7 @@ def test_evdict(heap, env, monkeypatch):
     m = R.need('lc')
     heap.total = 10000
     R.need('ld')
-    assert 'X' not in m.__dict__ and R.LOADED == ['ld']
+    assert m.X is None and R.LOADED == ['ld']           # globals cleared, module dropped
     R.evict_all()
     assert R.MODS == {} and R.LOADED == []
 
@@ -1190,6 +1193,7 @@ def test_memoryerror_injection(env, where):
     for s in INJECT:
         for k in range(1, 400):
             R.go(('eval', 'purge(a)'))
+            R.evict_all()                              # no stale family: no retry
             if where == 'text':
                 TEXTCALLS[0] = 0
                 TEXTFAIL[0] = k
@@ -1213,6 +1217,27 @@ def test_memoryerror_injection(env, where):
             assert 'a' not in R.VARS
             hits += 1
     assert hits >= {'mk': 100, 'keep': 1, 'text': 20}[where], hits
+
+
+def test_out_of_memory_is_retried_once_without_stale_families(env):
+    ev('simplify(x)')                              # an earlier command leaves norm loaded
+    assert R.LOADED == ['norm']
+    box, orig = counted(K, 'mk')
+    box[1] = 1                                     # the first mk of the next command fails
+    try:
+        r = R.go(('eval', '2+3'))
+    finally:
+        setattr(K, 'mk', orig)
+    assert r[:2] == ('ans', '5') and box[0] > 1    # evicted norm and ran the command again
+    assert R.LOADED == []
+    box, orig = counted(K, 'mk')
+    box[1] = 1                                     # nothing stale now: a plain Out of memory
+    try:
+        r = R.go(('eval', '2+3'))
+    finally:
+        setattr(K, 'mk', orig)
+    assert r == ('msg', 'Out of memory', None, 0)
+    clean()
 
 
 @pytest.mark.allow_internal_error

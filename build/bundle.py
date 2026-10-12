@@ -276,8 +276,9 @@ def closure(deps, fams, family):
             fd = fam_of(d)
             if fd not in fams:
                 raise BundleError('DEPS[%r]: unknown family %r' % (k, d))
-            if fd not in ds:
+            if fd != f and fd not in ds:    # a part needing its own family is loaded with it
                 ds.append(fd)
+        ds = list(norm.get(f, ())) + [d for d in ds if d not in norm.get(f, ())]
         norm[f] = tuple(ds)
     out = {}
     for fam in fams:
@@ -983,6 +984,7 @@ def main(argv=None):
     ap.add_argument('--src', default=SRC, help='source dir (default src/)')
     ap.add_argument('--dist', default=DIST, help='output dir (default dist/)')
     ap.add_argument('--no-lint', action='store_true', help='skip the src lint and FRAMELINT')
+    ap.add_argument('--manifest', default=MANIFEST, help='manifest file (default build/manifest.py)')
     ap.add_argument('--test', action='store_true', help='then run pytest --bundled')
     ap.add_argument('--tables', action='store_true',
                     help="print run.py's desktop loader tables (CLOSURE from src/run.py DEPS) "
@@ -991,7 +993,7 @@ def main(argv=None):
     if a.tables:
         import pprint
         try:
-            t = desktop_tables(load_manifest(), _src_deps(a.src))
+            t = desktop_tables(load_manifest(a.manifest), _src_deps(a.src))
         except BundleError as e:
             print('error: %s' % e)
             return 1
@@ -999,7 +1001,7 @@ def main(argv=None):
             if n in t:
                 print('%s = %s' % (n, pprint.pformat(t[n], width=96)))
         return 0
-    res = bundle(a.src, a.dist, lint=not a.no_lint)
+    res = bundle(a.src, a.dist, man=load_manifest(a.manifest), lint=not a.no_lint)
     for w in res.warnings:
         print('warning: ' + w)
     if res.sizes:
