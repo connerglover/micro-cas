@@ -1,7 +1,7 @@
 """Calculator entry-loop acceptance using the actual key map and graphics shim."""
 import pytest
 import keyscript as KS
-import ti_graphics as G
+import ti_draw as TD
 
 
 def test_evaluate_chain_and_negative_key():
@@ -56,7 +56,8 @@ def test_recover_from_interruption():
 
 def test_quit():
     s = KS.run('{2nd,mode}')
-    assert s.hist == []
+    assert s.ended == 'quit' and not s.hist
+    assert 'run' not in s.mods          # quitting never needed the engine
 
 
 def test_clear_history_while_selected():
@@ -116,11 +117,11 @@ def test_panic_works_without_ui_or_layout_phase(monkeypatch, reason, message):
                               (d, ('layout', 'paint', 'tree', 'measure', 'place', 'render'))):
             for name in names:
                 patch.delattr(module, name)
-        G.reset()
+        TD.reset()
         u.panic(reason)
     assert (u.LINE, u.CUR, s.ans, tuple(s.hist[0])) == before
-    assert message in G.screen_text() and '2/3' in G.screen_text()
-    assert not d.CACHE and not G.OVERDRAW
+    assert message in TD.screen_text() and '2/3' in TD.screen_text()
+    assert not d.CACHE and not TD.OVERDRAW
     # Once the entry loop restores the UI phase, the next key works normally.
     u.key(45)
     assert u.LINE == '' and u.STATUS == ''
@@ -135,4 +136,4 @@ def test_panic_never_retries_failing_layout(monkeypatch):
 
     monkeypatch.setattr(d, 'layout', failure)
     u.panic(0)
-    assert 'Out of memory' in G.screen_text() and '2/3' in G.screen_text()
+    assert 'Out of memory' in TD.screen_text() and '2/3' in TD.screen_text()

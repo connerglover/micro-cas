@@ -1,14 +1,16 @@
-# Module-level entry loop: no main wrapper consumes an EVO Python frame.
+# Module-level entry loop: no main wrapper consumes an EVO Python frame. Only the UI loads
+# here; U.engine() imports the engine on first use (docs/notes/FASTBOOT.md).
+import time
+T0 = None           # the boot clock: the same source as ui.clock()
+if hasattr(time, 'monotonic'):
+    T0 = time.monotonic()
+elif hasattr(time, 'ticks_ms'):
+    T0 = time.ticks_ms()
 import ti_system as TS
-import node as K
-import alg as A
-import parse as P
-import printer as PR
-import run as R
-import draw as D
 import ui as U
 
-U.boot()
+R = None            #@lazy run
+U.boot(T0)
 while True:
     try:
         k = TS.wait_key()
@@ -16,6 +18,7 @@ while True:
         if a is U.QUIT:
             break
         if a is not None:
+            R = U.engine()
             r = R.go(a)
             U.show(a, r)
     except MemoryError:

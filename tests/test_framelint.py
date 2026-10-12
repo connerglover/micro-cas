@@ -784,6 +784,108 @@ def test_imports_inside_functions():
     assert has(errs, 'm.py:4', '__import__ inside f()')
 
 
+# -- lazily bound engine modules (#@lazy) and ui.engine ------------------------------------------
+
+UI_ENGINE = '''
+    #@L 2
+    R = None            #@lazy run
+    PR = None           #@lazy printer
+
+
+    def engine():
+        global R, PR
+        if R is None:
+            import printer as PR
+            import run as R
+        return R
+'''
+
+
+def test_lazy_alias_resolves_like_an_import():
+    errs = errors(ui=UI_ENGINE + '''
+
+    def key(job):                                                   #@L 1
+        engine()
+        return R.go(job)
+
+
+    def shown(val):                                                 #@L 3
+        return PR.record(val, None)
+
+
+    def menu(kind):                                                 #@L 1
+        return R.need('int').check(kind, kind)
+''')
+    assert has(errs, 'ui.py', 'key (L1) -> run.go (L1)')
+    assert has(errs, 'ui.py', 'shown (L3) -> printer.record (L2)')
+    assert not has(errs, 'menu (L1)')
+    assert not has(errs, 'inside engine()')
+    assert len(errs) == 2, errs
+
+
+def test_lazy_alias_through_a_module_attribute():
+    errs = errors(ui=UI_ENGINE, menu='''
+        #@L 4
+        import ui as U
+
+
+        def open(kind):                                                 #@L 2
+            R = U.R
+            return R.need('int').check(kind, kind)
+
+
+        def bad(kind):
+            R = U.R
+            return R.MODS['int'].scale(kind, kind)
+    ''')
+    assert errs == ['menu.py:12: bad (L4) -> integ.scale (L4): callee must be > 4']
+
+
+def test_lazy_marker_needs_the_fixed_alias():
+    errs = only(ui='''
+        #@L 2
+        RUN = None          #@lazy run
+        P = 0               #@lazy parse
+        Q = None            #@lazy nosuch
+    ''')
+    assert has(errs, 'ui.py:2', 'the fixed alias is R')
+    assert has(errs, 'ui.py:3', 'write "P = None  #@lazy parse"')
+    assert has(errs, 'ui.py:4', 'not a module of the map')
+
+
+def test_only_ui_engine_imports_in_the_ui():
+    errs = only(ui='''
+        #@L 2
+        def boot():
+            import run as R
+            return R
+
+
+        def engine():
+            import run as R
+            return R
+    ''')
+    assert errs == ['ui.py:3: import inside boot(): only run.need, run.go and ui.engine import']
+
+
+def test_entry_obtains_a_lazy_engine():
+    an = framelint.analyze_sources(tree(ui=UI_ENGINE, casevo='''
+        import ti_system
+        import ui as U
+
+        R = None            #@lazy run
+        while True:
+            k = ti_system.wait_key()
+            if k == 45:
+                break
+            R = U.engine()
+            rec = R.go(('eval', 'x'))
+    '''))
+    assert an.errors == []
+    assert ('7: 0 casevo.<module> > 1 run.go > 2 printer.record > 3 alg.nev > '
+            '7 alg.postorder') in an.report()
+
+
 def test_module_body_rules():
     errs = errors(alg=good('alg') + '''
 ROOT = K.mk((2, 'x'))

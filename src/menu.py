@@ -1,8 +1,8 @@
 #@L 2
 # Modal catalog, TEST, recall, settings and command help. All state is text-only.
+# Loaded through R.need('menu') after ui.engine(); the engine is read from U.R at call time.
 import ti_system as TS
-import ti_graphics as G
-import run as R
+import ui as U
 import draw as D
 
 TABS = ('algebra', 'calculus', 'trig', 'more', 'all')
@@ -14,16 +14,20 @@ ALPHA = {41:'a',42:'b',43:'c',51:'d',52:'e',53:'f',54:'g',55:'h',61:'i',62:'j',
          63:'k',64:'l',65:'m',71:'n',72:'o',73:'p',74:'q',75:'r',81:'s',82:'t',
          83:'u',84:'v',85:'w',91:'x',92:'y',93:'z'}
 PAGE = 6
+TOP = 22            # first list row; rows are 17 px apart (one 15-row text cell and a gap)
+NOTE = 128          # the selected row's explanation: up to 3 lines
+FOOT = 192
 
 
 def open(kind, line='', cur=0, command=''):                     #@L 2
+    R = U.R
     cat = R.need('cat').CAT
     tab = TABS.index(kind) if kind in TABS else 0
     selected, prefix, alpha = 0, '', 0
     confirmation = None
     about = False
     helpentry = None
-    name = R.ALIAS.get(command, command)
+    name = U.ALIAS.get(command, command)
     for row in cat:
         if row[0].split('(')[0] == name:
             helpentry = row
@@ -36,57 +40,68 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
             rows = R.MODS['menub'].recall()
             title = 'Recall'
         elif kind == 'setup':
-            rows = [('Angle: ' + ('DEG' if R.SET['deg'] else 'RAD'), 'ENTER or arrows to toggle'),
-                    ('Theme: ' + ('Night' if R.SET['theme'] else 'Paper'), 'ENTER or arrows to toggle'),
+            rows = [('Angle: ' + ('DEG' if R.SET['deg'] else 'RAD'), 'ENTER or arrows toggle'),
+                    ('Theme: ' + ('Night' if R.SET['theme'] else 'Paper'), 'ENTER or arrows toggle'),
                     ('Clear history', 'Remove past inputs and results'),
                     ('Clear variables', 'Remove stored variables and functions'),
-                    ('About cas-evo', 'Version, memory and loaded modules')]
+                    ('About cas-evo', 'Version, timing, memory and loaded modules')]
             title = 'Setup'
         elif kind == 'test':
             rows, title = [], 'TEST'
         else:
             rows, title = [], 'Help'
         selected = min(selected, max(0, len(rows)-1)) if kind != 'test' else selected % len(TEST)
-        G.setColor(*D.COLORS.get('BG', D.PALETTES[0][0]))
-        G.fillRect(0, 0, 320, 210)
-        D.text(title[:37], 8, 4)
+        C = D.COLORS
+        D.rect(0, 0, 320, 210, C['BG'])
+        D.line(0, 19, 319, 19, C['LINE'])
+        D.line(0, 188, 319, 188)
+        D.color(C['INK'])
+        D.text(title[:31], 5, 2)
+        notes = []
+        notetop = NOTE
         if confirmation is not None:
-            D.text('Clear history?' if confirmation == 2 else 'Clear variables and functions?', 8, 45, True)
-            D.text('ENTER confirms; CLEAR keeps them.', 8, 73, True)
+            D.text('Clear history?' if confirmation == 2 else 'Clear variables and functions?', 5, 40)
+            notes = ['ENTER clears; CLEAR keeps them.']
         elif about:
-            D.text('cas-evo v1 / TI-84 EVO', 8, 42, True)
+            D.text('cas-evo v1 / TI-84 EVO', 5, 40)
             free = R.MEMFREE() if R.MEMFREE is not None else 0
-            D.text('Free heap: ' + str(free) + ' bytes', 8, 66, True)
-            D.text('Loaded: ' + ', '.join(R.LOADED)[:41], 8, 90, True)
+            D.text('Free heap: ' + str(free) + ' bytes', 5, 57)
+            D.text('Boot ' + U.secs(U.BOOT_MS) + ', engine ' + U.secs(U.ENGINE_MS), 5, 74)
+            notes = D.wrap('Loaded: ' + ', '.join(R.LOADED), 31)
         elif kind == 'test':
             for j in range(len(TEST)):
-                D.text(('>' if j == selected else ' ') + str(j+1) + ':' + TEST[j], 8 + j*44, 55, True)
+                D.text(('>' if j == selected else ' ') + str(j+1) + ' ' + TEST[j], 5, TOP + 17*j)
         elif kind == 'help':
             if helpentry is not None:
-                D.text(helpentry[0][:50], 8, 35, True)
-                for j in range(0, len(helpentry[2]), 49):
-                    D.text(helpentry[2][j:j+49], 8, 58 + j//49*15, True)
-                D.text('Example:', 8, 106, True)
-                for j in range(0, min(147, len(helpentry[3])), 49):
-                    D.text(helpentry[3][j:j+49], 8, 126 + j//49*15, True)
+                D.text(helpentry[0][:31], 5, TOP)
+                D.text('Example:', 5, 97)
+                for j in range(0, min(93, len(helpentry[3])), 31):
+                    D.text(helpentry[3][j:j+31], 5, 114 + j//31*17)
+                notes, notetop = D.wrap(helpentry[2], 31), TOP + 17
             else:
-                tips = ('ENTER: calculate   CLEAR: cancel', '2nd ENTER: previous input',
+                tips = ('ENTER calculate, CLEAR cancel', '2nd ENTER: previous input',
                         'Up/down: browse history', 'F1 menu  F2 recall  F3 setup',
-                        'F4 alternate forms  F5 help', '2nd MODE: quit   STO: store')
+                        'F4 forms of the answer', 'F5 help  2nd MODE quit',
+                        'STO: store a result')
                 for j in range(len(tips)):
-                    D.text(tips[j], 8, 36 + 23*j, True)
+                    D.text(tips[j], 5, TOP + 17*j)
         else:
             start = selected // PAGE * PAGE
             for j in range(start, min(start+PAGE, len(rows))):
-                y = 34 + (j-start)*25
-                D.text(('> ' if j == selected else '  ') + str(j-start+1) + ' ' + rows[j][0][:46], 8, y, True)
-                D.text(rows[j][1][:49], 20, y+12, True, D.COLORS.get('SUB', D.PALETTES[0][2]))
-            if not rows:
-                D.text('No entries', 8, 48, True)
-        footer = 'ENTER select / CLEAR back'
+                D.text((' ', '>')[j == selected] + str(j-start+1) + ' ' + rows[j][0][:28], 5, TOP + 17*(j-start))
+            if rows:                    # catalog rows explain in [2], the others in [1]
+                notes = D.wrap(rows[selected][2 if kind in TABS else 1], 31)
+            else:
+                D.text('No entries', 5, TOP)
+        D.color(C['SUB'])
+        for j in range(min(3, len(notes))):
+            D.text(notes[j], 5, notetop + 17*j)
+        footer = 'ENTER select  CLEAR back'
         if kind in TABS:
-            footer = '< > tabs / ALPHA search / CLEAR back'
-        D.text(footer, 8, 193, True)
+            footer = '<> tab  ALPHA find  CLEAR back'
+        elif kind == 'help' and helpentry is not None:
+            footer = 'ENTER pastes the example'
+        D.text(footer, 5, FOOT, C['ACC'])
         key = TS.wait_key()
         if confirmation is not None:
             if key == 105:
@@ -110,8 +125,8 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
                 return None if helpentry is None else (helpentry[3], False, len(helpentry[3]))
             continue
         if kind == 'test':
-            if key in (24, 26):
-                selected = (selected + (1 if key == 26 else -1)) % len(TEST)
+            if key in (24, 26, 25, 34):
+                selected = (selected + (1 if key in (26, 34) else -1)) % len(TEST)
             elif key == 105 or key in DIGITS and DIGITS[key] <= len(TEST):
                 index = selected if key == 105 else DIGITS[key] - 1
                 return (TEST[index], False, len(TEST[index]))

@@ -1,16 +1,32 @@
-"""Structural 2D layout and clipped drawing, independent of platform glyph fonts."""
+"""Structural 2D layout and clipped drawing through ti_draw (one 10 x 15 font)."""
 import pytest
 import draw as D
-import ti_graphics as G
+import ti_draw as TD
 import parse as P
+import printer as PR
 import node as K
+
+ON_EVO = {'set_color', 'fill_rect', 'draw_text', 'draw_line'}
 
 
 @pytest.fixture(autouse=True)
-def screen():
-    G.reset()
+def screen(monkeypatch):
+    # ui.engine() hands draw its engine modules on the device; here the test does it
+    monkeypatch.setattr(D, 'P', P)
+    monkeypatch.setattr(D, 'PR', PR)
+    TD.reset()
+    D.reset()
     D.clear_cache()
     D.theme(0)
+
+
+def cells(calls):
+    """(left, top, right, bottom) of every draw_text cell in a transcript."""
+    out = []
+    for c in calls:
+        if c[0] == 'draw_text':
+            out.append((c[1], c[2] - 17, c[1] + 10 * len(c[3]) - 1, c[2] - 3))
+    return out
 
 
 @pytest.mark.parametrize('source,kind', [
@@ -27,29 +43,54 @@ def test_special_layout(source, kind):
     assert kind in box['kinds']
     assert box['w'] > 0 and box['h'] > 0
     assert all(isinstance(v, int) for item in box['dl'] for v in item[1:3])
+    # every item lies inside the box: nothing is drawn above, below or beside it
+    D.paint(box, 0, 20)
+    for left, top, right, bottom in cells(TD.CALLS):
+        assert 0 <= left and right < box['w'] and 20 <= top and bottom < 20 + box['h'], source
 
 
-def test_fraction_is_stacked_and_exponent_is_small():
+def test_fraction_is_stacked_and_exponent_is_raised():
     frac = D.layout('2/3')
     texts = [a for a in frac['dl'] if a[0] == 't']
     assert texts[0][2] != texts[1][2]
     assert any(a[0] == 'l' for a in frac['dl'])
     power = D.layout('x^(y^2)')
     ts = {a[3]: a for a in power['dl'] if a[0] == 't'}
-    assert ts['x'][4] == 0 and ts['y'][4] == ts['2'][4] == 1
-    assert ts['2'][2] < ts['y'][2] < ts['x'][2]
+    assert all(len(a) == 4 for a in ts.values())        # one font: no size field
+    assert ts['2'][2] < ts['y'][2] < ts['x'][2]          # each script level is raised again
+    assert ts['x'][1] < ts['y'][1] < ts['2'][1]
+
+
+def test_scripts_stay_sensible_with_one_font():
+    for source, most in (('x^2', 25), ('2/3', 35), ('x^(y^2)', 40),
+                         ('integrate(x,x,0,1)', 50), ('sum(k^2,k,1,10)', 62),
+                         ('limit(sin(x)/x,x,0)', 42), ('surd(x,3)', 26)):
+        box = D.layout(source)
+        assert box['h'] <= most, (source, box['h'])
 
 
 def test_fitting_scroll_and_clip():
     box = D.layout('abcdefghij+klmnopqrstuvwxyz', width=60, height=36)
-    assert box['small'] and box['overflow']
+    assert box['overflow'] and box['w'] > 60
     D.paint(box, 10, 20, scrollx=25)
-    for name, *args in G.CALLS:
-        if name == 'drawString':
-            assert 10 <= args[1] < 70 and 20 <= args[2] < 56
-        elif name == 'drawLine':
+    assert cells(TD.CALLS)
+    for left, top, right, bottom in cells(TD.CALLS):
+        assert 10 <= left and right < 70 and 20 <= top and bottom < 56
+    for name, *args in TD.CALLS:
+        if name == 'draw_line':
             assert 10 <= args[0] < 70 and 10 <= args[2] < 70
             assert 20 <= args[1] < 56 and 20 <= args[3] < 56
+
+
+def test_negative_scroll_centers_and_the_screen_clips():
+    box = D.layout('2/3')
+    D.paint(box, 10, 40, (box['w'] - 300) // 2, (box['h'] - 92) // 2)
+    xs = [c[0] for c in cells(TD.CALLS)]
+    assert all(140 <= x <= 170 for x in xs)
+    TD.reset()
+    D.reset()
+    D.paint(D.layout('x+1'), 300, 200)                  # mostly off the screen
+    assert TD.OFFSCREEN == []
 
 
 def test_parser_session_and_arena_untouched():
@@ -64,8 +105,7 @@ def test_caps_and_messages_fallback():
     assert D.layout('does not exist: left 0, right 1')['fallback']
 
 
-def test_cache_and_metrics_fallback(monkeypatch):
-    monkeypatch.setattr(G, 'string_size', None)
+def test_cache_bounds():
     D.layout('sqrt(2)')
     for n in range(10):
         D.layout('x+' + str(n))
@@ -78,17 +118,18 @@ def test_palette_and_native_calls():
     D.theme(1)
     box = D.layout('sqrt(2)/pi')
     D.paint(box, 10, 20)
-    assert not G.assumed_calls()
-    assert all(a[0] != 'drawString' or all(ord(c) < 128 for c in a[1]) for a in G.CALLS)
+    assert set(TD.COUNTS) <= ON_EVO
+    assert all(a[0] != 'draw_text' or all(ord(c) < 128 for c in a[3]) for a in TD.CALLS)
     assert D.COLORS['BG'] == (12, 15, 20)
+    assert TD.COUNTS['set_color'] == 1                  # one color for a whole answer
 
 
 @pytest.mark.parametrize('s', ['1/(x+1)', 'x^(y^2)', 'sqrt(x+1)',
-    'integrate(x^2,x,0,1)', 'sum(k^2,k,1,10)', 'limit(sin(x)/x,x,0)'])
+    'integrate(x^2,x,0,1)', 'sum(k^2,k,1,10)', 'limit(sin(x)/x,x,0)', 'surd(x+1,3)'])
 def test_layout_text_cells_do_not_overlap(s):
     box = D.layout(s)
     D.paint(box, 0, 0)
-    assert not G.OVERDRAW
+    assert not TD.OVERDRAW
 
 
 def test_every_t1_print_golden_parses():
@@ -100,3 +141,61 @@ def test_every_t1_print_golden_parses():
         parts = line.split('|', 2)
         if len(parts) == 3 and not parts[-1].startswith('!'):
             assert not D.layout(parts[-1])['fallback'], line
+
+
+# -- the EVO helpers: exact rectangles, the text anchor, clipping and the color cache ----------
+
+def test_rect_is_exact_and_clipped():
+    D.rect(5, 7, 3, 2, (1, 2, 3))
+    assert TD.CALLS == [('set_color', 1, 2, 3), ('fill_rect', 4, 6, 4, 3)]
+    assert TD.pixel(5, 7) == TD.pixel(7, 8) == (1, 2, 3)
+    assert TD.pixel(4, 7) == TD.pixel(8, 8) == TD.pixel(5, 6) == TD.pixel(5, 9) == (255,) * 3
+    del TD.CALLS[:]
+    D.rect(0, 0, 320, 210)
+    D.rect(-5, -5, 10, 10)
+    D.rect(315, 205, 50, 50)
+    D.rect(1, 1, 1, 1)                                  # one pixel: fill_rect(0, 0, 2, 2)
+    D.rect(10, 10, 0, 5)                                # empty: no call (w + 1 would be 1)
+    D.rect(400, 10, 5, 5)
+    assert TD.CALLS == [('fill_rect', -1, -1, 321, 211), ('fill_rect', -1, -1, 6, 6),
+                        ('fill_rect', 314, 204, 6, 6), ('fill_rect', 0, 0, 2, 2)]
+    assert TD.OFFSCREEN == []
+
+
+def test_text_anchor_and_clipping():
+    D.text('ab', 3, 20)
+    assert TD.CALLS == [('draw_text', 3, 37, 'ab')]
+    assert TD.texts() == [(3, 20, 'ab', (0, 0, 0))]
+    del TD.CALLS[:]
+    D.text('abcdef', 290, 0)                            # 3 characters fit: 290..319
+    D.text('abcdef', -15, 30)                           # the first 2 are cut
+    D.text('low', 0, 196)                               # rows 196..210: off the screen
+    D.text('top', 0, -1)
+    D.text('', 0, 0)
+    assert TD.CALLS == [('draw_text', 290, 17, 'abc'), ('draw_text', 5, 47, 'cdef')]
+    assert TD.OFFSCREEN == []
+
+
+def test_color_is_cached():
+    D.color((1, 2, 3))
+    D.color((1, 2, 3))
+    D.text('x', 0, 0, (1, 2, 3))
+    D.rect(0, 20, 5, 5, (1, 2, 3))
+    assert TD.COUNTS['set_color'] == 1
+    D.reset()                                           # e.g. after the shim was reset
+    D.color((1, 2, 3))
+    assert TD.COUNTS['set_color'] == 2
+
+
+def test_lines_are_clipped_to_the_screen():
+    D.line(-50, 100, 400, 100, (0, 0, 0))
+    D.line(500, 500, 600, 600)
+    assert TD.CALLS[1:] == [('draw_line', 0, 100, 319, 100)]
+    assert TD.OFFSCREEN == []
+
+
+def test_wrap():
+    assert D.wrap('Differentiate once, or n times, in x.', 31) == \
+        ['Differentiate once, or n times,', 'in x.']
+    assert D.wrap('a' * 40, 31) == ['a' * 31, 'a' * 9]
+    assert D.wrap('', 31) == [] and D.wrap('short', 31) == ['short']

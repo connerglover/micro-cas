@@ -1,15 +1,26 @@
 #@L 3
-# CVDRAW: iterative display RPN, postorder boxes, display lists and clipped graphics.
-import parse as P
-import printer as PR
-import ti_graphics as G
+# CVDRAW: the EVO screen through ti_draw, and the 2D layout (RPN, postorder boxes, display list).
+# ti_draw as measured on the EVO (docs/notes/FASTBOOT.md): 320 x 210 pixels; one fixed font,
+# 10 px per character, ink in rows y-17..y-3 of draw_text(x, y, s); fill_rect(x, y, w, h)
+# fills only the interior, and w or h below 2 raises; set_color is slow, so it is cached.
+import ti_draw as TD
 
-FONTS = ((8, 14, 4), (6, 9, 3))
+P = None            #@lazy parse   (ui.engine sets the engine modules)
+PR = None           #@lazy printer
+W = 320
+H = 210
+SCREEN = (0, 0, 319, 209)
+CW = 10             # pixels per character
+ASC = 11            # text cell rows above the baseline
+DESC = 4            # and below: 15 rows of ink
+TY = 17             # draw_text(x, top + TY, s) puts the first ink row at top
+AXIS = 4            # fraction bars, above the baseline
 PALETTES = (
     ((247,248,250),(17,20,25),(108,117,129),(219,224,231),(36,92,204),(226,234,250),(255,255,255),(255,255,255),(78,86,98)),
     ((12,15,20),(234,238,243),(134,145,158),(38,46,58),(100,165,255),(24,40,64),(22,28,36),(16,21,28),(150,160,173)))
 SLOTS = ('BG','INK','SUB','LINE','ACC','ACCSOFT','CARD','BAR','BARINK')
 COLORS = {}
+CURRENT = None      # the color set_color last received
 CACHE = []
 CACHE_BYTES = 0
 GLYPHS = {
@@ -30,14 +41,100 @@ GLYPHS = {
     '!=': ((0,3,10,3),(0,7,10,7),(8,0,2,10))}
 
 
+# -- the screen ----------------------------------------------------------------------------------
+
 def theme(n):                                                  #@L 3
     for j in range(len(SLOTS)):
         COLORS[SLOTS[j]] = PALETTES[1 if n else 0][j]
 
 
-def settheme(n):                                               #@L 3
-    for j in range(len(SLOTS)):
-        COLORS[SLOTS[j]] = PALETTES[1 if n else 0][j]
+def reset():                                                   #@L 3
+    """Forget the cached color: the next color() call sets it."""
+    global CURRENT
+    CURRENT = None
+
+
+def color(c):                                                  #@L 6
+    """Make c the current color, calling the slow set_color only when it changes."""
+    global CURRENT
+    if c != CURRENT:
+        TD.set_color(c[0], c[1], c[2])
+        CURRENT = c
+
+
+def rect(x, y, w, h, c=None):                                  #@L 5
+    """Fill exactly columns x..x+w-1 and rows y..y+h-1, clipped to the screen."""
+    if c is not None:
+        color(c)
+    if x < 0:
+        w, x = w + x, 0
+    if y < 0:
+        h, y = h + y, 0
+    w = min(w, W - x)
+    h = min(h, H - y)
+    if w > 0 and h > 0:
+        TD.fill_rect(x - 1, y - 1, w + 1, h + 1)
+
+
+def text(s, x, top, c=None, clip=SCREEN):                       #@L 5
+    """Draw s with its text cell at column x, first ink row top (10 px per character, 15 rows).
+    Characters outside the clip columns are dropped; nothing is drawn unless the rows fit."""
+    if c is not None:
+        color(c)
+    if not s or top < clip[1] or top + ASC + DESC - 1 > clip[3]:
+        return
+    if x < clip[0]:
+        k = (clip[0] - x + CW - 1) // CW
+        s = s[k:]
+        x += k * CW
+    n = (clip[2] - x + 1) // CW
+    if n < len(s):
+        s = s[:max(0, n)]
+    if s:
+        TD.draw_text(x, top + TY, s)
+
+
+def line(x1, y1, x2, y2, c=None):                               #@L 5
+    if c is not None:
+        color(c)
+    clipped_line(x1, y1, x2, y2, SCREEN)
+
+
+def clipped_line(x1,y1,x2,y2,clip):                             #@L 6
+    left,top,right,bottom = clip
+    for j in range(8):
+        c1 = (1 if x1<left else 2 if x1>right else 0)+(4 if y1<top else 8 if y1>bottom else 0)
+        c2 = (1 if x2<left else 2 if x2>right else 0)+(4 if y2<top else 8 if y2>bottom else 0)
+        if not c1 and not c2:
+            TD.draw_line(x1,y1,x2,y2)
+            return
+        if c1&c2:
+            return
+        c = c1 or c2
+        if c&12:
+            y = top if c&4 else bottom
+            x = x1+(x2-x1)*(y-y1)//(y2-y1)
+        else:
+            x = left if c&1 else right
+            y = y1+(y2-y1)*(x-x1)//(x2-x1)
+        if c1:
+            x1,y1=x,y
+        else:
+            x2,y2=x,y
+
+
+def wrap(s, cols):                                             #@L 3
+    """s as lines of at most cols characters, broken at spaces where possible."""
+    out = []
+    while len(s) > cols:
+        j = s.rfind(' ', 0, cols + 1)
+        if j <= 0:
+            j = cols
+        out.append(s[:j])
+        s = s[j:].lstrip(' ')
+    if s:
+        out.append(s)
+    return out
 
 
 def clear_cache():                                             #@L 3
@@ -46,27 +143,16 @@ def clear_cache():                                             #@L 3
     CACHE_BYTES = 0
 
 
-def metrics(s, level):                                         #@L 7
-    font = 1 if level else 0
-    adv, asc, desc = FONTS[font]
-    width = len(s) * adv
-    try:
-        G.setFont(font)
-        size = G.string_size(s)
-        width = int(size[0])
-    except (AttributeError, TypeError, ValueError):
-        pass
-    return width, asc, desc, font
+# -- the 2D layout: every text is one size, so scripts are raised and lowered ---------------------
 
-
-def leaf(boxes, s, level, ti=-1):                               #@L 6
-    w, a, d, font = metrics(s, level)
+def leaf(boxes, s, ti=-1):                                      #@L 6
     if s in GLYPHS:
-        w = 10 if not level else 8
-        decor = [('g',0,-a,s,w,a+d)]
+        w = CW
+        decor = [('g',0,2-ASC,s,w,ASC-2)]
     else:
-        decor = [('t',0,-a,s,font)]
-    boxes.append((w,a,d,(),decor,'text',ti))
+        w = len(s)*CW
+        decor = [('t',0,-ASC,s)]
+    boxes.append((w,ASC,DESC,(),decor,'text',ti))
     return len(boxes)-1
 
 
@@ -82,7 +168,7 @@ def row(boxes, ids, gap=2, kind='row', ti=-1):                    #@L 5
     return len(boxes)-1
 
 
-def frame(boxes, kind, ids, level, ti=-1):                       #@L 5
+def frame(boxes, kind, ids, ti=-1):                              #@L 5
     ids = list(ids)
     if kind in ('frac','sup','sqrt','root'):
         for j in range(len(ids)):
@@ -93,30 +179,30 @@ def frame(boxes, kind, ids, level, ti=-1):                       #@L 5
     decor = []
     if kind == 'frac':
         c = boxes[ids[1]]
-        w, axis = max(w,c[0])+4, FONTS[1 if level else 0][1]//3
-        ny, dy = -axis-3-d, -axis+3+c[1]
+        w = max(w,c[0])+4
+        ny, dy = -AXIS-1-d, -AXIS+2+c[1]
         children = [(ids[0],(w-b[0])//2,ny),(ids[1],(w-c[0])//2,dy)]
         a, d = a-ny, c[2]+dy
-        decor = [('l',0,-axis,w-1,-axis)]
+        decor = [('l',0,-AXIS,w-1,-AXIS)]
     elif kind == 'sup':
         c = boxes[ids[1]]
         sy = -(a*9//20)-c[2]
         children = [(ids[0],0,0),(ids[1],w+1,sy)]
         w, a = w+c[0]+1, max(a,c[1]-sy)
     elif kind in ('sqrt','root'):
-        pad = boxes[ids[1]][0]//2 if kind == 'root' else 0
+        pad = max(0,boxes[ids[1]][0]-5) if kind == 'root' else 0
         children = [(ids[0],pad+12,0)]
         decor = [('g',pad,-a-2,'sqrt',12,a+d+2),('l',pad+10,-a-2,pad+w+13,-a-2)]
         w, a = w+pad+14, a+2
         if kind == 'root':
             c = boxes[ids[1]]
-            children.append((ids[1],0,-a//2-c[2]))
+            children.append((ids[1],0,-(a//2)-c[2]))
             a = max(a,a//2+c[1]+c[2])
     else:
         pad = 4 if kind == 'abs' else 6
         children = [(ids[0],pad,0)]
         if kind == 'abs':
-            decor = [('l',0,-a,0,d),('l',w+2*pad-1,-a,w+2*pad-1,d)]
+            decor = [('l',1,-a,1,d-1),('l',w+2*pad-2,-a,w+2*pad-2,d-1)]
         else:
             ls, rs = ('[',']') if kind == 'list' else ('(',')')
             decor = [('g',0,-a,ls,pad,a+d),('g',w+pad,-a,rs,pad,a+d)]
@@ -125,39 +211,47 @@ def frame(boxes, kind, ids, level, ti=-1):                       #@L 5
     return len(boxes)-1
 
 
-def large(boxes, kind, ids, level, ti):                         #@L 5
+def large(boxes, kind, ids, ti):                                 #@L 5
     f = boxes[ids[0]]
-    font = 1 if level else 0
     a, d = f[1], f[2]
     children = []
     decor = []
     if kind == 'limit':
         lo = boxes[ids[1]]
-        prefix = max(24,lo[0])+5
-        children = [(ids[1],0,lo[1]+5),(ids[0],prefix,0)]
-        decor = [('t',0,-FONTS[font][1],'lim',font)]
-        a, d, w = max(a,FONTS[font][1]), max(d,lo[1]+lo[2]+5), prefix+f[0]
+        col = max(3*CW,lo[0])
+        children = [(ids[1],(col-lo[0])//2,DESC+1+lo[1]),(ids[0],col+5,0)]
+        decor = [('t',(col-3*CW)//2,-ASC,'lim')]
+        a, d, w = max(a,ASC), max(d,DESC+1+lo[1]+lo[2]), col+5+f[0]
     else:
+        top, bottom = -ASC-6, DESC+6        # the stroked sign spans the integrand and more
         lower, upper = (ids[2],ids[3]) if len(ids)>3 else (-1,-1)
-        pad = 0
+        col = 12
+        gx = 0
         if lower >= 0:
             lo, hi = boxes[lower],boxes[upper]
-            pad = max(lo[0],hi[0])+2
-            children.extend([(lower,12,15+lo[1]),(upper,12,-20-hi[2])])
-            a,d = max(a,20+hi[1]+hi[2]),max(d,15+lo[1]+lo[2])
-        prefix = 16+pad
+            if kind == 'sum':               # bounds centered under and over the sigma
+                col = max(col,lo[0],hi[0])
+                gx = (col-12)//2
+                ly, uy = bottom+2+lo[1], top-1-hi[2]
+                children.extend([(lower,(col-lo[0])//2,ly),(upper,(col-hi[0])//2,uy)])
+            else:                           # integral bounds at the sign's lower and upper end
+                ly, uy = bottom-4+lo[1], top+5-hi[2]
+                children.extend([(lower,13,ly),(upper,13,uy)])
+                col = 13+max(lo[0],hi[0])
+            a, d = max(a,hi[1]-uy), max(d,ly+lo[2])
+        prefix = col+4
         children.append((ids[0],prefix,0))
-        decor.append(('g',0,-18,'integral' if kind=='integral' else 'sum',12,32))
-        a,d,w = max(a,18),max(d,14),prefix+f[0]
+        decor.append(('g',gx,top,'integral' if kind=='integral' else 'sum',12,bottom-top))
+        a, d, w = max(a,-top), max(d,bottom), prefix+f[0]
         if kind == 'integral':
-            decor.append(('t',w+4,-FONTS[font][1],'d',font))
-            children.append((ids[1],w+5+FONTS[font][0],0))
-            w += 5+FONTS[font][0]+boxes[ids[1]][0]
+            decor.append(('t',w+4,-ASC,'d'))
+            children.append((ids[1],w+5+CW,0))
+            w += 5+CW+boxes[ids[1]][0]
     boxes.append((w,a,d,children,decor,kind,ti))
     return len(boxes)-1
 
 
-def tree(code, base):                                          #@L 4
+def tree(code):                                                 #@L 4
     specs, stack, depths = [],[],[]
     for item in code:
         op = item[0]
@@ -185,39 +279,30 @@ def tree(code, base):                                          #@L 4
         stack.append(len(specs)-1)
     if len(stack) != 1:
         raise ValueError('layout root')
-    levels = [base]*len(specs)
-    for i in range(len(specs)-1,-1,-1):
-        item, children = specs[i]
-        for j in range(len(children)):
-            script = item[0]=='o' and item[1]=='^' and j==1
-            if item[0]=='F':
-                name = item[1]
-                script = script or name=='surd' and j==1 or name=='integrate' and j>=2 or name in ('sum','limit') and j>=1
-            levels[children[j]] = levels[i]+(1 if script else 0)
-    return specs,levels
+    return specs
 
 
-def measure(specs, levels):                                    #@L 4
+def measure(specs):                                             #@L 4
     boxes, roots = [],[]
     for i in range(len(specs)):
         it, children = specs[i]
         ids = []
         for n in children:
             ids.append(roots[n])
-        kind, lev, ti = it[0],levels[i],it[-1]
+        kind, ti = it[0],it[-1]
         if kind in ('n','s'):
             s = it[1]
             if kind == 'n':
                 s = str(s[0]) if type(s) is tuple else PR.fdec10(s)
-            root = leaf(boxes,s,lev,ti)
+            root = leaf(boxes,s,ti)
         elif kind == 'P':
-            root = frame(boxes,'paren',ids,lev,ti)
+            root = frame(boxes,'paren',ids,ti)
         elif kind == 'o':
             op = it[1]
             if op in ('/','^'):
-                root = frame(boxes,'frac' if op=='/' else 'sup',ids,lev,ti)
+                root = frame(boxes,'frac' if op=='/' else 'sup',ids,ti)
             else:
-                sign = leaf(boxes,'-' if op=='neg' else op,lev,ti)
+                sign = leaf(boxes,'-' if op=='neg' else op,ti)
                 rowids = [sign,ids[0]] if op=='neg' else [ids[0],sign] if op=='!' else [ids[0],sign,ids[1]]
                 if op=='*':
                     right = specs[children[1]][0]
@@ -227,36 +312,36 @@ def measure(specs, levels):                                    #@L 4
         else:
             name = it[1] if kind=='F' else ''
             if name in ('sqrt','abs') and len(ids)==1:
-                root = frame(boxes,name,ids,lev,ti)
+                root = frame(boxes,name,ids,ti)
             elif name=='surd' and len(ids)==2:
-                root = frame(boxes,'root',ids,lev,ti)
+                root = frame(boxes,'root',ids,ti)
             elif name=='integrate' and len(ids) in (2,4):
-                root = large(boxes,'integral',ids,lev,ti)
+                root = large(boxes,'integral',ids,ti)
             elif name=='sum' and len(ids)==4:
-                lower = row(boxes,[ids[1],leaf(boxes,'=',lev+1),ids[2]],1)
-                root = large(boxes,'sum',[ids[0],ids[1],lower,ids[3]],lev,ti)
+                lower = row(boxes,[ids[1],leaf(boxes,'='),ids[2]],1)
+                root = large(boxes,'sum',[ids[0],ids[1],lower,ids[3]],ti)
             elif name=='limit' and len(ids)==3:
-                lower = row(boxes,[ids[1],leaf(boxes,'->',lev+1),ids[2]],1)
-                root = large(boxes,'limit',[ids[0],lower],lev,ti)
+                lower = row(boxes,[ids[1],leaf(boxes,'->'),ids[2]],1)
+                root = large(boxes,'limit',[ids[0],lower],ti)
             elif name=='diff' and len(ids)==2:
-                dn = leaf(boxes,'d',lev)
-                den = row(boxes,[leaf(boxes,'d',lev),ids[1]],0)
-                frac = frame(boxes,'frac',[dn,den],lev)
+                dn = leaf(boxes,'d')
+                den = row(boxes,[leaf(boxes,'d'),ids[1]],0)
+                frac = frame(boxes,'frac',[dn,den])
                 root = row(boxes,[frac,ids[0]],4,'derivative',ti)
             else:
                 joined = []
                 for j in range(len(ids)):
                     if j:
-                        joined.append(leaf(boxes,',',lev))
+                        joined.append(leaf(boxes,','))
                     joined.append(ids[j])
                 root = row(boxes,joined,2)
                 if kind=='L':
                     if ti>=0:
-                        root = frame(boxes,'list',[root],lev,ti)
+                        root = frame(boxes,'list',[root],ti)
                 else:
-                    root = frame(boxes,'paren',[root],lev,ti)
+                    root = frame(boxes,'paren',[root],ti)
                     label = 'arc'+name[1:] if name in ('asin','acos','atan') else name
-                    root = row(boxes,[leaf(boxes,label,lev),root],1,'call',ti)
+                    root = row(boxes,[leaf(boxes,label),root],1,'call',ti)
         roots.append(root)
     return boxes,roots[-1]
 
@@ -280,31 +365,27 @@ def place(boxes, root):                                        #@L 4
     return dl,kinds
 
 
-def layout(s, width=300, height=110):                           #@L 3
+def layout(s, width=300, height=92):                            #@L 3
+    """The display list of an answer text in a width x height view (cached). A text that does
+    not parse, or nests too deeply, is laid out as one plain line."""
     global CACHE_BYTES
     key = (s,width,height)
     for cached in CACHE:
         if cached[0]==key:
             return cached[1]
     fallback = False
-    small = 0
     try:
         code = P.rpn(P.lex(s))
         if len(code)>400:
             raise ValueError('layout size')
-        specs, levels = tree(code,0)
-        boxes,root = measure(specs,levels)
-        if boxes[root][0]>width or boxes[root][1]+boxes[root][2]>height:
-            specs,levels = tree(code,1)
-            boxes,root = measure(specs,levels)
-            small = 1
+        boxes,root = measure(tree(code))
     except Exception:
         boxes = []
-        root = leaf(boxes,s[:4000],1)
-        fallback,small = True,1
+        root = leaf(boxes,s[:4000])
+        fallback = True
     dl,kinds = place(boxes,root)
     w,a,d = boxes[root][:3]
-    result = {'dl':dl,'kinds':kinds,'w':w,'h':a+d,'asc':a,'desc':d,'fallback':fallback,'small':bool(small),'overflow':w>width or a+d>height,'vw':width,'vh':height}
+    result = {'dl':dl,'kinds':kinds,'w':w,'h':a+d,'asc':a,'desc':d,'fallback':fallback,'overflow':w>width or a+d>height,'vw':width,'vh':height}
     cost = len(dl)*24+len(s)
     if cost<=4096:
         while CACHE and (len(CACHE)>=5 or CACHE_BYTES+cost>4096):
@@ -314,31 +395,8 @@ def layout(s, width=300, height=110):                           #@L 3
     return result
 
 
-def clipped_line(x1,y1,x2,y2,clip):                             #@L 5
-    left,top,right,bottom = clip
-    for j in range(8):
-        c1 = (1 if x1<left else 2 if x1>right else 0)+(4 if y1<top else 8 if y1>bottom else 0)
-        c2 = (1 if x2<left else 2 if x2>right else 0)+(4 if y2<top else 8 if y2>bottom else 0)
-        if not c1 and not c2:
-            G.drawLine(x1,y1,x2,y2)
-            return
-        if c1&c2:
-            return
-        c = c1 or c2
-        if c&12:
-            y = top if c&4 else bottom
-            x = x1+(x2-x1)*(y-y1)//(y2-y1)
-        else:
-            x = left if c&1 else right
-            y = y1+(y2-y1)*(x-x1)//(x2-x1)
-        if c1:
-            x1,y1=x,y
-        else:
-            x2,y2=x,y
-
-
-def render(dl, dx=0, clip=(0,0,319,209), dy=0):                 #@L 4
-    G.setColor(*COLORS.get('INK',PALETTES[0][1]))
+def render(dl, dx=0, clip=SCREEN, dy=0):                        #@L 4
+    color(COLORS.get('INK',PALETTES[0][1]))
     for item in dl:
         x,y = item[1]+dx,item[2]+dy
         if item[0]=='l':
@@ -347,27 +405,12 @@ def render(dl, dx=0, clip=(0,0,319,209), dy=0):                 #@L 4
             name,w,h = item[3:]
             for a,b,c,d in GLYPHS[name]:
                 clipped_line(x+a*(w-1)//10,y+b*(h-1)//10,x+c*(w-1)//10,y+d*(h-1)//10,clip)
-        elif item[0]=='t':
-            s,font = item[3:]
-            G.setFont(font)
-            adv,asc,desc = FONTS[font]
-            if clip[1]<=y and y+asc+desc-1<=clip[3]:
-                width = metrics(s,font)[0]
-                if clip[0]<=x and x+width-1<=clip[2]:
-                    G.drawString(s,x,y)
-                    continue
-                for char in s:
-                    adv = metrics(char,font)[0]
-                    if clip[0]<=x and x+adv-1<=clip[2]:
-                        G.drawString(char,x,y)
-                    x+=adv
+        else:
+            text(item[3],x,y,None,clip)
 
 
 def paint(box,x,y,scrollx=0,scrolly=0):                         #@L 3
-    render(box['dl'],x-scrollx,(x,y,x+box['vw']-1,y+box['vh']-1),y-scrolly)
-
-
-def text(s,x,y,small=False,color=None):                         #@L 3
-    G.setFont(1 if small else 0)
-    G.setColor(*(COLORS.get('INK',PALETTES[0][1]) if color is None else color))
-    G.drawString(s,x,y)
+    """Draw a layout in its view (x, y, vw, vh), shifted left by scrollx and up by scrolly
+    (negative values center a small answer), clipped to the view and the screen."""
+    clip = (max(x,0),max(y,0),min(x+box['vw']-1,W-1),min(y+box['vh']-1,H-1))
+    render(box['dl'],x-scrollx,clip,y-scrolly)

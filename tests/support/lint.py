@@ -48,6 +48,10 @@ EXACT_MODULES = ('node', 'parse', 'run', 'rules', 'poly', 'norm', 'ident', 'fact
 NATIVE_MODULES = ('math', 'gc', 'sys', 'array', 'time', 'collections', 'random',
                   'ti_system', 'ti_graphics', 'ti_draw', 'ti_plotlib', 'ti_image')
 
+# Present on the EVO but with signatures that differ from the CE documentation (setColor takes
+# one argument): the UI draws through ti_draw (docs/notes/FASTBOOT.md).
+UNVERIFIED_MODULES = ('ti_graphics',)
+
 BANNED_MODULES = ('re', 'fractions', 'decimal', 'functools', 'itertools', 'cmath', 'os',
                   'typing', 'dataclasses', 'enum', 'abc', 'copy', 'operator', 'string',
                   'struct', 'io', 'micropython', 'json', 'heapq', 'bisect', 'inspect',
@@ -363,6 +367,10 @@ def lint(src, filename='<src>', module=None, device_names=False):
                 top = m.split('.')[0]
                 if top in BANNED_MODULES:
                     err(node, 'module %r is not on the device' % m)
+                    continue
+                if top in UNVERIFIED_MODULES:
+                    err(node, '%s: its EVO signatures are unverified (setColor takes one '
+                              'argument); draw through ti_draw' % m)
                     continue
                 if top.startswith('ti_') and family(module) not in UI_MODULES:
                     err(node, '%s imports %s: only ui, draw, menu and casevo import ti_*'

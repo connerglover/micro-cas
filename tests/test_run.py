@@ -366,7 +366,7 @@ def clean():
 
 def test_frozen_api():
     for name in ('go', 'start', 'need', 'drop', 'MODS', 'scoped', 'TICK', 'CMDS', 'ALIAS',
-                 'DEPS', 'PARTS', 'MACROS', 'HINT', 'ANS', 'HIST', 'VARS', 'FUNCS', 'SET'):
+                 'DEPS', 'PARTS', 'MACROS', 'ANS', 'HIST', 'VARS', 'FUNCS', 'SET'):
         assert hasattr(R, name), name
     assert R.scoped(None) == (R.SCOPE, None)
     assert R.TICK is not R.SCOPE and R.MAXGEN == 64 and R.BUDGET == 20000
@@ -395,6 +395,7 @@ def test_loader_tables_match_the_manifest():
 
 
 def test_registry_shape(monkeypatch):
+    import ui as U                  # the hint signatures are UI data (docs/notes/FASTBOOT.md)
     monkeypatch.setattr(P, 'SESS', R)
     flags = P.F_NOAUTO | P.F_ALWAYSAUTO | P.F_SOLN
     for name in sorted(R.CMDS):
@@ -407,11 +408,12 @@ def test_registry_shape(monkeypatch):
             for f in R.CLOSURE[R.FAMILY.get(fam, fam)]:
                 parts.extend(R.PARTS.get(f, (f,)))
             assert 'rules' in parts, name
-        assert name in R.HINT
+        assert name in U.HINT
     for a in R.ALIAS:
         assert R.ALIAS[a] in R.CMDS
+    assert U.ALIAS == R.ALIAS       # the UI's copy for the hint line before the engine loads
     for m in R.MACROS:
-        assert m in R.HINT
+        assert m in U.HINT
     assert 'approx' not in R.CMDS and 'evalf' not in R.ALIAS   # g_eval builtins (T1.5)
     assert R.CMDS['solve'][4] & P.F_SOLN and R.CMDS['diff'][4] & P.F_ALWAYSAUTO
 

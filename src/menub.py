@@ -1,11 +1,9 @@
 #@L 2
-# menu helper family.
-import ti_system as TS
-import ti_graphics as G
-import run as R
-import draw as D
+# menu helper family. The engine is read from U.R at call time (never imported here).
+import ui as U
 
 def entries(cat, tab, prefix):                                 #@L 3
+    R = U.R
     out = []
     categories = R.MODS['menu'].CATEGORIES[tab]
     for row in cat:
@@ -22,6 +20,7 @@ def entries(cat, tab, prefix):                                 #@L 3
 
 
 def insertion(row):                                           #@L 3
+    R = U.R
     prefix = row[1]
     if '(' not in prefix:
         return (prefix, False, len(prefix))
@@ -32,6 +31,7 @@ def insertion(row):                                           #@L 3
 
 
 def recall():                                                 #@L 3
+    R = U.R
     rows = []
     if R.ANS is not None:
         rows.append(('Ans', 'Last result: ' + R.ANS, 'ans()'))
