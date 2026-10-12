@@ -1,6 +1,42 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Uses the unmodified, pinned WebTILP runtime. See vendor/PROVENANCE.md.
-import { decode, sha256 } from './installer.js';
+import { decode, sha256, PYTHON_TYPES } from './installer.js';
+
+const fromHex = text => {
+  if (typeof text !== 'string' || text.length % 2 || /[^0-9a-f]/i.test(text)) return null;
+  const bytes = new Uint8Array(text.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(text.substr(i * 2, 2), 16);
+  return bytes;
+};
+
+// Decode an EVO Python object with the pinned TIVarsLib and fingerprint what the
+// calculator stores: the compiled module body, or the source text of a script.
+// The installer and build/legacy_manifest.mjs share this definition.
+export async function describePythonObject(converter, bytes) {
+  const path = '/casevo-object.8xpy2';
+  converter.FS.writeFile(path, bytes);
+  let variable, options, decoded;
+  try {
+    variable = converter.TIVarFile.loadFromFile(path);
+    options = new converter.options_t();
+    options.set('prettify', 0);
+    options.set('reindent', 0);
+    decoded = JSON.parse(variable.getReadableContent(options));
+  } finally {
+    options?.delete();
+    variable?.delete();
+    converter.FS.unlink(path);
+  }
+  const python = decoded.python || {};
+  const compiled = python.compiledModule === true;
+  const content = compiled ? fromHex(python.bodyHex)
+    : typeof python.code === 'string' ? new TextEncoder().encode(python.code) : null;
+  if (!content || typeof decoded.name !== 'string' || !PYTHON_TYPES.has(decoded.type)) {
+    throw new Error('Not a readable Python object.');
+  }
+  return { name: decoded.name, type: decoded.type, compiled, bytes: content.length, sha256: await sha256(content) };
+}
+
 export class WebTilpTransport {
   constructor({ factory = globalThis.TILibsModule, converterFactory,
     log = () => {}, gap = 100, timeout = 90000 } = {}) {
@@ -93,40 +129,39 @@ export class WebTilpTransport {
     } finally { this.module.FS.unlink(path); }
   }
 
-  async archiveLegacySource(file, entry) {
+  async describe(bytes) {
+    this.converter ||= await this.converterFactory();
+    return describePythonObject(this.converter, bytes);
+  }
+
+  // Read one listed Python object back and fingerprint it. Returns null when
+  // the object is not a readable Python module or script.
+  async inspect(entry) {
+    if (!this.connected) throw new Error('The calculator disconnected. Reconnect and install again.');
     const dir = '/casevo-old';
     if (!this.module.FS.analyzePath(dir).exists) this.module.FS.mkdir(dir);
     this.check(await this.call('calc_recv_var', 'number',
       ['number', 'string', 'string', 'number', 'string'],
-      [this.handle, '', entry.name, 15, dir]), `Checking old ${entry.name}`);
+      [this.handle, '', entry.name, entry.type, dir]), `Reading ${entry.name}`);
     const path = this.module.FS.readFile('/last_recv_path.txt', { encoding: 'utf8' }).trim();
-    if (!path.startsWith(dir + '/') || path.includes('..')) throw new Error('The calculator returned an invalid source path. Reconnect and try again.');
-    this.converter ||= await this.converterFactory();
-    const converterPath = '/casevo-old.8xpy2';
-    this.converter.FS.writeFile(converterPath, this.module.FS.readFile(path));
-    let variable, options;
+    if (!path.startsWith(dir + '/') || path.includes('..')) throw new Error('The calculator returned an invalid file path. Reconnect and try again.');
     try {
-      variable = this.converter.TIVarFile.loadFromFile(converterPath);
-      options = new this.converter.options_t();
-      options.set('prettify', 0);
-      options.set('reindent', 0);
-      const decoded = JSON.parse(variable.getReadableContent(options));
-      const source = decoded.python?.code;
-      if (decoded.type !== 15 || decoded.name !== entry.name || decoded.python?.compiledModule || typeof source !== 'string') {
-        throw new Error(`Old ${entry.name} is not a readable Python source file. Move it to archive manually before retrying.`);
-      }
-      if (await sha256(new TextEncoder().encode(source)) !== file.sourceSha256) {
-        throw new Error(`${entry.name} in RAM differs from this cas-evo release. Move it to archive on the calculator before retrying; its contents have been preserved.`);
-      }
-      this.check(await this.call('send_file_custom', 'number',
-        ['number', 'string', 'string', 'number', 'number'],
-        [this.handle, path, '', 1, 0]), `Archiving old ${entry.name}`);
+      return await this.describe(this.module.FS.readFile(path));
+    } catch {
+      return null;
     } finally {
-      options?.delete();
-      variable?.delete();
-      this.converter.FS.unlink(converterPath);
-      if (!this.dead) this.module.FS.unlink(path);
+      // Each received copy is removed so a stale path can never be read twice.
+      if (!this.dead && this.module.FS.analyzePath(path).exists) this.module.FS.unlink(path);
     }
+  }
+
+  // WebTILP: int calc_del_var(CableHandle*, const char* folder, const char* name, uint8_t type).
+  // EVO variables have no folder; the calculator matches by name and type.
+  async remove(entry) {
+    if (!this.connected) throw new Error('The calculator disconnected. Reconnect and install again.');
+    this.check(await this.call('calc_del_var', 'number',
+      ['number', 'string', 'string', 'number'],
+      [this.handle, '', entry.name, entry.type]), `Removing old ${entry.name}`);
   }
 
   async send(file) {

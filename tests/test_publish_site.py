@@ -36,8 +36,11 @@ def publication(tmp_path):
         path.write_bytes(b'fixture\r\n')
     manifest = b'{"files": []}\n'
     (site / 'package.json').write_bytes(manifest)
+    legacy = b'{"schema": 1, "files": []}\n'
+    (site / 'legacy-v1.json').write_bytes(legacy)
     (site / 'package-meta.json').write_text(json.dumps({
         'sha256': hashlib.sha256(manifest).hexdigest(),
+        'legacySha256': hashlib.sha256(legacy).hexdigest(),
     }))
     (site / 'vendor/assets.lock.json').write_text('{}')
     (site / '_headers').write_text(
@@ -107,5 +110,13 @@ def test_invalid_artifact_cannot_publish(publication):
     repo, site, git = publication
     (site / 'package.json').write_bytes(b'corrupted')
     with pytest.raises(ValueError, match='checksum mismatch'):
+        publish_site.publish(site, 'https://example.invalid/build/1', repo)
+    assert publish_site.remote_head(repo, 'pages') is None
+
+
+def test_altered_legacy_record_cannot_publish(publication):
+    repo, site, git = publication
+    (site / 'legacy-v1.json').write_bytes(b'{"schema": 1, "files": ["changed"]}\n')
+    with pytest.raises(ValueError, match='legacy manifest checksum mismatch'):
         publish_site.publish(site, 'https://example.invalid/build/1', repo)
     assert publish_site.remote_head(repo, 'pages') is None

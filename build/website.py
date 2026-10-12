@@ -25,14 +25,19 @@ def build(package, output):
             raise ValueError('pinned runtime asset changed: ' + name)
     output.mkdir(parents=True, exist_ok=True)
     for name in ['index.html', 'styles.css', 'app.js', 'installer.js', 'transport.js',
-                 'isolation.js', 'sw.js', 'licenses.html', '_headers']:
+                 'isolation.js', 'sw.js', 'licenses.html', '_headers', 'legacy-v1.json']:
         shutil.copyfile(ROOT / 'website' / name, output / name)
+    # The record of earlier-release objects that the installer may remove.
+    legacy = (ROOT / 'website/legacy-v1.json').read_bytes()
+    if json.loads(legacy).get('schema') != 1:
+        raise ValueError('unexpected legacy manifest schema')
     for name in ['vendor', 'fonts']:
         shutil.copytree(ROOT / 'website' / name, output / name, dirs_exist_ok=True)
     encoded = (json.dumps(data, separators=(',', ':')) + '\n').encode('ascii')
     (output / 'package.json').write_bytes(encoded)
     (output / 'package-meta.json').write_text(json.dumps(dict(
-        sha256=hashlib.sha256(encoded).hexdigest(), count=len(files), totalBytes=data['totalBytes']
+        sha256=hashlib.sha256(encoded).hexdigest(), count=len(files), totalBytes=data['totalBytes'],
+        legacySha256=hashlib.sha256(legacy).hexdigest()
     )) + '\n', 'ascii')
     archive_zip.build(package.parent, output / 'cas-evo-calculator.zip')
     shutil.copyfile(vendor_sources.build(), output / 'webtilp-source.zip')
@@ -44,7 +49,8 @@ def build(package, output):
                 archive.write(path, 'website/' + path.name)
         for path in sorted((ROOT / 'website/tests').glob('*.js')):
             archive.write(path, 'website/tests/' + path.name)
-        for name in ('website.py', 'serve_website.py', 'vendor_sources.py', 'archive_zip.py', 'package_archive.mjs'):
+        for name in ('website.py', 'serve_website.py', 'vendor_sources.py', 'archive_zip.py', 'package_archive.mjs',
+                     'legacy_manifest.mjs'):
             archive.write(ROOT / 'build' / name, 'build/' + name)
     (output / '.nojekyll').touch()
     shutil.copyfile(ROOT / 'build/serve_website.py', output.parent / 'serve_installer.py')
