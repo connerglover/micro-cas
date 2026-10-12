@@ -98,3 +98,70 @@ and fail heavy commands, so the memory manager has to evict at pack granularity.
 - Pack membership lives in `build/manifest.py`. A pack is at most about 60 KB
   of compiled bytecode (TI variable limit) and has a device name
   `[A-Z][A-Z0-9]{0,7}`.
+
+## What shipped (packs-v1)
+
+Twenty packs and two launchers replace 236 libraries and two launchers. Totals:
+191,506 bytes of transfer payload; the largest pack compiles to 22 KB.
+
+| kind | packs | role |
+| --- | --- | --- |
+| ui | CASUI | editor state, busy/status/panic, drawing primitives; imported at boot |
+| view | CASUX | keys, screens and the 2D layout; only a computation unloads it |
+| core | CASK1 (node, alg), CASK2 (parse, run) | loaded with the engine, never unloaded |
+| soft | CASIN (input parsing, `run.start`), CASPR (printer) | unloaded first when memory runs short |
+| aux | CASAX (alg helpers) | computation code that never reaches the loader; unloaded last |
+| family | CASALG, CASFAC, CASSOL, CASINT, CASIN2, CASIN2B, CASIN3, CASIN3B, CASLIM, CASDEF, CASSUM, CASODE, CASMNU | one loader family each |
+
+`build/packs.py` merges modules, places functions away from their home pack, renames the
+few colliding names, and rejects anything it cannot prove: dynamic dispatch to a renamed or
+placed name, module code that would hold a soft pack, aux code that could reach the loader,
+nested closures. MicroPython's `const` keyword is renamed. Lazy UI aliases (`R = None`,
+then `global R; import run as R` in `ui.engine`) bind the pack at run time, through the UI's
+home pack, so the engine never loads at boot.
+
+### Loader changes (`src/run.py`)
+
+- A family whose pack is already imported binds without another import.
+- MicroPython 1.12 keeps a module whose body raised; `need` and `ui.engine` remove it.
+- **Deleting a module from `sys.modules` frees nothing** while a stale word on the C stack
+  still points at it (conservative collector; reproduced on 64-bit native and 32-bit). With
+  `EVDICT` (set for the calculator), `unload` sets every global of the module to None first,
+  so its code is released even when the module object survives.
+- `room(phase)` loads a phase's soft pack (input, print, layout) after unpinned families and
+  other soft packs give way, and retries once after freeing everything idle.
+- A load that raises MemoryError frees one more thing (soft pack, LRU family, aux pack) and
+  retries. An Out of memory with stale families or idle soft packs loaded reruns the
+  command once on a cleaner heap.
+- `node.keep` marks one rule pattern at a time, and the quadrature cache is split into
+  64-slot rows: both had been single allocations that a fragmented heap could not satisfy.
+
+### Measurements (wasm32 MicroPython v1.12; matches CI's recorded v1 CVTEST free heap)
+
+| check | v1 | packs-v1 |
+| --- | --- | --- |
+| archive imports to the first key | 51 | 2 (CASUI, CASUX) |
+| imports, 14-command UI session incl. 5 definite integrals | 2,806 (host count) | 63-81 |
+| files on the calculator | 238 | 22 |
+| startup on a 95,000-byte heap | 13,520 B free | 16,576 B free |
+| `2+3` UI session, 173,360-byte heap | pass | pass |
+| 7 UI calculus cases, 173,360 | pass | fail (definite integrals: Out of memory) |
+| 7 UI calculus cases, 189,776 | pass | pass |
+| CVTEST 55 cases, 173,360 | 55/55 | 39-42/55 |
+| CVTEST 55 cases, 189,776 | 55/55 | 50-51/55 |
+| CVTEST 55 cases, 196,000 / 212,000 | 55/55 | 55/55 (204,000: 54/55) |
+
+v1 fitted the heaviest cases by keeping only the executing functions resident, at the cost
+of the import storm. Packs keep whole families and the full core resident, so the heaviest
+definite integrals need roughly 15-40 KB more, and long sessions end in a fragmented heap
+(at the failures, 25 KB was free but the largest free run was under 1.2 KB). PROBE3 measured
+185,296 bytes free at program start; the 173,360 figure was taken after the probe imported
+ti_plotlib, ti_graphics, ti_image and more, which this program does not import. 189,776 is
+185,296 plus the 4,480 bytes the harness itself uses. Physical EVO runs decide which model
+holds: CASEVO shows its boot and engine load times, and CVTEST prints its startup heap.
+
+### Next steps that need device data
+
+- The cost of one archive import (fixed, or growing with the number of files). If imports
+  are cheap, families can be split further for memory; if not, the current split is right.
+- Free heap at CASEVO start, and whether the heaviest definite integrals pass in practice.

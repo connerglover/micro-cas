@@ -21,20 +21,21 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 
-GRAPHICS = '''# Minimal native-MicroPython smoke shim; no framebuffer or transcript.
-FONT = 0
+GRAPHICS = '''# Minimal native-MicroPython smoke shim for ti_draw; no framebuffer or transcript.
+# fill_rect raises like the device below width/height 2 (docs/notes/FASTBOOT.md).
 ERROR = None
-def noop(*args):
+def get_screen_dim():
+    return [319, 209]
+def set_color(r, g, b):
     pass
-setColor = noop
-fillRect = noop
-drawLine = noop
-def setFont(font):
-    global FONT
-    FONT = font
-def string_size(text):
-    return (len(text) * (6 if FONT else 8), 12 if FONT else 18)
-def drawString(text, x, y):
+def fill_rect(x, y, w, h):
+    if w < 2 or h < 2:
+        raise ValueError('tidrawException')
+def draw_line(x1, y1, x2, y2):
+    pass
+def clear():
+    pass
+def draw_text(x, y, text):
     global ERROR
     low = text.lower()
     if ERROR is None:
@@ -77,17 +78,17 @@ def wait_key():
 UI = '''# Import the unchanged release and run its real module-level event loop.
 import gc
 import ti_system as TS
-import ti_graphics as G
+import ti_draw as G
 gc.collect()
 print('Native MicroPython smoke; not an EVO emulator')
 print('heap initial: %d' % gc.mem_free())
 import CASEVO
 assert TS.POS == len(TS.KEYS), 'key replay did not finish'
 assert G.ERROR is None, G.ERROR
-assert CASEVO.R[{ans}] == '5', ('wrong answer', CASEVO.R[{ans}])
-assert CASEVO.U[{status}] == '', ('UI status', CASEVO.U[{status}])
-assert len(CASEVO.R[{hist}]) == 1, 'expected one evaluated input'
-assert CASEVO.R[{hist}][0][2] == 'ans', CASEVO.R[{hist}][0]
+R = CASEVO.R
+assert getattr(R, {ans}) == '5', ('wrong answer', getattr(R, {ans}))
+assert len(getattr(R, {hist})) == 1, 'expected one evaluated input'
+assert getattr(R, {hist})[0][2] == 'ans', getattr(R, {hist})[0]
 print('UI PASS: 2+3 = 5; normal quit')
 '''
 
@@ -110,17 +111,17 @@ def calculus_ui(names):
     keys = tuple(keyscript.parse(script))
     assert all(type(key) is int for key in keys)
     return '''import ti_system as TS
-import ti_graphics as G
+import ti_draw as G
 TS.KEYS={keys}
 import CASEVO
 assert TS.POS==len(TS.KEYS), 'key replay did not finish'
 assert G.ERROR is None,G.ERROR
-history=CASEVO.R[{hist}]
+history=getattr(CASEVO.R,{hist})
 expected={expected}
 assert len(history)==len(expected),history
 for row,want in zip(history,expected):
  assert row[2]=='ans' and row[1]==want,row
-assert CASEVO.R[{ans}]=='5'
+assert getattr(CASEVO.R,{ans})=='5'
 print('UI CALCULUS PASS: 7 commands; normal quit')
 '''.format(keys=repr(keys), hist=repr(names.get('HIST', 'HIST')),
            ans=repr(names.get('ANS', 'ANS')), expected=repr(tuple(value for _, value in UI_CASES)))
@@ -174,10 +175,9 @@ def prepare(dist, output, archive=None):
     meta = json.loads(paths[2].read_text('ascii'))
     names = meta['names']
     scripts = {
-        'ti_graphics.py': GRAPHICS,
+        'ti_draw.py': GRAPHICS,
         'ti_system.py': SYSTEM,
         'ui.py': UI.format(ans=repr(names.get('ANS', 'ANS')),
-                           status=repr(names.get('STATUS', 'STATUS')),
                            hist=repr(names.get('HIST', 'HIST'))),
         'probe.py': PROBE,
         'startup.py': STARTUP,

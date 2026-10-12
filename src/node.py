@@ -250,6 +250,22 @@ def release(m):                                                 #@L 7
         NN = m
 
 
+def mark(st, live, m):                                          #@L 5
+    # Depth-first marking of the nodes >= m reachable from the ids on st; empties st.
+    while st:
+        i = st.pop()
+        if live[i - m]:
+            continue
+        live[i - m] = 1
+        t = N[i]
+        if t[0] == DEAD:
+            raise AssertionError('dead node id %d' % i)
+        if t[0] >= COMP:
+            for j in range(1, len(t)):
+                if t[j] >= m:
+                    st.append(t[j])
+
+
 def keep(m, y):                                                 #@L 4
     # Release the nodes >= m not reachable from y (None, an id or a flat tuple of ids) or from
     # RULECACHE (entry[0] of every rule entry is its pattern id). Survivors move down in id
@@ -267,24 +283,16 @@ def keep(m, y):                                                 #@L 4
     for r in (y if type(y) is tuple else (y,)):
         if type(r) is int and r >= m:
             st.append(r)
+    mark(st, live, m)
+    # One rule pattern at a time: the stack holds one pattern's frontier, not every root. A
+    # large stack is one large allocation, which a fragmented heap may not have (FASTBOOT.md).
     for nm in RULECACHE:                                        #@unordered-ok
         rs = RULECACHE[nm]
         for op in rs:                                           #@unordered-ok
             for r in rs[op]:
-                if r[0] >= m:
+                if r[0] >= m and not live[r[0] - m]:
                     st.append(r[0])
-    while st:
-        i = st.pop()
-        if live[i - m]:
-            continue
-        live[i - m] = 1
-        t = N[i]
-        if t[0] == DEAD:
-            raise AssertionError('dead node id %d' % i)
-        if t[0] >= COMP:
-            for j in range(1, len(t)):
-                if t[j] >= m:
-                    st.append(t[j])
+                    mark(st, live, m)
     for i in range(n - 1, m - 1, -1):
         if N[i][0] != DEAD:
             B[H[i] & NBM] = NX[i]

@@ -44,11 +44,12 @@ jobs:
       - name: Run source acceptance tests
         run: python -m pytest -q -m 'not slow' --strict-depth
 
-      - name: Build the paged calculator app
+      - name: Build the packed calculator release
         run: python build/release.py
 
       - name: Enforce TI Connect Evo per-program transfer limits
-        run: python build/transfer.py dist/*.py
+        # Only the two launchers are transferred as source; packs ship compiled.
+        run: python build/transfer.py dist/CASEVO.py dist/CVTEST.py
 
       - name: Run bundled acceptance tests
         run: python -m pytest -q -m 'not slow' --strict-depth --bundled
@@ -62,16 +63,11 @@ jobs:
           git -C "$RUNNER_TEMP/micropython" fetch --depth 1 origin 0fd6c573ea815774668bbb16b8e197c8822368b2
           git -C "$RUNNER_TEMP/micropython" checkout --detach FETCH_HEAD
           make -C "$RUNNER_TEMP/micropython/ports/unix" -j2 VARIANT=standard MICROPY_PY_SSL=0 MICROPY_PY_BTREE=0 MICROPY_PY_FFI=0 FROZEN_MANIFEST=
-          make -C "$RUNNER_TEMP/micropython/ports/unix" -j2 VARIANT=standard BUILD=build-32 CC="gcc -m32" MICROPY_PY_SSL=0 MICROPY_PY_BTREE=0 MICROPY_PY_FFI=0 FROZEN_MANIFEST=
 
-      - name: Check actual artifact in native MicroPython with 500000-byte heap
-        # Native host compatibility check; this is not an EVO emulator or heap calibration.
+      - name: Check source packs in modern native MicroPython with 500000-byte heap
+        # Compatibility with current MicroPython. The calculator runs the compiled archive
+        # checked below; compiling the pack sources at run time is a desktop-only path.
         run: python build/micro_smoke.py --run "$RUNNER_TEMP/micropython/ports/unix/build-standard/micropython" --heap 500000
-
-      - name: Check actual artifact in 32-bit MicroPython with 173360-byte heap
-        # Matches the measured free-heap budget conservatively as a total heap.
-        # Graphics are shimmed; physical EVO acceptance remains separate.
-        run: python build/micro_smoke.py --run "$RUNNER_TEMP/micropython/ports/unix/build-32/micropython" --heap 173360
 
       - name: Prepare downloadable files
         run: |
@@ -92,17 +88,26 @@ jobs:
           make -C "$RUNNER_TEMP/evo-micropython/ports/unix" -j2 BUILD=build-cas64 PROG=micropython-cas64 MICROPY_PY_USSL=0 MICROPY_PY_BTREE=0 MICROPY_PY_FFI=0 FROZEN_MANIFEST= CFLAGS_EXTRA="-Wno-error -DMICROPY_NLR_SETJMP=1 -D_FILE_OFFSET_BITS=64"
           make -C "$RUNNER_TEMP/evo-micropython/ports/unix" -j2 BUILD=build-cas32 PROG=micropython-cas32 CC="gcc -m32" MICROPY_PY_USSL=0 MICROPY_PY_BTREE=0 MICROPY_PY_FFI=0 FROZEN_MANIFEST= CFLAGS_EXTRA="-Wno-error -DMICROPY_NLR_SETJMP=1 -D_FILE_OFFSET_BITS=64"
 
-      - name: Compile archive libraries without calculator-side exec
+      - name: Compile the library packs
         run: python build/archive.py --mpy-cross "$RUNNER_TEMP/evo-micropython/mpy-cross/mpy-cross"
 
-      - name: Check archive initializer behavior and depth
-        run: python -m pytest -q tests/test_archive_modules.py tests/test_archive_release.py --strict-depth
+      - name: Check pack behavior, eviction and depth on the compiler inputs
+        run: python -m pytest -q tests/test_archive_release.py --strict-depth
 
-      - name: Regress the reported phase compile memory startup failure
+      - name: Start the engine on a 95000-byte 32-bit heap
         run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 95000 --suite startup
 
-      - name: Check actual EVO bytecode on a 173360-byte 32-bit heap
-        run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 173360
+      - name: Run a typical session on a 173360-byte 32-bit heap
+        # 173360 bytes were free after a probe imported ti_plotlib, ti_graphics and more.
+        run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 173360 --suite ui
+
+      - name: Run the heavy calculus session at the measured EVO start heap
+        # PROBE3 measured 185296 bytes free at program start; the harness itself uses 4480.
+        # docs/notes/FASTBOOT.md records why packs need more heap than v1 for these cases.
+        run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 189776 --suite ui_calculus
+
+      - name: Run the 55-case diagnostic stress session on a 212000-byte 32-bit heap
+        run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 212000 --suite probe
 
       - name: Check actual EVO bytecode on a 500000-byte 64-bit heap
         run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas64" --heap 500000

@@ -1,19 +1,21 @@
-"""Run the actual paged calculator package with strict EVO depth checks.
+"""Run the packed calculator release with strict EVO depth checks (desktop CPython).
 
     python build/check_release.py [--dist dist]
 
-Only packaged carrier modules are imported. Their definitions execute in their
-real shared dictionaries; only the exec filename is supplied by a desktop hook.
-The fake free-heap reading exercises admission and cleanup, not physical RAM use.
+The packs import as real modules through a recording __import__ that follows MicroPython's
+rules: a module is registered before its body runs, and a body that fails stays registered
+(run.unload removes it). sys and gc are stand-ins, so eviction, soft packs and admission run
+their calculator code paths. The fake heap reading charges every loaded pack its release
+estimate against a chosen total; it exercises the loader, not physical RAM (native
+MicroPython runs check that: build/micro_smoke.py).
 """
 import argparse
 import builtins
 from contextlib import contextmanager
-import gc
 import json
-import linecache
 from pathlib import Path
 import sys
+import types
 from types import SimpleNamespace
 
 
@@ -24,12 +26,14 @@ for directory in (ROOT / 'tests/support', ROOT / 'shim'):
 import evodepth
 import invariants
 import keyscript
-import ti_graphics as G
+import ti_draw as TD
 import ti_system as TS
+
+PLENTY = 1 << 20
 
 
 class _ReleaseDepth(evodepth.DepthChecker):
-    """Retain the native exec penalty even though filename injection needs a host frame."""
+    """A pack import is a native call on the calculator: its body is the only new frame."""
 
     def __init__(self, release):
         super().__init__((str(release.dist),), base=0, budget=8, hard_limit=10,
@@ -40,88 +44,53 @@ class _ReleaseDepth(evodepth.DepthChecker):
 
     def _enter(self, code, frame, quiet):
         caller = frame.f_back
-        bridge = None
-        if caller is not None:
-            if caller.f_code is Release._exec.__code__:
-                bridge = builtins.exec
-            elif caller.f_code is Release._import.__code__:
-                bridge = builtins.__import__
-        if bridge is not None:
-            self._native[caller] = bridge
+        bridge = caller is not None and caller.f_code is Release._load.__code__
+        if bridge:
+            self._native[caller] = builtins.__import__
         try:
             super()._enter(code, frame, quiet)
         finally:
-            if bridge is not None:
+            if bridge:
                 self._native.pop(caller, None)
         self.release.seen.add((code.co_filename, code.co_name))
-        observer = self.release.observer
-        if observer is not None and not quiet:
-            controller = self.release.env.get('CVPH', {})
-            observer(frame, tuple(sorted(controller.get('ACTIVE', {}))))
+        if self.release.observer is not None and not quiet:
+            self.release.observer(frame)
 
 
 class Release:
-    def __init__(self, dist=ROOT / 'dist', free_memory=175 * 1024):
+    def __init__(self, dist=ROOT / 'dist', total=None):
         self.dist = Path(dist).resolve()
         self.path = self.dist / 'CASEVO.py'
         self.source = self.path.read_text('ascii')
         self.meta = json.loads((self.dist / 'release.json').read_text('ascii'))
-        self.free_memory = free_memory
-        self.seen, self.imports, self.executed = set(), [], []
-        self.observer = None
-        self.max_depth = 0
-        self.max_stack = ()
-        self.screen, self.snaps = '', {}
-        self.ended = None
-        self.builtins = dict(vars(builtins), __import__=self._import)
-        self.carriers = {}
-        self.sys = SimpleNamespace(modules=self.carriers)
-        # Heap acceptance runs in native MicroPython. CPython's reference
-        # counting/automatic GC manages these host objects; forcing a full host
-        # collection on every page import would also scan the unrelated SymPy
-        # test heap thousands of times. Keep this stand-in a native callable so
-        # it introduces no Python callback frame in the depth model.
+        self.total = total               # None: the heap never runs short
+        self.packs = set(self.meta['kinds'])
+        self.modules = {}                # the calculator's sys.modules
+        self.sys = SimpleNamespace(modules=self.modules)
+        # Native stand-ins: no Python callback frame enters the depth model.
         self.gc = SimpleNamespace(mem_free=self.memory, collect={}.clear)
-        self.globals = {'__name__': 'CASEVO', '__builtins__': self.builtins, 'exec': self._exec}
+        self.builtins = dict(vars(builtins), __import__=self._import)
+        self.globals = {'__name__': 'CASEVO', '__builtins__': self.builtins}
+        self.imports, self.loads, self.seen = [], [], set()
+        self.observer = None
+        self.fail = None                 # pack name -> exception to raise inside its body
+        self.max_depth, self.max_stack = 0, ()
+        self.screen, self.snaps, self.ended = '', {}, None
         self.levels = {}
-        for module, table in self.meta['levels'].items():
-            for old, level in table.items():
-                self.levels[(evodepth.norm_path(self.dist / 'blocks' / (module + '.py')),
-                             self.name(old))] = level
-        for payload, info in self.meta['payloads'].items():
-            table = self.meta['levels'].get(info['module'], {})
-            renamed = {self.name(name): level for name, level in table.items()}
-            for row in info['functions']:
-                if row['name'] in renamed:
-                    self.levels[(evodepth.norm_path(self.dist / 'blocks' / (payload + '.py')),
-                                 row['name'])] = renamed[row['name']]
-        for name, level in (('register', 2), ('part', 3), ('load', 2), ('unload', 2)):
-            self.levels[(evodepth.norm_path(self.dist / 'blocks/CVPH.py'), name)] = level
+        for pack, rows in self.meta['levels'].items():
+            path = evodepth.norm_path(self.dist / (pack + '.py'))
+            for fn, level in rows.items():
+                self.levels[(path, fn)] = level
 
-    @property
-    def env(self):
-        return self.globals.get('_env', {})
-
-    def name(self, old):
-        return self.meta['names'].get(old, old)
-
-    def is_function(self, frame, module, old):
-        owner = Path(frame.f_code.co_filename).stem
-        owner = self.meta['payloads'].get(owner, {}).get('module', owner)
-        owner = self.meta.get('function_pages', {}).get(owner, {}).get('module', owner)
-        return owner == module and frame.f_code.co_name == self.name(old)
-
-    def module(self, name):
-        return self.env[self.meta['modules'].get(name, name)]
-
-    def get(self, module, name):
-        return self.module(module)[self.name(name)]
-
-    def set(self, module, name, value):
-        self.module(module)[self.name(name)] = value
+    # -- the calculator side ------------------------------------------------------------------
+    def cost(self, pack):
+        factor = 1.6 if self.meta['kinds'].get(pack) in ('core', 'ui') else 1.3
+        return int(self.meta['mpy_estimate'].get(pack, 0) * factor)
 
     def memory(self):
-        return self.free_memory
+        if self.total is None:
+            return PLENTY
+        return self.total - sum(self.cost(name) for name in self.modules)
 
     def _import(self, name, *args, **kwargs):
         self.imports.append(name)
@@ -129,42 +98,58 @@ class Release:
             return self.sys
         if name == 'gc':
             return self.gc
-        if name in self.meta['sources']:
-            if name not in self.carriers:
-                path = self.dist / (name + '.py')
-                namespace = {'__name__': name, '__builtins__': self.builtins}
-                builtins.exec(compile(path.read_text('ascii'), str(path), 'exec'), namespace)
-                self.carriers[name] = SimpleNamespace(**namespace)
-            return self.carriers[name]
-        if name.startswith('CV') or name == 'CASEVO' or name in self.meta['modules']:
+        if name in self.packs:
+            if name not in self.modules:
+                self._load(name)
+            return self.modules[name]
+        if name[:2] == 'CV' or name[:3] == 'CAS' or name in self.meta['modules']:
             raise AssertionError('unpackaged project import: ' + name)
         return builtins.__import__(name, *args, **kwargs)
 
-    def _exec(self, source, namespace):
-        origin = namespace['__name__']
-        current = self.env.get('CVPH', {}).get('CURRENT')
-        payload = (current[1] if current and current[0] == origin and
-                   self.env.get(origin) is namespace else origin)
-        path = str(self.dist / 'blocks' / (payload + '.py'))
-        namespace.setdefault('__builtins__', self.builtins)
-        linecache.cache[path] = (len(source), None, source.splitlines(True), path)
-        self.executed.append((origin, payload))
-        builtins.exec(compile(source, path, 'exec'), namespace)
+    def _load(self, name):
+        self.loads.append(name)
+        module = types.ModuleType(name)
+        module.__dict__['__builtins__'] = self.builtins
+        self.modules[name] = module      # MicroPython registers the module first
+        path = self.dist / (name + '.py')
+        code = compile(path.read_text('ascii'), str(path), 'exec')
+        if self.fail is not None and name in self.fail:
+            raise self.fail.pop(name)
+        exec(code, module.__dict__)
 
+    # -- source names -------------------------------------------------------------------------
+    def name(self, old):
+        return self.meta['names'].get(old, old)
+
+    def device(self, src):
+        return self.meta['modules'].get(src, src)
+
+    def where(self, src, old):
+        device = self.device(src)
+        return self.meta['place'].get('%s.%s' % (device, old), self.meta['owner'][device])
+
+    def final(self, src, old):
+        renamed = self.meta['renames'].get('%s.%s' % (self.device(src), old), old)
+        return self.name(renamed)
+
+    def module(self, src, old=None):
+        pack = self.meta['owner'][self.device(src)] if old is None else self.where(src, old)
+        return self._import(pack)
+
+    def get(self, src, old):
+        return getattr(self.module(src, old), self.final(src, old))
+
+    def set(self, src, old, value):
+        setattr(self.module(src, old), self.final(src, old), value)
+
+    # -- running ------------------------------------------------------------------------------
     @contextmanager
     def traced(self):
-        missing = object()
-        prior = getattr(gc, 'mem_free', missing)
-        gc.mem_free = self.memory
         checker = _ReleaseDepth(self)
         try:
             with checker:
                 yield checker
         finally:
-            if prior is missing:
-                del gc.mem_free
-            else:
-                gc.mem_free = prior
             if checker.max_depth >= self.max_depth:
                 self.max_depth, self.max_stack = checker.max_depth, checker.max_stack
             failures = evodepth.failures(checker)
@@ -172,13 +157,8 @@ class Release:
                 raise AssertionError('\n'.join(failures))
 
     def boot(self):
-        prefix, separator, entry = self.source.partition('# RUN\n')
-        if not separator:
-            raise ValueError('release entry marker missing')
+        """The engine as CVTEST wires it (no UI)."""
         with self.traced():
-            builtins.exec(compile(prefix, str(self.path), 'exec'), self.globals)
-            for name in ('CVPH', 'CVNODE', 'CVALG', 'CVPARSE', 'CVPRINT', 'CVRUN'):
-                self.globals['_load'](name)
             self.set('parse', 'SESS', self.module('run'))
             self.set('node', 'MEMFREE', self.memory)
             self.set('run', 'MEMFREE', self.memory)
@@ -206,30 +186,34 @@ class Release:
         assert self.get('node', 'NN') == self.get('node', 'BASE')
         for name in ('LIVE', 'NEEDED', 'PINNED'):
             assert not self.get('run', name), name
-        namespace = dict(self.module('node'))
+        node = self.module('node')
+        namespace = dict(vars(node))
         for old, new in self.meta['names'].items():
             if new in namespace:
                 namespace[old] = namespace[new]
         problems = invariants.scan(SimpleNamespace(**namespace))
         assert not problems, problems[:5]
-        assert self.env.get('CVNORMB', {}).get(self.name('SIMPBUG'), 0) == 0
+        norm = self.modules.get(self.meta['owner'][self.device('normb')])
+        if norm is not None:
+            assert getattr(norm, self.final('normb', 'SIMPBUG'), 0) in (0, None)
 
     def run(self, script):
+        """The real CASEVO launcher against the desktop shims and a key script."""
         TS.reset()
-        G.reset()
+        TD.reset()
         TS.load(keyscript.parse(script) if isinstance(script, str) else list(script))
         previous = TS.MARK_HOOK[0]
-        TS.MARK_HOOK[0] = lambda label: self.snaps.__setitem__(label, G.screen_text())
+        TS.MARK_HOOK[0] = lambda label: self.snaps.__setitem__(label, TD.screen_text())
         try:
             with self.traced():
                 try:
-                    builtins.exec(compile(self.source, str(self.path), 'exec'), self.globals)
+                    exec(compile(self.source, str(self.path), 'exec'), self.globals)
                     self.ended = 'quit'
                 except TS.StopScript:
                     self.ended = 'script'
         finally:
             TS.MARK_HOOK[0] = previous
-            self.screen = G.screen_text()
+            self.screen = TD.screen_text()
         return self
 
 
@@ -239,7 +223,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     app = Release(args.dist).boot()
     for command, expected in (('1/3+1/6', '1/2'), ('diff(x^3,x)', '3*x^2'),
-                              ('sum(k^2,k,1,10)', '385')):
+                              ('sum(k^2,k,1,10)', '385'),
+                              ('integrate(1/(2+cos(x)),x,0,2*pi)', '2*sqrt(3)*pi/3')):
         result = app.go(command)
         assert result[:2] == ('ans', expected), (command, result)
         app.assert_clean()

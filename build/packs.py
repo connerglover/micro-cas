@@ -192,8 +192,10 @@ class Plan(object):
         for d in self.owner:
             self.modules[d] = Module(d, sources[d], self.owner[d])
         for (d, fn), pack in self.place.items():
-            if d not in self.modules or fn not in self.modules[d].functions:
-                raise PackError('%s.%s is placed but is no top-level function' % (d, fn))
+            if d not in self.modules or (fn not in self.modules[d].functions and
+                                         not self.constant(d, fn)):
+                raise PackError('%s.%s is placed but is no top-level function or constant'
+                                % (d, fn))
             if pack == self.owner[d]:
                 raise PackError('%s.%s is placed in its own home pack' % (d, fn))
         for m in self.modules.values():
@@ -273,8 +275,8 @@ class Plan(object):
                     raise PackError('%s.%s is in aux pack %s but %s reaches run' % (d, fn, pack, d))
                 todo.extend(self.modules[x].aliases.values())
             stmt = [s for s in self.modules[d].tree.body
-                    if isinstance(s, ast.FunctionDef) and s.name == fn][0]
-            if any(isinstance(n, (ast.Yield, ast.YieldFrom)) for n in ast.walk(stmt)):
+                    if isinstance(s, ast.FunctionDef) and s.name == fn]
+            if stmt and any(isinstance(n, (ast.Yield, ast.YieldFrom)) for n in ast.walk(stmt[0])):
                 raise PackError('%s.%s: a generator cannot live in aux pack %s' % (d, fn, pack))
 
     def _lazy(self):
@@ -303,6 +305,12 @@ class Plan(object):
                             raise PackError('%s: lazy alias %s must start as None' % (d, n))
                         m.aliases[n] = x
                         m.lazy.add(n)
+
+    def constant(self, device, name):
+        """A module-level name bound once to a literal and never assigned in a function: it
+        can live in any pack, like a function (tables only the UI's screens read)."""
+        m = self.modules[device]
+        return name in m.values and name not in m.mutates
 
     def _shared(self, a, b, name):
         """Both modules bind name to the same literal, import the same native module, or alias
@@ -811,10 +819,16 @@ def merge(sources, man, clients=()):
             for stmt in m.tree.body:
                 if isinstance(stmt, ast.FunctionDef) and (d, stmt.name) in plan.place:
                     continue
+                if (isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and
+                        isinstance(stmt.targets[0], ast.Name) and
+                        (d, stmt.targets[0].id) in plan.place):
+                    continue
                 emitted[pack].append((d, stmt))
         for d, fn in placed:
             stmt = [s for s in plan.modules[d].tree.body
-                    if isinstance(s, ast.FunctionDef) and s.name == fn][0]
+                    if isinstance(s, ast.FunctionDef) and s.name == fn or
+                    isinstance(s, ast.Assign) and len(s.targets) == 1 and
+                    isinstance(s.targets[0], ast.Name) and s.targets[0].id == fn][0]
             emitted[pack].append((d, stmt))
     packs, meta = {}, {'packs': {}, 'statements': {}}
     for pack, kind, homes, placed in plan.order:
@@ -836,9 +850,6 @@ def merge(sources, man, clients=()):
                     _set(holder, 'VIEW', tuple(p for p, k, _, _ in plan.order if k == 'view'))
                 elif table == 'AUX':
                     _set(holder, 'AUX', tuple(p for p, k, _, _ in plan.order if k == 'aux'))
-                elif table == 'DROPEVICT':
-                    import os as _os
-                    _set(holder, 'DROPEVICT', int(_os.environ.get('DROPEVICT', '1')))
                 elif table == 'EVDICT':
                     _set(holder, 'EVDICT', 1)       # see run.unload
                 elif table == 'SHEDAT':
@@ -850,11 +861,11 @@ def merge(sources, man, clients=()):
                 elif table == 'PEAKB':
                     _set(holder, 'PEAKB', 0)    # bytecode: no compiler runs on the calculator
                 elif table == 'FRAG':
-                    _set(holder, 'FRAG', 2048)
+                    _set(holder, 'FRAG', getattr(man, 'PACKFRAG', 2048))
             uses.update(rw.uses)
             for s in new:
                 body.append(s)
-                spans.append(d)
+                spans.append((d, stmt.lineno, stmt.end_lineno))
         imported = set()
         for s in body:
             if isinstance(s, ast.Import):

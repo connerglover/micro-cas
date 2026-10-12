@@ -3,6 +3,7 @@
 # printer, run) is imported by engine() on first use; until then the shell runs with an empty
 # history, theme 0 and radians (docs/notes/FASTBOOT.md). All drawing goes through draw.py.
 import gc
+import sys
 import time
 import ti_system as TS
 import draw as D
@@ -287,11 +288,22 @@ def engine():                                                  #@L 2
     STATUS = 'Loading engine...'
     status(STATUS)
     gc.collect()
-    import node as K
-    import alg as A
-    import parse as P
-    import printer as PR
-    import run as R
+    before = list(sys.modules)
+    try:
+        import node as K
+        import alg as A
+        import parse as P
+        import printer as PR
+        import run as R
+    except BaseException:
+        # MicroPython 1.12 keeps a module whose import failed: drop everything this attempt
+        # added, so the next ENTER imports a whole engine instead of a half-run one.
+        for name in list(sys.modules):
+            if name not in before:
+                del sys.modules[name]
+        K = A = P = PR = R = None
+        raise
+    before = None
     P.SESS = R
     K.ESC = TS.escape
     if hasattr(gc, 'mem_free'):

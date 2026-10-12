@@ -144,7 +144,8 @@ PACKS = (
     ('CASUX', ('ui.key', 'ui.show', 'ui.redraw', 'ui.boot', 'ui.engine', 'ui.insert',
                'ui.enclosing', 'ui.empty_slot', 'ui.wrapped', 'draw.leaf', 'draw.row',
                'draw.frame', 'draw.large', 'draw.tree', 'draw.measure', 'draw.place',
-               'draw.layout', 'draw.render', 'draw.paint'), 'view'),
+               'draw.layout', 'draw.render', 'draw.paint', 'ui.PLAIN', 'ui.SECOND', 'ui.ALPHA',
+               'ui.HINT', 'ui.ALIAS'), 'view'),
     ('CASALG', ('poly', 'polyb', 'polyc', 'rules', 'rulesb', 'ident', 'norm', 'normb', 'normc',
                 'diff'), 'family'),
     ('CASFAC', ('factor', 'factorb', 'factorc', 'factord', 'forms'), 'family'),
@@ -163,6 +164,14 @@ PACKS = (
 PACKMAX = 60000
 # run.room(phase): the soft pack each phase loads, so memory is made for it first.
 ROOMS = {'input': 'CASIN', 'print': 'CASPR', 'layout': 'CASUX'}
+# Loader tables written into the calculator's run module (build/release.py). Heap estimates are
+# bytecode bytes x factor + fixed: 32-bit measurements put packs at 1.1 to 1.6 times their
+# bytecode (docs/notes/FASTBOOT.md). Below SHEDAT free bytes after parsing, idle soft packs
+# unload before the computation starts. FRAG is the slack each load asks for.
+PACKCOST = (1.25, 512)
+ROOMCOST = (1.4, 512)
+SHEDAT = 65536
+PACKFRAG = 2048
 
 # Memory model (DESIGN 4.1, 18.1, 18.7). CALIBRATION says where the numbers come from:
 # 'provisional' = the DESIGN 18 estimates, because the M0.5 device run (PRBMEM on the

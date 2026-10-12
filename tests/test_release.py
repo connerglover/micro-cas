@@ -1,7 +1,13 @@
-"""Acceptance of the paged multi-file calculator artifact itself."""
+"""Acceptance of the packed calculator release itself (docs/notes/FASTBOOT.md).
+
+The harness (build/check_release.py) imports the actual release packs with MicroPython's import
+rules and the strict EVO depth model. A fake heap charges loaded packs their estimates, so the
+loader's eviction, soft-pack and admission paths run as on the calculator.
+"""
 import ast
 import hashlib
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -12,13 +18,20 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('check_release', ROOT / 'build/check_release.py')
 
 
-@pytest.fixture(scope='module')
-def release_module():
-    if not (ROOT / 'dist/CASEVO.py').is_file() or not (ROOT / 'dist/release.json').is_file():
+def load_release_module():
+    meta = ROOT / 'dist/release.json'
+    if not (ROOT / 'dist/CASEVO.py').is_file() or not meta.is_file():
         pytest.skip('packaged artifact absent; run python build/release.py')
+    if json.loads(meta.read_text('ascii')).get('format') != 'packs-v1':
+        pytest.skip('dist holds an older release format; run python build/release.py')
     module = importlib.util.module_from_spec(SPEC)
     SPEC.loader.exec_module(module)
     return module
+
+
+@pytest.fixture(scope='module')
+def release_module():
+    return load_release_module()
 
 
 @pytest.fixture(scope='module')
@@ -28,6 +41,8 @@ def booted(release_module):
 
 @pytest.fixture
 def app(booted):
+    booted.total = None
+    booted.fail = None
     booted.reset_session()
     return booted
 
@@ -64,83 +79,122 @@ def test_packaged_corpora(app, command, kind, expected):
     app.assert_clean()
 
 
-def test_dynamic_function_frames_are_observed(app):
-    assert app.go('diff(x^3,x)')[1] == '3*x^2'
-    assert any(Path(path).stem in app.meta['function_pages'] and name == app.name('g_eval')
-               for path, name in app.seen)
-    assert any(app.meta['function_pages'].get(Path(path).stem, {}).get('module') == 'CVDIFF'
-               and name == app.name('g_deriv')
-               for path, name in app.seen)
+def pack(app, src):
+    return app.meta['owner'][app.device(src)]
+
+
+def test_families_load_once_and_stay_while_memory_allows(app):
+    del app.loads[:]
+    for _ in range(3):
+        assert app.go('simplify(sin(x)^2+cos(x)^2)')[1] == '1'
+        assert app.go('diff(x^3,x)')[1] == '3*x^2'
+    assert app.loads.count(pack(app, 'norm')) == 1, app.loads
+    assert app.loads.count(pack(app, 'printer')) <= 1, app.loads
     assert 1 < app.max_depth <= 8
-    assert 'CVDIFF' in app.imports
-    assert not app.carriers
+    app.assert_clean()
 
 
-def test_phase_boundaries_during_math_and_output(app):
-    events = []
+def test_tight_heap_evicts_clears_and_reloads(app):
+    commands = (('factor(x^4-1)', '(x-1)*(x+1)*(x^2+1)'), ('limit(sin(x)/x,x,0)', '1'),
+                ('integrate(x^2,x,0,1)', '1/3'), ('solve(x^2-5*x+6=0,x)', 'x=2,x=3'),
+                ('sum(k^2,k,1,10)', '385'))
+    app.go('2+3')
+    core = sum(app.cost(n) for n in app.modules if app.meta['kinds'][n] in ('core', 'ui'))
+    app.total = core + 60000            # room for a family or two, never for all of them
+    del app.loads[:]
+    held = {}
+    for _ in range(2):
+        for command, want in commands:
+            result = app.go(command)
+            assert result[:2] == ('ans', want), (command, result)
+            app.assert_clean()
+            for name, module in app.modules.items():
+                held.setdefault(name, module)
+    assert len(app.loads) > len(set(app.loads)), app.loads     # something was evicted
+    final = app.final('run', 'need')
+    for name, module in held.items():
+        if app.modules.get(name) is not module and app.meta['kinds'][name] not in ('core', 'ui'):
+            # an evicted pack is cleared, so a stale stack word cannot keep its code alive
+            assert all(getattr(module, k) is None for k in dir(module) if k[:2] != '__'), name
+    assert getattr(app.module('run'), final) is not None
 
-    def observe(frame, phase):
-        if app.is_function(frame, 'CVPARSE', 'g_eval') or app.is_function(frame, 'CVPRINT', 'record'):
-            events.append((frame.f_code.co_name, phase))
 
-    app.observer = observe
+def test_out_of_memory_cleans_and_recovers(app):
+    app.total = 0
+    result = app.go('integrate(x^2,x,0,1)')
+    assert result[:2] == ('msg', 'Out of memory'), result
+    app.assert_clean()
+    app.total = None
+    assert app.go('integrate(x^2,x,0,1)')[1] == '1/3'
+    app.assert_clean()
+
+
+def test_a_pack_body_failing_with_memory_error_is_unloaded_and_retried(app):
+    app.go('2+3')                       # the input and printer packs are loaded and idle
+    target = pack(app, 'defint')
+    app.fail = {target: MemoryError('pack body')}
+    assert app.go('integrate(x^2,x,0,1)')[1] == '1/3'
+    assert not app.fail                 # the failure happened, then a retry succeeded
+    assert app.loads.count(target) >= 2
+    app.assert_clean()
+
+
+def test_a_failing_family_import_reports_and_does_not_poison_the_session(app):
+    target = pack(app, 'diff')
+    app.fail = {target: ImportError('missing pack')}
+    with app.traced():
+        result = app.get('run', 'go')(('eval', 'diff(x^3,x)'))
+    assert result[:2] == ('msg', 'internal error: ImportError'), result
+    assert target not in app.modules
+    assert app.go('diff(x^3,x)')[1] == '3*x^2'
+    app.assert_clean()
+
+
+def test_view_packs_only_unload_while_computing(app):
+    view = [p for p, k in app.meta['kinds'].items() if k == 'view']
+    assert view
+    for name in view:
+        app._import(name)
+    shed = app.get('run', 'shed')
+    with app.traced():
+        while shed():
+            pass
+    assert all(name in app.modules for name in view)        # menus may be running
+    app.set('run', 'INGO', True)
     try:
-        assert app.go('2+3')[1] == '5'
+        with app.traced():
+            while shed():
+                pass
     finally:
-        app.observer = None
-    assert any(name == app.name('g_eval') and phase == () for name, phase in events)
-    assert any(name == app.name('record') and phase == ('print',) for name, phase in events)
-    assert app.module('CVPH')['ACTIVE'] == {}
-    for module, groups in app.meta['groups'].items():
-        namespace = app.env.get(module, {})
-        for phase in ('input', 'print'):
-            assert all(name not in namespace for name in groups.get(phase, ()))
+        app.set('run', 'INGO', False)
+    assert not any(name in app.modules for name in view)
 
 
-def test_memory_admission_failure_cleans_and_recovers(app):
-    app.free_memory = 0
-    try:
-        result = app.go('2+3')
-        assert result[:2] == ('msg', 'Out of memory'), result
-        app.assert_clean()
-        assert app.module('CVPH')['ACTIVE'] == {}
-    finally:
-        app.free_memory = 175 * 1024
-    assert app.go('2+3')[1] == '5'
-
-
-def test_mid_phase_admission_failure_removes_already_loaded_definitions(app):
-    chunks = []
-
-    def observe(frame, phase):
-        if frame.f_code.co_name == 'part':
-            chunks.append(frame.f_locals['name'])
-            if len(chunks) == 2:
-                app.free_memory = 0
-
-    app.observer = observe
-    try:
-        assert app.go('2+3')[:2] == ('msg', 'Out of memory')
-        assert len(chunks) == 2
-        for module, groups in app.meta['groups'].items():
-            assert all(name not in app.env.get(module, {}) for name in groups.get('input', ()))
-        assert app.module('CVPH')['ACTIVE'] == {}
-        assert app.module('CVPH')['CURRENT'] is None
-        app.assert_clean()
-    finally:
-        app.observer = None
-        app.free_memory = 175 * 1024
-    assert app.go('2+3')[1] == '5'
-
-
-def test_session_globals_survive_phase_eviction(app):
+def test_session_globals_survive_eviction(app):
     assert app.go('2=>a')[1] == '2'
     assert app.go('f(x)=a*x+1')[:2] == ('msg', 'f(x) defined')
+    with app.traced():
+        app.get('run', 'evict_all')()
     assert app.go('f(3)')[1] == '7'
     assert app.go('ans()*2')[1] == '14'
     assert app.get('run', 'VARS') == {'a': '2'}
     assert app.get('run', 'FUNCS') == {'f': (('x',), 'a*x+1')}
-    assert len(app.get('run', 'HIST')) == 4
+    app.assert_clean()
+
+
+def test_boot_loads_only_the_ui(release_module):
+    app = release_module.Release().run('{snap:boot}')
+    kinds = set(app.meta['kinds'][n] for n in app.loads)
+    assert kinds <= {'ui', 'view'}, app.loads
+    assert 'cas-evo' in app.snaps['boot'] or app.snaps['boot']
+
+
+def test_first_enter_loads_the_engine_once(release_module):
+    app = release_module.Release().run('2+3{enter}3*4{enter}{2nd,mode}')
+    assert app.ended == 'quit'
+    assert app.get('run', 'ANS') == '12'
+    core = [n for n in app.loads if app.meta['kinds'][n] == 'core']
+    assert sorted(core) == sorted(set(core)), app.loads
     app.assert_clean()
 
 
@@ -156,22 +210,8 @@ def test_actual_entry_editor_menus_forms_and_cancel(release_module, script, answ
     app = release_module.Release().run(script)
     assert app.get('run', 'ANS') == answer
     assert 'Display error' not in app.screen and 'internal error' not in app.screen
-    assert app.module('CVPH')['ACTIVE'] == {'ui': True}
     app.assert_clean()
     assert 1 < app.max_depth <= 8
-
-
-def test_actual_entry_loads_ui_before_interaction(release_module):
-    app = release_module.Release()
-    states = []
-
-    def observe(frame, phase):
-        if app.is_function(frame, 'CVUI', 'key'):
-            states.append(phase)
-
-    app.observer = observe
-    app.run('2+3{enter}{f1}{clear}')
-    assert states and all(state == ('ui',) for state in states)
 
 
 def test_actual_entry_keyboard_interrupt_recovers(release_module):
@@ -179,119 +219,65 @@ def test_actual_entry_keyboard_interrupt_recovers(release_module):
         'expand((x+y)^20){enter}{on@1}{snap:interrupted}{clear}2+3{enter}')
     assert 'Interrupted' in app.snaps['interrupted']
     assert app.get('run', 'ANS') == '5'
-    assert app.module('CVPH')['ACTIVE'] == {'ui': True}
     assert release_module.TS.FIRED == [(1, release_module.TS.ON)]
     app.assert_clean()
 
 
-def test_actual_entry_repeated_ui_admission_failure_recovers(release_module):
+def test_actual_entry_out_of_memory_shows_and_recovers(release_module):
     app = release_module.Release()
-    state = {'armed': True, 'panics': []}
+    state = {'armed': True}
 
-    def observe(frame, phase):
-        name = frame.f_code.co_name
-        if app.is_function(frame, 'CVRUN', 'finish') and state['armed']:
+    def observe(frame):
+        if state['armed'] and frame.f_code.co_name == app.final('run', 'need'):
             state['armed'] = False
-            app.free_memory = 0
-        elif app.is_function(frame, 'CVUI', 'panic'):
-            state['panics'].append(phase)
-            if len(state['panics']) == 2:
-                app.free_memory = 175 * 1024
+            app.total = 0
+        elif not state['armed'] and frame.f_code.co_name == app.final('ui', 'panic'):
+            app.total = None
 
     app.observer = observe
-    app.run('2+3{enter}{snap:low}1{snap:low-again}{clear}2+3{enter}')
-    assert state['panics'] == [(), ()]
+    app.run('2+3{enter}integrate(x^2,x,0,1){enter}{snap:low}{clear}2+3{enter}')
+    app.observer = None
     assert 'Out of memory' in app.snaps['low']
-    assert 'Out of memory' in app.snaps['low-again']
-    assert '2+3' in app.snaps['low-again']
     assert app.get('run', 'ANS') == '5'
-    assert app.module('CVPH')['ACTIVE'] == {'ui': True}
     app.assert_clean()
 
 
-def test_actual_entry_mode_exits_when_ui_cannot_load(release_module):
-    app = release_module.Release()
-
-    def observe(frame, phase):
-        if app.is_function(frame, 'CVRUN', 'finish'):
-            app.free_memory = 0
-
-    app.observer = observe
-    app.run('2+3{enter}{mode}')
-    assert app.ended == 'quit'
-    assert 'Out of memory' in app.screen
-    assert app.module('CVPH')['ACTIVE'] == {}
-    app.assert_clean()
-
-
-def test_package_integrity_compatibility_and_paging(booted):
-    data = booted.path.read_bytes()
-    assert len(data) == booted.meta['file_bytes']
-    assert hashlib.sha256(data).hexdigest() == booted.meta['sha256']
-    assert booted.meta['total_source_bytes'] < 3_500_000
-    assert booted.meta['archive_bytes'] == 0
-    assert '_data' not in booted.globals and '_decode' not in booted.globals
-    assert booted.meta['transfer_check']['fits_converter_limit']
-    for name, info in booted.meta['files'].items():
+def test_package_integrity_and_line_map(booted):
+    meta = booted.meta
+    assert meta['format'] == 'packs-v1'
+    assert meta['transfer_check']['fits_converter_limit']
+    assert meta['total_source_bytes'] < 3_500_000
+    for name, info in meta['files'].items():
         content = (booted.dist / name).read_bytes()
-        assert len(content) == info['bytes'] < 65509
+        assert len(content) == info['bytes']
         assert hashlib.sha256(content).hexdigest() == info['sha256']
         ast.parse(content.decode('ascii'), feature_version=(3, 4))
-    for name, info in booted.meta['function_pages'].items():
-        mapping = booted.meta['linemap'][name]
-        for fn in info['functions']:
-            assert fn['source_span'] is not None
-            assert fn['src'].startswith('src/')
-            assert mapping['lines'][fn['output_first_line'] - 1] == fn['source_span']
-            assert fn['output_first_line'] <= fn['output_last_line'] <= len(mapping['lines'])
-    with booted.traced():
-        for name in booted.meta['sources']:
-            if name in booted.meta['function_pages']:
-                source = (booted.dist / (name + '.py')).read_text('ascii')
-                page = booted._import(name)
-                for row in booted.meta['function_pages'][name]['functions']:
-                    assert callable(getattr(page, row['name']))
-                booted.carriers.clear()
-            else:
-                source = booted.globals['_read'](name)
-            assert len(source.encode('ascii')) == booted.meta['sources'][name]
-            assert source == (booted.dist / 'blocks' / (name + '.py')).read_text('ascii')
-            assert not booted.carriers
-            ast.parse(source, feature_version=(3, 4))
+    for name in meta['launchers']:
+        assert meta['files'][name]['bytes'] < 65509
+    kinds = set(meta['kinds'].values())
+    assert {'ui', 'core', 'family', 'soft', 'view'} <= kinds
+    for pack, size in meta['mpy_estimate'].items():
+        assert size <= 60000, pack
+        lines = meta['linemap'][pack]['lines']
+        text = (booted.dist / (pack + '.py')).read_text('ascii').splitlines()
+        assert len(lines) == len(text)
+        mapped = [entry for entry in lines if entry]
+        assert mapped, pack
+        for first, last, src in mapped:
+            assert src.startswith('src/') and 0 < first <= last, (pack, src)
+    # every runtime key resolves to a pack that exists
+    run = booted.module('run')
+    for key, name in getattr(run, booted.final('run', 'DEV')).items():
+        if name in meta['kinds']:
+            assert (booted.dist / (name + '.py')).is_file()
 
 
-def test_failed_companion_load_does_not_poison_namespace(booted, monkeypatch):
-    original = booted._import
-
-    def missing(name, *args, **kwargs):
-        if name == 'CVDIFF':
-            raise ImportError('missing companion')
-        return original(name, *args, **kwargs)
-
-    monkeypatch.setitem(booted.builtins, '__import__', missing)
-    with booted.traced(), pytest.raises(ImportError, match='missing companion'):
-        booted.globals['_load']('CVDIFF')
-    assert 'CVDIFF' not in booted.env
-    assert not booted.carriers
-    monkeypatch.setitem(booted.builtins, '__import__', original)
-    assert booted.go('diff(x^3,x)')[1] == '3*x^2'
-    booted.assert_clean()
-
-
-def test_native_page_compile_failure_cleans_and_recovers(app, monkeypatch):
-    original = app._import
-    failed = []
-
-    def no_space(name, *args, **kwargs):
-        if name in app.meta['function_pages'] and not failed:
-            failed.append(name)
-            raise MemoryError('page compiler')
-        return original(name, *args, **kwargs)
-
-    monkeypatch.setitem(app.builtins, '__import__', no_space)
-    assert app.go('diff(x^3,x)')[:2] == ('msg', 'Out of memory')
-    assert failed and not app.carriers
-    app.assert_clean()
-    monkeypatch.setitem(app.builtins, '__import__', original)
-    assert app.go('diff(x^3,x)')[1] == '3*x^2'
+def test_engine_load_failure_rolls_back_and_the_next_enter_loads_it(release_module):
+    app = release_module.Release()
+    run_pack = app.meta['owner'][app.device('run')]
+    app.fail = {run_pack: MemoryError('engine')}
+    app.run('2+3{enter}{snap:failed}{clear}2+3{enter}')
+    assert 'Out of memory' in app.snaps['failed']
+    assert app.loads.count(run_pack) == 2           # the half-run module was not reused
+    assert app.get('run', 'ANS') == '5'
     app.assert_clean()

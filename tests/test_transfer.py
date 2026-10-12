@@ -79,13 +79,13 @@ def test_release_gate_runs_before_artifact_write(tmp_path, monkeypatch, stale):
         import release
     finally:
         sys.path.pop(0)
-    monkeypatch.setattr(release, 'prepare', lambda path:
-                        ({'CASEVO': 'pass\n', 'CVDUMMY': '#' + 'x' * 70000},
-                         {'names': {}, 'sources': {}}))
-    monkeypatch.setattr(release.function_pages, 'pack', lambda sources, meta: (sources, set()))
+    monkeypatch.setattr(release, 'prepare', lambda path, man=None:
+                        ({'CASEVO.py': 'pass\n', 'CVTEST.py': '#' + 'x' * 70000,
+                          'CASK1.py': 'pass\n'},
+                         {'names': {}, 'launchers': ['CASEVO.py', 'CVTEST.py']}))
     if stale:
         for name in ('CASEVO.py', 'CVTEST.py', 'cas-evo-v1.zip', 'cas-evo-development.zip',
-                     'SHA256SUMS', 'INSTALL.md', 'CVOLD.py'):
+                     'cas-evo-packs.zip', 'SHA256SUMS', 'INSTALL.md', 'CVOLD.py'):
             (tmp_path / name).write_text('old')
         (tmp_path / 'release.json').write_text('{"files":{"CVOLD.py":{}}}')
     with pytest.raises(ValueError, match='Not transferable'):
@@ -94,6 +94,8 @@ def test_release_gate_runs_before_artifact_write(tmp_path, monkeypatch, stale):
     assert not (tmp_path / 'CASEVO.py').exists()
     assert not (tmp_path / 'CVTEST.py').exists()
     assert not (tmp_path / 'cas-evo-v1.zip').exists()
+    assert not (tmp_path / 'cas-evo-packs.zip').exists()
+    assert not (tmp_path / 'CASK1.py').exists()
     assert not (tmp_path / 'cas-evo-development.zip').exists()
     assert not (tmp_path / 'CVOLD.py').exists()
     assert not (tmp_path / 'SHA256SUMS').exists()

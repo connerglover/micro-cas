@@ -159,7 +159,6 @@ SOFT = ()           # device: stateless packs to unload when no family can give 
 VIEW = ()           # device: UI packs; only unloaded while go() computes (none of their code runs)
 AUX = ()            # device: computation code that never reaches the loader; unloaded last
 INGO = False        # go() is computing
-DROPEVICT = 1       # drop() evicts at once (else need() evicts when memory runs short)
 ROOM = {}           # device: phase -> (soft pack, bytes it needs to load); see room()
 SHEDAT = 0          # device: below this many free bytes after parsing, idle soft packs unload
 KEEPFREE = 40960    # between commands, evict LRU families until this much is free (18.5)
@@ -709,7 +708,7 @@ def drop(keys):                                                 #@L 3
                 LIVE[c] -= 1
         if f in PINNED:
             PINNED.remove(f)
-        if f in LOADED and not LIVE.get(f, 0) and DROPEVICT:
+        if f in LOADED and not LIVE.get(f, 0):
             evict(f)
 
 

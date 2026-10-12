@@ -1,37 +1,54 @@
-"""Apply the artifact's behavioral/depth tests to precompiled initializers too."""
+"""Apply the release's behavioral and depth tests to the exact inputs of the EVO compiler.
+
+Native build/micro_smoke.py --archive separately executes the compiled MPY v5 bytecode.
+"""
+import hashlib
+import json
 import os
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'build'))
-
-from test_release import (
-    corpus, test_packaged_corpora, test_dynamic_function_frames_are_observed,
-    test_phase_boundaries_during_math_and_output,
-    test_memory_admission_failure_cleans_and_recovers,
-    test_mid_phase_admission_failure_removes_already_loaded_definitions,
-    test_session_globals_survive_phase_eviction,
+import test_release
+from test_release import (                                   # noqa: F401  (reused tests)
+    corpus, test_packaged_corpora, test_families_load_once_and_stay_while_memory_allows,
+    test_tight_heap_evicts_clears_and_reloads, test_out_of_memory_cleans_and_recovers,
+    test_a_pack_body_failing_with_memory_error_is_unloaded_and_retried,
+    test_a_failing_family_import_reports_and_does_not_poison_the_session,
+    test_view_packs_only_unload_while_computing, test_session_globals_survive_eviction,
+    test_boot_loads_only_the_ui, test_first_enter_loads_the_engine_once,
     test_actual_entry_editor_menus_forms_and_cancel,
-    test_actual_entry_loads_ui_before_interaction,
     test_actual_entry_keyboard_interrupt_recovers,
-    test_actual_entry_repeated_ui_admission_failure_recovers,
-    test_actual_entry_mode_exits_when_ui_cannot_load,
-    test_failed_companion_load_does_not_poison_namespace,
-    test_native_page_compile_failure_cleans_and_recovers,
+    test_actual_entry_out_of_memory_shows_and_recovers,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
+ARCHIVE = Path(os.environ.get('CAS_EVO_ARCHIVE', ROOT / 'dist/archive'))
+
+
+def verified_sources():
+    manifest = json.loads((ARCHIVE / 'archive.json').read_text('ascii'))
+    meta = json.loads((ARCHIVE / 'source/release.json').read_text('ascii'))
+    names = set()
+    for info in manifest['files']:
+        name = info['module'] + '.py'
+        data = (ARCHIVE / 'source' / name).read_bytes()
+        assert len(data) == info['sourceBytes'], name
+        assert hashlib.sha256(data).hexdigest() == info['sourceSha256'], name
+        assert meta['files'][name]['sha256'] == info['sourceSha256'], name
+        names.add(name)
+    assert names == set(meta['files']), 'archive module set differs from its release'
+    return ARCHIVE / 'source'
 
 
 @pytest.fixture(scope='module')
 def release_module():
-    from check_archive import ArchiveRelease, ROOT
-    from check_release import TS
-    archive = Path(os.environ.get('CAS_EVO_ARCHIVE', ROOT / 'dist/archive'))
-    if not (archive / 'archive.json').exists():
-        pytest.skip('build the archive package first')
-    return SimpleNamespace(Release=lambda: ArchiveRelease(archive), TS=TS)
+    if not (ARCHIVE / 'archive.json').exists():
+        pytest.skip('build the archive package first: python build/archive.py --mpy-cross ...')
+    module = test_release.load_release_module()
+    source = verified_sources()
+    return SimpleNamespace(Release=lambda: module.Release(source), TS=module.TS)
 
 
 @pytest.fixture(scope='module')
@@ -41,5 +58,23 @@ def booted(release_module):
 
 @pytest.fixture
 def app(booted):
+    booted.total = None
+    booted.fail = None
     booted.reset_session()
     return booted
+
+
+def test_archive_holds_only_packs_and_launchers():
+    if not (ARCHIVE / 'archive.json').exists():
+        pytest.skip('build the archive package first')
+    manifest = json.loads((ARCHIVE / 'archive.json').read_text('ascii'))
+    assert manifest['runtimeCompilation'] is False
+    for info in manifest['files']:
+        data = (ARCHIVE / info['name']).read_bytes()
+        assert hashlib.sha256(data).hexdigest() == info['sha256']
+        if info['kind'] == 'bytecode':
+            assert data[:4] == b'M\x05\x03\x1f' and len(data) <= 60000, info['name']
+            assert info['destination'] == 'archive'
+        else:
+            assert info['module'] in ('CASEVO', 'CVTEST') and info['destination'] == 'ram'
+    assert len(manifest['files']) < 40
