@@ -85,7 +85,7 @@ def normal(e, ex=0):                                            #@L 3
         if t[0] == K.MUL:
             for j in range(3, len(t), 2):
                 w = N[t[j]]
-                if w[0] or w[2] or w[3] != 1 or (w[1] < 0 and ex):
+                if w[0] or w[2] or w[3] != 1 or (w[1] < 0 and ex) or N[t[j - 1]][0] == K.NUM:
                     nv += 1
         elif t[0] > K.NUM and t[0] != K.ADD:
             nv += NVMAX if (m == K.OO or m == K.UNDEF) and not ex else 1
@@ -124,12 +124,18 @@ def normal(e, ex=0):                                            #@L 3
                     y = rf[t[j]]
                     w = N[t[j + 1]]
                     p = w[1] if w[0] == K.NUM and not w[2] else 0
-                    if not p or (p < 0 and ex):             # a power kept whole: a kernel
+                    c = K.huge(t[j], t[j + 1]) and K.mul_(K.ONE, [(t[j], K.mk(K.nneg(w)) if
+                                                                   p < 0 and not ex else t[j + 1])])
+                    h = c and N[c][0] == K.MUL and N[c][1] == K.ONE     # too large to fold
+                    if h:                                   # (5.3): one kernel, b^-x as (b^x)^-1
+                        y = ({R.MODS['normc'].kmono(c, ks): 1}, one)        # (a HOLD's folds)
+                        p = -1 if p < 0 and not ex else 1
+                    if not h and (not p or (p < 0 and ex)):     # a power kept whole: a kernel
                         c = rf[t[j + 1]]
                         y = ({R.MODS['normc'].kmono(K.mul_(K.ONE, [(R.MODS['normc'].tonode(y[0], y[1], ks, ex),
                                                    R.MODS['normc'].tonode(c[0], c[1], ks, ex))]), ks): 1}, one)
                         p = 1
-                    elif w[3] > 1:                          # u^(p/q) = (u^(1/q))^p
+                    elif w[3] > 1 and not h:                # u^(p/q) = (u^(1/q))^p
                         z = R.MODS['normc'].kmono(K.mul_(K.ONE, [(R.MODS['normc'].tonode(y[0], y[1], ks, ex),
                                                   K.num(1, 0, w[3]))]), ks)
                         c = y[0].get(Z)

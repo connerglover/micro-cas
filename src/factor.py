@@ -44,12 +44,12 @@ def terms(e, ks, out):                                          #@L 4
             b = prs[j]
             w = K.N[prs[j + 1]]
             n = 1
-            if w[0] == K.NUM and not w[2] and w[1] > 0:
+            if w[0] == K.NUM and not w[2] and w[1] > 0 and not K.huge(b, prs[j + 1]):
                 n = w[1]
                 if w[3] > 1:                                    # u^(n/q) = (u^(1/q))^n
                     b = K.mul_(K.ONE, [(b, K.num(1, 0, w[3]))])
-            else:                                               # b^(n*u) = (b^u)^n, n > 0
-                y = K.N[w[1]] if w[0] == K.MUL else K.Q0
+            else:                       # b^(n*u) = (b^u)^n, n > 0; a power kept whole (6.1):
+                y = K.N[w[1]] if w[0] == K.MUL else K.Q0                # one kernel, n = 1
                 u = prs[j + 1]
                 if y[0] == K.NUM and not y[2] and y[3] == 1 and y[1] > 1:
                     n = y[1]

@@ -325,8 +325,8 @@ def test_undefined_and_caps():
         with pytest.raises(K.Undefined):
             ev(s)
         assert ev(s, soft=False) is None             # the driver gives None (10.2)
-    with pytest.raises(CasError) as e:
-        ev('2^(10^6)')
+    with pytest.raises(CasError) as e:              # 2^(10^32000): the exponent is over
+        ev('(2^(10^16000))^(10^16000)')             # MAXBITS (DESIGN 6.1)
     assert e.value.args[0] == K.M_BIG
 
 

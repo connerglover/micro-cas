@@ -1275,7 +1275,11 @@ def approx(e):                                                  #@L 3
                 elif not (K.N[x][0] == K.NUM and not K.N[x][2]):
                     x = fv[x]
                 pr.append((b, x))
-            r = K.mul_(fv[cn] if cn in fv else cn, pr)
+            cn = fv[cn] if cn in fv else cn
+            if K.N[cn][0] > K.FLT:              # a constant that stayed exact (2^100000)
+                pr.append((cn, K.ONE))
+                cn = K.ONE
+            r = K.mul_(cn, pr)
         elif K.FN0 <= op:
             r = K.fn_(op, nw[t[1]])
         elif K.DNE <= op <= K.HOLD:
