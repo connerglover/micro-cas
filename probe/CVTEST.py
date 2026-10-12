@@ -23,7 +23,7 @@ R.BUSY = None
 CLOCK = getattr(time, 'ticks_ms', None)
 MILLISECONDS = CLOCK is not None
 if CLOCK is None:
-    CLOCK = getattr(time, 'time', None)
+    CLOCK = getattr(time, 'monotonic', None) or getattr(time, 'time', None)
 DIFF = getattr(time, 'ticks_diff', None)
 if 'PAUSE' not in globals():
     PAUSE = MEM is not None

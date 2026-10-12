@@ -942,6 +942,11 @@ def merge(sources, man, clients=()):
         head = [ast.Import(names=[ast.alias(name=p)]) for p in missing]
         body = head + body
         spans = [None] * len(head) + spans
+        # The last statement: MicroPython 1.12 keeps a module whose body raised (a MemoryError
+        # while it loads), so run.sweep and run.room tell a whole pack by this binding.
+        body.append(ast.Assign(targets=[ast.Name(id='__ok__', ctx=ast.Store())],
+                               value=ast.Constant(1)))
+        spans.append(None)
         module = ast.fix_missing_locations(ast.Module(body=body, type_ignores=[]))
         source = ast.unparse(module) + '\n'
         compile(source, pack + '.py', 'exec')

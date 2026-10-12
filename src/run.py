@@ -269,6 +269,7 @@ def go(job):                                                    #@L 1
         FLAGS = 0
         TARGET = None
         try:
+            sweep()
             room('input')
             code, ctx, ks, rs = start(job)
             # parsed: the input code is idle until the next line. A command without families
@@ -370,17 +371,26 @@ def go(job):                                                    #@L 1
         for f in before:             # have caused the failure; the retry runs without them
             if f not in PINNED:
                 spare = True
-        for n in SOFT + VIEW + AUX:
-            if n in sys.modules:
-                spare = True
+        for t in (SOFT, VIEW, AUX):
+            for n in t:
+                if n in sys.modules:
+                    spare = True
         del PINNED[:]
         K.reset()
-        if err is M_OOM:
-            evict_all()
-            if spare and attempt == 0:
-                continue             # once more on a heap holding only what this command needs
-        else:
-            trim()
+        try:
+            if sweep() and type(err) is tuple and err and err[0] == M_INTERNAL:
+                err = M_OOM          # a pack import cut short by memory caused this error
+            if err is M_OOM:
+                evict_all()
+                if spare and attempt == 0:
+                    continue         # once more on a heap holding only what this command needs
+            else:
+                trim()
+        except MemoryError:          # the cleanup itself ran out: still never raise
+            if err is not KBI:
+                err = M_OOM
+            MODS.clear()
+            del LOADED[:]
         break
     INGO = False
     if err is KBI:
@@ -715,11 +725,14 @@ def drop(keys):                                                 #@L 3
 
 
 def evict(f):                                                   #@L 4
-    for p in PARTS.get(f, (f,)):
-        MODS.pop(p, None)
-        unload(DEV.get(p))
+    # the bookkeeping first: an [on] or MemoryError inside unload leaves at worst a pack that
+    # need() imports again, never LOADED naming a family that MODS has lost
     if f in LOADED:
         LOADED.remove(f)
+    for p in PARTS.get(f, (f,)):
+        MODS.pop(p, None)
+    for p in PARTS.get(f, (f,)):
+        unload(DEV.get(p))
     gc.collect()
 
 
@@ -732,9 +745,25 @@ def unload(n):                                                  #@L 5
     m = sys.modules[n]
     del sys.modules[n]
     if EVDICT:
-        for k in dir(m):
-            if k[:2] != '__':
-                setattr(m, k, None)
+        try:                    # dir() allocates: on a full heap the module just leaves
+            for k in dir(m):    # sys.modules (the Out-of-memory cleanup must not raise)
+                if not k.startswith('__'):
+                    setattr(m, k, None)
+        except MemoryError:
+            pass
+
+
+def sweep():                                                    #@L 2
+    """Drop every soft, view or aux pack whose import was cut short: MicroPython 1.12 keeps
+    such a module in sys.modules, and code reaching it would fail until the session ends. A
+    pack's last statement binds __ok__ (build/packs.py). True when one was dropped."""
+    found = False
+    for t in (SOFT, VIEW, AUX):
+        for n in t:
+            if n in sys.modules and getattr(sys.modules[n], '__ok__', None) is None:
+                unload(n)
+                found = True
+    return found
 
 
 def trim():                                                     #@L 2
@@ -768,12 +797,14 @@ def room(phase):                                                #@L 2
         return
     name, cost = ROOM[phase]
     if name in sys.modules:
-        return
+        if getattr(sys.modules[name], '__ok__', None) is not None:
+            return
+        unload(name)                     # cut short by a MemoryError elsewhere: import it again
     want = cost + FRAG
     while MEMFREE() < want:
         gc.collect()
         if MEMFREE() >= want:
-            return
+            break
         v = None
         for x in LOADED:
             if x not in PINNED and not LIVE.get(x, 0) and (v is None or USE[x] < USE[v]):
@@ -792,15 +823,27 @@ def room(phase):                                                #@L 2
         while shed(name):
             pass
         gc.collect()
-        __import__(name)
+        try:
+            __import__(name)
+        except BaseException:
+            unload(name)
+            raise
 
 
 def evict_all():                                                #@L 2
-    """After MemoryError (18.6): every lazy module, including a family cut short, then gc."""
-    for p in list(MODS):                                        #@unordered-ok
-        unload(DEV.get(p))
-    MODS.clear()
+    """After MemoryError (18.6): every lazy module, including a family cut short, then gc.
+    Allocates nothing that can fail first: it runs on a full heap."""
     del LOADED[:]
-    for n in ((VIEW + SOFT) if INGO else SOFT) + AUX:
+    while MODS:
+        for p in MODS:          # any key (dict.popitem is missing on the device) #@unordered-ok
+            break
+        del MODS[p]
+        unload(DEV.get(p))
+    for n in SOFT:
         unload(n)
+    for n in AUX:
+        unload(n)
+    if INGO:
+        for n in VIEW:
+            unload(n)
     gc.collect()

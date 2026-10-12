@@ -30,7 +30,7 @@ MODULES = (
     ('alg',       'CVALG',     'R',   850,       19),
     ('parse',     'CVPARSE',   'R',   1250,       33),
     ('printer',   'CVPRINT',   'R',   900,       21),
-    ('run',       'CVRUN',     'R',   600,       22),
+    ('run',       'CVRUN',     'R',   640,       22),   # + memory-failure recovery (sweep)
     ('draw',      'CVDRAW',    'R',   350,       13),
     ('ui',        'CVUI',      'R',   500,       16),
     # lazy (L) and lazy UI (U) modules and parts, DESIGN 4.1 and 4.3

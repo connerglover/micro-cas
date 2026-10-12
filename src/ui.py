@@ -47,10 +47,12 @@ HEROH = 92
 LISTH = 60
 FKEYS = ('menu', 'recall', 'setup', 'forms', 'help')
 CHIPS = ('', '2nd', 'a', 'a-lock', 'A-LOCK')
-PLAIN = {32:'x', 51:'^-1', 52:'sin(', 53:'cos(', 54:'tan(', 55:'^', 61:'^2',
-         62:',', 63:'(', 64:')', 65:'/', 71:'log(', 72:'7', 73:'8', 74:'9',
-         75:'*', 81:'ln(', 82:'4', 83:'5', 84:'6', 85:'-', 91:'=>',
-         92:'1', 93:'2', 94:'3', 95:'+', 102:'0', 103:'.', 104:'-'}
+# The TI-84 Evo keypad (TI's Evo key map): x^n left of sin (51), the fraction template on the
+# CE's apps key (42), / * - + one row up (55 65 75 85), < > in the CE's + place (95: TEST).
+PLAIN = {32:'x', 42:'/', 51:'^', 52:'sin(', 53:'cos(', 54:'tan(', 55:'/', 61:'^2',
+         62:',', 63:'(', 64:')', 65:'*', 71:'log(', 72:'7', 73:'8', 74:'9',
+         75:'-', 81:'ln(', 82:'4', 83:'5', 84:'6', 85:'+', 91:'=>',
+         92:'1', 93:'2', 94:'3', 102:'0', 103:'.', 104:'-'}
 SECOND = {32:'t', 52:'asin(', 53:'acos(', 54:'atan(', 55:'pi', 61:'sqrt(',
           62:'E', 63:'{', 64:'}', 65:'e', 71:'10^(', 75:'[', 81:'e^(',
           85:']', 103:'i', 104:'ans()'}
@@ -395,7 +397,7 @@ def key(k):                                                    #@L 1
         idx = SEL if MODE else len(hist)-1
         if hist[idx][2] == R.R_ANS:
             job = ('form', idx)
-    elif k in (11, 12, 13, 15, 22, 41, 44) or (k == 102 and mod == 1):
+    elif k in (11, 12, 13, 15, 22, 41, 44, 95) or (k == 102 and mod == 1):
         kind = 'algebra'
         if k in (12, 44):
             kind = 'recall'
@@ -403,8 +405,8 @@ def key(k):                                                    #@L 1
             kind = 'setup'
         elif k == 15:
             kind = 'help'
-        elif k == 41:
-            kind = 'test' if mod == 1 else 'calculus'
+        elif k == 41 or k == 95:
+            kind = 'test' if mod == 1 or k == 95 else 'calculus'
         elif k == 102:
             kind = 'all'
         engine()
@@ -455,11 +457,29 @@ def show(job, rec):                                             #@L 1
     redraw()
 
 
+def reason(e):                                                   #@L 1
+    """The panic message for an exception the entry loop caught; anything that is not the
+    program's (the desktop key script's stop) is raised again. node.CasMemory is the engine's
+    Out of memory outside a command (a layout, a menu): a BaseException, so that engine code's
+    'except Exception' cannot swallow it."""
+    if isinstance(e, MemoryError) or K is not None and isinstance(e, K.CasMemory):
+        return 0
+    if isinstance(e, KeyboardInterrupt):
+        return 1
+    if isinstance(e, RuntimeError):
+        return 2
+    if isinstance(e, Exception):
+        return 3
+    raise e
+
+
 def panic(reason):                                             #@L 1
     """After an exception in the entry loop: a plain screen (no layout), with or without the
     engine. The next key redraws everything."""
     global STATUS, MODE, SEL, HERO, DX, FULL
     D.clear_cache()
+    if R is not None:
+        R.sweep()           # a pack cut short by MemoryError would fail every later key
     gc.collect()
     STATUS = ('Out of memory', 'Interrupted', 'Expression too complex', 'Display error')[reason]
     D.reset()

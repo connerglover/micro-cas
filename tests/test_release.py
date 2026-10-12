@@ -5,9 +5,11 @@ rules and the strict EVO depth model. A fake heap charges loaded packs their est
 loader's eviction, soft-pack and admission paths run as on the calculator.
 """
 import ast
+import builtins
 import hashlib
 import importlib.util
 import json
+import types
 from pathlib import Path
 
 import pytest
@@ -205,6 +207,117 @@ def test_arithmetic_keeps_the_layout_pack_and_family_commands_shed_it(app):
     assert all(name in app.modules for name in view)      # no reload just to show 12
     assert app.go('diff(x^3,x)')[1] == '3*x^2'
     assert not any(name in app.modules for name in view)
+    app.assert_clean()
+
+
+def kind(app, wanted):
+    return [p for p, k in app.meta['kinds'].items() if k == wanted]
+
+
+def test_every_pack_ends_with_its_completion_marker(booted):
+    for pack in booted.meta['kinds']:
+        last = (booted.dist / (pack + '.py')).read_text('ascii').rstrip().splitlines()[-1]
+        assert last.replace(' ', '') == '__ok__=1', pack
+
+
+def test_soft_and_aux_packs_cut_short_are_imported_again(app):
+    # MicroPython 1.12 keeps a module whose import ran out of memory; a later command would
+    # fail on it with AttributeError for the rest of the session
+    app.go('2+3')
+    for name in kind(app, 'soft') + kind(app, 'aux'):
+        app.modules[name] = types.ModuleType(name)
+    assert app.go('sqrt(8)')[1] == '2*sqrt(2)'
+    assert app.go('solve(x^2-5*x+6=0,x)')[1] == 'x=2,x=3'
+    for name in kind(app, 'soft') + kind(app, 'aux'):
+        assert name not in app.modules or getattr(app.modules[name], '__ok__', None) == 1
+    app.assert_clean()
+
+
+def test_out_of_memory_cleanup_never_raises_when_dir_runs_out(app):
+    # unload's clearing loop calls dir(), which allocates: in go()'s Out-of-memory cleanup
+    # (evict_all) that used to raise out of go(), which must never raise
+    app.go('2+3')
+    real, calls, state = builtins.dir, [], {'armed': False}
+
+    def observe(frame):
+        if frame.f_code.co_name == app.final('run', 'evict_all'):
+            state['armed'] = True
+
+    def dir_(*args):
+        if state['armed']:
+            state['armed'] = False
+            calls.append(1)
+            raise MemoryError('dir')
+        return real(*args)
+    app.builtins['dir'] = dir_
+    app.observer = observe
+    app.total = 0
+    try:
+        result = app.go('integrate(x^2,x,0,1)')
+    finally:
+        app.builtins['dir'] = real
+        app.observer = None
+        app.total = None
+    assert result[:2] == ('msg', 'Out of memory') and calls, result
+    assert app.go('integrate(x^2,x,0,1)')[1] == '1/3'
+    app.assert_clean()
+
+
+def test_a_view_pack_cut_short_is_imported_again_after_a_command(release_module):
+    app = release_module.Release()
+    view = kind(app, 'view')[0]
+    state = {'armed': True}
+
+    def observe(frame):
+        if state['armed'] and frame.f_code.co_name == app.final('run', 'go'):
+            state['armed'] = False
+            app.modules[view] = types.ModuleType(view)      # its reload ran out of memory
+    app.observer = observe
+    app.run('2+3{enter}3*4{enter}{2nd,mode}')
+    app.observer = None
+    assert app.ended == 'quit' and app.get('run', 'ANS') == '12'
+    assert 'Display error' not in app.screen
+    app.assert_clean()
+
+
+def test_2nd_mode_quits_even_when_the_view_pack_cannot_load(release_module):
+    app = release_module.Release()
+    view = kind(app, 'view')[0]
+
+    class Always(dict):
+        def pop(self, key, *default):
+            return self[key]
+
+    def observe(frame):
+        if frame.f_code.co_name == app.final('ui', 'key') and app.fail is None:
+            app.fail = Always({view: MemoryError('view')})
+            app.modules[view] = types.ModuleType(view)
+    app.observer = observe
+    app.run('2+3{enter}{2nd,mode}')
+    app.observer = None
+    app.fail = None
+    assert app.ended == 'quit'
+
+
+def test_a_menu_without_memory_shows_out_of_memory_and_the_session_goes_on(release_module):
+    app = release_module.Release()
+    state = {'armed': False}
+
+    def observe(frame):
+        name = frame.f_code.co_name
+        if name == app.final('run', 'need') and state['armed'] and \
+                not app.get('run', 'INGO'):
+            state['armed'] = False
+            app.total = 0
+        elif name == app.final('ui', 'panic'):
+            app.total = None
+        elif name == app.final('ui', 'show'):
+            state['armed'] = True
+    app.observer = observe
+    app.run('2+3{enter}{f1}{snap:low}{clear}{clear}6*7{enter}{2nd,mode}')
+    app.observer = None
+    assert 'Out of memory' in app.snaps['low']
+    assert app.ended == 'quit' and app.get('run', 'ANS') == '42'
     app.assert_clean()
 
 

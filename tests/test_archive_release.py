@@ -21,6 +21,11 @@ from test_release import (                                   # noqa: F401  (reus
     test_actual_entry_editor_menus_forms_and_cancel,
     test_actual_entry_keyboard_interrupt_recovers,
     test_actual_entry_out_of_memory_shows_and_recovers,
+    test_soft_and_aux_packs_cut_short_are_imported_again,
+    test_out_of_memory_cleanup_never_raises_when_dir_runs_out,
+    test_a_view_pack_cut_short_is_imported_again_after_a_command,
+    test_2nd_mode_quits_even_when_the_view_pack_cannot_load,
+    test_a_menu_without_memory_shows_out_of_memory_and_the_session_goes_on,
 )
 
 ROOT = Path(__file__).resolve().parents[1]

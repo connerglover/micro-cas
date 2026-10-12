@@ -11,8 +11,10 @@ import ui as U
 
 R = None            #@lazy run
 U.boot(T0)
+k = last = 0
 while True:
     try:
+        last = k
         k = TS.wait_key()
         a = U.key(k)
         if a is U.QUIT:
@@ -22,11 +24,8 @@ while True:
             r = R.go(a)
             R.room('layout')        # on the calculator: make room before the UI code reloads
             U.show(a, r)
-    except MemoryError:
-        U.panic(0)
-    except KeyboardInterrupt:
-        U.panic(1)
-    except RuntimeError:
-        U.panic(2)
-    except Exception:
-        U.panic(3)
+        continue
+    except BaseException as e:      # a plain screen with the message; anything else re-raised
+        U.panic(U.reason(e))
+    if last == 21 and k == 22:      # 2nd MODE quits even when the key code cannot load
+        break
