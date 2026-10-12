@@ -1602,7 +1602,9 @@ row by row: x^n (alpha d), sin, cos, tan, ÷ (h); x², `,`, `(`, `)`, × (m); lo
 ln, 4, 5, 6, + (w); STO→, 1, 2, 3, < >; and a fraction template key (b) where the CE has apps.
 The alpha letters sit on the same key-matrix positions as on the CE, so the Evo codes are
 x^n 51, ÷ 55, × 65, − 75, + 85, < > 95 and fraction 42. CalcPlex (a CAS for the Evo) maps
-the same codes. PROBEK did not press these keys; PROBEK2 would confirm them.
+the same codes. TI's Evo keypad notes (knowledge base 40502) add xRoot as 2nd x^n and make
+< > switch between representations such as fraction and decimal. PROBEK did not press these
+keys; PROBEK2 would confirm them.
 
 ## Appendix B: sources
 

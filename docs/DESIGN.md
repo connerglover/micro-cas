@@ -3220,7 +3220,9 @@ PROBEK; the rest are the standard TI-84 codes [D]. The TI-84 Evo moved keys with
 [T]: TI's Evo key map (education.ti.com/84evo-key-map) puts x^n left of sin (51), the fraction
 template on the CE's apps key (42), ÷ × − + one row up (55, 65, 75, 85: alpha H, M, R, W, as on
 the CE matrix) and a new < > key in the CE's + place (95). CalcPlex, which runs on the Evo, uses
-the same plain codes. The 2nd and alpha layers stay positional. PROBEK2 confirms the rest.
+the same plain codes. TI's Evo keypad notes add xRoot as 2nd x^n and make < > switch
+representations (fraction and decimal). The 2nd and alpha layers stay positional. PROBEK2
+confirms the rest.
 
 | code | key | plain | 2nd | alpha |
 |---|---|---|---|---|
@@ -3237,7 +3239,7 @@ the same plain codes. The 2nd and alpha layers stay positional. PROBEK2 confirms
 | 43 | prgm | – | – | `c` |
 | 44 [V] | vars | recall (F2) | | |
 | 45 [V] | clear | clear / back / hide hero; cancel while computing | | |
-| 51 | x^n (Evo; x⁻¹ on the CE) | `^` | – | `d` |
+| 51 | x^n (Evo; x⁻¹ on the CE) | `^` | `surd(` (xRoot) | `d` |
 | 52, 53, 54 | sin cos tan | `sin(` `cos(` `tan(` | `asin(` `acos(` `atan(` | `e` `f` `g` |
 | 55 | ÷ (Evo; ^ on the CE) | `/` | `pi` | `h` |
 | 61 | x² | `^2` | `sqrt(` | `i` |
@@ -3252,7 +3254,7 @@ the same plain codes. The 2nd and alpha layers stay positional. PROBEK2 confirms
 | 85 | + (Evo; − on the CE) | `+` | `]` | `w` |
 | 91 [V] | sto→ | `=>` | | `x` |
 | 92-94 | 1 2 3 | digits | | `y` `z` `theta` |
-| 95 | < > (Evo; + on the CE) | TEST picker | | |
+| 95 | < > (Evo; + on the CE) | the answer's forms, as F4 (the Evo key switches representations) | | |
 | 102 | 0 | `0` | menu, All tab (catalog) | space |
 | 103 | . | `.` | `i` | `'` (prime; D6) |
 | 104 [V] | (−) | `-` | `ans()` | |

@@ -47,13 +47,14 @@ HEROH = 92
 LISTH = 60
 FKEYS = ('menu', 'recall', 'setup', 'forms', 'help')
 CHIPS = ('', '2nd', 'a', 'a-lock', 'A-LOCK')
-# The TI-84 Evo keypad (TI's Evo key map): x^n left of sin (51), the fraction template on the
-# CE's apps key (42), / * - + one row up (55 65 75 85), < > in the CE's + place (95: TEST).
+# The TI-84 Evo keypad (TI's Evo key map and keypad notes): x^n left of sin (51; 2nd xRoot),
+# the fraction template on the CE's apps key (42), / * - + one row up (55 65 75 85), and < >
+# in the CE's + place (95), which switches representations: here the answer's forms (as F4).
 PLAIN = {32:'x', 42:'/', 51:'^', 52:'sin(', 53:'cos(', 54:'tan(', 55:'/', 61:'^2',
          62:',', 63:'(', 64:')', 65:'*', 71:'log(', 72:'7', 73:'8', 74:'9',
          75:'-', 81:'ln(', 82:'4', 83:'5', 84:'6', 85:'+', 91:'=>',
          92:'1', 93:'2', 94:'3', 102:'0', 103:'.', 104:'-'}
-SECOND = {32:'t', 52:'asin(', 53:'acos(', 54:'atan(', 55:'pi', 61:'sqrt(',
+SECOND = {32:'t', 51:'surd(', 52:'asin(', 53:'acos(', 54:'atan(', 55:'pi', 61:'sqrt(',
           62:'E', 63:'{', 64:'}', 65:'e', 71:'10^(', 75:'[', 81:'e^(',
           85:']', 103:'i', 104:'ans()'}
 ALPHA = {32:'theta', 41:'a', 42:'b', 43:'c', 51:'d', 52:'e', 53:'f', 54:'g',
@@ -393,11 +394,11 @@ def key(k):                                                    #@L 1
                 CUR, STATUS = pos, 'fill in the empty slot'
             elif LINE or hist:
                 job = ('eval', LINE or hist[-1][0])
-    elif k == 14 and hist:
+    elif (k == 14 or k == 95) and hist:
         idx = SEL if MODE else len(hist)-1
         if hist[idx][2] == R.R_ANS:
             job = ('form', idx)
-    elif k in (11, 12, 13, 15, 22, 41, 44, 95) or (k == 102 and mod == 1):
+    elif k in (11, 12, 13, 15, 22, 41, 44) or (k == 102 and mod == 1):
         kind = 'algebra'
         if k in (12, 44):
             kind = 'recall'
@@ -405,8 +406,8 @@ def key(k):                                                    #@L 1
             kind = 'setup'
         elif k == 15:
             kind = 'help'
-        elif k == 41 or k == 95:
-            kind = 'test' if mod == 1 or k == 95 else 'calculus'
+        elif k == 41:
+            kind = 'test' if mod == 1 else 'calculus'
         elif k == 102:
             kind = 'all'
         engine()
