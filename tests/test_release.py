@@ -170,6 +170,19 @@ def test_view_packs_only_unload_while_computing(app):
     assert not any(name in app.modules for name in view)
 
 
+def test_arithmetic_keeps_the_layout_pack_and_family_commands_shed_it(app):
+    view = [p for p, k in app.meta['kinds'].items() if k == 'view']
+    app.go('2+3')
+    for name in view:
+        app._import(name)
+    app.total = sum(app.cost(n) for n in app.modules) + 40000   # below SHEDAT after parsing
+    assert app.go('3*4')[1] == '12'
+    assert all(name in app.modules for name in view)      # no reload just to show 12
+    assert app.go('diff(x^3,x)')[1] == '3*x^2'
+    assert not any(name in app.modules for name in view)
+    app.assert_clean()
+
+
 def test_session_globals_survive_eviction(app):
     assert app.go('2=>a')[1] == '2'
     assert app.go('f(x)=a*x+1')[:2] == ('msg', 'f(x) defined')

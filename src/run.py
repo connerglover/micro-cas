@@ -271,8 +271,10 @@ def go(job):                                                    #@L 1
         try:
             room('input')
             code, ctx, ks, rs = start(job)
-            while MEMFREE is not None and (attempt or MEMFREE() < SHEDAT) and shed():
-                pass                         # parsed: the input code is idle until the next line
+            # parsed: the input code is idle until the next line. A command without families
+            # (arithmetic) keeps the layout pack, which would otherwise reload to show it.
+            while MEMFREE is not None and (attempt or ks and MEMFREE() < SHEDAT) and shed():
+                pass
             for k in ks:                     # the preload (18.4), before the node table grows
                 need(k)
                 for c in CLOSURE.get(FAMILY.get(k, k), (k,)):
