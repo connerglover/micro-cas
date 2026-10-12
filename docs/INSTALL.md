@@ -118,6 +118,7 @@ opens command templates; **MATH** opens the Calculus tab. Type letters with
 
 | Input | Expected result |
 |---|---|
+| `7-2*3+8/4^1` | `3`; the edit line must show exactly these characters (it checks the Evo's ÷ × − + and x^n keys) |
 | `1/3+1/6` | `1/2`, drawn as a fraction |
 | `expand((x+1)^3)` | `x^3+3*x^2+3*x+1` |
 | `solve(x^2-5*x+6,x)` | `x=2,x=3` |
@@ -140,7 +141,7 @@ still returns `5`.
 | F1 / Y= | Command menu; left/right changes tabs |
 | F2 / WINDOW / VARS | Recall Ans, recent results, variables, and functions |
 | F3 / ZOOM / MODE | Angle mode, theme, session clearing, About |
-| F4 / TRACE | Next available form of the displayed answer |
+| F4 / TRACE, < > | Next available form of the displayed answer (exact, decimal, ...) |
 | F5 / GRAPH | Help for the command around the caret; ENTER inserts its example |
 | Up/down | Browse history; ENTER inserts the selected result |
 | 2nd ENTER | Recall earlier input; in history, insert the selected input |
@@ -149,12 +150,16 @@ still returns `5`.
 | CLEAR | Clear input, leave history/menu, or cancel a calculation |
 | 2nd MATH | Relation picker: `= != < <= > >= !` |
 | 2nd 0 | All commands |
+| Fraction key | `/` |
+| 2nd x^n | `surd(` (xRoot: `surd(8,3)` is `2`) |
 | 2nd MODE | Quit to Python |
 
 Starting with `+`, `-`, `*`, `/`, a power key, or STO uses the previous answer.
 Use the separate **(-)** key to begin a negative number. **2nd (-)** inserts
-`ans()`. **2nd ^** inserts `pi`; **2nd .** inserts `i`; **ALPHA .** inserts the
-prime in `y'`. **2nd multiply/minus** insert `[` and `]`.
+`ans()`; **2nd .** inserts `i`; **ALPHA .** inserts the prime in `y'`. **2nd ÷**
+inserts `pi`, **2nd ×** inserts `e`, and **2nd −** / **2nd +** insert `[` and `]`.
+These 2nd keys follow the TI-84 Plus CE labels by key position; if a label
+printed on your Evo keypad says otherwise, report the key and what it typed.
 
 History, stored variables/functions, and settings belong to the current run.
 Quit and restart starts a fresh session. Large or unsupported expressions may
