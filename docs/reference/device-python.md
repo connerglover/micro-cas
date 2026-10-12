@@ -1597,6 +1597,13 @@ ts: disp_at disp_clr disp_cursor disp_wait escape getKey recall_RegEQ recall_lis
 These are y= window zoom trace graph, up down left right, enter del mode math vars sto (-) clear, then
 `2nd` (21) followed by y= (11), and `alpha` (31) followed by math (41). Modifiers arrive as separate key codes.
 
+**Evo keypad layout** [T]. TI's TI-84 Evo key map (https://education.ti.com/84evo-key-map) lists,
+row by row: x^n (alpha d), sin, cos, tan, ÷ (h); x², `,`, `(`, `)`, × (m); log, 7, 8, 9, − (r);
+ln, 4, 5, 6, + (w); STO→, 1, 2, 3, < >; and a fraction template key (b) where the CE has apps.
+The alpha letters sit on the same key-matrix positions as on the CE, so the Evo codes are
+x^n 51, ÷ 55, × 65, − 75, + 85, < > 95 and fraction 42. CalcPlex (a CAS for the Evo) maps
+the same codes. PROBEK did not press these keys; PROBEK2 would confirm them.
+
 ## Appendix B: sources
 
 * `probe/PROBE.py`, `PROBE2.py`, `PROBE3.py`, `PROBE4.py`, `PROBEK.py`, `PRBMOD.py`, and their

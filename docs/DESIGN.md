@@ -3215,8 +3215,12 @@ variables) survives any bug; only a `U.panic` that itself fails can end the prog
 
 ### 16.4 Keys and modifier state
 
-The codes are TI-BASIC `getKey` codes. [V] means verified by PROBEK; the rest are the standard
-TI-84 codes [D] and are confirmed by an extended PROBEK run in M0.
+The codes are TI-BASIC `getKey` codes: row and column of the key matrix. [V] means verified by
+PROBEK; the rest are the standard TI-84 codes [D]. The TI-84 Evo moved keys within that matrix
+[T]: TI's Evo key map (education.ti.com/84evo-key-map) puts x^n left of sin (51), the fraction
+template on the CE's apps key (42), ÷ × − + one row up (55, 65, 75, 85: alpha H, M, R, W, as on
+the CE matrix) and a new < > key in the CE's + place (95). CalcPlex, which runs on the Evo, uses
+the same plain codes. The 2nd and alpha layers stay positional. PROBEK2 confirms the rest.
 
 | code | key | plain | 2nd | alpha |
 |---|---|---|---|---|
@@ -3229,25 +3233,26 @@ TI-84 codes [D] and are confirmed by an extended PROBEK run in M0.
 | 31 [V] | alpha | modifier; alpha alpha or 2nd alpha = lock | | |
 | 32 | X,T,θ,n | `x` | `t` | `theta` |
 | 41 [V] | math | menu (F1, Calculus tab) | TEST picker: `= != < <= > >= !` (D16, §16.7) | `a` |
-| 42, 43 | apps, prgm | – | – | `b`, `c` |
+| 42 | fraction template (Evo; apps on the CE) | `/` | – | `b` |
+| 43 | prgm | – | – | `c` |
 | 44 [V] | vars | recall (F2) | | |
 | 45 [V] | clear | clear / back / hide hero; cancel while computing | | |
-| 51 | x⁻¹ | `^-1` | – | `d` |
+| 51 | x^n (Evo; x⁻¹ on the CE) | `^` | – | `d` |
 | 52, 53, 54 | sin cos tan | `sin(` `cos(` `tan(` | `asin(` `acos(` `atan(` | `e` `f` `g` |
-| 55 | ^ | `^` | `pi` | `h` |
+| 55 | ÷ (Evo; ^ on the CE) | `/` | `pi` | `h` |
 | 61 | x² | `^2` | `sqrt(` | `i` |
 | 62 | , | `,` | `E` (EE) | `j` |
 | 63, 64 | ( ) | `(` `)` | `{` `}` | `k` `l` |
-| 65 | ÷ | `/` | `e` | `m` |
+| 65 | × (Evo; ÷ on the CE) | `*` | `e` | `m` |
 | 71 | log | `log(` | `10^(` | `n` |
 | 72-74 | 7 8 9 | digits | | `o` `p` `q` |
-| 75 | × | `*` | `[` | `r` |
+| 75 | − (Evo; × on the CE) | `-` | `[` | `r` |
 | 81 | ln | `ln(` | `e^(` | `s` |
 | 82-84 | 4 5 6 | digits | | `t` `u` `v` |
-| 85 | − | `-` | `]` | `w` |
+| 85 | + (Evo; − on the CE) | `+` | `]` | `w` |
 | 91 [V] | sto→ | `=>` | | `x` |
 | 92-94 | 1 2 3 | digits | | `y` `z` `theta` |
-| 95 | + | `+` | | |
+| 95 | < > (Evo; + on the CE) | TEST picker | | |
 | 102 | 0 | `0` | menu, All tab (catalog) | space |
 | 103 | . | `.` | `i` | `'` (prime; D6) |
 | 104 [V] | (−) | `-` | `ans()` | |

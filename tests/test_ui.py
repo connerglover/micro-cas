@@ -38,6 +38,13 @@ def test_test_picker_and_definition():
     assert s.ans == '5' and s.mods['run'].VARS['a'] == '3'
 
 
+def test_evo_keys_relation_picker_and_fraction():
+    # the TI-84 Evo's < > key opens the TEST picker; its fraction key types /
+    s = KS.run('2{<>}' + '3' + '3{enter}1{frac}4{enter}')
+    assert [e[0] for e in s.mods['run'].HIST] == ['2<3', '1/4']
+    assert s.ans == '1/4'
+
+
 def test_forms_recall_and_theme():
     s = KS.run('sqrt(2){enter}{f4}{f3}{down}{enter}{clear}')
     assert s.ans.startswith('1.414213562')

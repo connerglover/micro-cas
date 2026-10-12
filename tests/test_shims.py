@@ -544,14 +544,15 @@ def test_ti_draw_clear_and_screenshot(tmp_path):
 
 # ====================================================================== keyscript: parsing
 def test_parse_flowce_style():
-    assert KS.parse('2+3{enter}') == [93, 95, 94, 105]
-    assert KS.parse('*2{enter}') == [75, 93, 105]
+    assert KS.parse('2+3{enter}') == [93, 85, 94, 105]       # the Evo keypad (DESIGN 16.4)
+    assert KS.parse('*2{enter}') == [65, 93, 105]
     assert KS.parse('{sq}{enter}') == [61, 105]
-    assert KS.parse('{inv}{enter}') == [51, 105]
+    assert KS.parse('{x^n}{enter}') == [51, 105]
+    assert KS.parse('{<>}') == [95]
     assert KS.parse('{(-)}2{enter}') == [104, 93, 105]
     assert KS.parse('{sto}a{enter}') == [91, 31, 41, 105]
     assert KS.parse('{2nd,(-)}{left}{left}{(-)}{right}*3{enter}') == \
-        [21, 104, 24, 24, 104, 26, 75, 94, 105]
+        [21, 104, 24, 24, 104, 26, 65, 94, 105]
     assert KS.parse('{2nd,enter}{105}') == [21, 105, 105]
 
 
@@ -581,7 +582,7 @@ def test_typing_uses_function_keys():
     assert KS.type_keys('ans()') == [21, 104]
     assert KS.type_keys('2pi') == [93, 21, 55]
     assert KS.type_keys('x^2') == [32, 61]
-    assert KS.type_keys('3E-2') == [94, 21, 62, 85, 93]
+    assert KS.type_keys('3E-2') == [94, 21, 62, 75, 93]
     assert KS.type_keys('y') == [31, 92]
     assert KS.type_keys("y'") == [31, 92, 31, 103]
     assert KS.type_keys('a b') == [31, 41, 31, 102, 31, 42]
@@ -624,7 +625,7 @@ def test_typing_round_trips_through_reference_typist():
 
 def test_entry_and_case_helpers():
     assert KS.entry('-x') == [104, 32, 105]
-    assert KS.entry('2-x') == [93, 85, 32, 105]
+    assert KS.entry('2-x') == [93, 75, 32, 105]
     assert KS.case('5', '{2nd,(-)}{del}7{enter}') == [83, 105, 21, 104, 23, 72, 105]
     assert KS.case('', '{enter}') == [105]
     assert KS.describe([32, 61, 105, ('after', 3, 45), ('mark', 'a')]) == \
@@ -661,7 +662,7 @@ HIST = []
 ANS = ['0']
 MOD = [0]
 DIG = {102: '0', 92: '1', 93: '2', 94: '3', 82: '4', 83: '5', 84: '6', 72: '7', 73: '8',
-       74: '9', 95: '+'}
+       74: '9', 85: '+'}
 ESC = [None]
 
 
@@ -755,7 +756,7 @@ def test_run_replays_keys_and_dumps_screen(fake_entry):
     assert s.mod('fakeui').ANS == ['10']
     assert s.screen == 'RAD\n2+3\n5\n10\n10'
     assert s.snap('one') == 'RAD\n2+3\n5'
-    assert s.read == [93, 95, 94, 105, 92, 102, 105]
+    assert s.read == [93, 85, 94, 105, 92, 102, 105]
     assert s.left == []
     assert s.overdraw == []
     assert ('draw_text', 2, 17, 'RAD') in s.calls

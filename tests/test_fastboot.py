@@ -62,7 +62,7 @@ import ui as U
 ENGINE = %r
 U.boot()
 booted = sorted(m for m in ENGINE if m in sys.modules)
-for k in (93, 95, 94, 24, 23, 26, 21, 26, 31, 41, 45, 92, 95, 93, 25, 34, 24, 26):
+for k in (93, 85, 94, 24, 23, 26, 21, 26, 31, 41, 45, 92, 85, 93, 25, 34, 24, 26):
     assert U.key(k) is None
 edited = sorted(m for m in ENGINE if m in sys.modules)
 line = U.LINE
