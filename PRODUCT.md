@@ -19,7 +19,7 @@ remains available. See docs/HOSTING.md and docs/STATUS.md for deployment status.
 ## Users
 
 TI-84 EVO owners installing cas-evo, beginning with Conner. The current package
-has 20 compiled library packs and two Python launchers, and replaces a v1 install
+has 21 compiled library packs and two Python launchers, and replaces a v1 install
 of 236 libraries. Selecting their destinations manually is difficult, and
 sending all files to RAM produces a memory error on the user's calculator.
 

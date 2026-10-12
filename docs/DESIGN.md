@@ -3740,7 +3740,7 @@ replaces the factors with measurements of the real code. Go/no-go notes for T2 a
 
 > **Shipped implementation (2026-10-11).** After bundling, `build/packs.py`
 > merges device modules into packs and `build/archive.py` compiles them with
-> MicroPython v1.12 `mpy-cross`; the calculator receives 20 `CAS*` packs and two
+> MicroPython v1.12 `mpy-cross`; the calculator receives 21 `CAS*` packs and two
 > launchers. See [notes/FASTBOOT.md](notes/FASTBOOT.md) and
 > [notes/PACKAGING.md](notes/PACKAGING.md) for the pipeline and current manifest.
 

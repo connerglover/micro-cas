@@ -116,8 +116,8 @@ Desktop build scripts can use the modern Python version pinned in CI.
 
 The user download is **`dist/cas-evo-calculator.zip`** (CI artifact
 `cas-evo-v1`). Its format is **packs-v1**
-([docs/notes/FASTBOOT.md](docs/notes/FASTBOOT.md)): **20 compiled `.8mp2`
-packs for Archive** and the **CASEVO/CVTEST `.8xpy2` launchers for RAM**, 22
+([docs/notes/FASTBOOT.md](docs/notes/FASTBOOT.md)): **21 compiled `.8mp2`
+packs for Archive** and the **CASEVO/CVTEST `.8xpy2` launchers for RAM**, 23
 files. `build/manifest.py` `PACKS` defines each pack and its kind (ui, core,
 family, soft, view, aux); `PACKMAX` caps a pack's bytecode at 60,000 bytes. Read
 `archive.json` for current sizes and update public instructions when the package

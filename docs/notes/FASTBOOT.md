@@ -56,8 +56,8 @@ current package ends with 66,768 bytes free at a 173,360-byte heap (CI recorded
 | draw | 10,576 | itab + integ | 4,208 |
 | ui | 7,488 | | |
 
-Identifier shrinking saves only about 3 % (for the packs, 191,506 to 185,367 archive
-bytes); bytecode, not names, dominates.
+Identifier shrinking saves only about 3 % (for the packs before CASBIG, 191,506 to 185,367
+archive bytes); bytecode, not names, dominates.
 The namespace-dictionary initializers used by v1 add 10 to 20 % to heap and
 bytecode. Whole modules with the old eager UI leave 41,648 bytes free after boot
 and fail heavy commands, so the memory manager has to evict at pack granularity.
@@ -102,9 +102,9 @@ and fail heavy commands, so the memory manager has to evict at pack granularity.
 
 ## What shipped (packs-v1)
 
-Twenty packs and two launchers replace 236 libraries and two launchers. The archive holds
-185,367 bytes (compiled packs plus the 6,042 bytes of launcher source); the largest pack,
-CASK1, compiles to 21,600 bytes.
+Twenty-one packs and two launchers replace 236 libraries and two launchers. The archive holds
+190,659 bytes (compiled packs plus the 6,042 bytes of launcher source); the largest pack,
+CASK1, compiles to 22,073 bytes.
 
 | kind | packs | role |
 | --- | --- | --- |
@@ -112,7 +112,7 @@ CASK1, compiles to 21,600 bytes.
 | view | CASUX | keys, screens and the 2D layout; only a computation unloads it |
 | core | CASK1 (node, alg), CASK2 (parse, run) | loaded with the engine, never unloaded |
 | soft | CASIN (input parsing, `run.start`), CASPR (printer) | unloaded first when memory runs short |
-| aux | CASAX (alg helpers) | computation code that never reaches the loader; unloaded last |
+| aux | CASAX (alg helpers), CASBIG (giant powers) | computation code that never reaches the loader; unloaded last |
 | family | CASALG, CASFAC, CASSOL, CASINT, CASIN2, CASIN2B, CASIN3, CASIN3B, CASLIM, CASDEF, CASSUM, CASODE, CASMNU | one loader family each |
 
 `build/packs.py` merges modules, places functions away from their home pack, renames the
@@ -160,16 +160,19 @@ counts come from the CPython harness, whose heap never runs short.
 | --- | --- | --- |
 | archive imports to the first key | 51 | 2 (CASUI, CASUX) |
 | imports, first `2+3` after boot | 25 | 4 (two core, input, printer) |
-| imports, 7 UI calculus cases (5 definite integrals) | 2,806 (host) | 29 (host); 34 at 260,000 B, 42 at 212,000, 68 at 196,000 |
-| imports, 10 light commands (arithmetic, expand, factor, diff, solve, simplify) | - | 28 at 185,296 B, 32 at 173,360 |
-| files on the calculator | 238 | 22 |
-| startup on a 95,000-byte heap | 13,520 B free | 17,360 B free |
+| imports, 7 UI calculus cases (5 definite integrals) | 2,806 (host) | 29 (host); 43 at 212,000 B, 51 at 196,000 |
+| imports, 10 light commands (arithmetic, expand, factor, diff, solve, simplify) | - | 24 at 185,296 B, 34 at 173,360 |
+| files on the calculator | 238 | 23 |
+| startup on a 95,000-byte heap | 13,520 B free | 16,912 B free |
 | `2+3` UI session, 173,360-byte heap | pass | pass |
 | 7 UI calculus cases, 173,360 | pass | fail (definite integrals: Out of memory) |
 | 7 UI calculus cases, 189,776 | pass | pass, under 2 KB to spare |
-| CVTEST 55 cases, 173,360 | 55/55 | 43/55 |
-| CVTEST 55 cases, 189,776 | 55/55 | 53/55 |
+| CVTEST 55 cases, 173,360 | 55/55 | 40/55 |
+| CVTEST 55 cases, 189,776 | 55/55 | 53/55 (52 to 53 across builds) |
 | CVTEST 55 cases, 196,000 / 204,000 / 212,000 | 55/55 | 54/55 / 55/55 / 55/55 |
+
+Builds that move code around shift these counts by a case or two at the tighter heaps: the
+failures are fragmentation, so the exact cases depend on where packs land.
 
 Most repeat imports are memory, not policy: the code a long session touches (about 160 KB
 of bytecode) does not fit the heap with the core resident, so input, printer and layout packs

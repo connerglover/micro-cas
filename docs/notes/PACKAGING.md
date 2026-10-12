@@ -32,7 +32,7 @@ caps a pack's bytecode at 60,000 bytes (one TI variable).
 | view | CASUX (keys, screens, 2D layout) | at boot | only while a computation runs (`run.INGO`) |
 | core | CASK1 (node, alg), CASK2 (parse, run) | with the engine (first ENTER or a menu) | never |
 | soft | CASIN (input parsing, `run.start`), CASPR (printer) | on first use | first, when memory runs short |
-| aux | CASAX (alg helpers that never reach the loader) | on first use | last |
+| aux | CASAX (alg helpers that never reach the loader), CASBIG (`nodeb`: powers too large to fold) | on first use | last |
 | family | CASALG, CASFAC, CASSOL, CASINT, CASIN2, CASIN2B, CASIN3, CASIN3B, CASLIM, CASDEF, CASSUM, CASODE, CASMNU | by `run.need` | LRU, only when a load needs memory |
 
 Each loader family (`PARTS`) is exactly one pack, so a family costs one archive
@@ -137,7 +137,7 @@ heap remain device checks.
 3. `build/archive.py` compiles the packs; the launchers stay source.
 4. `build/package_archive.mjs` converts every object with pinned TIVarsLib into
    the EVO container and reads it back to verify name, type and payload bytes.
-5. `build/archive_zip.py` writes `cas-evo-calculator.zip`: the 22 EVO objects,
+5. `build/archive_zip.py` writes `cas-evo-calculator.zip`: the 23 EVO objects,
    `archive.json`, `INSTALL.md` and `SHA256SUMS`.
 
 ### Compiler and ABI

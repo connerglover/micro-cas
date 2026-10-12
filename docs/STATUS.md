@@ -24,9 +24,9 @@ them as current.
   `src/`. CASEVO imports only the UI and draws its first screen after two archive
   imports (CASUI, CASUX); the engine loads on the first ENTER, or a menu that
   needs it, with boot and engine load times in the status line. Device modules
-  are merged into **20 packs** (ui, core, family, soft, view and aux kinds;
-  `build/manifest.py` `PACKS`) plus the two launchers: 22 files, largest pack
-  21,600 bytes compiled; the archive holds 185,367 bytes in all. Identifier
+  are merged into **21 packs** (ui, core, family, soft, view and aux kinds;
+  `build/manifest.py` `PACKS`) plus the two launchers: 23 files, largest pack
+  22,073 bytes compiled; the archive holds 190,659 bytes in all. Identifier
   shrinking works across packs. Phase payloads, function pages and namespace
   initializers are gone (`build/phases.py`, `build/function_pages.py`,
   `build/archive_modules.py`, `build/memory_report.py`, `build/check_archive.py`
@@ -35,6 +35,13 @@ them as current.
   The browser installer removes v1 files whose contents exactly match the
   recorded release (`website/legacy-v1.json`). The T1/T2/T3 and UI feature set
   is unchanged.
+- **Giant exact powers** (from CalcPlex's design: keep giant powers as powers
+  instead of freezing). `3^(2^20)` gives `3^1048576` and `2^100000*2` gives
+  `2^100001` at once, where v1 said "number too large". The code is the aux pack
+  CASBIG, loaded only when a command meets a giant power; the resident core grew
+  406 bytes. Denominators are no longer factored in a number kernel or past
+  degree 64, which had made `1/(2^100000+1)` (and, before this work,
+  `1/(x^2000+1)`) run for minutes without a cancel check.
 - **CI gates** (`.github/workflows/build.yml`), all on the compiled packs with
   native MicroPython v1.12: startup at 95,000 bytes (32-bit, `startup`), UI
   arithmetic at 173,360 (`ui`), the UI calculus session at 189,776
@@ -55,14 +62,14 @@ acceptance.
 | --- | --- | --- |
 | archive imports to the first key | 51 | 2 (CASUI, CASUX) |
 | imports, first `2+3` after boot | 25 | 4 |
-| imports, 7 UI calculus cases (5 definite integrals) | 2,806 (host count) | 29 (host count); 42 at 212,000 B, 68 at 196,000 |
-| imports, 10 light commands | - | 28 at 185,296 B, 32 at 173,360 |
-| files on the calculator | 238 | 22 |
-| startup on a 95,000-byte heap | 13,520 B free | 17,360 B free |
+| imports, 7 UI calculus cases (5 definite integrals) | 2,806 (host count) | 29 (host count); 43 at 212,000 B, 51 at 196,000 |
+| imports, 10 light commands | - | 24 at 185,296 B, 34 at 173,360 |
+| files on the calculator | 238 | 23 |
+| startup on a 95,000-byte heap | 13,520 B free | 16,912 B free |
 | `2+3` UI session, 173,360-byte heap | pass | pass |
 | 7 UI calculus cases, 173,360 | pass | fail (definite integrals: Out of memory) |
 | 7 UI calculus cases, 189,776 | pass | pass, under 2 KB to spare |
-| CVTEST 55 cases, 173,360 | 55/55 | 43/55 |
+| CVTEST 55 cases, 173,360 | 55/55 | 40/55 |
 | CVTEST 55 cases, 189,776 | 55/55 | 53/55 |
 | CVTEST 55 cases, 196,000 / 204,000 / 212,000 | 55/55 | 54/55 / 55/55 / 55/55 |
 

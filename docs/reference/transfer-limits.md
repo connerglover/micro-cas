@@ -67,7 +67,7 @@ stale generated deliverables first, including prior single-file ZIPs. There is
 no oversized-development override. CI independently gates all generated files.
 
 v1 imported small source carriers and native function pages. packs-v1 replaces
-them with 20 compiled packs: real modules imported whole, cached until memory is
+them with 21 compiled packs: real modules imported whole, cached until memory is
 needed and cleared on eviction ([FASTBOOT.md](../notes/FASTBOOT.md),
 [PACKAGING.md](../notes/PACKAGING.md)). The native 32-bit MicroPython v1.12
 results and the heap model they use are in FASTBOOT.md. Physical EVO

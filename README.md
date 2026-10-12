@@ -2,12 +2,13 @@
 
 A Python computer algebra system for the TI-84 EVO: exact arithmetic, radicals,
 complex numbers, simplify/expand/factor/solve, derivatives, limits, integration,
-series, sums, differential equations, gradients and geometric integrals. Includes
+series, sums, differential equations, gradients and geometric integrals. Powers
+too large to compute stay exact powers (`3^(2^20)` gives `3^1048576`). Includes
 a calculator editor, history, stored variables/functions and 2D answers.
 
-The calculator build (format `packs-v1`) contains **20 compiled library packs
+The calculator build (format `packs-v1`) contains **21 compiled library packs
 for Archive and two small launchers for RAM**, preserving the full feature set:
-22 EVO transfer objects, whose sizes `archive.json` in the ZIP records. CASEVO
+23 EVO transfer objects, whose sizes `archive.json` in the ZIP records. CASEVO
 imports two packs before its first screen and loads the engine on the first
 ENTER. This replaces the v1 package of 236 libraries, which took 5.5 minutes to
 start on the EVO and then stopped at a `ti_graphics.setColor` call; see
