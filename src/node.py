@@ -898,7 +898,7 @@ def add_(terms, k=None):                                        #@L 6
         acc[e] = nadd(acc[e], m) if e in acc else m
     if HUGE:                            # 5.3: no coefficient shares a prime with a power kept
         s = []                          # whole. KB.hsum (level 7) puts each call it needs on
-        while KB.hsum(acc, s):          # s; add_ makes it, and hsum reruns with the answers
+        while KB.hsum(acc, s, c):       # s; add_ makes it, and hsum reruns with the answers
             r = s[-1]
             s[-1] = r[0](*r[1]) or r[1][0]                      #@calls 7
     lst = []
@@ -1026,7 +1026,7 @@ def absn(u):                                                    #@L 6
     if ev:
         for j in range(3, len(t), 2):
             w = N[t[j]]
-            if w[0] or w[2] or w[3] != 1 or w[1] & 1:
+            if w[0] or w[2] or w[3] != 1 or w[1] & 1 or not isreal(t[j - 1]):
                 ev = False
     r = u if ev or csign(u) > 0 else mk((ABS, u))
     if c == Q1:
@@ -1122,7 +1122,7 @@ def mul_(k, pairs):                                             #@L 5
             st.append((tb[2] if len(tb) == 4 and tb[3] == ONE else mk((MUL, ONE) + tb[2:]), e))
             continue
         elif ob == MUL and tb[1] == ONE and len(tb) == 4 and oe == NUM and not te[2] and (
-                V[tb[2]] or isreal(tb[2])):                     # rule 7: (u^2k)^e, u real
+                isreal(tb[2])):                                # rule 7: (u^2k)^e, u real
             w = N[tb[3]]
             if w[0] == NUM and not w[2] and w[3] == 1 and not w[1] & 1:
                 x = nmul(w, te)
@@ -1145,7 +1145,7 @@ def mul_(k, pairs):                                             #@L 5
                 else:
                     c = nmul(c, IPOW[a >> 1])
                 continue
-        elif ob == ABS and ie and not te[1] & 1 and (V[tb[1]] or isreal(tb[1])):
+        elif ob == ABS and ie and not te[1] & 1 and isreal(tb[1]):
             st.append((tb[1], e))                               # rule 9: abs(u)^2k = u^2k
             continue
         if HUGE and ob == MUL and KB.hmpow(tb, te, st):         # (prod B^X)^e, B kept whole
@@ -1185,6 +1185,8 @@ def mul_(k, pairs):                                             #@L 5
         e = mk((NUM, x[1], 0, x[0]))
         acc[b] = add_([acc[b], e]) if b in acc else e
     if inf:
+        if HUGE:
+            KB.hinf(acc)
         if not c[1] and not c[2]:
             return UNDEF                                        # 0 * oo
         if not c[2]:

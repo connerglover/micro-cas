@@ -340,9 +340,10 @@ def test_huge_integer_never_converted():
     assert time.perf_counter() - t0 < 0.5
     assert r == ('msg', 'Done', None, 0)
     x = sym('x')
-    # n + 1 is odd: a power of 2 in the coefficient would be kept whole by mul_ (DESIGN 6.1)
+    # Ordinary integer coefficients keep their representation, even when they happen to be
+    # powers. Refactoring them made existing polynomial operations regress (DESIGN 6.1).
     assert PR.text(mul((x, K.ONE), k=num(1, 0, n + 1)), None) is None
-    assert PR.text(mul((x, K.ONE), k=num(1, 0, n)), None) == 'x/2^100000'
+    assert PR.text(mul((x, K.ONE), k=num(1, 0, n)), None) is None
     assert PR.text(mul((x, num(n))), None) is None
     assert PR.text(num(3, n), None) is None
 
@@ -355,7 +356,9 @@ def test_review_cases_printing():
     t0 = time.perf_counter()
     assert show('2^(10^6)') == '2^1000000'
     assert time.perf_counter() - t0 < 0.5
-    assert show('10^16000*10^14000') == '10^30000'      # a product of folded powers too
+    e, ctx = ev('10^16000*10^14000')                 # preserve the existing exact integer
+    assert K.N[e] == (K.NUM, 10 ** 30000, 0, 1)
+    assert PR.text(e, ctx) is None
     e, ctx = ev('(10^16000+1)*(10^14000+1)')            # 30,001 digits, no prime power kept
     assert K.N[e][1] == (10 ** 16000 + 1) * (10 ** 14000 + 1)
     t0 = time.perf_counter()

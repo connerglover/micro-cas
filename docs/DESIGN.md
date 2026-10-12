@@ -406,8 +406,8 @@ SYMN, SYMI                    per-command symbol bit table: bit -> name, name ->
     display product are not taken for one): a squarefree
     integer >= 2 under a rational exponent outside [0, 1) (`2^100000`, `10^(10^6)`,
     `2^(200001/2)`, `2^-100000`), primes with equal exponents sharing one base as radicals do
-    (`6^100000`, not `2^100000*3^100000`); or a primitive non-real Gaussian integer that is not a
-    unit, under an integer exponent (`(3+4*i)^100000`). The coefficient `k` has no prime factor
+    (`6^100000`, not `2^100000*3^100000`). Non-real numeric integer powers beyond the fold
+    limit are rejected (§6.1). The coefficient `k` has no prime factor
     of a real base kept whole, and neither has the coefficient of an ADD term containing one, so
     `2*2^100000` is `2^100001`;
   - any number under a non-numeric exponent (`2^x`).
@@ -725,36 +725,33 @@ def nmul(x, y):                                                 #@L 7
 - **Size guards** (big-int work is otherwise unbounded and cannot be cancelled):
   - `npowi` estimates the result size as `|n| × 4 × len('%x' % base)` bits (hex conversion is
     linear; `int.bit_length` is absent) and raises `CasError('number too large')` above
-    `MAXBITS = 65,536` bits. The constructors never let it: a power too large to fold stays
+    `MAXBITS = 65,536` bits. For a real base, a power too large to fold stays
     **written as a power** (CalcPlex's giant numbers), exact and immediate, so `2^(10^6)`,
     `3^(2^20)` and `7^7^7` are answers, not errors.
-  - **The fold rule** (`mul_`, end of the product): a real base goes to the radical table prime by
-    prime (§6.2). A prime power `q^n` (n = floor of q's exponent) has the *weight*
-    `4·|n|·len('%x' % q)`, the npowi estimate of `q^n` alone. It folds into the coefficient when
-    the weight is at most `MAXBITS`; otherwise `q` keeps its whole exponent as a pair (§5.3), and
-    the coefficient's factors `q` move into that exponent (`nval`), so `2^100000*2 = 2^100001`.
-    For a prime base this is exactly the old npowi limit (`2^16384` folds, `2^16385` stays), and 2
-    to 13 share it, so `10^16384` folds and `10^16385` stays whole. When the weights over
-    `MAXBITS/16` that would fold total more than `MAXFOLD = 2·MAXBITS`, those primes stay
-    whole too (`30030^16384`), which bounds one fold to about `MAXFOLD` bits.
-  - The fold rule is applied whenever its answer could differ from a direct `npowi`: a real
-    `b^n` with `24·|n|·hexlen` over `MAXBITS` is first bounded by its valuations at 2..13 (cheap),
-    and goes to the radical table only if a prime could be kept whole. `b^±1` is never factored.
-    A base over 4,000 bits is factored only below 256 (in `KB.hpow`); the rest is one cofactor.
-  - A coefficient over `2^16384` (a product of folded numbers, `2^10000*2^10000`) is searched for
-    the primes below 256, so it obeys the same rule; when none is kept whole it keeps its value.
-  - Non-real bases are not factored: their content `g/d` is split off, a unit folds, and another
-    primitive base stays whole when the npowi estimate exceeds `MAXBITS`.
-  - **Hard ceilings, still `number too large`:** an exponent kept whole whose numerator and
-    denominator take more than `MAXBITS` bits (`(2^(10^16000))^(10^16000)`); float overflow
-    (FLT arithmetic); `expand` of a power of a sum whose coefficients exceed `MAXBITS` (§8.5,
-    `(1+√2)^1000000`), which has no power form.
-  - **Known limits:** canonical form is exact for everything built by `mul_` and `add_`, but a sum
-    whose constant term is a NUM over `MAXBITS` (`2^16384+2^16384`) is not refactored, a factor
-    `q >= 256` hidden in a coefficient over `2^16384` is not found, and non-real bases are not
-    factored (`(1+i)^100000` is not reduced to `2^50000`). A base whose primes fold unequally
-    can print a long coefficient (`18^9000` is a 2,709-digit integer times `3^18000`); that is the
-    price of the per-prime rule, which keeps `(257^2)^3000` and `257^6000` the same node.
+  - **The fold rule:** first try the original whole-base `npowi` rule. Thus `4^9000`,
+    `9^10000`, and `(2^8193)^2` retain their previous exact integer values. Ordinary products
+    of integers stay numbers, even if the resulting integer is itself a giant power.
+  - Only a real power beyond that limit goes to the radical table prime by prime (§6.2).
+    Each prime power folds when its weight `4·|n|·hexlen(q)` is at most `MAXBITS`;
+    otherwise its exponent stays whole. A coefficient gives its factors of those primes to
+    the exponent, so `2^100000*2 = 2^100001`. Equal exponents share one base. If the folding
+    weights above `MAXBITS/16` total more than `2·MAXBITS`, those primes also stay whole.
+    A base above 4,000 bits is factored only below 256; the remainder stays one cofactor.
+  - **Conservative limits:** non-real numeric powers beyond the original `npowi` limit
+    raise `number too large`. Distinct giant-power terms are not independent algebraic
+    variables: treating them as such gave false nonzero tests and roots. Until bounded
+    collection is implemented, sums with more than one surviving giant-power term, or a
+    large ordinary coefficient (over 4,096 estimated bits) alongside one, raise that same
+    error. Identical terms can cancel or combine, and a single giant term can coexist with
+    small constants and ordinary symbols. Coefficient normalization that crosses back into
+    the fold range also raises instead of leaving an invalid node. The zero test never
+    claims exact nonzero merely because a polynomial in giant-power kernels is nonempty.
+  - The original arithmetic representation is preferred over equivalence of independently
+    built giant and folded forms: `2^10000*2^10000` remains an integer, while `2^20000`
+    remains a power. Both denote the same exact value; mixing their additive forms beyond
+    the supported bounds fails safely. No rounded result is substituted.
+  - Other hard ceilings remain: oversized exponents, float overflow, and expansion of
+    polynomial coefficients beyond `MAXBITS` produce `number too large`.
   - A power kept whole has no float value: `nprog` raises `Undefined` for it (§6.6), so there is
     no decimal line (§12.6), `approx` keeps it exact, and the numeric probe skips it. `simplify`
     therefore keeps an expression holding one as built (its candidates cannot be verified, §8.7);
@@ -1393,8 +1390,8 @@ is what makes text-only session state safe.
 4. Collect like terms in a dict `term id -> coefficient tuple` and drop zero coefficients.
    Once the command has built a power kept whole (`K.HUGE`, §6.1), a term holding one gets its
    coefficient's factors of that power's primes moved into the exponent (regrouped as rule 11),
-   and terms that then coincide are collected again: `2^100000+2^100000 = 2^100001`. (If an
-   exponent would have to fold, or a regrouped base meets another pair, the term is left.)
+   and terms that then coincide are collected again: `2^100000+2^100000 = 2^100001`.
+   The conservative limits in §6.1 reject unsupported sums and fold-boundary normalization.
    This is `KB.hsum`, which asks `add_` for the level-7 calls it needs (§6.1).
    `absn` keeps the content of such a sum (`abs(x/2+2^99999)`), since scaling it would undo this.
 5. Sort the pairs by `(H, id)` and run `tiefix`.
@@ -1407,7 +1404,8 @@ the work stack:
 1. `e == 0`: skip. `0^0` is 1 (alg §2.1).
 2. A numeric `b` and an integer `e`: fold into `k` (`npowi`), unless the result could be too
    large to fold (§6.1): then a real `b` goes to the radical table prime by prime, and a
-   non-real one is kept whole. `0^n` is 0 and `0^(-n)` raises `Undefined`, at once.
+   non-real one beyond the fold limit raises `number too large`. `0^n` is 0 and `0^(-n)`
+   raises `Undefined`, at once.
 3. A real numeric `b` and a rational non-integer `e`: radical normalization (§6.2).
 4. A non-real numeric `b` and a non-integer `e`: keep the pair.
 5. `b` a MUL and `e` an integer: distribute. The coefficient goes back on the stack under `e`
@@ -1684,8 +1682,9 @@ frames. It checks:
 - Powers kept whole (§6.1), from an independent factorization: squarefree bases, one base per
   exponent, every kept prime over `MAXBITS` by its weight (or, in the `MAXFOLD` case, over
   `MAXBITS/16` with a total over `MAXFOLD`), the exponent within `MAXBITS`, and no coefficient
-  of the MUL or of an ADD term sharing a kept prime. A non-real base kept whole is primitive,
-  not a unit, and over the npowi estimate.
+  of the MUL or of an ADD term sharing a kept prime. The absolute-value and even-power
+  shortcuts require independently proven real bases; a complex base with a real symbol
+  is not thereby real.
 - `H` and `V` equal a recomputation.
 - No `WILD` exists outside `RULECACHE`.
 - `fn_` normal forms: there is no `SIN(0)`, no `LN(1)`, no `LN(E)`, and no `MUL(1, E, LN u)`.
@@ -2499,7 +2498,12 @@ here.
   - No principal values.
   - With no F, go numeric, with a growth heuristic over I(R), I(2R), I(4R).
 - **Sums** (alg §4.2).
-  - Finite with numeric bounds and at most 1,000 terms: an exact loop with polling.
+  - Finite with numeric bounds and at most 1,000 terms: an exact loop that polls CLEAR
+    each term. The accumulator's numeric fields (real numerator, imaginary numerator,
+    denominator), including ADD/MUL coefficients, are capped at 3,300 hex digits
+    (about 13,200 bits, near the printer's 4,000-character limit). On exceeding that
+    budget, the loop releases its temporary nodes and returns no result; the caller
+    keeps `sum(...)` or `riemann(...)` formal. It never silently rounds an exact sum.
   - With a symbolic bound:
     - Faulhaber: `P(k) - P(k-1) = Q(k)` as a triangular system;
     - geometric series;
@@ -2940,8 +2944,8 @@ scroll offset `dx` and the clip rectangle. Colors come from the theme (§16.8).
 - `π`, `√`, `∫`, `Σ`, `∞`, `≈`, `≤`, `≥`, `≠`, `→`, `θ` and the multiplication dot are drawn as
   strokes from a small vector table: tuples of line segments in a unit box, scaled per font.
   This needs no font support.
-- If PROBE7 shows that `drawString` renders these code points in a usable size, the table can map
-  some glyphs to text instead.
+- If an EVO probe confirms that `ti_draw.draw_text` renders these code points in a usable
+  size, the table can map some glyphs to text instead. PROBE7 targets the older graphics API.
 - Source files stay ASCII. Glyph code points are built with `chr()` in CVDRAW.
 
 ### 13.8 Hooks for the future 2D editor
@@ -3333,7 +3337,7 @@ through `D.layout` (L2), so that every call edge goes down a level (§17.1).
 
 ### 16.8 Themes
 
-The palette is FlowCE's (cat §6.2), drawn with `setColor(r, g, b)`:
+The palette is FlowCE's (cat §6.2), drawn with `ti_draw.set_color(r, g, b)`:
 
 | slot | Paper | Night | used for |
 |---|---|---|---|
@@ -3349,14 +3353,14 @@ The palette is FlowCE's (cat §6.2), drawn with `setColor(r, g, b)`:
 
 ### 16.9 Redraw policy
 
-- **Edit keys** redraw only the edit line, the help line and the status chip: a few `fillRect` and
-  `drawString` calls.
+- **Edit keys** redraw only the edit line, the help line and the status chip: a few `fill_rect` and
+  `draw_text` calls.
 - **Full redraws** happen only after an evaluation, F4, a history move, a theme change, or a menu
   closing.
 - **Display lists** are cached per visible entry (`CACHE`, §16.3), so scrolling history does not
   lay out again. The cache is capped at 4 KB and emptied before every computation, so it never
   competes with the working set.
-- Each region is cleared with `fillRect` in BG, then drawn.
+- Each region is cleared with `fill_rect` in BG, then drawn.
 
 ### 16.10 Busy indicator, cancel and errors
 

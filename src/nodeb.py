@@ -65,77 +65,45 @@ def huge(b, e=None):                                            #@L 7
 
 
 def hpow(c, b, e, st, rad):                                     #@L 6
-    # mul_'s rule 2 for b^e, b a NUM and e an integer, when the result may be too large to fold
-    # (6.1): the new coefficient, or None to keep the pair (5.3). 0^n is 0 at once. A real base
-    # gives its primes to rad when a prime power of the result could be kept whole by the fold
-    # rule (hfold); a non-real one splits off its real content g/d (onto st) and is kept whole
-    # while it is over the npowi estimate. Anything else folds as before.
+    # Fold exactly as npowi did before the kept-power extension. Only a real power that
+    # exceeds that whole-base limit goes to the prime table. Unsupported Gaussian powers
+    # retain M_BIG: treating their associates as independent kernels is unsound.
     tb = K.N[b]
     te = K.N[e]
     if not tb[1] and not tb[2]:
         if te[1] < 0:
-            raise K.Undefined()                                 # 0^-n
+            raise K.Undefined()
         return K.nmul(c, K.Q0)
-    n = te[1] if te[1] > 0 else -te[1]
-    u = n > 1 and (tb[3] > 1 or tb[1] > 1 or tb[1] < -1 or tb[2] > 1 or tb[2] < -1 or
-                   (tb[1] and tb[2]))                           # a non-unit exact base
-    a = tb[1] if tb[1] > 0 else -tb[1]
-    h = len('%x' % a) + len('%x' % tb[3])
-    if u and tb[2]:                                             # non-real: the npowi estimate
-        g = a                                                   # decides (6.1)
-        if a < tb[2] or a < -tb[2]:
-            a = tb[2] if tb[2] > 0 else -tb[2]
-        if 4 * n * len('%x' % (a if a > tb[3] else tb[3])) > K.MAXBITS:
-            h = tb[2]
-            while h:
-                g, h = h, g % h
-            g = g if g > 0 else -g
-            if g > 1 or tb[3] > 1:                              # ((a+bi)/d)^n: the real
-                st.append((K.mk((K.NUM, g, 0, tb[3])), e))      # content g/d apart
-                st.append((K.mk((K.NUM, tb[1] // g, tb[2] // g, 1)), e))
-                return c
-            if len('%x' % n) > K.MAXBITS >> 2:
-                raise K.CasError(K.M_BIG)                       # the exponent itself
-            K.HUGE = 1
-            return None                                         # keep the pair (5.3)
-    elif u and 24 * n * h > K.MAXBITS:
-        # real: could a prime power q^(n f) of the result be kept whole by the rule at the end
-        # of mul_? For q >= 16 its weight 4 n f hexlen(q) is at most 2 n log2(q^f); below 16
-        # the valuations are measured. If it could, the primes of the base go to rad (6.1).
-        x = tb
-        g = 0
-        w = 0
-        for q in (2, 3, 5, 7, 11, 13):
-            v, x = nval(x, q)
-            v = v if v > 0 else -v
-            g = v if v > g else g
-            w += v
-        g *= 4
-        v = 8 * len('%x' % (a if a > tb[3] else tb[3]))
-        if n * (v if v > g else g) > K.MAXBITS or n * (8 * h + 4 * w) > K.MAXBITS << 1:
-            c = K.nneg(c) if tb[1] < 0 and n & 1 else c
-            for j in (0, 1):
-                f = tb[3] if j else a
-                if len('%x' % f) <= 1000:
-                    f = K.ifac(f)
-                else:                       # over 4,000 bits only the primes below 256 come
-                    x = (K.NUM, f, 0, 1)    # out and the rest stays one cofactor, so the cost
-                    f = []                  # is linear in the size of the base
-                    q = 2
-                    while q < 256:
-                        v, x = nval(x, q)
-                        if v:
-                            f.append(q)
-                            f.append(v)
-                        q += 1 if q == 2 else 2
-                    if x[1] > 1:
-                        f.append(x[1])
-                        f.append(1)
-                for i in range(0, len(f), 2):
-                    rad[f[i]] = K.nadd(rad.get(f[i], K.Q0),
-                                       (K.NUM, f[i + 1] * (-te[1] if j else te[1]), 0, 1))
-            return c
-    return K.nmul(c, K.npowi(tb, te[1]))
+    try:
+        x = K.npowi(tb, te[1])
+    except K.CasError:
+        if tb[2]:
+            raise
+    else:
+        return K.nmul(c, x)
+    n = te[1]
+    c = K.nneg(c) if tb[1] < 0 and n & 1 else c
+    for j in (0, 1):
+        f = tb[3] if j else abs(tb[1])
+        if len('%x' % f) <= 1000:
+            f = K.ifac(f)
+        else:                       # bounded factorization of a large base
+            x = (K.NUM, f, 0, 1)
+            f = []
+            q = 2
+            while q < 256:
+                v, x = nval(x, q)
+                if v:
+                    f.append(q)
+                    f.append(v)
+                q += 1 if q == 2 else 2
+            if x[1] > 1:
+                f.append(x[1])
+                f.append(1)
+        for i in range(0, len(f), 2):
+            rad[f[i]] = K.nadd(rad.get(f[i], K.Q0),
+                               (K.NUM, f[i + 1] * (-n if j else n), 0, 1))
+    return c
 
 
 def hfold(c, rad):                                              #@L 6
@@ -144,18 +112,11 @@ def hfold(c, rad):                                              #@L 6
     # c when its weight 4*|n|*hexlen(q) is at most MAXBITS (the npowi estimate, prime by
     # prime); otherwise q keeps its whole exponent as a pair (5.3), and c gives it its factors
     # q. If the folding weights over MAXBITS/16 total more than MAXFOLD = 2*MAXBITS, those
-    # primes are kept whole as well (bounded memory). A coefficient over 2^16384 (a product of
-    # folded numbers) may hide such a power: it is searched for the primes below 256, and keeps
-    # its value when none is kept whole.
+    # primes are kept whole as well (bounded memory). Ordinary integer products stay NUM;
+    # only primes already present in rad can be extracted from their coefficient.
     k = c
     g = not rad
-    if c[0] == K.NUM and (rad or len('%x%x%x' % c[1:]) > 4096):
-        q = 2 if len('%x%x%x' % c[1:]) > 4096 else 256
-        while q < 256:
-            v, c = nval(c, q)
-            if v:
-                rad[q] = K.nadd(rad.get(q, K.Q0), (K.NUM, v, 0, 1))
-            q += 1 if q == 2 else 2
+    if c[0] == K.NUM and rad:
         for q in rad:                                           #@unordered-ok (per prime)
             v, c = nval(c, q)
             if v:
@@ -204,7 +165,7 @@ def hmpow(tb, te, st):                                          #@L 6
     return True
 
 
-def hsum(acc, s):                                               #@L 7
+def hsum(acc, s, c):                                            #@L 7
     # add_'s rule (5.3) once the command has built a power kept whole: a term's coefficient
     # gives its factors of the term's real bases kept whole to their exponents (regrouped as
     # rule 11), and terms that then coincide are collected again, to a fixed point. A term is
@@ -214,6 +175,35 @@ def hsum(acc, s):                                               #@L 7
     # list), and hsum runs again from the start with s, the answers so far. acc changes when
     # no call is missing; then the result is None.
     N = K.N
+    # Distinct kept-power kernels are dependent: 2*10^n + 3*10^n = 5*10^n even
+    # though their prime-exponent vectors differ. Refuse sums with several such terms,
+    # or a large ordinary coefficient that could equal one, until bounded collection can
+    # prove a canonical answer. Identical terms still cancel before this check.
+    count = 0
+    big = c[0] == K.NUM and len('%x%x%x' % c[1:]) > 1024
+    for e in acc:                                               #@unordered-ok (a count)
+        m = acc[e]
+        if not (m[1] or m[2]):
+            continue
+        big = big or m[0] == K.NUM and len('%x%x%x' % m[1:]) > 1024
+        st = [e]
+        while st:
+            t = N[st.pop()]
+            found = False
+            if t[0] == K.MUL:
+                for j in range(2, len(t), 2):
+                    b = N[t[j]]
+                    w = N[t[j + 1]]
+                    if b[0] == K.NUM and w[0] == K.NUM and not w[2] and (
+                            w[3] == 1 or w[1] < 0 or w[1] > w[3]):
+                        found = True
+            if found:
+                count += 1
+                break
+            if t[0] >= K.COMP:
+                st.extend(t[1:])
+    if count > 1 or count and big:
+        raise K.CasError(K.M_BIG)
     a = dict(acc)
     st = list(a)                                                #@unordered-ok (a fixed point)
     i = 0
@@ -222,7 +212,7 @@ def hsum(acc, s):                                               #@L 7
         e = st.pop()
         m = a.get(e)
         t = N[e]
-        if m is None or m[0] or t[0] != K.MUL:
+        if m is None or not (m[1] or m[2]) or m[0] or t[0] != K.MUL:
             continue
         hl = []
         ps = []
@@ -258,10 +248,12 @@ def hsum(acc, s):                                               #@L 7
                 x = (K.NUM, w[1] + v * w[3], 0, w[3]) if v else w
                 if v:                           # the new weight must stay over MAXBITS/16
                     v = x[1] // x[3]
-                    v = 4 * len('%x' % q) * (v if v > 0 else -v) > K.MAXBITS >> 4
+                    v = 4 * len('%x' % q) * (v if v > 0 else -v) > K.MAXBITS
                     g = 1 if g >= 0 and v else -1
                 hl.append((x[3], x[1], q))
-        if g <= 0:                      # nothing to move, or an exponent would have to fold
+        if g < 0:
+            raise K.CasError(K.M_BIG)     # cannot leave a foldable power in an ADD term
+        if g == 0:
             continue
         hl.sort()
         new = []
@@ -315,6 +307,16 @@ def hsum(acc, s):                                               #@L 7
         acc.clear()
         acc.update(a)
     return None
+
+
+def hinf(acc):                                                 #@L 6
+    # Every real numeric kept base is positive; any real power of it is positive and
+    # finite, so infinity absorbs it. A symbolic or non-real exponent stays formal.
+    for b in list(acc):                                         #@unordered-ok (independent)
+        t = K.N[b]
+        w = K.N[acc[b]]
+        if t[0] == K.NUM and not t[2] and t[1] > 0 and w[0] == K.NUM and not w[2]:
+            del acc[b]
 
 
 def hln(a):                                                     #@L 6

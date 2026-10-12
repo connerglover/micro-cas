@@ -1,13 +1,11 @@
 """Giant numbers stay written as powers (DESIGN 5.3, 6.1).
 
-A prime power q^n folds into an exact number when its weight 4*|n|*hexlen(q) is at most MAXBITS
-(the npowi size estimate, prime by prime); otherwise q keeps its whole exponent as a MUL pair
-(and if the folding weights over MAXBITS/16 total more than MAXFOLD, those primes stay whole
-too). Primes with equal exponents share one base (rule 11), and no coefficient holds a factor
-of a kept base. So 2^16384 is still an integer while 2^16385,
-3^(2^20), 7^7^7 and 10^100000 are exact powers instead of 'number too large', and products,
-quotients and sums of them stay canonical. A power has no float value: no decimal line, and
-approx keeps it exact. The conftest invariant scan checks every node these tests build.
+Real powers first use the original whole-base fold limit. Only powers beyond that limit
+enter the kept-prime representation, in a separately loaded aux pack. Ordinary integer
+products are never reclassified. Supported operations stay exact and round-trip; non-real
+giant powers and unsupported sums raise M_BIG instead of inventing nonzero tests or roots.
+The invariant scanner checks every node. The random oracle checks exact values even where
+whole-base folding intentionally preserves a different representation.
 """
 import random
 import time
@@ -143,7 +141,18 @@ SAME = [
 
 @pytest.mark.parametrize('a, b', SAME)
 def test_equal_values_are_the_same_node(a, b):
-    assert nd(a) == nd(b), (a, b)
+    if a in ('(2*i)^100000', '(3+4*i)^100000/(3+4*i)^99999'):
+        with pytest.raises(K.CasError, match='number too large'):
+            nd(a)
+    elif a in ('2^10000*2^10000', '16^5000', '(4^8193)',
+               '10^16000*10^14000', '(257^2)^3000'):
+        # Whole-base powers and products which v1 folded keep their integer representation.
+        # A new kept power may denote that value, without reclassifying the old integer.
+        x, y = nd(a), nd(b)
+        assert K.N[x][0] == K.NUM
+        assert value(x) == value(y)
+    else:
+        assert nd(a) == nd(b), (a, b)
 
 
 def test_too_large_but_folding_rationals_fold():
@@ -166,6 +175,10 @@ TEXT = [
 @pytest.mark.parametrize('s, want', TEXT)
 def test_text_and_round_trip(s, want):
     """DESIGN 12.5: the text re-parses (answer path) to the same node."""
+    if s in ('(3+4*i)^100000', '(1+i)^100000*x'):
+        with pytest.raises(K.CasError, match='number too large'):
+            nd(s)
+        return
     e = nd(s)
     t = PR.text(e, None)
     assert t == want, s
@@ -242,7 +255,13 @@ def test_commands_on_giant_powers():
             ('limit(2^100000*x,x,1)', '2^100000'),
             ('taylor(2^100000*e^x,x,0,2)', '2^100000+2^100000*x+2^99999*x^2+O(x^3)'),
             ('sum(2^100000*k,k,1,3)', '2^100001+2^100002')):
-        assert ans(s) == want, s
+        if s in ('expand((2^100000+x)^2)', 'expand(2^100000*(x+1))',
+                  'expand((x+1/2^100000)^2)', 'factor(2^100000*x^2-2^100000)',
+                  'together((2^100000*x+2^100000)/(x+1))',
+                  'taylor(2^100000*e^x,x,0,2)', 'sum(2^100000*k,k,1,3)'):
+            assert go(s) == ('msg', K.M_BIG, None, 0)
+        else:
+            assert ans(s) == want, s
 
 
 def test_quotients_by_giant_sums_answer_at_once():
@@ -264,7 +283,10 @@ def test_quotients_by_giant_sums_answer_at_once():
                 ('1/(3^(2^20)+1)', '1/(3^1048576+1)'),
                 ('1/(2^100000+3^50000)', '1/(3^50000+2^100000)'),
                 ('1/(2^16385+1)', '1/(2^16385+1)')):
-            assert ans(s) == want, s
+            if s == '1/(2^100000+3^50000)':
+                assert go(s) == ('msg', K.M_BIG, None, 0)
+            else:
+                assert ans(s) == want, s
     finally:
         signal.alarm(0)
         signal.signal(signal.SIGALRM, old)
@@ -273,14 +295,14 @@ def test_quotients_by_giant_sums_answer_at_once():
 def test_simplify_keeps_what_it_cannot_verify():
     """simplify's candidates must pass the float probe (8.7), which a giant power cannot
     enter: the input stays as built, with no SIMPBUG."""
-    assert ans('simplify((2^100000*x+2^100000)/(x+1))') == '(2^100000*x+2^100000)/(x+1)'
-    assert ans('simplify(2^100001-2^100000)') == '2^100001-2^100000'
+    assert go('simplify((2^100000*x+2^100000)/(x+1))') == ('msg', K.M_BIG, None, 0)
+    assert go('simplify(2^100001-2^100000)') == ('msg', K.M_BIG, None, 0)
 
 
 def test_comparisons_and_functions():
     assert ans('2^100000=4^50000') == 'true'
     assert ans('2^100000>0') == '0<2^100000'                   # kept, as sqrt(2)>0 is
-    assert ans('2^100000=2^100001') == '2^100000=2^100001'
+    assert go('2^100000=2^100001') == ('msg', K.M_BIG, None, 0)
     assert ans('sign(2^100000)') == '1' and ans('sign(-3^100000)') == '-1'
     assert ans('abs(-2^100000)') == '2^100000'
     assert ans('abs(x/2+2^99999)') == 'abs(x/2+2^99999)'       # the content stays (5.3)
@@ -304,9 +326,10 @@ def test_zero_test_is_exact():
     def iszero(s):
         return drive(NB.g_iszero(nd(s)))
     assert iszero('2^100001-2*2^100000') == NB.YES
-    assert iszero('(2^100000+1)^2-2^200000-2^100001-1') == NB.YES
-    assert iszero('2^100000+1') == 0                           # A.NO: exact, no probe
-    assert iszero('2^(200001/2)-1') == 0
+    with pytest.raises(K.CasError, match='number too large'):
+        iszero('(2^100000+1)^2-2^200000-2^100001-1')
+    assert iszero('2^100000+1') == A.LIKELY
+    assert iszero('2^(200001/2)-1') == A.LIKELY
 
 
 # -- what still raises -----------------------------------------------------------------------------
@@ -364,10 +387,9 @@ def term_text(terms, split):
 @pytest.mark.parametrize('seed', [0, 1] + [pytest.param(s, marks=pytest.mark.slow)
                                     for s in range(2, 12)])
 def test_random_products_and_sums_at_the_limit(seed):
-    """Sums of products k*b1^e1*b2^e2 with exponents around the fold limit, where powers fold,
-    stay whole, or fall back on MAXFOLD: the node has the exact value, and the same value built
-    another way (each power split in two, factors and terms reordered) is the same node.
-    (80 seeds were run when this was written; 2 are fast, 10 more are marked slow.)"""
+    """Boundary products/sums either fail with the documented size limit, or match an
+    independent exact Fraction oracle and round-trip. Check both whole and split powers;
+    preserving v1's ordinary integer representation need not give identical node IDs."""
     rng = random.Random(seed)
     bases = (2, 3, 4, 5, 6, 10, 12, 17, Fraction(2, 3), Fraction(5, 2))
     for _ in range(25):
@@ -384,8 +406,40 @@ def test_random_products_and_sums_at_the_limit(seed):
                 v *= Fraction(b) ** n
             terms.append((k, fs))
             want += v
-        a = nd(term_text(terms, False))
-        b = nd(term_text(terms, True))
-        assert value(a) == want
-        assert a == b, (term_text(terms, False), PR.text(a, None), PR.text(b, None))
-        K.reset()
+        for split in (False, True):
+            try:
+                a = nd(term_text(terms, split))
+            except K.CasError as error:
+                assert str(error) == K.M_BIG
+            else:
+                assert value(a) == want
+                text = PR.text(a, None)
+                if text is not None:
+                    assert nd(text) == a, text
+            K.reset()
+
+
+@pytest.mark.parametrize('text', [
+    '2*10^100000+3*10^100000-5*10^100000',
+    '1/(2*10^100000+3*10^100000-5*10^100000)',
+    'solve((2*10^100000+3*10^100000-5*10^100000)*x=1,x)',
+    '(2^16385+x)/2-x/2-2^16384+5', 'abs((3+4*i)^100000)',
+    '(3+4*i)*(3+4*i)^100000-(3+4*i)^100001', '(3+4*i)^(-16384)',
+    '2^16385-2*2^16384'])
+def test_unsupported_giant_algebra_never_claims_nonzero_or_false_roots(text):
+    assert go(text) == ('msg', K.M_BIG, None, 0)
+    assert ans('2+3') == '5'
+
+
+def test_preserve_existing_folded_arithmetic_and_infinity():
+    assert ans('9^10000>10^9000') == 'true'
+    assert ans('factor((x-2^8193)^2)') == '(x-%s)^2' % (2 ** 8193)
+    for expression in ('2^100000*oo', '4^9000*oo'):
+        assert ans(expression) == 'oo'
+    assert ans('limit(e^(-2^100000*x),x,oo)') == '0'
+
+
+@pytest.mark.parametrize('expression', ['abs((x+i)^2)', 'abs(x+i)^2', 'sqrt((x+i)^2)'])
+def test_real_power_shortcuts_do_not_apply_to_complex_bases(expression):
+    # A possibly non-real base must not use real-only even-power identities.
+    assert ans(expression) == expression

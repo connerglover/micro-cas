@@ -59,7 +59,7 @@ def g_iszero(e):                                                #@L 2
         r = NO.normal(r)
         if r == K.ZERO:
             v = YES
-        elif not R.MODS['normc'].kinds(r) & 2 or A.nprobe(e) == A.NO:
+        elif not K.HUGE and not R.MODS['normc'].kinds(r) & 2 or A.nprobe(e) == A.NO:
             v = A.NO
     K.keep(m0, None)
     yield v

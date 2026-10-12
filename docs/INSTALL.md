@@ -163,7 +163,9 @@ printed on your Evo keypad says otherwise, report the key and what it typed.
 
 History, stored variables/functions, and settings belong to the current run.
 Quit and restart starts a fresh session. Large or unsupported expressions may
-remain symbolic or return a size/time/memory message.
+remain symbolic or return a size/time/memory message. Exact finite sums that exceed the
+bounded accumulator stay written as `sum(...)` or `riemann(...)`. Some combinations of
+giant powers return `number too large`; ordinary exact and complex arithmetic are retained.
 
 ## Automated calculator diagnostic
 
@@ -181,7 +183,7 @@ small program and 173,360 bytes after importing `ti_plotlib`, `ti_graphics`,
 packs on native 32-bit MicroPython v1.12: startup on a 95,000-byte total heap,
 `2+3` at 173,360 bytes, seven calculus commands at 189,776 bytes, and all 55
 diagnostics at 212,000 bytes. There the heaviest definite integrals needed more
-than 173,360 bytes, and one long CVTEST session passed 53 of 55 at 189,776
+than 173,360 bytes, and the reviewed long CVTEST session passed 54 of 55 at 189,776
 bytes because the heap fragments. Graphics are stubbed, so these are not
 calculator measurements; the startup heap line and PASS count from a real EVO
 decide whether more memory work is needed. A calculation that runs out of

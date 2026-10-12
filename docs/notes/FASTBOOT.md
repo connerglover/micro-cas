@@ -28,22 +28,23 @@ never run, so every ti_graphics call in the UI was an unverified assumption.
 
 Host compute for boot is about 10 ms; the EVO runs the same 20,000-iteration
 loop about 75 times slower than an Apple M3 host (66 ms versus 0.89 ms), so
-compute explains about one second of the 330 s boot. The remainder is import
-overhead: about **6.5 s per archive import** on the device. 62 KB in 330 s rules
-out a per-byte transfer cost; a fixed per-import cost, or a lookup cost that
-grows with the number of files on the calculator, both fit. Either way the fix is
-the same: **few files and few imports**.
+extrapolating that loop suggests about one second of boot computation. Amortizing
+the reported 330 s across 51 imports gives about **6.5 s per archive import**;
+this is an inference, not a measurement of each import. One device run cannot
+separate fixed import overhead, per-byte loading and lookup costs that grow
+with the number of files. The replacement reduces files, imports and total
+bytes; its actual boot time still needs an EVO measurement.
 
 Function paging (`build/function_pages.py`) made every call to a paged function
 an `__import__`, and importing a page deleted every other page from
 `sys.modules`, so alternating calls re-imported pages continuously. Each
 trampoline step also purged all pages and ran `gc.collect()`.
 
-## 32-bit heap measurements
+## Initial 32-bit heap measurements (2026-10-11)
 
 A local 32-bit MicroPython v1.12 (unix port compiled to wasm32 with emscripten,
 Asyncify register scanning for the GC) reproduces the CI numbers: CVTEST on the
-current package ends with 66,768 bytes free at a 173,360-byte heap (CI recorded
+v1 package ends with 66,768 bytes free at a 173,360-byte heap (CI recorded
 66,704). Whole, unpaged modules cost (bytes of heap, 32-bit):
 
 | module | heap | module | heap |
@@ -100,11 +101,12 @@ and fail heavy commands, so the memory manager has to evict at pack granularity.
   of compiled bytecode (TI variable limit) and has a device name
   `[A-Z][A-Z0-9]{0,7}`.
 
-## What shipped (packs-v1)
+## Local package (packs-v1)
 
 Twenty-one packs and two launchers replace 236 libraries and two launchers. The archive holds
-190,659 bytes (compiled packs plus the 6,042 bytes of launcher source); the largest pack,
-CASK1, compiles to 22,073 bytes.
+191,697 bytes (compiled packs plus the 6,045 bytes of launcher source); the largest pack,
+CASK1, compiles to 22,121 bytes with the pinned v1.12 compiler. These are the
+2026-10-12 reviewed bytes; publication remains pending (see STATUS.md).
 
 | kind | packs | role |
 | --- | --- | --- |
@@ -130,7 +132,8 @@ Later addition: a second aux pack, CASBIG, holds `nodeb` (powers too large to fo
 6.1). `node` keeps only cheap tests and reaches it through `__import__`, so a command without a
 giant power never loads it; `nodeb`'s back-reference to `node` (`K = None`, bound by node's
 module body) compiles to plain references to CASK1. Keeping that code out of CASK1 holds the
-95,000-byte startup at 16,912 bytes free (17,360 without the feature, 13,328 with it in CASK1).
+initial 95,000-byte startup at 16,912 bytes free (17,360 without the feature,
+13,328 with it in CASK1). The reviewed build leaves 16,192 bytes free.
 
 ### Loader changes (`src/run.py`)
 
@@ -151,7 +154,11 @@ module body) compiles to plain references to CASK1. Keeping that code out of CAS
 - `node.keep` marks one rule pattern at a time, and the quadrature cache is split into
   64-slot rows: both had been single allocations that a fragmented heap could not satisfy.
 
-### Measurements (wasm32 MicroPython v1.12; matches CI's recorded v1 CVTEST free heap)
+### Initial measurements (2026-10-11, wasm32 MicroPython v1.12)
+
+This table records the earlier build, not the final review below. The reviewed
+UI smoke script also corrects the plus key from 95 (`< >`) to 85; its earlier
+basic arithmetic result is superseded by the verified `2+3=5` run below.
 
 Pack imports were counted inside the 32-bit runs by wrapping `builtins.__import__`; "host"
 counts come from the CPython harness, whose heap never runs short.
@@ -174,10 +181,11 @@ counts come from the CPython harness, whose heap never runs short.
 Builds that move code around shift these counts by a case or two at the tighter heaps: the
 failures are fragmentation, so the exact cases depend on where packs land.
 
-Most repeat imports are memory, not policy: the code a long session touches (about 160 KB
-of bytecode) does not fit the heap with the core resident, so input, printer and layout packs
-reload after heavy commands, and integration strategies are evicted between phases
-(`integ`, `defint`). Lowering `SHEDAT` saved few light imports and broke the heaviest
+The code a long session touches (about 160 KB of bytecode) does not fit the heap
+with the core resident, so input, printer and layout packs
+reload after heavy commands. The final review also found avoidable strategy eviction
+inside an integration search, corrected below. Explicit phase boundaries still evict
+families (`integ`, `defint`). Lowering `SHEDAT` saved few light imports and broke the heaviest
 integrals, so it stays at 64 KB.
 
 v1 fitted the heaviest cases by keeping only the executing functions resident, at the cost
@@ -188,6 +196,69 @@ definite integrals need roughly 15-40 KB more, and long sessions end in a fragme
 ti_plotlib, ti_graphics, ti_image and more, which this program does not import. 189,776 is
 185,296 plus the 4,480 bytes the harness itself uses. Physical EVO runs decide which model
 holds: CASEVO shows its boot and engine load times, and CVTEST prints its startup heap.
+
+### Final review (2026-10-12)
+
+Failed integration strategies now release the current generator's pin and stay
+cached until memory admission needs an LRU victim. Explicit phase drops still
+evict immediately. This removes repeated archive loading during nested searches
+without pinning idle strategies or changing mathematical results.
+
+| Command | Before review imports | Reviewed imports |
+| --- | ---: | ---: |
+| `integrate(sin(x)^21,x)` | 703 | 10 |
+| `integrate(sin(x)^25,x)` | 1,664 | 9 |
+| `integrate(cos(x)^30,x,0,pi/2)` | 585 | 12 |
+| `desolve(y'=sin(x)^30)` | 585 | 12 |
+| `integrate(e^(x^2),x)` | 12 | 10 |
+| `integrate(atan(x)^5,x)` | 36 | 10 |
+
+These counts use the same host packed-engine harness on both revisions; they
+are not EVO timings. Results are unchanged, including the bounded `too long`
+fallback for the power-25 case. The seven-calculus-command engine-only harness
+drops from 25 to 21 imports; it omits UI loading and is not comparable to the
+earlier whole-UI counts.
+
+Exact finite sums poll CLEAR each term and stop when an accumulator coefficient
+exceeds 3,300 hex digits (about 13,200 bits across numeric fields). Temporary
+nodes are released and the caller retains `sum(...)` or `riemann(...)`. The
+reviewed 1,000-panel rational Riemann case and large factorial/reciprocal sums
+finished in 0.79–1.53 seconds on the desktop, with maximum polling gaps below
+0.009 seconds. These are host measurements, not a device latency guarantee.
+
+Giant real powers still remain exact powers when they exceed the old whole-base
+integer limit. Ordinary folded integers retain their old representation.
+Unsupported multi-term giant algebra and oversized non-real powers now report
+`number too large` instead of giving false nonzero tests or roots. Real-only
+absolute-value/power identities require proof that the base is real. A
+2,422-case comparison with main found no result text/kind changes except cases
+where main already returned `number too large` (67 such cases). See DESIGN.md
+sections 6.1 and 11.4 for the supported bounds.
+
+Final pinned MPY v5.3 bytecode passed these unchanged workflow budgets:
+
+| Suite | Total harness heap | Result |
+| --- | ---: | --- |
+| 32-bit startup | 95,000 B | pass; 16,192 B free |
+| 32-bit UI | 173,360 B | pass; `2+3=5`, normal quit |
+| 32-bit UI calculus | 189,776 B | pass; seven commands, normal quit |
+| 32-bit diagnostics | 212,000 B | 55/55 |
+| 64-bit UI, calculus and diagnostics | 500,000 B | pass; 55/55 diagnostics |
+| Extra 32-bit diagnostic stress | 189,776 B | 54/55; case 35 runs out of memory |
+
+Case 35 is `integrate(1/(2+cos(x)),x,0,2*pi)` during the long diagnostic
+session; it passes in the shorter calculus session at the same heap. The smoke
+runner now requires the suite completion marker and rejects tracebacks even
+when a runtime incorrectly exits with status zero. The 32-bit checks use the
+local wasm32 unix harness and the 64-bit checks the native unix build; neither
+emulates EVO graphics, USB, archive-import latency or its allocator exactly.
+
+A 750-key recovery session with heavy calculations, menus, forms and later
+arithmetic quits normally at the measured 185,296-byte start heap and all
+tested heaps from 155,500 through 196,000 bytes. At 150,000/154,000 bytes the
+instrumented driver's traceback reporting itself can exhaust the wasm runtime;
+a brief error reporter recovered at 150,000. This does not establish universal
+recovery below the measured device heap.
 
 ### Next steps that need device data
 

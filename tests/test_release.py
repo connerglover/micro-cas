@@ -96,6 +96,15 @@ def test_families_load_once_and_stay_while_memory_allows(app):
     app.assert_clean()
 
 
+def test_failed_integral_strategies_remain_cached(app):
+    app.loads.clear()
+    assert app.go('integrate(sin(x)^21,x)')[:2] == ('ans', 'integrate(sin(x)^21,x)')
+    for name in ('CASIN2', 'CASIN2B', 'CASIN3', 'CASIN3B'):
+        assert app.loads.count(name) <= 1, app.loads
+    assert len(app.loads) < 20
+    app.assert_clean()
+
+
 def test_giant_powers_load_their_aux_pack_only_when_met(app):
     """DESIGN 6.1: the code for powers too large to fold is an aux pack. node's constructors
     keep only a cheap test, so a plain session never loads it; a giant power loads it once and
@@ -112,10 +121,15 @@ def test_giant_powers_load_their_aux_pack_only_when_met(app):
     assert big not in app.loads, app.loads
     for command, want in (('3^(2^20)', '3^1048576'), ('2^100000*2', '2^100001'),
                           ('2^100000+2^100000', '2^100001'), ('sqrt(2^100001)', '2^(100001/2)'),
-                          ('expand((2^100000+x)^2)', 'x^2+2^100001*x+2^200000'),
                           ('log(10^100000)', '100000'), ('abs(x/2+2^99999)', 'abs(x/2+2^99999)'),
-                          ('(3+4*i)^100000/(3+4*i)^99999', '3+4*i')):
+                          ('2^100000*oo', 'oo')):
         assert app.go(command)[:2] == ('ans', want), command
+        app.assert_clean()
+    for command in ('expand((2^100000+x)^2)', '(3+4*i)^100000/(3+4*i)^99999',
+                    '2*10^100000+3*10^100000-5*10^100000',
+                    'solve((2*10^100000+3*10^100000-5*10^100000)*x=1,x)'):
+        assert app.go(command)[:2] == ('msg', 'number too large')
+        assert app.go('2+3')[:2] == ('ans', '5')
         app.assert_clean()
     assert app.loads.count(big) == 1, app.loads
     assert app.max_depth <= 8
@@ -241,6 +255,11 @@ def test_out_of_memory_cleanup_never_raises_when_dir_runs_out(app):
 
     def observe(frame):
         if frame.f_code.co_name == app.final('run', 'evict_all'):
+            # Admission may already have shed every soft pack before this cleanup. Leave a
+            # known auxiliary module for unload(), independent of pack sizes/cache policy,
+            # so the allocation failure is actually injected rather than merely expected.
+            name = pack(app, 'nodeb')
+            app.modules[name] = types.ModuleType(name)
             state['armed'] = True
 
     def dir_(*args):

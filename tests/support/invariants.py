@@ -461,6 +461,43 @@ def _check_add(c, i, t, bad, isnum, iszero):
         bad('add', i, 'one pair and a zero constant: should be the product k*t')
 
 
+def _real(c, root):
+    """Independent sufficient proof for real-only power/absolute-value identities."""
+    op, N = c.op, c.N
+    proven = {}
+    stack = [(root, False)]
+    while stack:
+        u, done = stack.pop()
+        t = N[u]
+        if u in proven:
+            continue
+        if t[0] >= op['COMP'] and not done:
+            stack.append((u, True))
+            stack.extend((v, False) for v in t[1:])
+            continue
+        if t[0] in (op['NUM'], op['FLT']):
+            yes = t[2] == 0
+        elif t[0] == op['SYM'] or u in (c.id['PI'], c.id['E']):
+            yes = True
+        elif t[0] == op['ABS']:
+            yes = True
+        elif t[0] == op['ADD']:
+            yes = all(proven[v] for v in t[1:])
+        elif t[0] == op['MUL']:
+            yes = proven[t[1]]
+            for b, e in zip(t[2::2], t[3::2]):
+                bt, et = N[b], N[e]
+                odd = et[0] == op['NUM'] and et[2] == 0 and et[3] % 2 == 1
+                positive = b in (c.id['PI'], c.id['E']) or (bt[0] == op['NUM'] and bt[2] == 0 and bt[1] > 0)
+                yes = yes and (odd and proven[b] or positive and proven[e])
+        elif t[0] >= op['FN0'] and t[0] not in (op['LN'], op['ASIN'], op['ACOS']):
+            yes = proven[t[1]]
+        else:
+            yes = False
+        proven[u] = yes
+    return proven[root]
+
+
 def _check_mul(c, i, t, bad, isnum, iszero, realnum, isint):
     op = c.op
     N = c.N
@@ -526,7 +563,7 @@ def _check_mul(c, i, t, bad, isnum, iszero, realnum, isint):
                               'exponent: should be pulled out (rule 6)')
             if tb[1] == c.id['ONE'] and len(tb) == 4 and isint(tb[3]) and \
                     N[tb[3]][1] % 2 == 0 and te[2] == 0 and \
-                    (N[tb[3]][1] * te[1]) % te[3] == 0:
+                    (N[tb[3]][1] * te[1]) % te[3] == 0 and _real(c, tb[2]):
                 bad('mul', i, '(u^even)^r with an integer product: should be abs (rule 7)')
         if b == c.id['E']:
             if te[0] == op['LN']:
@@ -534,7 +571,7 @@ def _check_mul(c, i, t, bad, isnum, iszero, realnum, isint):
             elif te[0] == op['MUL'] and len(te) == 4 and N[te[2]][0] == op['LN'] and \
                     te[3] == c.id['ONE'] and isint(te[1]):
                 bad('mul', i, 'e^(n*ln(u)): should be u^n (rule 8)')
-        if tb[0] == op['ABS'] and isint(e) and N[e][1] % 2 == 0:
+        if tb[0] == op['ABS'] and isint(e) and N[e][1] % 2 == 0 and _real(c, tb[1]):
             bad('mul', i, 'abs(u)^even: should be u^even (rule 9)')
     if huge:
         _check_huge(c, i, N[k], huge, bad)
@@ -746,7 +783,7 @@ def _check_abs(c, i, u, bad, isnum, realnum, isint, neginf):
     if tu[0] == op['MUL']:
         if realnum(tu[1]) is not None and tu[1] != c.id['ONE']:
             bad('abs', i, 'abs(c*w) with a real coefficient: should be |c|*abs(w)')
-        if tu[1] == c.id['ONE'] and len(tu) == 4 and isint(tu[3]) and N[tu[3]][1] % 2 == 0:
+        if tu[1] == c.id['ONE'] and len(tu) == 4 and isint(tu[3]) and N[tu[3]][1] % 2 == 0 and _real(c, tu[2]):
             bad('abs', i, 'abs(w^(2k)) should be w^(2k)')
     if tu[0] == op['ADD']:
         for j in range(2, len(tu), 2):                         # a sum holding a power kept

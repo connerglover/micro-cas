@@ -109,7 +109,7 @@ def g_int(f, x, depth=0):                                       #@L 2
                     break
                 r = None
             mod = None
-            R.drop((key,))
+            R.drop((key,), True)   # unpin; need() evicts LRU strategies only for memory
     if r is None:
         r = (K.ZERO, v)
     yield (scale(c, r[0]), scale(c, r[1]))

@@ -65,7 +65,7 @@ not enable GitHub Pages. See [STATUS.md](STATUS.md) for what has actually been v
   Its historical filename applies to Workers static assets too.
 - Preserve `public/_headers` for cross-origin isolation and Serial/USB
   permissions. Check `crossOriginIsolated === true` on the hosted site and
-  that the manifest lists all 238 transfer objects.
+  that the manifest lists all 23 transfer objects.
 - The largest initial asset, webtilp-source.zip, is 25,642,244 bytes, under the
   25 MiB limit. Keep both corresponding-source ZIPs alongside the code. The
   calculator ZIP, WASM and source ZIP URLs must return their actual bytes.

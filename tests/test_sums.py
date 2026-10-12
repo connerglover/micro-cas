@@ -157,3 +157,29 @@ def test_loop_region_keeps_bounded_arena():
     out = drive(R.MODS['sumb'].g_loop(f, k, 1, 1000))
     assert to_sympy(out) == sum((i + 1) ** 2 for i in range(1, 1001))
     assert K.NN - mark < 5
+
+
+@pytest.mark.parametrize('text', [
+    'sum(1/k!,k,0,999)', 'sum(1/(k^2+1),k,1,1000)',
+    'sum(1/(k^2+1)+x,k,1,1000)', 'riemann(1/(1+x^2),x,0,1,1000)'])
+def test_large_exact_accumulators_stay_formal_and_recover(text, monkeypatch):
+    import signal
+    import time
+
+    def timeout(*args):
+        raise AssertionError('exact accumulation exceeded its work budget')
+
+    polls = []
+    monkeypatch.setattr(K, 'ESC', lambda: polls.append(time.monotonic()) or False)
+    old = signal.signal(signal.SIGALRM, timeout)
+    signal.alarm(5)
+    try:
+        result = R.go(('eval', text))
+        assert result[0] == 'ans' and text.split('(')[0] + '(' in result[1], result
+        assert not result[3] & R.F_APPROX
+        assert len(polls) > 10
+        assert max(b - a for a, b in zip(polls, polls[1:])) < 0.1
+        assert R.go(('eval', '2+3'))[1] == '5'
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old)

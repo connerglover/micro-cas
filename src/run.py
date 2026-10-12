@@ -708,9 +708,10 @@ def victim(now):                                                #@L 4
     return v
 
 
-def drop(keys):                                                 #@L 3
+def drop(keys, cache=False):                                    #@L 3
     """Phase eviction (18.5): the families of keys leave the calling generator's pins and
-    PINNED; each one that no suspended generator keeps live is evicted now."""
+    PINNED; each one that no suspended generator keeps live is evicted now. A failed search
+    strategy uses cache=True to release only its own pin and retain an LRU cache entry."""
     sl = NEEDED[-1] if NEEDED else []
     for k in keys:
         f = FAMILY.get(k, k)
@@ -718,9 +719,9 @@ def drop(keys):                                                 #@L 3
             sl.remove(f)
             for c in CLOSURE.get(f, (f,)):
                 LIVE[c] -= 1
-        if f in PINNED:
+        if not cache and f in PINNED:
             PINNED.remove(f)
-        if f in LOADED and not LIVE.get(f, 0):
+        if not cache and f in LOADED and not LIVE.get(f, 0):
             evict(f)
 
 

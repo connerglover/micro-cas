@@ -98,7 +98,8 @@ handles.
 - `run.need` loads a family by importing its pack; a family whose pack is
   already imported binds without another import. Eviction is LRU at pack
   granularity, only when a load needs memory, and never touches pinned or live
-  families.
+  families. Failed integration strategies use `drop(keys, True)` to release their own
+  pins while remaining cached; phase boundaries still use immediate eviction.
 - `run.room(phase)` makes room for a phase's soft pack (unpinned families and
   other soft packs give way first) and retries once after freeing everything
   idle. The entry loop calls `room('layout')` before the UI code reloads.

@@ -52,7 +52,7 @@ import sys
 # The runners execute with cwd set to this directory. Avoid interning the host
 # checkout's absolute path once per imported page in the constrained heap.
 sys.path[0]=''
-KEYS = (93, 95, 94, 105, 21, 22)
+KEYS = (93, 85, 94, 105, 21, 22)
 POS = 0
 PROBE = False
 class ScriptExhausted(BaseException):
@@ -247,7 +247,13 @@ def main(argv=None):
         command = [executable, '-X', 'heapsize=' + str(args.heap), script]
         print('  ' + shlex.join(command), flush=True)
         if args.run:
-            subprocess.run(command, cwd=output, check=True)
+            result = subprocess.run(command, cwd=output, capture_output=True, text=True)
+            print(result.stdout, end='')
+            print(result.stderr, end='', file=sys.stderr)
+            result.check_returncode()
+            marker = script[:-3].upper().replace('_', ' ') + ' PASS:'
+            if marker not in result.stdout or 'Traceback (most recent call last)' in result.stdout + result.stderr:
+                raise SystemExit('Native suite did not complete: ' + script)
 
 
 if __name__ == '__main__':

@@ -4,12 +4,27 @@ import node as K
 import alg as A
 import run as R
 
+# At most 13200 bits across the exact numerator, imaginary part and denominator (about the
+# printer's 4000-character limit). Larger
+# partial sums stay formal; silently switching an exact sum to floating point would lose
+# cancellation. This also bounds the work between CLEAR polls on the calculator.
+SUMHEX = 3300
+
 def g_loop(f, x, lo, hi):                                       #@L 2
     out = K.ZERO
     mark = K.NN
     for j in range(lo, hi + 1):
+        if K.ESC is not None and K.ESC():
+            raise K.Cancel()
         out = K.add_([out, A.subst(f, x, K.num(j))])
         out = K.keep(mark, out)
+        t = K.N[out]
+        for h in range(1, len(t) if t[0] == K.ADD else 2, 2):
+            v = K.N[t[h]] if t[0] == K.ADD or t[0] == K.MUL else t
+            if v[0] == K.NUM and len('%x%x%x' % v[1:]) > SUMHEX:
+                K.release(mark)
+                yield None
+                return
         yield R.TICK
     yield out
 

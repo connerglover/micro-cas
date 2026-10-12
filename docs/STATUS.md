@@ -1,6 +1,6 @@
 # Delivery status and evidence
 
-Last reviewed: 2026-10-11. Repository: connerglover/cas-evo (private).
+Last reviewed: 2026-10-12. Repository: connerglover/cas-evo (private).
 Use [AGENTS.md](../AGENTS.md) for operating instructions. This file records a
 dated snapshot; verify remote heads, build results and hosting before reporting
 them as current.
@@ -16,7 +16,8 @@ them as current.
   with `TypeError: function takes 1 positional arguments but 3 were given` at
   line 64 of `CVP00051.py`, `G.setColor(*COLORS['BG'])`, the first drawing call
   of `ui.boot`. `ti_graphics.setColor` takes one positional argument on the EVO.
-  Boot needed 51 archive imports, about 6.5 s each by the device timing, and
+  Boot needed 51 archive imports (about 6.5 s each if the reported boot time is
+  amortized across them; individual device imports were not timed), and
   function pages evicted each other, so alternating calls re-imported them
   continuously. The analysis is in [notes/FASTBOOT.md](notes/FASTBOOT.md).
 - **What changed.** The UI draws only through `ti_draw` with the semantics
@@ -26,7 +27,7 @@ them as current.
   needs it, with boot and engine load times in the status line. Device modules
   are merged into **21 packs** (ui, core, family, soft, view and aux kinds;
   `build/manifest.py` `PACKS`) plus the two launchers: 23 files, largest pack
-  22,073 bytes compiled; the archive holds 190,659 bytes in all. Identifier
+  22,121 bytes compiled; the archive holds 191,697 bytes in all. Identifier
   shrinking works across packs. Phase payloads, function pages and namespace
   initializers are gone (`build/phases.py`, `build/function_pages.py`,
   `build/archive_modules.py`, `build/memory_report.py`, `build/check_archive.py`
@@ -38,8 +39,10 @@ them as current.
 - **Giant exact powers** (from CalcPlex's design: keep giant powers as powers
   instead of freezing). `3^(2^20)` gives `3^1048576` and `2^100000*2` gives
   `2^100001` at once, where v1 said "number too large". The code is the aux pack
-  CASBIG, loaded only when a command meets a giant power; the resident core grew
-  406 bytes. Denominators are no longer factored in a number kernel or past
+  CASBIG, loaded only when a command meets a giant power. The final review
+  preserves ordinary folded integers and rejects unsupported giant algebra
+  before it can produce false nonzero tests or roots. Denominators are no longer
+  factored in a number kernel or past
   degree 64, which had made `1/(2^100000+1)` (and, before this work,
   `1/(x^2000+1)`) run for minutes without a cancel check.
 - **CI gates** (`.github/workflows/build.yml`), all on the compiled packs with
@@ -53,10 +56,13 @@ them as current.
   is that plus the 4,480 bytes the harness uses. The 55 diagnostics run at
   212,000 because one long session fragments the heap (below).
 
-The measured results below come from a 32-bit **MicroPython v1.12 harness (unix
+The historical table below records the initial 2026-10-11 build. Final reviewed
+results follow it; do not use the older free-heap figures as current evidence.
+The measured results come from a 32-bit **MicroPython v1.12 harness (unix
 port compiled to wasm32)**, which reproduces CI's recorded v1 CVTEST free heap
 (66,768 versus 66,704 bytes). They are harness measurements, not device
-acceptance.
+acceptance. The original UI arithmetic script had a stale plus-key code; its
+result is superseded by the corrected `2+3=5` check in the final review.
 
 | check | v1 | packs-v1 |
 | --- | --- | --- |
@@ -83,11 +89,61 @@ EVO runs can show whether these cases fit on the calculator.
   dashboard connection, a live Worker, DNS and HTTPS at
   **cas.connerglover.com** have not been verified; use [HOSTING.md](HOSTING.md).
 
+### Final review, 2026-10-12
+
+- **Acceptance:** 3,138 source tests and 3,138 bundled tests pass with
+  `-m 'not slow' --strict-depth`, including the archive compiler-input tests;
+  each run deselects 65 slow cases and has no artifact-dependent skips. The
+  154 focused checks also pass, including ten slow giant-power oracle seeds.
+  Device lint, frame lint, packaged self-test (8/8 depth), Markdown link targets
+  and `git diff --check` pass. Local CPython is 3.15.0; CI's pinned 3.14 run
+  remains pending publication.
+- Failed integration strategies now remain cached until memory is needed, while
+  releasing their generator pins. Host packed-engine imports for
+  `integrate(sin(x)^21,x)` fell from 703 to 10, and for the power-25 case from
+  1,664 to 9, with the same results. Explicit phase eviction is retained.
+- Exact finite sums poll CLEAR each term and keep a formal `sum(...)` or
+  `riemann(...)` when the accumulator exceeds about 13,200 bits. No implicit
+  floating-point replacement is made. Giant-power regressions cover cancellation,
+  false roots, infinity, ordinary large integer preservation and complex bases.
+  A 2,422-case comparison against main found no result text/kind differences
+  except cases where main already returned `number too large` (67 cases).
+- The corrected native smoke script types the EVO plus key (85), verifies the
+  expected answer, requires the correct suite completion marker and rejects
+  tracebacks even if the runtime returns exit status zero.
+- Final pinned MPY v5.3 bytes pass startup at **95,000 B** (16,192 B free),
+  UI arithmetic at **173,360 B**, seven UI calculus commands at **189,776 B**,
+  and **55/55 diagnostics at 212,000 B** on the 32-bit wasm unix harness.
+  The native 64-bit **500,000 B** run passes all three suites, including 55/55.
+  Workflow budgets are unchanged. At the extra 189,776 B diagnostic stress
+  budget, **54/55** pass: case 35's heavy definite integral runs out of memory
+  in the long session. This limitation remains; these runs are not EVO acceptance.
+- A 750-key recovery session passes at the measured 185,296 B start heap and
+  the tested heaps from 155,500 to 196,000 B. Lower-heap instrumentation failures
+  are recorded in [FASTBOOT.md](notes/FASTBOOT.md#final-review-2026-10-12).
+- **Local deliverable:** `dist/cas-evo-calculator.zip`, **133,020 bytes**;
+  SHA-256 `9726c531537f724064a50209750e8e56984d6d931c1a3f115d869dd60c684e1d`.
+  It contains 23 transfer files totalling **194,120 container bytes**; raw
+  bytecode/source is **191,697 bytes**, including **6,045 launcher source bytes**.
+  TIVarsLib round-trips and all transfer hashes pass, and the compiled bytes
+  match the native-tested snapshot. The bundled installation guide reflects
+  the reviewed memory result.
+- **Installer:** 25 Node tests pass; the rebuilt 29-file site passes static
+  integrity checks. Real browser checks verified 23 files, hash validation,
+  `crossOriginIsolated`, WebTILP WASM initialization (`init() == 1`), matching
+  and empty file filters, and no overflow at 1280/390 px. USB was not attempted.
+- **Publication:** the GitHub connector confirms live main at **177779f** and
+  pages still records source **25b83b0**, run **38174533070**. Normal Git fetch
+  cannot authenticate (`could not read Username for 'https://github.com'`).
+  Connector read access works; this is a local Git credential limitation, not
+  a claim that all account access is absent. No source or deployment branch has
+  been replaced through the API.
+
 ## Remaining acceptance
 
 1. Push `perf/fast-boot`, bring it to main as the user directs, and confirm the
    full build and publication runs pass. Record the run, the calculator ZIP
-   SHA-256 and the pages commit here.
+   SHA-256 and the pages commit here. Local Git authentication must first be restored.
 2. On the physical EVO:
    - Install through the web installer, which removes exact-match v1 files and
      lists any it keeps. Record the installer's summary.
