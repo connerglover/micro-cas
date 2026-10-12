@@ -38,14 +38,7 @@ ALIAS = {'int': 'integrate', 'd': 'diff', 'deriv': 'diff', 'lim': 'limit', 'seri
 MACROS = {'polararea': (4, 4, 'integrate((#1)^2/2,#2,#3,#4)'),
           'paramarea': (5, 5, 'integrate((#2)*diff(#1,#3),#3,#4,#5)'),
           'arclen': (4, 5, None)}       # None: P.AMAC by argument count
-HINT = {'simplify': 'simplify(e)', 'expand': 'expand(e)', 'factor': 'factor(e,[x])',
-        'together': 'together(e)', 'solve': 'solve(eq,[x])', 'diff': 'diff(f,x,[n])',
-        'integrate': 'integrate(f,x,[a,b])', 'limit': 'limit(f,x,a,[dir])',
-        'taylor': 'taylor(f,x=a,[n])', 'partfrac': 'partfrac(e,[x])',
-        'sum': 'sum(f,k,a,b)', 'riemann': 'riemann(f,x,a,b,n,[left|right|mid|trap])',
-        'desolve': 'desolve(eq,[y])', 'grad': 'grad(f,[x,y,z])',
-        'polararea': 'polararea(r,t,a,b)', 'paramarea': 'paramarea(x,y,t,a,b)',
-        'arclen': 'arclen(f,x,a,b)', 'purge': 'purge(x,...)', 'approx': 'approx(e)'}
+# The hint-line signatures are UI data: ui.HINT (the UI shows them before the engine loads).
 
 # -- the loader tables (DESIGN 4.3, 18.4); the bundler rewrites DEV, PARTS, FAMILY, CLOSURE,
 # COST, LINES, PEAKB and FRAG (build/bundle.py). Desktop DEV: runtime key -> src module.

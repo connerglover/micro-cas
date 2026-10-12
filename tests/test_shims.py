@@ -1,7 +1,9 @@
-"""M0.2: the desktop shims (shim/ti_system.py, shim/ti_graphics.py) and tests/support/keyscript.py.
+"""M0.2: the desktop shims (shim/ti_system.py, shim/ti_draw.py, shim/ti_graphics.py) and
+tests/support/keyscript.py.
 
 DESIGN.md section 20.9: key replay, escape injection, a draw transcript, the screen-text dump,
-and running an entry program with real depths.
+and running an entry program with real depths. The UI draws through ti_draw (FASTBOOT.md);
+the ti_graphics shim remains for the older release checker (build/check_release.py).
 """
 import os
 import struct
@@ -16,6 +18,7 @@ for _p in (os.path.join(_ROOT, 'tests', 'support'), os.path.join(_ROOT, 'shim'))
         sys.path.insert(0, _p)
 
 import keyscript as KS                  # noqa: E402
+import ti_draw as TD                    # noqa: E402
 import ti_graphics as G                 # noqa: E402
 import ti_system as TS                  # noqa: E402
 
@@ -23,8 +26,10 @@ import ti_system as TS                  # noqa: E402
 @pytest.fixture(autouse=True)
 def _fresh_shims():
     KS.reset_shims()
+    G.reset()
     yield
     KS.reset_shims()
+    G.reset()
 
 
 # ====================================================================== ti_system: key replay
@@ -435,6 +440,108 @@ def test_screenshot_png(tmp_path):
     assert raw[1:4] == bytes((36, 92, 204))
 
 
+# ====================================================================== ti_draw: the EVO's semantics
+def test_ti_draw_transcript_and_color_count():
+    TD.set_color(247, 248, 250)
+    TD.fill_rect(-1, -1, 321, 211)
+    TD.set_color(17, 20, 25)
+    TD.draw_text(5, 19, 'RAD')
+    TD.draw_line(0, 19, 319, 19)
+    assert TD.CALLS == [('set_color', 247, 248, 250), ('fill_rect', -1, -1, 321, 211),
+                        ('set_color', 17, 20, 25), ('draw_text', 5, 19, 'RAD'),
+                        ('draw_line', 0, 19, 319, 19)]
+    assert TD.transcript_text().splitlines() == [
+        'set_color 247 248 250', 'fill_rect -1 -1 321 211', 'set_color 17 20 25',
+        "draw_text 5 19 'RAD'", 'draw_line 0 19 319 19']
+    assert TD.COUNTS['set_color'] == 2 and TD.OFFSCREEN == []
+    assert TD.get_screen_dim() == [319, 209]
+    for n in TD.VERIFIED:
+        assert callable(getattr(TD, n))
+
+
+def test_ti_draw_strict_arguments():
+    with pytest.raises(TypeError):
+        TD.set_color((1, 2, 3))             # one tuple is not three channels
+    with pytest.raises(TypeError):
+        TD.set_color(1.0, 2, 3)
+    with pytest.raises(ValueError):
+        TD.set_color(256, 0, 0)
+    with pytest.raises(TypeError):
+        TD.fill_rect(1.5, 0, 2, 2)
+    with pytest.raises(TypeError):
+        TD.draw_text(0, 17, 5)
+    with pytest.raises(TypeError):
+        TD.draw_text(0, 17.0, 'a')
+    with pytest.raises(TypeError):
+        TD.draw_line(0, 0, 1, 1.0)
+    for w, h in ((1, 5), (5, 1), (0, 0), (-3, 4)):
+        with pytest.raises(TD.tidrawException):
+            TD.fill_rect(10, 10, w, h)
+    assert TD.CALLS == []
+
+
+def test_ti_draw_fill_rect_fills_the_interior_only():
+    TD.set_color(255, 0, 0)
+    TD.fill_rect(10, 20, 4, 3)              # columns 11..13, rows 21..22
+    assert TD.pixel(11, 21) == TD.pixel(13, 22) == (255, 0, 0)
+    for x, y in ((10, 21), (14, 21), (11, 20), (11, 23)):
+        assert TD.pixel(x, y) == (255, 255, 255)
+    TD.fill_rect(-1, -1, 321, 211)          # the whole screen, nothing off it
+    assert TD.pixel(0, 0) == TD.pixel(319, 209) == (255, 0, 0)
+    assert TD.OFFSCREEN == []
+    TD.fill_rect(-2, 5, 4, 4)               # interior column -1 is off the screen
+    TD.fill_rect(300, 200, 21, 11)          # interior reaches column 320 and row 210
+    assert TD.OFFSCREEN == [('fill_rect', -2, 5, 4, 4), ('fill_rect', 300, 200, 21, 11)]
+
+
+def test_ti_draw_text_cell_and_screen_text():
+    TD.draw_text(5, 19, 'RAD')              # cell 5..34 x 2..16
+    TD.draw_text(10, 189, '2+3')            # cell 10..39 x 172..186
+    TD.draw_text(40, 189, 'x')              # adjacent: joins without a space
+    assert TD.texts() == [(5, 2, 'RAD', (0, 0, 0)), (10, 172, '2+3', (0, 0, 0)),
+                          (40, 172, 'x', (0, 0, 0))]
+    assert TD.screen_text() == 'RAD\n2+3x'
+    assert TD.screen_text(0, 150, 320, 60) == '2+3x'
+    assert TD.find('+') == [(10, 172, '2+3', (0, 0, 0))]
+    assert TD.texts_in(0, 0, 320, 19) == [(5, 2, 'RAD', (0, 0, 0))]
+    assert TD.OFFSCREEN == []
+    TD.draw_text(0, 16, 'a')                # first ink row -1
+    TD.draw_text(0, 213, 'b')               # last ink row 210
+    TD.draw_text(315, 100, 'c')             # columns 315..324
+    assert [c[3] for c in TD.OFFSCREEN] == ['a', 'b', 'c']
+
+
+def test_ti_draw_fill_erases_text_and_lines_never_do():
+    TD.draw_text(10, 117, 'old')            # cell 10..39 x 100..114
+    TD.draw_line(0, 105, 319, 105)
+    assert TD.screen_text() == 'old'
+    TD.fill_rect(19, 99, 2, 17)             # a caret-wide fill: the rest stays visible
+    assert TD.screen_text() == 'old'
+    TD.set_color(255, 255, 255)
+    TD.fill_rect(-1, 98, 321, 18)           # rows 99..114 cover the cell
+    assert TD.texts() == [] and TD.OVERDRAW == []
+
+
+def test_ti_draw_text_does_not_erase_and_overdraw_is_logged():
+    TD.draw_text(0, 17, 'x+1')
+    TD.draw_text(0, 17, 'x+1')              # the same text again: harmless
+    assert TD.OVERDRAW == [] and TD.screen_text() == 'x+1'
+    TD.draw_text(10, 17, 'y')               # over a different live text: both stay, garbled
+    assert TD.OVERDRAW == [('x+1', 0, 0, 'y', 10, 0)]
+    assert len(TD.texts()) == 2
+
+
+def test_ti_draw_clear_and_screenshot(tmp_path):
+    TD.draw_text(0, 17, 'gone')
+    TD.clear()
+    assert TD.texts() == [] and TD.CALLS[-1] == ('clear',)
+    TD.set_color(36, 92, 204)
+    TD.fill_rect(-1, -1, 11, 11)
+    data = open(TD.screenshot(str(tmp_path / 's.png'), scale=1), 'rb').read()
+    assert data[:8] == b'\x89PNG\r\n\x1a\n'
+    assert struct.unpack('>II', data[16:24]) == (320, 210)
+
+
 # ====================================================================== keyscript: parsing
 def test_parse_flowce_style():
     assert KS.parse('2+3{enter}') == [93, 95, 94, 105]
@@ -547,7 +654,7 @@ while True:
 
 FAKEUI = '''\
 import ti_system as TS
-import ti_graphics as G
+import ti_draw as TD
 QUIT = ['quit']
 LINE = ['']
 HIST = []
@@ -560,12 +667,10 @@ ESC = [None]
 
 def boot():
     ESC[0] = TS.escape
-    G.setColor(255, 255, 255)
-    G.fillRect(0, 0, 320, 210)
-    G.setColor(0, 0, 0)
-    G.setFont(1)
-    G.drawString('RAD', 2, 0)
-    G.setFont(0)
+    TD.set_color(255, 255, 255)
+    TD.fill_rect(-1, -1, 321, 211)
+    TD.set_color(0, 0, 0)
+    TD.draw_text(2, 17, 'RAD')
 
 
 def key(k):
@@ -588,10 +693,10 @@ def key(k):
 
 
 def edit():
-    G.setColor(255, 255, 255)
-    G.fillRect(0, 170, 320, 20)
-    G.setColor(0, 0, 0)
-    G.drawString(LINE[0], 0, 170)
+    TD.set_color(255, 255, 255)
+    TD.fill_rect(-1, 169, 321, 21)
+    TD.set_color(0, 0, 0)
+    TD.draw_text(0, 189, LINE[0])
 
 
 def go(job):
@@ -615,13 +720,13 @@ def leaf(n):
 
 def show(job, r):
     HIST.append((job[1], r))
-    G.setColor(255, 255, 255)
-    G.fillRect(0, 14, 320, 156)
-    G.setColor(0, 0, 0)
-    y = 14
+    TD.set_color(255, 255, 255)
+    TD.fill_rect(-1, 18, 321, 152)
+    TD.set_color(0, 0, 0)
+    y = 19
     for inp, res in HIST[-4:]:
-        G.drawString(inp, 0, y)
-        G.drawString(res, 300 - 8 * len(res), y + 18)
+        TD.draw_text(0, y + 17, inp)
+        TD.draw_text(310 - 10 * len(res), y + 35, res)
         y = y + 36
     edit()
 
@@ -653,8 +758,9 @@ def test_run_replays_keys_and_dumps_screen(fake_entry):
     assert s.read == [93, 95, 94, 105, 92, 102, 105]
     assert s.left == []
     assert s.overdraw == []
-    assert ('drawString', 'RAD', 2, 0) in s.calls
-    assert s.transcript_text(0, 2) == 'setColor 255 255 255\nfillRect 0 0 320 210'
+    assert ('draw_text', 2, 17, 'RAD') in s.calls
+    assert s.offscreen == []
+    assert s.transcript_text(0, 2) == 'set_color 255 255 255\nfill_rect -1 -1 321 211'
 
 
 def test_run_cancel_by_injected_clear(fake_entry):

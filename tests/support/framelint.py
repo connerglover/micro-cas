@@ -15,6 +15,10 @@ Annotations (comments):
     #@native       on a module-level hook assignment (``ESC = None  #@native``): the hook holds
                    a native function, so calling it costs no Python frame and needs no
                    ``#@calls``. (An extension of section 17.3; see docs/notes/M0.1.md.)
+    #@lazy mod     on a module-level ``X = None`` (X the fixed alias of mod): X is bound to the
+                   module mod at run time (``ui.engine`` imports the engine on first use), so
+                   ``X.f(...)`` is resolved like an import of mod. ``U.X`` for a module U
+                   that declares it lazily resolves to mod too (``R = U.R`` in a function).
 
 Checks:
 
@@ -27,7 +31,8 @@ Checks:
   generator); no function references a ``g_*`` without calling it;
 - inside a generator: no ``yield from``, no ``return value``, no bare ``except:``, no
   ``finally`` (section 10.2);
-- imports (and ``__import__``) inside functions only in ``run.need``, ``run.go``, ``ui.boot``;
+- imports (and ``__import__``) inside functions only in ``run.need``, ``run.go``,
+  ``ui.engine``;
 - module bodies contain only imports, defs, empty exception classes, docstrings and
   assignments whose calls are builtins (or create a same-module generator object); the entry
   module ``casevo`` is exempt (its body is the depth-0 event loop);
@@ -47,11 +52,12 @@ LEVEL_RE = re.compile(r'#@L\s*(\d+)')
 CALLS_RE = re.compile(r'#@calls\s*(\d+)')
 TABLE_RE = re.compile(r'#@table\s*(\d+)')
 NATIVE_MARK = '#@native'
+LAZY_RE = re.compile(r'#@lazy\s+(\w+)')
 
 MINLEVEL = 1
 MAXLEVEL = 7
 GEN_LEVEL = 2
-IMPORT_OK = (('run', 'need'), ('run', 'go'), ('ui', 'boot'))
+IMPORT_OK = (('run', 'need'), ('run', 'go'), ('ui', 'engine'))
 ROOT_GEN_OK = (('run', 'go'),)
 ENTRY = ('casevo', 'CASEVO')
 
@@ -105,6 +111,7 @@ class Mod(object):
         self.classes = set()
         self.globs = {}
         self.imports = {}       # alias -> src module name
+        self.lazy = {}          # alias -> src module name, bound at run time (#@lazy)
         self.native_mods = set()
         self.tree = None
         m = LEVEL_RE.search(self.lines[0]) if self.lines else None
@@ -157,11 +164,32 @@ class Mod(object):
                     for n in ast.walk(t):
                         if isinstance(n, ast.Name):
                             self.globs[n.id] = Glob(n.id, st, native, table)
+                self._collect_lazy(st, targets)
             elif isinstance(st, (ast.If, ast.Try, ast.While, ast.For)):
                 for field in ('body', 'orelse', 'finalbody'):
                     self._collect(getattr(st, field, []) or [])
                 for h in getattr(st, 'handlers', []) or []:
                     self._collect(h.body)
+
+    def _collect_lazy(self, st, targets):
+        line = self.lines[st.lineno - 1] if 0 < st.lineno <= len(self.lines) else ''
+        m = LAZY_RE.search(line)
+        if m is None:
+            return
+        mod = m.group(1)
+        want = _lint.alias_for(mod)
+        if len(targets) != 1 or not isinstance(targets[0], ast.Name) or \
+                not isinstance(st.value, ast.Constant) or st.value.value is not None:
+            self.err(st.lineno, '#@lazy %s: write "%s = None  #@lazy %s"'
+                     % (mod, want or 'X', mod))
+        elif want is None:
+            self.err(st.lineno, '#@lazy %s: not a module of the map (DESIGN 4.1)' % mod)
+        elif targets[0].id != want:
+            self.err(st.lineno, '#@lazy %s binds %s: the fixed alias is %s (DESIGN 4.1)'
+                     % (mod, targets[0].id, want))
+        else:
+            self.lazy[want] = mod
+            self.imports[want] = mod
 
     def _def_level(self, node):
         last = node.lineno
@@ -288,10 +316,14 @@ class Analysis(object):
     def key_mod(self, key):
         return self.keys.get(key, key)
 
-    def _run_alias(self, m, node, local):
-        """True if node is the run module: an alias of 'run' (or bare, inside run.py)."""
-        return isinstance(node, ast.Name) and node.id not in local and \
-            m.imports.get(node.id) == 'run'
+    def _run_alias(self, m, node, local, binds=None):
+        """True if node is the run module: an alias of 'run' (or bare, inside run.py), or a
+        local bound to it (``R = U.R``)."""
+        if not isinstance(node, ast.Name):
+            return False
+        if binds and node.id in binds:
+            return binds[node.id] == 'run'
+        return node.id not in local and m.imports.get(node.id) == 'run'
 
     def mod_expr(self, m, expr, local, binds):
         """The src module an expression denotes, DYN, or None if it is not a module."""
@@ -304,10 +336,15 @@ class Analysis(object):
             if tgt is not None and (tgt in self.mods or _lint.alias_for(tgt) is not None):
                 return tgt
             return None
+        if isinstance(expr, ast.Attribute):
+            owner = self.mod_expr(m, expr.value, local, binds)
+            if owner not in (None, DYN) and owner in self.mods:
+                return self.mods[owner].lazy.get(expr.attr)
+            return None
         if isinstance(expr, ast.Subscript):
             v = expr.value
             is_mods = (isinstance(v, ast.Attribute) and v.attr == 'MODS' and
-                       self._run_alias(m, v.value, local)) or \
+                       self._run_alias(m, v.value, local, binds)) or \
                       (m.name == 'run' and isinstance(v, ast.Name) and v.id == 'MODS' and
                        'MODS' not in local)
             if is_mods:
@@ -319,7 +356,7 @@ class Analysis(object):
         if isinstance(expr, ast.Call):
             f = expr.func
             is_need = (isinstance(f, ast.Attribute) and f.attr == 'need' and
-                       self._run_alias(m, f.value, local)) or \
+                       self._run_alias(m, f.value, local, binds)) or \
                       (m.name == 'run' and isinstance(f, ast.Name) and f.id == 'need' and
                        'need' not in local)
             if is_need:
@@ -467,7 +504,7 @@ class Analysis(object):
                                       F.name))
             if isinstance(n, (ast.Import, ast.ImportFrom)) and here not in IMPORT_OK:
                 self.errors.append('%s:%d: import inside %s(): only run.need, run.go and '
-                                   'ui.boot import' % (m.path, n.lineno, F.name))
+                                   'ui.engine import' % (m.path, n.lineno, F.name))
             if F.is_gen:
                 if isinstance(n, ast.YieldFrom):
                     self.errors.append('%s:%d: yield from in generator %s() (nests frames)'
@@ -511,7 +548,7 @@ class Analysis(object):
         if isinstance(call.func, ast.Name) and call.func.id == '__import__' and \
                 '__import__' not in local and here not in IMPORT_OK:
             self.errors.append('%s:%d: __import__ inside %s(): only run.need, run.go and '
-                               'ui.boot import' % (m.path, call.lineno, F.name))
+                               'ui.engine import' % (m.path, call.lineno, F.name))
         kind, x = self.classify(m, call, local, binds)
         virtual = F.is_gen and self._virtual(call, parents)
         lv = F.level

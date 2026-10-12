@@ -41,7 +41,7 @@ for _p in (SHIM, SRC):                  # conftest normally did this already
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import ti_graphics as G                 # noqa: E402  (the shims)
+import ti_draw as TD                    # noqa: E402  (the shims)
 import ti_system as TS                  # noqa: E402
 
 StopScript = TS.StopScript
@@ -291,10 +291,13 @@ class Session(object):
         self.ended = ended              # 'script' (StopScript) or 'quit' (the loop ended)
         self.mods = mods                # {module name: module} imported from the device dirs
         self.snaps = snaps              # [(label, screen text, transcript length)]
-        self.screen = G.screen_text()   # the screen-text dump at the end
-        self.texts = G.texts()
-        self.calls = list(G.CALLS)      # the draw transcript
-        self.overdraw = list(G.OVERDRAW)
+        self.screen = TD.screen_text()  # the screen-text dump at the end
+        self.texts = TD.texts()
+        self.calls = list(TD.CALLS)     # the ti_draw transcript
+        self.overdraw = list(TD.OVERDRAW)
+        self.offscreen = list(TD.OFFSCREEN)     # calls that reached outside the screen
+        self.counts = dict(TD.COUNTS)   # ti_draw calls by name (a raising call counts too)
+        self.colors = TD.COUNTS.get('set_color', 0)
         self.read = list(TS.KEYS_READ)  # keys returned by wait_key
         self.left = TS.remaining()      # script items never read
         self.fired = list(TS.FIRED)     # (poll, code) of after() presses that fired
@@ -325,7 +328,7 @@ class Session(object):
         raise KeyError(label)
 
     def transcript_text(self, start=0, end=None):
-        return G.transcript_text(self.calls[start:end])
+        return TD.transcript_text(self.calls[start:end])
 
 
 def _norm_dir(d):
@@ -347,9 +350,9 @@ AFTER_RUN = []
 
 
 def reset_shims():
-    """Fresh ti_system and ti_graphics state."""
+    """Fresh ti_system and ti_draw state."""
     TS.reset()
-    G.reset()
+    TD.reset()
 
 
 def run(script=(), program=None, fresh=True, latch_clear=False, words=True):
@@ -382,7 +385,7 @@ def run(script=(), program=None, fresh=True, latch_clear=False, words=True):
     snaps = []
 
     def hook(label):
-        snaps.append((label, G.screen_text(), len(G.CALLS)))
+        snaps.append((label, TD.screen_text(), len(TD.CALLS)))
 
     TS.MARK_HOOK[0] = hook
     g = {'__name__': 'CASEVO', '__builtins__': builtins}

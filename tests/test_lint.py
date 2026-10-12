@@ -151,10 +151,16 @@ def test_markers_silence_what_they_name():
 
 
 def test_ti_imports_in_ui_modules():
-    assert errs('import ti_system\nimport ti_graphics\n', 'ui') == []
+    assert errs('import ti_system\nimport ti_draw as TD\n', 'draw') == []
     assert errs('import ti_system\n', 'casevo') == []
     assert errs('import ti_system\n', 'menub') == []
     assert has(errs('import ti_system\n', 'node'), 'only ui, draw, menu')
+
+
+def test_ti_graphics_is_not_used():
+    # setColor(r, g, b) raised TypeError on the EVO; the UI draws through ti_draw
+    for mod in ('ui', 'draw', 'casevo'):
+        assert has(errs('import ti_graphics as G\n', mod), 'draw through ti_draw')
 
 
 def test_device_names_mode():
