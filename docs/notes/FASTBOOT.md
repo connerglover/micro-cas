@@ -56,7 +56,8 @@ current package ends with 66,768 bytes free at a 173,360-byte heap (CI recorded
 | draw | 10,576 | itab + integ | 4,208 |
 | ui | 7,488 | | |
 
-Identifier shrinking saves only about 3 %; bytecode, not names, dominates.
+Identifier shrinking saves only about 3 % (for the packs, 191,506 to 185,367 archive
+bytes); bytecode, not names, dominates.
 The namespace-dictionary initializers used by v1 add 10 to 20 % to heap and
 bytecode. Whole modules with the old eager UI leave 41,648 bytes free after boot
 and fail heavy commands, so the memory manager has to evict at pack granularity.
@@ -101,8 +102,9 @@ and fail heavy commands, so the memory manager has to evict at pack granularity.
 
 ## What shipped (packs-v1)
 
-Twenty packs and two launchers replace 236 libraries and two launchers. Totals:
-191,506 bytes of transfer payload; the largest pack compiles to 22 KB.
+Twenty packs and two launchers replace 236 libraries and two launchers. The archive holds
+185,367 bytes (compiled packs plus the 6,042 bytes of launcher source); the largest pack,
+CASK1, compiles to 21,600 bytes.
 
 | kind | packs | role |
 | --- | --- | --- |
@@ -116,7 +118,11 @@ Twenty packs and two launchers replace 236 libraries and two launchers. Totals:
 `build/packs.py` merges modules, places functions away from their home pack, renames the
 few colliding names, and rejects anything it cannot prove: dynamic dispatch to a renamed or
 placed name, module code that would hold a soft pack, aux code that could reach the loader,
-nested closures. MicroPython's `const` keyword is renamed. Lazy UI aliases (`R = None`,
+nested closures. MicroPython's `const` keyword is renamed. Module-level aliases of another
+pack bind it under the pack's own name (`import CASK2`, then `CASK2.x`): merged code may use
+an old alias spelling as a local, and the identifier shrinker's alias analysis has no
+scopes, so a shared spelling had made three registry lookups look dynamic and switched
+shrinking off. Lazy UI aliases (`R = None`,
 then `global R; import run as R` in `ui.engine`) bind the pack at run time, through the UI's
 home pack, so the engine never loads at boot.
 
@@ -130,6 +136,9 @@ home pack, so the engine never loads at boot.
   so its code is released even when the module object survives.
 - `room(phase)` loads a phase's soft pack (input, print, layout) after unpinned families and
   other soft packs give way, and retries once after freeing everything idle.
+- After parsing, a command that preloads families first unloads idle soft and view packs
+  when less than `SHEDAT` (64 KB) is free. Arithmetic, which loads no family, keeps the
+  layout pack instead of reloading it to show the answer.
 - A load that raises MemoryError frees one more thing (soft pack, LRU family, aux pack) and
   retries. An Out of memory with stale families or idle soft packs loaded reruns the
   command once on a cleaner heap.
@@ -138,18 +147,29 @@ home pack, so the engine never loads at boot.
 
 ### Measurements (wasm32 MicroPython v1.12; matches CI's recorded v1 CVTEST free heap)
 
+Pack imports were counted inside the 32-bit runs by wrapping `builtins.__import__`; "host"
+counts come from the CPython harness, whose heap never runs short.
+
 | check | v1 | packs-v1 |
 | --- | --- | --- |
 | archive imports to the first key | 51 | 2 (CASUI, CASUX) |
-| imports, 14-command UI session incl. 5 definite integrals | 2,806 (host count) | 63-81 |
+| imports, first `2+3` after boot | 25 | 4 (two core, input, printer) |
+| imports, 7 UI calculus cases (5 definite integrals) | 2,806 (host) | 29 (host); 34 at 260,000 B, 42 at 212,000, 68 at 196,000 |
+| imports, 10 light commands (arithmetic, expand, factor, diff, solve, simplify) | - | 28 at 185,296 B, 32 at 173,360 |
 | files on the calculator | 238 | 22 |
-| startup on a 95,000-byte heap | 13,520 B free | 16,576 B free |
+| startup on a 95,000-byte heap | 13,520 B free | 17,360 B free |
 | `2+3` UI session, 173,360-byte heap | pass | pass |
 | 7 UI calculus cases, 173,360 | pass | fail (definite integrals: Out of memory) |
-| 7 UI calculus cases, 189,776 | pass | pass |
-| CVTEST 55 cases, 173,360 | 55/55 | 39-42/55 |
-| CVTEST 55 cases, 189,776 | 55/55 | 50-51/55 |
-| CVTEST 55 cases, 196,000 / 212,000 | 55/55 | 55/55 (204,000: 54/55) |
+| 7 UI calculus cases, 189,776 | pass | pass, under 2 KB to spare |
+| CVTEST 55 cases, 173,360 | 55/55 | 43/55 |
+| CVTEST 55 cases, 189,776 | 55/55 | 53/55 |
+| CVTEST 55 cases, 196,000 / 204,000 / 212,000 | 55/55 | 54/55 / 55/55 / 55/55 |
+
+Most repeat imports are memory, not policy: the code a long session touches (about 160 KB
+of bytecode) does not fit the heap with the core resident, so input, printer and layout packs
+reload after heavy commands, and integration strategies are evicted between phases
+(`integ`, `defint`). Lowering `SHEDAT` saved few light imports and broke the heaviest
+integrals, so it stays at 64 KB.
 
 v1 fitted the heaviest cases by keeping only the executing functions resident, at the cost
 of the import storm. Packs keep whole families and the full core resident, so the heaviest

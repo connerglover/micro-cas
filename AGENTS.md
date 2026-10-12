@@ -43,7 +43,7 @@ acceptance clearly distinguished.
 | --- | --- |
 | Engine algorithms, representation, parser, UI architecture | Relevant sections of [docs/DESIGN.md](docs/DESIGN.md), then the affected module and its tests |
 | Device syntax, builtins, stack limits, TI-specific assumptions | [docs/reference/device-python.md](docs/reference/device-python.md); retain its evidence tags |
-| Loader, minification, heap, bytecode, transfer formats | [docs/notes/PACKAGING.md](docs/notes/PACKAGING.md), relevant `build/` code and the build workflow |
+| Loader, packs, minification, heap, bytecode, transfer formats | [docs/notes/FASTBOOT.md](docs/notes/FASTBOOT.md), [docs/notes/PACKAGING.md](docs/notes/PACKAGING.md), relevant `build/` code and the build workflow |
 | Calculator installation or user-reported device failure | [docs/INSTALL.md](docs/INSTALL.md) and [docs/STATUS.md](docs/STATUS.md) |
 | Website layout, copy, interaction or visual review | [PRODUCT.md](PRODUCT.md), root [DESIGN.md](DESIGN.md), and [.impeccable/surfaces/website-index-html.md](.impeccable/surfaces/website-index-html.md) |
 | Browser transfer or package migration | `website/installer.js`, `website/transport.js`, `website/tests/installer.test.js`, vendor provenance and packaging notes |
@@ -92,37 +92,65 @@ Desktop build scripts can use the modern Python version pinned in CI.
   and leave the next command usable after failure. Test cleanup and recovery as
   well as successful answers when changing allocation or loading behavior.
 - Storage and Python heap are different budgets. The reported 3.5 MB user
-  storage and roughly 500 KB user RAM do not imply a 500 KB Python heap. Probes
-  measured **173,360 bytes free after TI imports**; native tests use that value
-  conservatively as a total heap, with graphics shims rather than an EVO emulator.
+  storage and roughly 500 KB user RAM do not imply a 500 KB Python heap. PROBE3
+  measured **185,296 bytes free at program start**; **173,360 bytes** were free
+  after a probe imported `ti_plotlib`, `ti_graphics`, `ti_image` and more, which
+  cas-evo does not import. Native tests use these values as total heaps, with a
+  `ti_draw` stub rather than an EVO emulator; `build.yml` names the heap of each
+  suite.
+- Draw only through `ti_draw`, with the device semantics recorded in
+  [docs/notes/FASTBOOT.md](docs/notes/FASTBOOT.md). `ti_graphics.setColor` takes
+  one positional argument on the EVO, and the lint rejects `ti_graphics` in `src/`.
+- UI modules (`ui`, `draw`, `menu`, `menub`) never import the engine (`node`,
+  `alg`, `parse`, `printer`, `run`, families) at module level. `ui.engine()`
+  binds it on first use; the UI must work with no engine loaded.
+- Soft, view and aux packs are reached only through `__import__('PACK').name`
+  and are never held in a global, alias or table; `build/packs.py` rejects code
+  that would hold one. Evicted packs are cleared by `run.unload` with `EVDICT`
+  (every global set to None). Deleting a module from `sys.modules` does not free
+  memory by itself while a stale C-stack word still points at it.
+- On MicroPython 1.12 a failed import leaves the half-run module in
+  `sys.modules`. Remove it before retrying (`run.need`, `ui.engine`).
 
 ## Calculator build and installation contract
 
-The user download is **`dist/cas-evo-calculator.zip`**. At the verified v1
-baseline it contains **236 compiled `.8mp2` libraries for Archive** and
-**CASEVO/CVTEST `.8xpy2` launchers for RAM**. Read manifests for current counts and
-sizes; update public instructions when the package changes.
+The user download is **`dist/cas-evo-calculator.zip`** (CI artifact
+`cas-evo-v1`). Its format is **packs-v1**
+([docs/notes/FASTBOOT.md](docs/notes/FASTBOOT.md)): **20 compiled `.8mp2`
+packs for Archive** and the **CASEVO/CVTEST `.8xpy2` launchers for RAM**, 22
+files. `build/manifest.py` `PACKS` defines each pack and its kind (ui, core,
+family, soft, view, aux); `PACKMAX` caps a pack's bytecode at 60,000 bytes. Read
+`archive.json` for current sizes and update public instructions when the package
+changes. CASEVO must reach its first
+screen importing only the ui and view packs (CASUI, CASUX); each archive import
+cost seconds on the EVO.
 
 The build has distinct stages:
 
-1. `build/release.py` creates minified/paged source and the intermediate
-   `dist/cas-evo-v1.zip`. That ZIP is build input, not the calculator download.
-2. `build/archive_modules.py` transforms source carriers into compiled module
-   initializers. Preserve live shared namespaces, defaults, global mutations
-   and original call depth. Discard initializers after loading to release their
-   bytecode/constants. The final engine must not compile source with `exec`.
-3. `build/archive.py` uses the pinned MicroPython v1.12 compiler and validates
-   the **MPY v5.3 / 31-bit-small-int ABI**, header `4d05031f`. The exact revision
-   and native build flags live in the workflow and compiler script. A newer
-   `mpy-cross` is not interchangeable with the EVO compiler.
-4. `build/package_archive.mjs` creates real EVO containers with pinned TIVarsLib
+1. `build/release.py` runs `build/bundle.py` (minified device modules in
+   `dist/device`), `packs.merge` (`build/packs.py`: modules into packs, function
+   placement, renames, lazy aliases) and `build/shrink.py` (identifier
+   shortening). It writes the loader tables into the run pack, checks pack sizes
+   with mpy-cross, and outputs the pack sources, launchers, `release.json`,
+   `SHA256SUMS`, `INSTALL.md` and the intermediate `dist/cas-evo-packs.zip`.
+   That ZIP is build input, not the calculator download. The packer raises
+   instead of emitting a pack it cannot prove correct; do not bypass it.
+2. `build/archive.py` compiles the packs with the pinned MicroPython v1.12
+   `mpy-cross` and validates the **MPY v5.3 / 31-bit-small-int ABI**, header
+   `4d05031f`, and `PACKMAX`. The launchers stay source. The exact revision and
+   native build flags live in the workflow and compiler script. A newer
+   `mpy-cross` is not interchangeable with the EVO compiler. The calculator
+   never compiles engine source.
+3. `build/package_archive.mjs` creates real EVO containers with pinned TIVarsLib
    and round-trips every name, type and payload. `build/archive_zip.py` verifies
    and packages the final transfer objects.
 
 Ordinary archived `.py` files are not substitutes for compiled libraries.
-Renaming `.py`/`.mpy` files does not convert their format. Preserve source hashes
-used for migration and never mix files from different releases. Avoid rebuilding
-an output directory while another test or server depends on its current bytes.
+Renaming `.py`/`.mpy` files does not convert their format. Preserve the recorded
+hashes the installer uses to recognize earlier files (`archive.json` source
+hashes, `website/legacy-v1.json`) and never mix files from different releases.
+Avoid rebuilding an output directory while another test or server depends on its
+current bytes.
 
 ## Development and validation
 
@@ -138,20 +166,19 @@ python tests/support/lint.py src
 python tests/support/framelint.py
 python -m pytest -q -m "not slow" --strict-depth
 python build/release.py
-python build/transfer.py dist/*.py
+python build/transfer.py dist/CASEVO.py dist/CVTEST.py
 python -m pytest -q -m "not slow" --strict-depth --bundled
 ```
-
-PowerShell does not expand native-command globs: use
-`python build/transfer.py (Get-ChildItem dist/*.py).FullName` for that step.
 
 After building the pinned EVO compiler/runtime, continue with:
 
 ```text
 python build/archive.py --mpy-cross <pinned-v1.12-mpy-cross>
-python -m pytest -q tests/test_archive_modules.py tests/test_archive_release.py --strict-depth
+python -m pytest -q tests/test_archive_release.py --strict-depth
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 95000 --suite startup
-python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 173360
+python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 173360 --suite ui
+python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 189776 --suite ui_calculus
+python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 212000 --suite probe
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas64> --heap 500000
 node build/package_archive.mjs
 python build/archive_zip.py
@@ -159,6 +186,12 @@ node --test website/tests/*.test.js
 python build/website.py
 python build/check_pages.py dist/website
 ```
+
+The 32-bit heaps follow the device measurements: 173,360 bytes were free after
+a probe imported several `ti_*` modules, and 189,776 is PROBE3's 185,296 bytes
+free at program start plus the 4,480 bytes the harness uses. The 64-bit run uses
+the default `all` suite (UI, UI calculus and the 55 diagnostics). FASTBOOT.md
+records why packs need more heap than v1 for the heaviest definite integrals.
 
 Use targeted tests during iteration, then the checks appropriate to the final
 change. Do not weaken depth, mathematical invariants or memory gates to make a
@@ -168,7 +201,7 @@ failure disappear.
 | --- | --- |
 | Mathematics/parser/printing | Affected regression/corpus tests, round-trips where applicable, device lint, strict depth and source acceptance |
 | Calculator UI/session | Scripted-key and recovery tests, preserved session semantics, source and bundled acceptance |
-| Loader/compiler/paging/memory | Source and bundled acceptance, archive tests, actual MPY v5 native checks and the 95,000-byte startup regression |
+| Loader/compiler/packs/memory | Source and bundled acceptance, `build/check_release.py` and `tests/test_archive_release.py` (UI-only boot, eviction, failed-import recovery, depth), and actual MPY v5 native checks at every `build.yml` heap |
 | Transfer/installer | Rebuilt package, real TIVarsLib round-trips, Node installer tests, browser behavior and package integrity |
 | Website presentation | Relevant browser states and responsive/accessibility checks using the existing design direction |
 | Branch publisher/workflow | `tests/test_publish_site.py`, workflow lint, Worker dry run, and observed publication from a successful main run |
@@ -186,8 +219,9 @@ Artifact-dependent skips before packaging do not establish artifact acceptance.
   telemetry is required for installation. Desktop Chrome/Edge are the target.
 - Validate all transfer-object hashes before device access. Install compiled
   libraries to Archive before RAM launchers, then verify their types/locations.
-  Migrate only old source files whose hashes match the recorded package. Preserve
-  modified files and unrelated calculator content.
+  Delete or replace an earlier cas-evo file only when its decoded contents match
+  a recorded release (`website/legacy-v1.json`) or the current package. Keep and
+  list modified or unreadable files, and leave unrelated calculator content alone.
 - Serialize native transport calls. Stop waits for an active transfer to finish.
   A timed-out Asyncify/WASM instance is retired rather than reused; JavaScript
   cannot safely cancel its native operation. WebTILP `init()` returning 1 is

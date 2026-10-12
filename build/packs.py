@@ -16,12 +16,19 @@ home pack. Pack kinds:
 - ``ui``: loads at boot and stays; ``core``: loads with the engine and stays;
 - ``family``: exactly the parts of one loader family, loaded and evicted by ``run.need``;
 - ``soft``: stays cached but may be evicted when memory runs short. Nothing ever holds a soft
-  pack: every reference is ``__import__('PACK').name``, which reloads it on demand.
+  pack: every reference is ``__import__('PACK').name``, which reloads it on demand;
+- ``view``: reached like a soft pack, but unloaded only while a computation runs (menus load
+  families from inside key handling);
+- ``aux``: computation code reached like a soft pack that can never reach the loader (run);
+  unloaded last.
 
 Rewriting:
 
-- a project import ``import CVX as A`` becomes ``import PACK`` for CVX's home pack, or
-  disappears when that is the importing statement's own pack (never for a soft pack);
+- a module-level project import ``import CVX as A`` becomes ``import PACK`` for CVX's home
+  pack, once per pack, bound under the pack's own name (a merged function may use ``A`` as a
+  local, and the identifier shrinker's alias analysis has no scopes); it disappears when that
+  is the importing statement's own pack and is never emitted for a soft pack. A lazy alias
+  (``A = None``, later ``global A; import CVX as A``) keeps its name in its home pack;
 - ``A.name`` (and a module's references to its own globals from a placed function) becomes a
   plain global in the same pack, ``PACK.name`` for another resident pack, and
   ``__import__('PACK').name`` for a soft pack; same-pack stores in a function get the

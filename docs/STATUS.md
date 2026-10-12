@@ -7,15 +7,119 @@ them as current.
 
 ## Current delivery
 
-- T1/T2/T3 and calculator UI features are implemented. The compiled loader
-  preserves the full feature set while addressing the reported startup
-  `MemoryError: phase compile memory` in CASEVO and CVTEST.
-- The calculator download is `cas-evo-calculator.zip`: 236 compiled `.8mp2`
-  libraries for Archive and two `.8xpy2` launchers for RAM. The baseline transfer
-  objects total 266,520 bytes; launcher sources total 6,760 bytes.
+- **packs-v1 is on local branch `perf/fast-boot`** (commits after main
+  177779f). It is not pushed and CI has not run on it. The v1 delivery on main and pages (source commit 25b83b0) remains
+  the published one until this branch is pushed, reaches main and CI passes;
+  see [v1 delivery](#v1-delivery-published-superseded) below.
+- **Device report on v1, 2026-10-11.** The v1 package (236 archived libraries
+  plus two RAM launchers) took **5 min 30 s** on the user's EVO and then failed
+  with `TypeError: function takes 1 positional arguments but 3 were given` at
+  line 64 of `CVP00051.py`, `G.setColor(*COLORS['BG'])`, the first drawing call
+  of `ui.boot`. `ti_graphics.setColor` takes one positional argument on the EVO.
+  Boot needed 51 archive imports, about 6.5 s each by the device timing, and
+  function pages evicted each other, so alternating calls re-imported them
+  continuously. The analysis is in [notes/FASTBOOT.md](notes/FASTBOOT.md).
+- **What changed.** The UI draws only through `ti_draw` with the semantics
+  CalcPlex documents from the device, and the lint rejects `ti_graphics` in
+  `src/`. CASEVO imports only the UI and draws its first screen after two archive
+  imports (CASUI, CASUX); the engine loads on the first ENTER, or a menu that
+  needs it, with boot and engine load times in the status line. Device modules
+  are merged into **20 packs** (ui, core, family, soft, view and aux kinds;
+  `build/manifest.py` `PACKS`) plus the two launchers: 22 files, largest pack
+  21,600 bytes compiled; the archive holds 185,367 bytes in all. Identifier
+  shrinking works across packs. Phase payloads, function pages and namespace
+  initializers are gone (`build/phases.py`, `build/function_pages.py`,
+  `build/archive_modules.py`, `build/memory_report.py`, `build/check_archive.py`
+  and their tests were removed). The loader evicts whole packs, clears evicted packs (`EVDICT`),
+  removes half-run modules after a failed import and retries after MemoryError.
+  The browser installer removes v1 files whose contents exactly match the
+  recorded release (`website/legacy-v1.json`). The T1/T2/T3 and UI feature set
+  is unchanged.
+- **CI gates** (`.github/workflows/build.yml`), all on the compiled packs with
+  native MicroPython v1.12: startup at 95,000 bytes (32-bit, `startup`), UI
+  arithmetic at 173,360 (`ui`), the UI calculus session at 189,776
+  (`ui_calculus`), the 55 diagnostics at 212,000 (`probe`), and the UI,
+  calculus and diagnostic suites at 500,000 bytes on 64-bit. v1 ran all three
+  32-bit suites at 173,360. That figure was the free heap after a probe imported
+  `ti_plotlib`, `ti_graphics`, `ti_image` and more, which CASEVO does not
+  import; PROBE3 measured **185,296 bytes free at program start**, and 189,776
+  is that plus the 4,480 bytes the harness uses. The 55 diagnostics run at
+  212,000 because one long session fragments the heap (below).
+
+The measured results below come from a 32-bit **MicroPython v1.12 harness (unix
+port compiled to wasm32)**, which reproduces CI's recorded v1 CVTEST free heap
+(66,768 versus 66,704 bytes). They are harness measurements, not device
+acceptance.
+
+| check | v1 | packs-v1 |
+| --- | --- | --- |
+| archive imports to the first key | 51 | 2 (CASUI, CASUX) |
+| imports, first `2+3` after boot | 25 | 4 |
+| imports, 7 UI calculus cases (5 definite integrals) | 2,806 (host count) | 29 (host count); 42 at 212,000 B, 68 at 196,000 |
+| imports, 10 light commands | - | 28 at 185,296 B, 32 at 173,360 |
+| files on the calculator | 238 | 22 |
+| startup on a 95,000-byte heap | 13,520 B free | 17,360 B free |
+| `2+3` UI session, 173,360-byte heap | pass | pass |
+| 7 UI calculus cases, 173,360 | pass | fail (definite integrals: Out of memory) |
+| 7 UI calculus cases, 189,776 | pass | pass, under 2 KB to spare |
+| CVTEST 55 cases, 173,360 | 55/55 | 43/55 |
+| CVTEST 55 cases, 189,776 | 55/55 | 53/55 |
+| CVTEST 55 cases, 196,000 / 204,000 / 212,000 | 55/55 | 54/55 / 55/55 / 55/55 |
+
+**Known limitation.** Packs keep whole families and the full core resident, so
+the heaviest definite integrals need roughly 15-40 KB more heap than v1 and sit
+near the measured device limit. Long CVTEST sessions end in a fragmented heap:
+at the failures 25 KB was free but the largest free run was under 1.2 KB. Only
+EVO runs can show whether these cases fit on the calculator.
+
+- Cloudflare and hosting are unchanged from the v1 delivery. Cloudflare
+  dashboard connection, a live Worker, DNS and HTTPS at
+  **cas.connerglover.com** have not been verified; use [HOSTING.md](HOSTING.md).
+
+## Remaining acceptance
+
+1. Push `perf/fast-boot`, bring it to main as the user directs, and confirm the
+   full build and publication runs pass. Record the run, the calculator ZIP
+   SHA-256 and the pages commit here.
+2. On the physical EVO:
+   - Install through the web installer, which removes exact-match v1 files and
+     lists any it keeps. Record the installer's summary.
+   - Run CASEVO. Note the boot time in the status line (`ready` and seconds).
+     Type `2+3` and press ENTER: the status line shows `Loading engine...`, then
+     the answer `5` with `engine` and the engine load time. Then try a definite
+     integral such as `integrate(1/(2+cos(x)),x,0,2*pi)` (expected
+     `2*sqrt(3)*pi/3`) and note whether it answers or reports Out of memory.
+   - Run CVTEST in a fresh Python session. Report its first line
+     (`CVTEST startup heap N`) and the final `CVTEST: N/55 PASS` line, with the
+     numbers of any failing cases.
+   - Record the OS version and, for any failure, the complete traceback.
+     `python build/linemap.py --map dist/release.json --tb FILE`, run on a build
+     of the same commit, maps pack lines to source. A native host check is not
+     an emulator.
+3. Connect Cloudflare Worker cas-evo to the generated pages branch, deploy, attach
+   the custom domain, and verify HTTPS, isolation headers, package downloads and
+   WASM initialization. Repository visibility remains private.
+
+The device numbers decide the next memory work: the cost of one archive import
+(fixed, or growing with the number of files) and the free heap at CASEVO start.
+Do not reopen finished feature milestones without a new defect or request.
+Address device feedback while preserving the complete v1 feature set.
+
+## v1 delivery (published, superseded)
+
+These facts describe the v1 package that main and pages still publish. They
+remain evidence for the installer, publication and v1 bytes, not for packs-v1.
+
+- T1/T2/T3 and calculator UI features are implemented. The v1 compiled loader
+  addressed the reported startup `MemoryError: phase compile memory` in CASEVO
+  and CVTEST.
+- The v1 calculator download `cas-evo-calculator.zip` held 236 compiled `.8mp2`
+  libraries for Archive (phase payloads `CVP*`, function pages `CVF*` and engine
+  modules `CV*`) and two `.8xpy2` launchers for RAM. Its transfer objects
+  totalled 266,520 bytes; launcher sources totalled 6,760 bytes.
 - The web installer is implemented and tested locally. Its download includes
   the full calculator package, WASM, fonts, licenses, corresponding-source ZIPs,
-  and a local Python server. Physical EVO USB transfer/execution remains pending.
+  and a local Python server.
 - `v1` was fast-forward merged into `main` at **25b83b0**. Both were pushed; main
   remains the default source branch and v1 is retained. The generated **pages**
   branch is intended for a Cloudflare Worker connected through GitHub.
@@ -24,23 +128,8 @@ them as current.
   **Both build and publication passed.** It created pages commit
   **2849055909cabe6137bcdda0ada89b579628da11**, with source commit
   25b83b0eb8cf4a90b9ba0ee0c734cae55b47247b recorded in deployment.json.
-- Cloudflare dashboard connection, a live Worker, DNS and HTTPS at
-  **cas.connerglover.com** have not been verified. The user wants to perform
-  setup through the dashboard; use [HOSTING.md](HOSTING.md).
 
-## Remaining acceptance
-
-1. Connect Cloudflare Worker cas-evo to the generated pages branch, deploy, attach
-   the custom domain, and verify HTTPS, isolation headers, package downloads and
-   WASM initialization. Repository visibility remains private.
-2. On the physical EVO, install through the browser, run CASEVO, and run CVTEST
-   in a fresh Python session. Record OS version, complete error/traceback and
-   free-heap readings if anything fails. A native host check is not an emulator.
-
-Do not reopen finished feature milestones without a new defect or request.
-Address device feedback while preserving the complete v1 feature set.
-
-## Verified evidence
+### Verified evidence (v1)
 
 | Milestone | Evidence |
 | --- | --- |
@@ -96,17 +185,24 @@ returned ship. Existing design direction is recorded in root DESIGN.md and
 - The oversized single-file transfer was rejected by TI Connect Evo; multiple
   files are authorized. Renaming files is not format conversion.
 - The source-only build at 88a443b/run 38164295044 passed modern host tests but
-  failed on the user's EVO. `cas-evo-v1.zip` is now only intermediate build input.
+  failed on the user's EVO. `cas-evo-v1.zip` became v1's intermediate build
+  input; packs-v1 uses `cas-evo-packs.zip` instead.
 - Sending ordinary source companions to Archive is not the compiled-library
   installation. Sending all companions to RAM exhausted memory. Ship compiled
   archived libraries plus only the small RAM launchers.
+- The v1 archive design (236 compiled libraries: phase payloads `CVP*`, function
+  pages `CVF*`, engine modules `CV*` with namespace-dictionary initializers, and
+  admission by phase) fitted the 173,360-byte native gates but booted in 5 min
+  30 s on the EVO and crashed in `ti_graphics.setColor`. packs-v1 replaces it;
+  see [notes/FASTBOOT.md](notes/FASTBOOT.md).
 - The original Cloudflare Pages Direct Upload job was replaced by generated
   branch publication. The current target is a Cloudflare Worker watching pages.
   No Cloudflare token needs to be copied into GitHub for this integration.
 
 ## Local reproduction notes
 
-Canonical CI output directories are `dist/archive` and `dist/archive-transfer`.
+Canonical CI output directories are `dist/archive`, `dist/archive-smoke` and
+`dist/archive-transfer`.
 Earlier native validation used `dist/archive-final` and
 `dist/archive-final-transfer`; ignored logs included `dist/archive-final-32.log`
 and `dist/archive-final-64.log`. Treat their availability as local, not guaranteed
@@ -119,6 +215,12 @@ the NTFS mount. The local 32-bit executable used a private
 `/tmp/cas-evo-i686` loader/library path. These are host harness details, not changes
 to the calculator bytecode ABI. Prefer the current workflow's reproducible build
 commands; verify any historical local path before using it.
+
+The packs-v1 32-bit measurements used a local MicroPython v1.12 unix port
+compiled to wasm32 with emscripten (Asyncify register scanning for the GC) under
+`/tmp/cas-evo-mp/evo32` on the macOS host, and a native 64-bit build under
+`/tmp/cas-evo-mp/evo`. Both are local and temporary; CI's gcc builds are the
+reference.
 
 Optional read-only reference checkouts have lived at
 `C:/Users/conner/.cache/cas-evo-ref`. They are algorithm/protocol references, not

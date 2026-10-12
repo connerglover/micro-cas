@@ -66,10 +66,9 @@ observed size bound for every entry and carrier before packaging. It removes
 stale generated deliverables first, including prior single-file ZIPs. There is
 no oversized-development override. CI independently gates all generated files.
 
-The runtime imports small source carriers and native function pages, releasing
-unused modules and source strings. Generators retain their own individual pages;
-deep leaves and callback functions remain resident to preserve the frame budget.
-This removes the retained 87,456-byte archive and decoder while keeping all v1
-features. The actual release boots and passes 55/55 diagnostic calculations in
-32-bit MicroPython with a 173,360-byte total heap, using graphics shims. Physical
-EVO heap/graphics/depth acceptance remains a device test. See INSTALL.md.
+v1 imported small source carriers and native function pages. packs-v1 replaces
+them with 20 compiled packs: real modules imported whole, cached until memory is
+needed and cleared on eviction ([FASTBOOT.md](../notes/FASTBOOT.md),
+[PACKAGING.md](../notes/PACKAGING.md)). The native 32-bit MicroPython v1.12
+results and the heap model they use are in FASTBOOT.md. Physical EVO
+heap/graphics/depth acceptance remains a device test. See INSTALL.md.

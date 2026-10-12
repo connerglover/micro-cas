@@ -19,7 +19,8 @@ Status tags, as in `device-python.md`:
 | tag | meaning |
 |---|---|
 | [V] | verified on the EVO |
-| [M] | measured on the desktop with a prototype (Appendix A lists the prototypes) |
+| [M] | measured on the desktop with a prototype (Appendix A lists the prototypes); `device-python.md` also uses it for desktop MicroPython v1.12 measurements |
+| [T] | documented by a third party from the EVO (as in `device-python.md`) |
 | [D] | documented by TI for the TI-84 Plus CE |
 | [E] | estimate; the formula is given |
 | [A] | assumption, to be settled by a named probe |
@@ -115,7 +116,7 @@ key codes --> CVUI (1D editor, history, menus) --ENTER--> CVRUN.go(text)        
                                                    |  CVPRINT: node -> canonical 1D text + decimal
                                                    |  reset the node table
 CVUI.show(record) <------ (kind, text, approx, flags)
-   CVDRAW: text -> RPN -> boxes -> display list -> ti_graphics
+   CVDRAW: text -> RPN -> boxes -> display list -> ti_draw (shipped; see §16)
 ```
 
 ---
@@ -182,7 +183,7 @@ The full detail is in `device-python.md`. This summary lists what drives the des
 | `math` domain errors may return nan instead of raising; float overflow gives inf without raising | A (PROBE6 `math`) | `nrun` checks every value for nan and inf whatever the probe shows (§6.6) |
 | `sys.version` is 3.4.0 (MicroPython family). No f-strings. `eval`/`exec` work. | V | The subset lint (§20.3). `%`-formatting only. |
 | No `math.gcd/isqrt/log10`, `int.bit_length`, `functools`, `itertools`, `re`, `fractions`, `cmath`, `decimal` | V/A | We write our own: gcd loops, Newton isqrt, complex helpers, a decimal formatter. |
-| About 185 KB free at program start; 173 KB after importing `ti_system` and `ti_graphics`. Bytecode, compile transients, qstrs and data all share this heap. | V | Resident code about 58 KB. Lazy families, eviction, regions, node caps (§18). |
+| About 185 KB free at program start (PROBE3: 185,296 B); 173 KB after a probe imported `ti_plotlib`, `ti_graphics`, `ti_image` and more, which cas-evo does not import. Bytecode, compile transients, qstrs and data all share this heap. | V | Resident code about 58 KB. Lazy families, eviction, regions, node caps (§18). |
 | The GC is non-moving and mark-sweep | A | Allocate long-lived buffers early. No large dict growth (the intern table is our own). |
 | Module names are `[A-Z][A-Z0-9]{0,7}`, in a flat namespace. User modules can import each other. A program runs as `from NAME import *`. | V | `CASEVO` plus `CVxxxxxx`. No `__main__` guard. The entry body is depth 0. |
 | A 20k-iteration loop takes 0.066 s (about 3.3 µs per simple iteration) | V | Step budgets on every search. Numeric pre-checks before exact work. |
@@ -197,7 +198,7 @@ The full detail is in `device-python.md`. This summary lists what drives the des
 
 ```
 src/            device code. Flat; desktop module names; one module per row of the table below
-shim/           ti_system.py, ti_graphics.py: desktop stand-ins that record calls and replay key scripts
+shim/           ti_system.py, ti_draw.py (ti_graphics.py for the probes): desktop stand-ins that record calls and replay key scripts
 tests/          pytest suites (§20)
   support/      evodepth.py, framelint.py, lint.py, invariants.py, oracle.py, keyscript.py, gen.py
   golden/       *.txt golden files
@@ -2698,6 +2699,12 @@ Examples [M]: `1/3` gives `0.3333333333`, `22/7` gives `3.142857143`, `π` gives
 
 ## 13. 2D layout (CVDRAW)
 
+> **Shipped implementation (2026-10-11).** The UI draws through `ti_draw`, not
+> `ti_graphics` (`setColor` takes one positional argument on the EVO), with one
+> 10-pixel font and 31 columns. The device semantics and the layout contract are
+> in [notes/FASTBOOT.md](notes/FASTBOOT.md) and `shim/ti_draw.py`; where they
+> differ from this section, they win.
+
 ### 13.1 Pipeline
 
 ```
@@ -3042,6 +3049,13 @@ CAT = (
 ---
 
 ## 16. UI architecture (CVUI, CVDRAW, CVMENU)
+
+> **Shipped implementation (2026-10-11).** The shell boots without the engine:
+> `ui.engine()` loads it on the first ENTER or a menu that needs it, and boot and
+> engine load times show in the status row. Drawing uses `ti_draw` on a 320 x 210
+> screen with the row layout in `src/ui.py`. See
+> [notes/FASTBOOT.md](notes/FASTBOOT.md); where it differs from this section, it
+> wins.
 
 ### 16.1 Screen layout
 
@@ -3395,6 +3409,13 @@ None of these needs a design change.
 
 ## 18. Memory budget and lazy loading
 
+> **Shipped implementation (2026-10-11).** The calculator loads compiled packs
+> (`build/manifest.py` `PACKS`), not compiled-on-device parts: each family is one
+> pack, eviction is LRU at pack granularity, and soft, view and aux packs give way
+> when memory runs short. The ledger below is the original estimate. Measured
+> heap and the loader tables are in [notes/FASTBOOT.md](notes/FASTBOOT.md) and
+> [notes/PACKAGING.md](notes/PACKAGING.md).
+
 ### 18.1 Heap ledger [E unless marked]
 
 | item | KB |
@@ -3631,6 +3652,12 @@ replaces the factors with measurements of the real code. Go/no-go notes for T2 a
 ---
 
 ## 19. Build and bundling (`build/`)
+
+> **Shipped implementation (2026-10-11).** After bundling, `build/packs.py`
+> merges device modules into packs and `build/archive.py` compiles them with
+> MicroPython v1.12 `mpy-cross`; the calculator receives 20 `CAS*` packs and two
+> launchers. See [notes/FASTBOOT.md](notes/FASTBOOT.md) and
+> [notes/PACKAGING.md](notes/PACKAGING.md) for the pipeline and current manifest.
 
 ### 19.1 Manifest (`build/manifest.py`)
 

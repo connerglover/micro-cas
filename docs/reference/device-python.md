@@ -13,9 +13,12 @@ Every factual claim has a status tag:
 | **[R]** | Reported in the project brief from the first on-device session. The output is not in the screenshots I checked. |
 | **[D]** | Documented by TI for the **TI-84 Plus CE** Python (guide for CE bundle 5.7, 2021). The CE build is "based on CircuitPython". It is probably the same on the EVO, but we have not checked. |
 | **[C]** | Verified on desktop CPython 3.14.7 (the project venv) while writing this doc. |
+| **[M]** | Measured on desktop **MicroPython v1.12** builds of the EVO compiler revision (`1f37194`; 64-bit native and 32-bit wasm32 unix ports), not on the EVO. It shows how the MicroPython version that compiles our bytecode behaves; the EVO interpreter may differ. |
+| **[T]** | Documented from the EVO by a third party: CalcPlex's `ti_draw` notes, as recorded in `docs/notes/FASTBOOT.md` and `shim/ti_draw.py`. Unlike [D], it describes the EVO itself, but no cas-evo probe has confirmed it yet. |
 | **[A]** | Assumed from knowledge of MicroPython/CircuitPython internals. It is not verified, and PROBE5 or PRBMEM (section 14) is meant to settle it. |
 
 When a probe settles an [A] claim, change its tag here, so that this file stays the single source of truth.
+A device report (a traceback or timing from the user's EVO) counts as [V]; its note names the report.
 
 ---
 
@@ -54,6 +57,8 @@ When a probe settles an [A] claim, change its tag here, so that this file stays 
 | A 5000-element list works. The CE had a 100-element limit | V / D | PROBE2 `list Y`, guide p.1 |
 | Free heap is 185,296 B at the start of a small program and 173,360 B after importing several `ti_*` modules | V | PROBE3, PROBE |
 | A 20,000-iteration module-level loop (`s += i*i`, which becomes a big int after about 1.5k iterations) takes 0.066 s | V | about 3.3 us per iteration with globals and big ints |
+| Compiled MPY v5.3 libraries (`.8mp2`, header `4d05031f`, 31-bit small ints, built by MicroPython v1.12 `mpy-cross`) import from archive and run | V | User's device traceback, 2026-10-11: the v1 package ran to line 64 of the archived `CVP00051` before failing in `setColor` (docs/notes/FASTBOOT.md) |
+| An archive import costs seconds | V (timing), per-import cost derived | v1 needed 51 archive imports and 5 min 30 s to reach its first drawing call; compute explains about 1 s, leaving about 6.5 s per import. Whether the cost is fixed or grows with the number of files on the calculator is unknown |
 | `[on]` breaks a running program with KeyboardInterrupt | D (CE) | guide p.16. Not checked on the EVO |
 | `ti_system.escape()` returns True once after `[clear]` was pressed, then resets | D (CE) | guide "escape()". Not checked on the EVO |
 
@@ -225,19 +230,33 @@ deep nested tuples can be for native `==`, `hash`, `repr` and `<`.
 | `math` | present (D, R) | CE list [D]: `e pi sqrt pow exp log cos sin tan acos asin atan atan2 ceil copysign fabs floor fmod frexp ldexp modf isfinite isinf isnan trunc radians degrees`. `log(x, base)` works [D]. **Not listed, so write our own:** `gcd isqrt factorial log10 log2 sinh cosh tanh asinh acosh atanh hypot isclose fsum comb perm prod gamma erf`, and the constants `inf nan tau` (use `float('inf')`). `math.pow` converts to float [D], so never use it for exact powers |
 | `sys` | present (V) | `version` [V]; `modules`, `implementation`, `maxsize` [A]; no `setrecursionlimit`, `settrace` or `getsizeof` [A] |
 | `gc` | present (V) | `collect`, `mem_free` [V]; `mem_alloc` [R/A]; `threshold` [A] |
-| `time` | present (V) | CE: `monotonic`, `sleep` [D]. On the EVO, which of `monotonic`/`time` exists is unverified |
+| `time` | present (V) | `monotonic` exists on the EVO [T]. CE: `monotonic`, `sleep` [D]. cas-evo falls back to `ticks_ms`, then to no timing, so a missing clock only hides the boot and engine load times |
 | `array` | present (V) | Compact typed arrays for big tables of small numbers |
 | `collections` | present (V) | `OrderedDict`, `namedtuple`, `deque` [A]. Avoid `deque`: the MicroPython API differs |
 | `random` | D (CE), A (EVO) | `seed getrandbits randrange randint choice random uniform` |
 | `ti_system` | present (V) | EVO names [V]: `disp_at disp_clr disp_cursor disp_wait escape getKey get_key recall_RegEQ recall_list sleep store_list wait wait_key`. On the EVO, `wait_key` returns TI-BASIC getKey codes, and 2nd/alpha arrive as separate presses [V] |
-| `ti_graphics` | present (V) | Tail of the name list [V]: `...drawLine drawPolyLine drawRect drawString fillArc fillCircle fillPolygon fillRect getPixel hsv_to_rgb popImage pushImage setColor setFont setPen setPixel string_size` (earlier names scrolled off) |
-| `ti_draw` | present (V) | CE API [D]: `draw_line draw_rect fill_rect draw_circle fill_circle draw_text draw_poly fill_poly poly_xy clear clear_rect set_color set_pen set_window show_draw`, with pixels 0..319 x 0..209 |
+| `ti_graphics` | present (V) | Tail of the name list [V]: `...drawLine drawPolyLine drawRect drawString fillArc fillCircle fillPolygon fillRect getPixel hsv_to_rgb popImage pushImage setColor setFont setPen setPixel string_size` (earlier names scrolled off). **`setColor` takes one positional argument**: `setColor(r, g, b)` raised `TypeError: function takes 1 positional arguments but 3 were given` [V: user's device traceback 2026-10-11 at `G.setColor(*COLORS['BG'])`]. Its other signatures are unverified; cas-evo does not use `ti_graphics`, and the lint rejects it in `src/` |
+| `ti_draw` | present (V) | The module cas-evo draws with; EVO semantics in section 4.3 [T]. CE API [D]: `draw_line draw_rect fill_rect draw_circle fill_circle draw_text draw_poly fill_poly poly_xy clear clear_rect set_color set_pen set_window show_draw`, with pixels 0..319 x 0..209 |
 | `ti_plotlib` | present (V) | Not used in v1 (no graphing) |
 | `ti_image` | unknown | PROBE2 tested it, but the line scrolled off |
 | `cmath`, `re`, `fractions`, `os`, `micropython` | **absent (V)** | |
 | `functools`, `itertools`, `decimal`, `struct`, `io`, `json`, `heapq`, `bisect`, `copy`, `operator` | absent (A) | |
 
-Only `src/ui*` imports `ti_*`. The core receives native callables, such as the cancel poll, by injection.
+Only `ui`, `draw`, `menu` and `casevo` import `ti_*` (the lint enforces it). The core receives native callables, such as the cancel poll, by injection.
+
+### 4.3 `ti_draw` on the EVO [T]
+
+CalcPlex documents these semantics from the EVO; `shim/ti_draw.py` enforces them on the desktop
+so that a call the device would reject also fails in tests. cas-evo draws with `set_color`,
+`fill_rect`, `draw_text` and `draw_line` only (`src/draw.py`).
+
+* The screen is 320 x 210 pixels, origin top-left; `get_screen_dim()` returns `[319, 209]`.
+* `draw_text(x, y, s)` uses one fixed-width font of 10 pixels per character (31 characters per
+  line). The ink sits *above* `y`, in rows `y-17` to `y-3`, and the background is not erased.
+* `fill_rect(x, y, w, h)` fills the interior only (columns `x+1..x+w-1`, rows `y+1..y+h-1`), so an
+  exact area is `fill_rect(x-1, y-1, w+1, h+1)`. A width or height below 2 raises.
+* `set_color(r, g, b)` and `clear()` are slow: cache the current color and paint with `fill_rect`
+  instead of calling `clear()`.
 
 ---
 
@@ -362,6 +381,8 @@ Only `src/ui*` imports `ti_*`. The core receives native callables, such as the c
   `type(x).__name__` [V] work; there are no `inspect` or `traceback` modules and no
   `sys.settrace` [A]; docstrings are discarded and `__qualname__` is absent [A]. Dispatch on
   small-int codes or `isinstance` against builtins; no reflection-based plugin systems.
+* **Modules have no `__dict__`** [M]: `m.__dict__` raises `AttributeError: 'module' object has no
+  attribute '__dict__'`. Walk a module's globals with `dir(m)` and `setattr` (as `run.unload` does).
 * `bool` is a subclass of `int` on both platforms. Test for `bool` before `int` when it matters.
 * **Exceptions:**
   * `str(e)` and `type(e).__name__` work [V]; `e.args` [A]. There are no tracebacks and no chaining.
@@ -412,10 +433,11 @@ All rows are verified on CPython [C]. The device column is [A] unless marked oth
   7.1+ and a compiled `.8xpy2` container on 7.0. See
   [EVO transfer implementation](https://github.com/Evo-Programming/evo_usb_py#readme)
   and the [Tello EVO port](https://tiplanet.org/forum/viewtopic.php?p=281357).
-  The new cas-evo build uses compatible MPY v5.3 libraries and native initializers,
-  avoiding engine source compilation. Imported code still consumes working heap.
-  Only the small source launchers need RAM program storage. This replaces the
-  earlier unverified assumption that all modules must compile from source.
+  cas-evo ships MPY v5.3 library packs (`docs/notes/PACKAGING.md`), avoiding engine source
+  compilation; the v1 package's compiled libraries loaded and ran on the EVO [V: device
+  traceback 2026-10-11]. Imported code still consumes working heap. Only the small source
+  launchers need RAM program storage. This replaces the earlier unverified assumption that
+  all modules must compile from source.
 * The GC is mark-sweep and non-moving [A]. A collection on a heap of about 180 KB is cheap. Fragmentation can
   make a large contiguous allocation fail even when the total free memory looks sufficient.
 
@@ -486,6 +508,17 @@ All rows are verified on CPython [C]. The device column is [A] unless marked oth
 
   Interned names and short strings stay [A]. Expect about 1 KB of "kept" memory per module; PRBMEM
   measures it.
+* **Deleting a module from `sys.modules` does not free it by itself** [M]. The collector is
+  conservative, and a stale word left on the C stack (for example by the import) can keep the
+  whole module and its bytecode alive. Reproduced on 64-bit native and 32-bit wasm32 MicroPython
+  v1.12 (docs/notes/FASTBOOT.md). cas-evo's `run.unload` sets every global of the module to None
+  first (`EVDICT`), so its code is released even when the module object survives.
+* **A module whose import failed stays in `sys.modules`** [M]. After an exception in its body
+  (MemoryError, KeyboardInterrupt), a later `import` returns the half-run module, with only the
+  globals bound before the failure, instead of running it again. Remove it before retrying
+  (`run.need`, `ui.engine`).
+* **An archive import costs seconds on the EVO** [V, section 1]. Import few, large modules, and
+  keep imported modules cached until memory is needed.
 * **Lazy-load only from depth 2 or less**, because the module body runs one frame deeper [A]
   (PROBE5 `imptop`/`impfn`). Module bodies must only define functions and build tables, and must
   not run deep calls.
@@ -1414,10 +1447,12 @@ N = c[0]
   (True once after `[clear]`) [R/A]. Both matter for the cancel poll.
 * Whether `[on]` raises KeyboardInterrupt on the EVO [D (CE)].
 * What `ti_graphics.setFont` sizes exist, `string_size` metrics, and which glyphs `drawString`
-  can render (pi, the square root sign, the integral sign, superscripts) [unknown]. These matter
-  for the 2D renderer.
+  can render (pi, the square root sign, the integral sign, superscripts) [unknown]. cas-evo no
+  longer draws with `ti_graphics` (section 4.2); the same glyph question applies to `ti_draw`.
+* The cost of one archive import on the EVO, and whether it grows with the number of files.
 * The size limit for one PY file on the EVO, and its total storage [unknown].
-* Whether `sys.modules` deletion really frees the bytecode (PRBMEM `kept`) [A].
+* Whether `sys.modules` deletion really frees the bytecode (PRBMEM `kept`) [A]. On desktop
+  MicroPython v1.12 it does not while a stale stack word points at the module [M, section 10.4].
 
 ### 14.3 PRBMEM: memory per object and per module
 
@@ -1571,3 +1606,9 @@ These are y= window zoom trace graph, up down left right, enter del mode math va
   number model, module list), 55-147 (reference), 149-163 (built-in, keyword and module lists).
 * Desktop experiments on CPython 3.14.7 (the project venv): the checker, the calibration, the
   PROBE5 dry run, the lint and the behaviour differences in section 9.
+* The user's EVO run of the v1 package, 2026-10-11: the 5 min 30 s boot and the `setColor`
+  traceback, analysed in `docs/notes/FASTBOOT.md` [V].
+* CalcPlex's documentation of `ti_draw` on the EVO, as recorded in `docs/notes/FASTBOOT.md` and
+  `shim/ti_draw.py` [T].
+* Desktop MicroPython v1.12 (revision `1f371947309c5ea6023b6d9065415697cbc75578`): unix builds
+  for 64-bit native and 32-bit wasm32, used for the [M] module and memory behaviours.
