@@ -62,6 +62,16 @@ def test_divergence_sentinels(source, reason):
     assert K.N[result] == (K.DIVG, K.num(reason))
 
 
+def test_phase_drop_releases_integration_but_keeps_the_norm_family():
+    # diff is a part of the norm family: dropping it would evict the largest family pack
+    # mid-command, only for the evaluation phase to import it again.
+    norm = R.MODS['norm']
+    args = P.rpn(P.tokens('integrate(x^2,x,0,1)', 0))
+    assert drive(P.g_eval(args, [0, None, 0, 0])) == nd('1/3')
+    assert 'norm' in R.LOADED and R.MODS['norm'] is norm
+    assert 'int' not in R.LOADED
+
+
 def test_divergence_message_and_nested_propagation():
     for source in ('integrate(1/x,x,1,oo)',
                    'integrate(integrate(1/x^2,x,-1,1),y,0,1)'):

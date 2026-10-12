@@ -71,7 +71,7 @@ def g_defint(args, ctx):                                      #@L 2
     integrator = R.need('int')
     primitive = yield R.scoped(integrator.g_int(integrand, x, 0))
     integrator = None
-    R.drop(('int', 'int2b', 'int2', 'int3', 'int3b', 'itab', 'diff', 'fact'))
+    R.drop(('int', 'int2b', 'int2', 'int3', 'int3b', 'fact'))
     exact = None
     if primitive is not None and primitive[1] == K.ZERO:
         F = primitive[0]

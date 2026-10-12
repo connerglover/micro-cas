@@ -8,7 +8,7 @@ def g_primitive(f, x):                                          #@L 2
     IN = R.need('int')
     v = yield IN.g_int(f, x)
     IN = None
-    R.drop(('int', 'int2b', 'int2', 'int3', 'int3b', 'itab', 'diff', 'fact'))
+    R.drop(('int', 'int2b', 'int2', 'int3', 'int3b', 'fact'))
     yield v[0] if v is not None and v[1] == K.ZERO else None
 
 
