@@ -1,6 +1,6 @@
 # Cloudflare Worker from GitHub
 
-Use **cas.connerglover.com**, Worker **cas-evo**, deployment branch **pages**.
+Use **cas.connerglover.com**, Worker **cas**, deployment branch **pages**.
 The repository stays private. Setup is entirely in dash.cloudflare.com; local
 Wrangler login and Cloudflare secrets in GitHub are not needed.
 
@@ -30,7 +30,7 @@ merge the generated pages branch into main.
 
    | Setting | Value |
    | --- | --- |
-   | Worker name | `cas-evo` |
+   | Worker name | `cas` |
    | Production branch | `pages` |
    | Root directory | Repository root (`/`) |
    | Build command | Leave empty |
@@ -73,6 +73,11 @@ not enable GitHub Pages. See [STATUS.md](STATUS.md) for what has actually been v
 - Edit website source and `build/cloudflare/` templates on main. Full build
   outputs stay off main. The calculator transfer manifest is public/package.json,
   separate from any Node package manifest; do not install dependencies there.
+- If the site says "The download package is unavailable", Cloudflare is
+  serving unbuilt source: `/package-meta.json` returns 404 and `/package.json`
+  is the 129-byte Node file instead of the calculator manifest. Set the Worker's
+  production branch to `pages` and root directory to `/`, as above. The
+  `name` in the generated `wrangler.jsonc` must match the Worker name (`cas`).
 - Cloudflare account setup, live DNS/TLS and physical calculator acceptance are
   separate checks. Successful Git publication alone proves none of those steps.
 
