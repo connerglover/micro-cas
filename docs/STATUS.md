@@ -7,9 +7,11 @@ them as current.
 
 ## Current delivery
 
-- **packs-v1 is on local branch `perf/fast-boot`** (commits after main
-  177779f). It is not pushed and CI has not run on it. The v1 delivery on main and pages (source commit 25b83b0) remains
-  the published one until this branch is pushed, reaches main and CI passes;
+- **packs-v1 is merged into local `main`**: `perf/fast-boot` was fast-forwarded
+  from 177779f through the verified fixes at **1e06608**, as requested on
+  2026-10-12. It is not pushed and CI has not run on it. Remote main remains
+  177779f; pages still publishes source commit 25b83b0 until main is pushed
+  and CI passes. The merge changed no tested source bytes;
   see [v1 delivery](#v1-delivery-published-superseded) below.
 - **Device report on v1, 2026-10-11.** The v1 package (236 archived libraries
   plus two RAM launchers) took **5 min 30 s** on the user's EVO and then failed
@@ -132,18 +134,19 @@ EVO runs can show whether these cases fit on the calculator.
   integrity checks. Real browser checks verified 23 files, hash validation,
   `crossOriginIsolated`, WebTILP WASM initialization (`init() == 1`), matching
   and empty file filters, and no overflow at 1280/390 px. USB was not attempted.
-- **Publication:** the GitHub connector confirms live main at **177779f** and
+- **Publication:** the GitHub connector confirms remote main at **177779f** and
   pages still records source **25b83b0**, run **38174533070**. Normal Git fetch
   cannot authenticate (`could not read Username for 'https://github.com'`).
   Connector read access works; this is a local Git credential limitation, not
   a claim that all account access is absent. No source or deployment branch has
-  been replaced through the API.
+  been replaced through the API. Local main now includes the verified feature
+  branch; only this delivery record changes after 1e06608.
 
 ## Remaining acceptance
 
-1. Push `perf/fast-boot`, bring it to main as the user directs, and confirm the
-   full build and publication runs pass. Record the run, the calculator ZIP
-   SHA-256 and the pages commit here. Local Git authentication must first be restored.
+1. Restore local Git authentication, push `main`, and confirm the full build
+   and publication runs pass. Record the run, the calculator ZIP SHA-256 and
+   the pages commit here. The requested local merge is complete.
 2. On the physical EVO:
    - Install through the web installer, which removes exact-match v1 files and
      lists any it keeps. Record the installer's summary.
