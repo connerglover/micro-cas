@@ -9,7 +9,7 @@ In Cloudflare Workers & Pages, create a Worker by connecting this GitHub reposit
 
 | Setting | Value |
 | --- | --- |
-| Worker name | `cas-evo` |
+| Worker name | `cas` |
 | Production branch | `pages` |
 | Root directory | Repository root (`/`) |
 | Build command | Leave empty |
