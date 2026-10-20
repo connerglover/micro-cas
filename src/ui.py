@@ -201,7 +201,11 @@ def tidy(s):                                                   #@L 3
     """ENTER's text in MathPrint (docs/notes/MATHPRINT.md 1.3): drop the structure parens
     around a fraction operand or exponent that is one number or letter (x^(-1) also), when the
     neighbours keep the meaning, and the empty base of log(u,). History stays short 1D text."""
-    r = D.mparse(s, D.mlex(s), 1) if s else None
+    r = None
+    try:
+        r = D.mparse(s, D.mlex(s), 1) if s else None
+    except MemoryError:                     # the 1D text, as Classic sends it
+        gc.collect()
     if r is None:
         return s
     nodes = r[0]
@@ -237,6 +241,8 @@ def tidy(s):                                                   #@L 3
                 continue
             if a and (s[a - 1].isalpha() or s[a - 1].isdigit() or s[a - 1] == '.'):
                 continue
+            if a > 2 and s[a - 1] in '+-' and s[a - 2] == 'E' and s[a - 3].isdigit():
+                continue                    # 2E+(3)/(4): 2E+3 would be one number (D.mlex)
             if c and (c.isalpha() or c.isdigit() or c in ".([!'^"):
                 continue
             cut.append(a)
@@ -259,7 +265,11 @@ def structure(s):                                              #@L 3
     that ends in a letter right before '(' is left as it is: x(2) is a product unless x is a
     user function, and wrapping would change which. (The layout already keeps a fraction or
     power over a name the engine may cut, a/bc, inline.) Past 256 characters: s unchanged."""
-    r = D.mparse(s, D.mlex(s), 1) if s else None
+    r = None
+    try:
+        r = D.mparse(s, D.mlex(s), 1) if s else None
+    except MemoryError:                     # recalled as the 1D text
+        gc.collect()
     if r is None:
         return s
     nodes = r[0]
@@ -321,7 +331,15 @@ def empty_slot():                                              #@L 3
         name = ALIAS.get(LINE[j:i], LINE[j:i])
         if name in HINT or name in P.FNAMES:
             return i + 1
+        while j < i and LINE[j].isdigit():
+            j += 1
+        if j == i and not CLASSIC:
+            return i + 1                    # an empty group: 2*()
         i = LINE.find('()', i + 2)
+    if not CLASSIC:                         # an operator before an autoclosed closer: sin(2+)
+        for i in range(1, len(LINE)):
+            if LINE[i] in ')]}' and LINE[i-1] in '+-*/^=<>':
+                return i
     if LINE and LINE[-1] in '+-*/^,(=':
         return len(LINE)
     return -1
@@ -376,8 +394,8 @@ def emodel():                                                  #@L 2
         PENDING = None
     CUR = max(0, min(CUR, n))
     if M is None:
-        while CUR < n and not D.mstop(s, CUR):
-            CUR += 1
+        while not CLASSIC and CUR < n and not D.mstop(s, CUR):
+            CUR += 1                        # Classic: every index is a stop (8)
         EXOFF = 0
         if not n:
             EH = 20
@@ -507,6 +525,12 @@ def edterm(i):                                                 #@L 4
         if c.isalpha() or c.isdigit() or c in ".'!^":
             p -= 1
             continue
+        if p < i and p - 1 > lo and (c == '/' and (s[p-2].isalpha() or s[p-2].isdigit() or
+                                                   s[p-2] in ")]}.'!") or
+                                     c in '+-' and s[p-2] == 'E' and p > 2 and
+                                     s[p-3].isdigit() and s[p].isdigit()):
+            p -= 1                          # an inline a/b is one term; so is 2E+3
+            continue
         if c not in ')]}':
             break
         q = -1
@@ -568,6 +592,27 @@ def blank(a, e, k, os):                                        #@L 4
     return k == 1 and LINE[a:e] == PREFILL.get(LINE[os:LINE.find('(', os)], '')
 
 
+def wrapend(s, c, base):                                       #@L 4
+    """(s, c) with the stacked fraction or power that ends at caret c wrapped in parens, so a
+    following ^, ! or ' applies to all of it (MATHPRINT.md 2: x^(2)|^ is (x^(2))^); base: the
+    stop between a power's base and its exponent (where down lands) counts as its end."""
+    M = EDMAP
+    if M is None or M[0] != s:
+        return s, c
+    if base:
+        for q in M[11]:
+            if q[1] == c and q[3] == 'W' and q[2] > c:
+                c = q[2]
+    cs = -1
+    for q in M[11]:
+        if q[2] == c and (q[3] == 'Q' or q[3] == 'W') and (cs < 0 or q[0] < cs):
+            cs = q[0]
+    if cs >= 0:
+        s = s[:cs] + '(' + s[cs:c] + ')' + s[c:]
+        c += 2
+    return s, c
+
+
 def edins(op, t=''):                                           #@L 3
     """Insert at the caret (MATHPRINT.md 2): 'frac' the fraction template with term capture,
     'pow' x^() and 'sq' x^(2) (a stacked fraction or power that ends at the caret is wrapped
@@ -578,10 +623,14 @@ def edins(op, t=''):                                           #@L 3
     c = CUR
     M = EDMAP
     if op == 'frac':
+        if M is not None and M[0] == s:
+            for q in M[11]:             # at a power's base stop: from the power's end
+                if q[1] == c and q[3] == 'W' and q[2] > c:
+                    c = q[2]
         p = edterm(c)
         if p == c:
             mid, cur = '()/()', c + 1
-        elif s[p] in '([{' and bmatch(s, p, 1) == c - 1:
+        elif s[p] == '(' and bmatch(s, p, 1) == c - 1:
             mid, cur = s[p:c] + '/()', c + 2       # the group is the numerator
         else:
             mid, cur = '(' + s[p:c] + ')/()', c + 4
@@ -591,14 +640,7 @@ def edins(op, t=''):                                           #@L 3
         else:
             put(s[:p] + mid + s[c:], cur)
     elif op == 'pow' or op == 'sq':
-        if M is not None and M[0] == s:
-            cs = -1
-            for q in M[11]:
-                if q[2] == c and (q[3] == 'Q' or q[3] == 'W') and (cs < 0 or q[0] < cs):
-                    cs = q[0]
-            if cs >= 0:
-                s = s[:cs] + '(' + s[cs:c] + ')' + s[c:]
-                c += 2
+        s, c = wrapend(s, c, 1)
         if op == 'pow':
             put(s[:c] + '^()' + s[c:], c + 2)
         else:
@@ -1303,7 +1345,11 @@ def key(k):                                                    #@L 1
         MOD = 0
     hist = R.HIST if R is not None else []
     if mod >= 2 and k in ALPHA:
-        insert(ALPHA[k].upper() if mod == 4 else ALPHA[k])
+        line, at = LINE, CUR
+        if k == 103 and not CLASSIC:
+            line, at = wrapend(line, at, 0)     # the prime, like !: (x^(2))'
+        t = ALPHA[k].upper() if mod == 4 else ALPHA[k]
+        put(line[:at] + t + line[at:], at + len(t))
     elif k == 22 and mod == 1:
         return QUIT
     elif k == 45:
@@ -1380,7 +1426,8 @@ def key(k):                                                    #@L 1
             emodel()                    # the menu may have switched Classic
         if choice is not None:
             text, wrap, offset = choice
-            if wrap and (CUR == len(LINE)) and (LINE or R.ANS is not None):
+            if wrap and (CUR == len(LINE) or not CLASSIC and not LINE[CUR:].strip(')]}')) and \
+                    (LINE or R.ANS is not None):   # MathPrint: only closers after the caret
                 first = LINE or 'ans()'
                 j = text.find('(') + 1
                 text = text[:j] + first + text[j:]
@@ -1392,8 +1439,11 @@ def key(k):                                                    #@L 1
             if text is not None:
                 if not CLASSIC and not wrap and text in ('=', '!=', '<', '<=', '>', '>='):
                     leave(0)
-                at = CUR
-                if insert(text, offset) and not CLASSIC and '(' in text:
+                line, at = LINE, CUR
+                if not CLASSIC and text == '!':
+                    line, at = wrapend(line, at, 0)     # x^(2)|! is (x^(2))!
+                if put(line[:at] + text + line[at:], at + offset) and not CLASSIC and \
+                        '(' in text:
                     PENDING = (at, at + len(text))
     elif k == 42 and mod == 1 and not CLASSIC:
         row = picker()

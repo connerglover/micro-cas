@@ -27,12 +27,13 @@ def insertion(row):                                           #@L 3
     required = row[0].split('(', 1)[1].split('[', 1)[0].rstrip(',)').replace(',...', '')
     # A required x or k after the first parameter is filled with its own name (MATHPRINT.md 3):
     # diff(,x), sum(,k,,). The first is never: sin(x) stays sin(), purge(x,...) purge().
+    # Classic (MATHPRINT.md 8) keeps the old empty text: diff(,).
     names = required.split(',')
     text = prefix
     for j in range(len(names)):
         if j:
             text += ','
-            if names[j] == 'x' or names[j] == 'k':
+            if not U.CLASSIC and (names[j] == 'x' or names[j] == 'k'):
                 text += names[j]
     return (text + ')', prefix[:-1] in R.MODS['menu'].ACTIONS, len(prefix))
 

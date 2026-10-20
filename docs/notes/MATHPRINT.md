@@ -189,6 +189,23 @@ not match the code. Each section is edited to match.
 | §9.3 boot ~+10 KB | +20.1 KB of bytecode (≈ +28 KB heap at 1.4×). Boot still loads only CASUI + CASUX |
 | §10 host guard: a dense 160-character `mlayout` < 400 µs | Measured 375–395 µs (lex ~37, parse ~115, boxes ~72, place ~125): 97 % of the guard, so `test_dense_line_host_time_guard` failed once in a full `--bundled` run and passed alone (5/5) and in the next full runs. Two device-oriented trims went in (`row` compares instead of two `max` calls per child; `mplace` keeps the open text run in locals and inlines the stop record for construct ends); on the host they are within noise. The bound was not loosened. A real margin needs a parser fast path for flat runs (operands joined by `+ - *` that merge into one leaf anyway), left for a follow-up |
 
+### 0.8 Review fixes (2026-10-20)
+
+An independent review after milestone D (keys, features, looks, performance and native
+device lenses) confirmed the defects below; each fix has a regression test in
+`tests/test_mathprint_review.py` (or the named file).
+
+| Finding | Fix |
+|---|---|
+| Classic: ← could not get left of `name(` (the flat `D.mstop` snap undid each step) | `emodel` snaps only MathPrint flat lines (§6.5); Classic has ±1 arrows again |
+| ENTER sent `sin(2+)`, `(2*)`, `2*()` to the engine (autoclose hid the trailing operator) | `empty_slot` also reports an operator before a closer and a nameless `()` (§2.2) |
+| A menu action inserted itself inside `sin(x|)` or a trailing denominator | the wrap test treats "only closers after the caret" as the end (§2) |
+| Classic menu templates were prefilled (`diff(,x)`) | prefill in MathPrint only (§3, §8) |
+| A `MemoryError` in `tidy`/`structure` panicked ENTER, ENTRY and paste | caught: the 1D text is used (§1.3, §1.4) |
+| `2E+` then 42 drew `2E+`¾ but evaluated `(2E+3)/4` | `tidy` keeps the parens after `E+`/`E-`; the capture takes a whole E-number (§1.3, §2.1) |
+| `!`/`'` after leaving a power or fraction box bound to the last slot | `wrapend` wraps the box first, as 51/61 do (§2) |
+| 42 after `{1,2}` or `1/2` gave a flat line; 51/61/42 at a power's base stop split the power | reuse only a `(` group; capture an inline `a/b`; the base stop counts as the power's end (§2, §2.1) |
+
 ---
 
 ## 1. Data model
@@ -278,11 +295,14 @@ pair `(`…`)` around a fraction operand or exponent when all of these hold:
 2. The interior is one leaf token: a number made of `[0-9.]`, or a single letter. An exponent
    may also be `-` followed by a number, provided the character after the group is the end of
    the line or one of `+ - , ) = < >`.
-3. The character before `(` is not a letter, digit or `.`.
+3. The character before `(` is not a letter, digit or `.`, nor a `+`/`-` that follows a
+   digit's `E` (`2E+(3)/(4)` keeps its numerator parens: `2E+3` would lex as one number,
+   `D.mlex`, and change what was drawn).
 4. The character after `)` is not a letter, digit, `.`, `(`, `[`, `!`, `'` or `^`.
 
 It also turns `log(u,)` (empty base) into `log(u)`. Pairs are removed right to left in a
-single pass.
+single pass. A `MemoryError` in the parse returns `s` unchanged (the 1D text Classic sends),
+so ENTER degrades instead of panicking (§0.8).
 
 | Input | Output |
 |---|---|
@@ -303,8 +323,9 @@ engine is unchanged.
 `structure` parses `s` in mode 1. For every stacked fraction operand and every exponent
 that is not exactly one group, it inserts `(` at the operand's start and `)` at its end.
 Insertions are collected as `(pos, ch)` tuples, sorted with a plain `list.sort()`, and
-applied right to left. If the result is longer than 256 characters, `s` is returned
-unchanged. A fraction or power over a name the engine may cut is not one in the mode-1
+applied right to left. If the result is longer than 256 characters, or the parse raises
+`MemoryError`, `s` is returned unchanged (ENTRY recall and history paste then give the 1D
+text, §0.8). A fraction or power over a name the engine may cut is not one in the mode-1
 parse (it stays inline, §1.2), so `a/bc` is left alone: the engine reads it as `(a/b)c`. A
 construct with an operand that ends in a letter right before `(` is left alone too:
 `1/x(x+1)` is `(1/x)(x+1)`, but a call if `x` is a user function, and wrapping `x` alone or
@@ -373,8 +394,9 @@ MathPrint tables.
 | `=>` 91 | Leave rule, then insert. | `x^(2|)` → `x^(2)=>|` |
 | **55 ÷** | Insert a bare `/`. Drawn inline. | `1|` → `1/|` |
 | **42 fraction** | Term capture (§2.1). | `x|` → `(x)/(|)` |
-| **51 xⁿ** | If `CUR` equals the end `oe` of a stacked fraction (Q) or power (W) in `EDMAP.CONS` (fresh map only), wrap that construct, from its full start `cs` (the numerator start, or the **base** start of a power) to `oe`, in `(`…`)` first. Then insert `^()` with the caret inside. Typing `+` inside stays in the exponent. → leaves it. Only the power itself is wrapped, never a preceding factor. | `x|` → `x^(|)`; `x^(2)|` → `(x^(2))^(|)`; `2x^(2)|` → `2(x^(2))^(|)` |
-| **61 x²** | Same wrap rule, then insert `^(2)` with the caret after it. | `x|` → `x^(2)|`; `sin(x|)` → `sin(x^(2)|)` |
+| **51 xⁿ** | (`ui.wrapend`) At a power's base stop (`CUR` = `os` of a W, where ↓ lands) `CUR` first moves to that power's end `oe`. If `CUR` equals the end `oe` of a stacked fraction (Q) or power (W) in `EDMAP.CONS` (fresh map only), wrap that construct, from its full start `cs` (the numerator start, or the **base** start of a power) to `oe`, in `(`…`)` first. Then insert `^()` with the caret inside. Typing `+` inside stays in the exponent. → leaves it. Only the power itself is wrapped, never a preceding factor. | `x|` → `x^(|)`; `x^(2)|` → `(x^(2))^(|)`; `2x^(2)|` → `2(x^(2))^(|)`; `x|^(2)` → `(x^(2))^(|)` |
+| `!` (TEST menu), `'` (alpha .) | The same wrap (`wrapend`, without the base-stop move), then insert: a postfix after a power or fraction box applies to the whole box, as on the Nspire. Inside a box it stays inside. | `3^(2)|` → `(3^(2))!|`; `(3)/(2)|` → `((3)/(2))!|`; `3^(2|)` → `3^(2!|)` |
+| **61 x²** | Same wrap rule, then insert `^(2)` with the caret after it. | `x|` → `x^(2)|`; `sin(x|)` → `sin(x^(2)|)`; `x|^(2)` → `(x^(2))^(2)|` |
 | 2nd 61 √ | `sqrt(|)` | |
 | 2nd 51 ⁿ√ | `surd(|,)`: caret in the radicand (offset 5, not PENDING). `,` steps to the index. | `{2nd,x^n}8,3` → `surd(8,3)` |
 | 2nd 71 10ˣ, 2nd 81 eˣ | `10^(|)`, `e^(|)` | |
@@ -391,7 +413,7 @@ MathPrint tables.
 | ENTER (105) | MODE: paste the result (§7.4). Otherwise (§2.2): two-stage empty-slot check, then the job. | |
 | 2nd ENTER | MODE: paste `structure(e[0])`. Otherwise ENTRY recall: `ENTRYPOS` as today; `LINE = structure(hist[-1-ENTRYPOS][0])`, `CUR = len(LINE)`, `LASTENTRY = LINE`. No 256 check, as today. | |
 | **2nd 42** (new) | MathPrint: `row = picker()` (§3.2), then `key` applies the row (rows 1–2 through `edins`, the others through `put` + PENDING). Classic: nothing, as today. | |
-| F1, math (41), 2nd math (TEST), vars (44), F2, F3, mode (22), F5, 2nd 0 | `R.need('menu').open(kind, LINE, CUR, enclosing())`, unchanged. The result goes through today's wrap/limit code, then `insert(text, offset)`. If `text` contains `(` and the line is 2D, `PENDING = (start, start + len(text))`; on a flat line PENDING is not set and the offset stands. A TEST relation (`=`, `!=`, `<`, `<=`, `>`, `>=`, not `!`) first applies the leave rule. After the menu: `VIEWEND = min(VIEWEND, len(hist)-1)` (Clear history may have emptied it). | |
+| F1, math (41), 2nd math (TEST), vars (44), F2, F3, mode (22), F5, 2nd 0 | `R.need('menu').open(kind, LINE, CUR, enclosing())`, unchanged. The result goes through today's wrap/limit code (an action wraps the whole line when the caret is at its end; in MathPrint also when only closers `) ] }` follow it, since autoclosed and hidden closers sit after a caret that looks like it is at the end: `sin(x|)` + simplify → `simplify(sin(x))`, §0.8), then `insert(text, offset)`. If `text` contains `(` and the line is 2D, `PENDING = (start, start + len(text))`; on a flat line PENDING is not set and the offset stands. A TEST relation (`=`, `!=`, `<`, `<=`, `>`, `>=`, not `!`) first applies the leave rule. After the menu: `VIEWEND = min(VIEWEND, len(hist)-1)` (Clear history may have emptied it). | |
 | F4, `< >` (95) | Unchanged (needs history; `95` with no history does nothing). | |
 | Any other key or modifier combination (33, 43, 2nd digits, 2nd 91, …) | No entry in any table: nothing changes and no ti_draw call is made. | |
 
@@ -402,15 +424,21 @@ Scan left from `CUR` inside the current slot. The term is made of:
 - a bare `^` and its base;
 - a closed bracket group, jumping to its opener and then over a call name before it;
 - a hidden exponent closer, jumping to its `^(` and continuing to the base;
+- an inline `/` between two such terms, so `1/2|` gives `(1/2)/(|)` (stacked, `1/2` inline in
+  the numerator) rather than `1/(2)/(|)`, which the layout keeps inline after the `/` (§0.8);
+- the sign of an E-number, `2E+3|` → `(2E+3)/(|)` (the `+`/`-` after a digit's `E` with a
+  digit after it, as `D.mlex` reads it);
 - a hidden denominator closer (CUR, or the scan, at the `oe` of a stacked fraction):
   jumping to the fraction's full start `cs`, so `(a)/(b)|` gives `((a)/(b))/(|)` and
   never splits the fraction.
 
-The scan stops at a slot start or at any of `+ - * / = < > ,` and the 2-character
-relations. Only text left of CUR is captured: `ab|c` → `(ab)/(|)c`.
+The scan stops at a slot start or at any of `+ - * = < > ,` and the 2-character
+relations, and at a `/` with nothing captured yet (`1/|` gives `1/(|)/()`). At a power's
+base stop (`x|^(2)`) the capture starts from the power's end: `(x^(2))/(|)`. Only text left of CUR is captured: `ab|c` → `(ab)/(|)c`.
 
 The group is **reused** (only `/()` is inserted) exactly when the captured term is one
-visible bracket group `( … )` with no name and no other factor before it, i.e. the term
+visible paren group `( … )` (not a list `{…}` or matrix `[…]`, which the entry rule would
+not stack: `{1,2}|` gives `({1,2})/(|)`) with no name and no other factor before it, i.e. the term
 starts at the group's opener. `2(a+b)|` captures `2(a+b)` and gives `(2(a+b))/(|)`.
 
 After `*` (`a*b|` → `a*(b)/(|)`) the fraction is stacked because the layout makes the group
@@ -461,7 +489,10 @@ step 2 of its dispatch, and a degraded line must not be laid out again).
 a `log(` call (the name as `D.mcall` reads it after leading digits, so `2log(` and `xlog(`
 too) with exactly two top-level arguments is skipped (the empty base is optional),
 and the search continues after it. Without this, `log(8,)` from picker row 1.7 would be
-refused at stage 2.
+refused at stage 2. In MathPrint it also reports what autoclose hides from the old
+trailing-operator test (§0.8): an empty group `()` with no name before it (`2*(|)`), and an
+operator `+ - * / ^ = < >` right before a closer (`sin(2+|)`, `(2*|)`), with the caret before
+the closer. Classic keeps the old rules.
 
 Before a job (key step 7, after the last `redraw`): `EDMAP = EDL = EKEY = None`,
 `EMODEL = None`, `PENDING = None`, then `D.clear_cache()` (which also empties ICACHE), as
@@ -495,7 +526,7 @@ today.
 | Call | `sin(|)` … | text: name + `(` + args + `)`, merged into one run when one row high | args in order | as typed |
 | Group | `(|)` | text parens if one row, else `frame('paren')` | interior | as typed |
 
-**Prefill.** In the picker and in `menub.insertion`, a required parameter named exactly `x`
+**Prefill.** In the picker and in `menub.insertion` (MathPrint only; Classic keeps the old empty text, §8), a required parameter named exactly `x`
 or `k` **at position 1 or later** is filled with its own name. `insertion(row)` builds the
 text from the required parameter names (split on `,`): an empty string, or `x`/`k`. The
 offset stays `len(prefix)`. Position 0 is never prefilled: every one-argument row
@@ -970,7 +1001,8 @@ It does no drawing.
    `try/except MemoryError` (§5.3); `None` or over-height → `EFLAT = True`, `EDMAP = None`.
 2. Resolve `PENDING` (2D: first `E` of `EMPTY` inside `[a, b)`, the log base included;
    flat: drop it) and clear it.
-3. Snap `CUR` to a stop (2D: next stop in buffer order; flat: `D.mstop`).
+3. Snap `CUR` to a stop (2D: next stop in buffer order; a flat MathPrint line: `D.mstop`;
+   Classic: no snap, every index is a stop, so ← moves into a call name as before, §8).
 4. Update `EH` (§6.1), then `XOFF` (flat) or `EXOFF` (2D) (§6.3).
 
 Its deepest chain is `key 1 → emodel 2 → D.mlayout 3 → D.mparse 4 → D.mshut 5 →
@@ -1081,6 +1113,8 @@ Classic is **today's editor exactly**:
 - today's `PLAIN`/`SECOND` tables, used directly (they are not changed for MathPrint);
 - `insert()`, today's DEL, ±1 arrows, 1D row;
 - no autoclose, no `tidy`, no `structure`, no map, no picker (2nd 42 does nothing);
+- no caret snap (§6.5) and no `x`/`k` prefill in menu templates (`menub.insertion` gives
+  `diff(,)` as before);
 - ENTER skips stage 1 (§2.2).
 
 History inputs stay 2D. Classic also serves as:
@@ -1116,6 +1150,7 @@ History inputs stay 2D. Classic also serves as:
 | `insert`, `wrapped` (unchanged) | ui | 3 | CASUX | – |
 | `epaint(full)` | ui | 3 | CASUX | D.mrender 4; D.rect/text/line 5 |
 | `status(s)` (also `STATVIEW = None`) | ui | 3 | CASUI | D.rect/text 5 |
+| `wrapend(s, c, base)` → (s, c) (the 51/61/`!`/`'` wrap, §2) | ui | 4 | CASUX | – |
 | `edslot(i)` → SLOTS row; `edterm(i)`; `leave(grp)`; `put(line, cur)` → bool; `spans(o, cl)`; `keep(os, oe, u)`; `blank(a, e, k, os)` | ui | 4 | CASUX | bmatch, D.mcall 5 |
 | `bmatch(s, i, d)` (the matching bracket) | ui | 5 | CASUX | – |
 | `mlayout(s, mode)` | draw | 3 | CASUX | mlex, mparse, mbox, mplace 4 |
@@ -1169,7 +1204,8 @@ already does.
 **PACKS.** The CASUX tuple gains, by name:
 - `'ui.emodel'`, `'ui.edkey'`, `'ui.picker'`, `'ui.edins'`, `'ui.eddel'`, `'ui.edmove'`,
   `'ui.edvert'`, `'ui.paste'`, `'ui.tidy'`, `'ui.structure'`, `'ui.empty_map'`,
-  `'ui.epaint'`, `'ui.edslot'`, `'ui.edterm'`, `'ui.leave'`, `'ui.put'`, and (milestone B)
+  `'ui.epaint'`, `'ui.edslot'`, `'ui.edterm'`, `'ui.leave'`, `'ui.put'`, `'ui.wrapend'`
+  (review, §0.8), and (milestone B)
   `'ui.bmatch'`, `'ui.spans'`, `'ui.keep'`, `'ui.blank'`, `'ui.PREFILL'`;
 - `'ui.TMPL'`, `'draw.TPL'`, `'draw.TGAP'`, `'draw.MPREC'` (milestone A placed the draw
   names, `ui.tidy` and `ui.structure`);

@@ -155,6 +155,7 @@ PACKS = (
                # the MathPrint editor keys (milestone B)
                'ui.emodel', 'ui.edkey', 'ui.picker', 'ui.edins', 'ui.eddel', 'ui.edmove',
                'ui.edvert', 'ui.epaint', 'ui.paste', 'ui.empty_map', 'ui.edslot', 'ui.edterm', 'ui.leave',
+               'ui.wrapend',
                'ui.put', 'ui.bmatch', 'ui.spans', 'ui.keep', 'ui.blank', 'ui.TMPL', 'ui.PREFILL',
                'draw.MFNT', 'draw.mlayout', 'draw.mflat', 'draw.mcall', 'draw.mstop', 'draw.mlex',
                'draw.mparse', 'draw.mpush', 'draw.mshut', 'draw.mreduce', 'draw.mbox', 'draw.tleaf',

@@ -567,7 +567,9 @@ def test_menu_insertion_puts_the_caret_in_the_first_empty_slot():
                               ('{math}{down}{enter}', 'integrate(,x)', 10),
                               ('{math}{down}{down}{enter}', 'limit(,x,)', 9),
                               ('{2nd,0}su{enter}', 'sum(,k,,)', 7),
-                              ('x^(2{math}{down}{enter}', 'x^(2integrate(,x))', 14),
+                              # only closers after the caret: an action wraps the line
+                              ('x^(2{math}{down}{enter}', 'integrate(x^(2),x)', 15),
+                              ('x^(2{left}{math}{down}{enter}', 'x^(integrate(,x)2)', 13),
                               ('{math}{down}{enter}x{2nd,right}', 'integrate(x,x)', 14),
                               ('{2nd,0}sin{enter}', 'sin()', 4)):
         s = KS.run(script)
