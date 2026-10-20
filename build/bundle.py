@@ -732,10 +732,10 @@ def mpy_sizer():
     if cmd is None:
         return None
 
-    def size(path):
+    def size(path, flags=()):
         with tempfile.TemporaryDirectory() as td:
             out = os.path.join(td, 'm.mpy')
-            p = subprocess.run(cmd + ['-o', out, '-s', os.path.basename(path), path],
+            p = subprocess.run(cmd + list(flags) + ['-o', out, '-s', os.path.basename(path), path],
                                capture_output=True, text=True, timeout=120)
             if p.returncode != 0 or not os.path.exists(out):
                 raise BundleError('mpy-cross failed on %s: %s'

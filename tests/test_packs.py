@@ -303,3 +303,54 @@ def test_a_computed_upper_case_key_may_not_name_a_renamed_table():
            'fa': 'TRIG = ("fa table",)\n', 'fb': 'TRIG = ("fb table",)\n'}
     with pytest.raises(packs.PackError, match='computed'):
         merged(src, CORE)
+
+
+def test_a_tight_pack_aliases_resident_packs_inlines_ints_and_binds_hot_builtins(tmp_path,
+                                                                                  monkeypatch):
+    rows = (('CASK', ('node', 'run'), 'core'), ('CASV', ('fa',), 'view'),
+            ('CASF', ('fb',), 'family'))
+    src = {'node': '''
+              N = 7
+              S = 'x'
+              X = 1
+              def bump():
+                  global X
+                  X += 1
+              ''',
+           'run': RUN,
+           'fa': '''
+              import CVNODE as K
+              def f(d=K.N):
+                  K.X = K.X + 1
+                  return K.X + K.N + d + len([K.X for _ in range(2)])
+              def g():
+                  return K.S + str(K.N)
+              ''',
+           'fb': 'import CVNODE as K\ndef h():\n    return K.N + K.X\n'}
+    man = Man(['node', 'run', 'fa', 'fb'], rows)
+    man.TIGHT, man.HOTBUILTINS = ('CASV',), ('len', 'range', 'min')
+    device = dict(('CV' + k.upper(), _d(v)) for k, v in src.items())
+    out, _, _ = packs.merge(device, man)
+    tree = ast.parse(out['CASV'])
+    f = [s for s in tree.body if isinstance(s, ast.FunctionDef) and s.name == 'f'][0]
+    assert ast.unparse(f.body[0]) == 'CASK_ = CASK'      # three reads and stores of CASK
+    assert ast.unparse(f.args.defaults[0]) == '7'        # node.N, bound once, is a literal
+    assert '[CASK.X for _ in range(2)]' in out['CASV']   # a comprehension keeps the global
+    g = [s for s in tree.body if isinstance(s, ast.FunctionDef) and s.name == 'g'][0]
+    assert ast.unparse(g.body[0]) == "return CASK.S + str(7)"
+    assert 'len = len' in out['CASV'] and 'range = range' in out['CASV']
+    assert 'min = min' not in out['CASV']               # unused: not bound
+    assert 'CASK.N' in out['CASF'] and 'len = len' not in out['CASF']   # not TIGHT
+    load(out, tmp_path, monkeypatch)
+    import CASK
+    import CASV
+    import CASF
+    assert CASV.f() == 2 + 7 + 7 + 2 and CASK.X == 2 and CASV.g() == 'x7' and CASF.h() == 9
+
+
+def test_tight_needs_known_packs():
+    man = Man(['node', 'run', 'fa', 'fb'], CORE)
+    man.TIGHT = ('CASX',)
+    device = {'CVNODE': '', 'CVRUN': RUN, 'CVFA': '', 'CVFB': ''}
+    with pytest.raises(packs.PackError, match='TIGHT'):
+        packs.merge(device, man)

@@ -176,6 +176,14 @@ PACKS = (
     ('CASMNU', ('catalog', 'menu', 'menub'), 'family'),
 )
 PACKMAX = 60000
+# Packs built tight (build/packs.py, build/archive.py): a function that names a never-unloaded
+# pack 3+ times reads it through a local alias, ints bound once at module level are read as
+# literals, HOTBUILTINS are bound as pack globals (a builtin lookup otherwise misses the module
+# dict first, and a nearly full MicroPython dict probes up to its first empty slot), and
+# mpy-cross -O3 drops the line-number tables. The UI packs only: tracebacks from them then
+# report line 1 (function names remain), so release.json's line map no longer locates them.
+TIGHT = ('CASUI', 'CASUX')
+HOTBUILTINS = ('len', 'range', 'min', 'max')
 # run.room(phase): the soft pack each phase loads, so memory is made for it first.
 ROOMS = {'input': 'CASIN', 'print': 'CASPR', 'layout': 'CASUX'}
 # Loader tables written into the calculator's run module (build/release.py). Heap estimates are

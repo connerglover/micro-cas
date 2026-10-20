@@ -457,3 +457,42 @@ def test_engine_load_failure_rolls_back_and_the_next_enter_loads_it(release_modu
     assert app.loads.count(run_pack) == 2           # the half-run module was not reused
     assert app.get('run', 'ANS') == '5'
     app.assert_clean()
+
+
+# MicroPython 1.12 map sizes (py/map.c): a module's globals table grows only when it is full,
+# and a lookup that misses it (every unbound builtin) probes up to the first empty slot.
+MAP_SIZES = (0, 2, 4, 6, 8, 10, 12, 17, 23, 29, 37, 47, 59, 73, 97, 127, 167, 223, 293, 389)
+
+
+def test_tight_packs_bind_hot_builtins_and_keep_their_globals_table_off_full():
+    """build/manifest.py TIGHT: the hot builtins are pack globals, no tight pack's globals table
+    is full, and the per-key view pack's is at most 85% full. Native measurement: mlayout of a
+    160-character line took 1,930 us with CASUX's table full (73 of 73) and 1,110 us with 74
+    entries (of 97). Entries: the top-level names plus __name__ and __file__ (len(dir(m)) - 1
+    on the native runtime: dir adds __class__)."""
+    load_release_module()
+    spec = importlib.util.spec_from_file_location('manifest_for_test', ROOT / 'build/manifest.py')
+    man = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(man)
+    kinds = dict((p, k) for p, _, k in man.PACKS)
+    assert man.TIGHT
+    for pack in man.TIGHT:
+        tree = ast.parse((ROOT / 'dist' / (pack + '.py')).read_text('ascii'))
+        names = set()
+        for stmt in tree.body:
+            if isinstance(stmt, ast.FunctionDef):
+                names.add(stmt.name)
+            elif isinstance(stmt, ast.Import):
+                names.update(a.asname or a.name for a in stmt.names)
+            elif isinstance(stmt, ast.Assign):
+                names.update(n.id for t in stmt.targets for n in ast.walk(t)
+                             if isinstance(n, ast.Name))
+        read = set(n.id for n in ast.walk(tree) if isinstance(n, ast.Name) and
+                   isinstance(n.ctx, ast.Load))
+        for b in man.HOTBUILTINS:
+            assert b not in read or b in names, (pack, b)
+        entries = len(names) + 2
+        size = min(s for s in MAP_SIZES if s >= entries)
+        assert entries < size, (pack, entries, size)
+        if kinds[pack] == 'view':
+            assert entries <= 0.85 * size, (pack, entries, size)

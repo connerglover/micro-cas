@@ -230,6 +230,11 @@ class Plan(object):
         # pack (UI code) may run while run.need loads a family, so only a computation unloads it.
         # An aux pack holds computation code that cannot reach the loader; it gives way last.
         self.soft = set(p for p in self.kind if self.kind[p] in ('soft', 'view', 'aux'))
+        self.tight = set(getattr(man, 'TIGHT', ()))     # see tighten()
+        self.hot = tuple(getattr(man, 'HOTBUILTINS', ()))
+        for pack in self.tight:
+            if pack not in self.kind:
+                raise PackError('TIGHT names unknown pack %s' % pack)
         self.run = run
         self.keys = _runtime_keys(sources[run])
         self.modules = {}
@@ -408,6 +413,15 @@ class Plan(object):
         m = self.modules[device]
         return name in m.values and name not in m.mutates
 
+    def int_constant(self, device, name):
+        """The int a module-level name is bound to once and never assigned again (in a function
+        or as a module attribute), or None: a tight pack reads it as a literal."""
+        m = self.modules.get(device)
+        if m is None or not self.constant(device, name) or name in self.stored:
+            return None
+        v = m.values[name]
+        return v if type(v) is int else None
+
     def _shared(self, a, b, name):
         """Both modules bind name to the same literal, import the same native module, or alias
         modules of the same pack."""
@@ -580,6 +594,10 @@ class Rewrite(ast.NodeTransformer):
         plan = self.plan
         loc = plan.where(device, name)
         new = plan.rename.get((device, name), name)
+        value = plan.int_constant(device, name)
+        if value is not None and isinstance(ctx, ast.Load) and self.here in plan.tight and \
+                not self.client:
+            return ast.copy_location(ast.Constant(value), node)
         if loc == self.here and not self.client:
             if self.fn is not None:
                 if new in self.locals:
@@ -916,6 +934,45 @@ def costs(plan_meta, family_keys, sizes, factor=1.25, fixed=512):
     return out
 
 
+def _outside_scopes(node):
+    """The nodes under node, not descending into comprehensions (their own scopes)."""
+    out = []
+    work = [node]
+    while work:
+        n = work.pop()
+        out.append(n)
+        for c in ast.iter_child_nodes(n):
+            if not isinstance(c, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+                work.append(c)
+    return out
+
+
+def alias_resident(fn, packs, taken, least=3):
+    """In a function, read each pack of packs (never unloaded, bound as a pack global) through
+    a local alias when the function names it at least `least` times: LOAD_FAST and LOAD_ATTR
+    instead of LOAD_GLOBAL and LOAD_ATTR, 3 bytes less per use. Uses inside comprehensions keep
+    the global (an alias there would become a closure cell). taken: the identifiers of the
+    pack (the alias must not shadow a global the function reads)."""
+    for pack in sorted(packs):
+        uses = [n for s in fn.body for n in _outside_scopes(s) if isinstance(n, ast.Attribute)
+                and isinstance(n.value, ast.Name) and n.value.id == pack]  # not the defaults
+        if len(uses) < least or any(isinstance(n, ast.Name) and n.id == pack and
+                                    not isinstance(n.ctx, ast.Load) for n in ast.walk(fn)):
+            continue
+        alias = pack + '_'              # one local name for every function of the pack
+        while alias in taken:
+            alias += '_'
+        for n in uses:
+            n.value = ast.copy_location(ast.Name(id=alias, ctx=ast.Load()), n.value)
+        at = 1 if (fn.body and isinstance(fn.body[0], ast.Expr) and
+                   isinstance(fn.body[0].value, ast.Constant) and
+                   isinstance(fn.body[0].value.value, str)) else 0
+        fn.body.insert(at, ast.copy_location(ast.Assign(
+            targets=[ast.Name(id=alias, ctx=ast.Store())],
+            value=ast.Name(id=pack, ctx=ast.Load())), fn.body[at] if fn.body else fn))
+    return fn
+
+
 def merge(sources, man, clients=()):
     """Return ({pack: source}, {client: source}, metadata). Sources use device names."""
     plan = Plan(sources, man)
@@ -993,6 +1050,27 @@ def merge(sources, man, clients=()):
             if plan.kind[p] not in ('core', 'ui'):
                 raise PackError('%s reads %s by name, which may be evicted' % (pack, p))
         head = [ast.Import(names=[ast.alias(name=p)]) for p in missing]
+        if pack in plan.tight:
+            # tighten (manifest TIGHT): function-local aliases of the never-unloaded packs this
+            # pack imports (ui, core), and the hot builtins bound as pack globals, so a lookup of
+            # len or range hits the module dict instead of missing it (a miss probes the dict
+            # up to its first empty slot; MicroPython grows a dict only when it is full)
+            resident = set(p for p in imported | set(missing)
+                           if plan.kind.get(p) in ('ui', 'core') and p != pack)
+            taken = set(n.id for s in body for n in ast.walk(s) if isinstance(n, ast.Name))
+            taken.update(s.name for s in body if isinstance(s, ast.FunctionDef))
+            taken.update(a.asname or a.name for s in body + head if isinstance(s, ast.Import)
+                         for a in s.names)
+            for s in body:
+                if isinstance(s, ast.FunctionDef):
+                    alias_resident(s, resident, taken)
+            bound = set(n.id for s in body if isinstance(s, ast.Assign)
+                        for tg in s.targets for n in ast.walk(tg) if isinstance(n, ast.Name))
+            bound.update(s.name for s in body if isinstance(s, ast.FunctionDef))
+            for name in plan.hot:
+                if name in taken and name not in bound:
+                    head.append(ast.Assign(targets=[ast.Name(id=name, ctx=ast.Store())],
+                                           value=ast.Name(id=name, ctx=ast.Load())))
         body = head + body
         spans = [None] * len(head) + spans
         # The last statement: MicroPython 1.12 keeps a module whose body raised (a MemoryError

@@ -21,6 +21,11 @@ LAUNCHERS = {'CASEVO.py', 'CVTEST.py'}
 HEADER = b'M\x05\x03\x1f'
 
 
+def mpy_flags(man, pack):
+    """Extra mpy-cross flags of a pack: -O3 (no line-number tables) for a TIGHT pack."""
+    return ['-O3'] if pack in getattr(man, 'TIGHT', ()) else []
+
+
 def compile_archive(package, output, compiler):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
@@ -48,8 +53,9 @@ def compile_archive(package, output, compiler):
                 target.write_bytes(source)
             else:
                 target = output / (module + '.mpy')
-                subprocess.run([str(compiler), '-mcache-lookup-bc', '-msmall-int-bits=31',
-                                '-s', name, '-o', str(target), str(source_dir / name)], check=True)
+                subprocess.run([str(compiler), '-mcache-lookup-bc', '-msmall-int-bits=31'] +
+                               mpy_flags(man, module) +
+                               ['-s', name, '-o', str(target), str(source_dir / name)], check=True)
                 data = target.read_bytes()
                 if data[:4] != HEADER:
                     raise ValueError('wrong EVO bytecode ABI: ' + target.name)

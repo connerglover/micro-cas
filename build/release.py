@@ -23,6 +23,7 @@ import zipfile
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
+import archive
 import bundle
 import packs
 import shrink
@@ -61,13 +62,13 @@ def _shrunk(pack_sources, clients, seeds=None):
     return out, mapping, shrink.transform(probe, mapping, allow_reuse=True)
 
 
-def _sizes(sources, sizer):
+def _sizes(sources, sizer, man):
     with tempfile.TemporaryDirectory(prefix='cas-evo-packs-') as temp:
         out = {}
         for name in sorted(sources):
             path = Path(temp) / (name + '.py')
             path.write_text(sources[name], 'ascii', newline='\n')
-            out[name] = sizer(str(path))
+            out[name] = sizer(str(path), archive.mpy_flags(man, name))
         return out
 
 
@@ -127,7 +128,7 @@ def prepare(dist, man=None):
     if sizer is None:
         raise ValueError('the release needs mpy-cross to measure pack sizes')
     shrunk, mapping, probe = _shrunk(pack_sources, client_sources, seeds)
-    sizes = _sizes(dict((k, v) for k, v in shrunk.items() if k != 'CASEVO'), sizer)
+    sizes = _sizes(dict((k, v) for k, v in shrunk.items() if k != 'CASEVO'), sizer, man)
     rows = man.rows()
     family = {}
     for key in man.PARTS:
@@ -141,7 +142,7 @@ def prepare(dist, man=None):
         'COST': cost, 'ROOM': room, 'SHEDAT': man.SHEDAT})
     shrunk, mapping, probe = _shrunk(pack_sources, client_sources, seeds)
     final = dict((k, v) for k, v in shrunk.items() if k != 'CASEVO')
-    sizes = _sizes(final, sizer)
+    sizes = _sizes(final, sizer, man)
     for pack, size in sizes.items():
         if size > man.PACKMAX:
             raise ValueError('%s compiles to %d bytes, over PACKMAX %d' % (pack, size, man.PACKMAX))
