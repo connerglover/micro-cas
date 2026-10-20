@@ -123,7 +123,7 @@ opens command templates; **MATH** opens the Calculus tab. Type letters with
 | `expand((x+1)^3)` | `x^3+3*x^2+3*x+1` |
 | `solve(x^2-5*x+6,x)` | `x=2,x=3` |
 | `diff(x^3,x)` | `3*x^2` |
-| `integrate(x^2,x)` | `x^3/3`, with `+ C` in the footer |
+| `integrate(x^2,x)` | `x^3/3`, with `+ C` drawn right after it on the same row |
 | `limit(sin(x)/x,x,0)` | `1` |
 | `sum(k^2,k,1,10)` | `385` |
 | `grad(x*y,[x,y])` | `[y,x]` |

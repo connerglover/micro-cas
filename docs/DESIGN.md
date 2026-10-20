@@ -2934,7 +2934,7 @@ scroll offset `dx` and the clip rectangle. Colors come from the theme (§16.8).
 
 | decoration | placement |
 |---|---|
-| `+ C` | after the box, in the secondary color, when the record flag `F_PLUSC` is set (§7.9) |
+| `+ C` | on the answer's row, right after it and spaced like its operators, in the answer's color, when the record flag `F_PLUSC` is set (§7.9): the view lays out the answer text with `+C` appended, so alignment and scrolling count it (MATHPRINT.md 0.10, 7.1). The history text stays the bare answer |
 | `≈ value` | under the hero, from the stored decimal |
 | form chip | `exact`, or the current form name, followed by `F4` |
 | `≈` prefix | before an answer that is itself a numeric fallback (record flag `F_APPROX`) |
@@ -3123,8 +3123,12 @@ CAT = (
   equations, `V` vectors, `N` numbers, `F` functions and symbols.
 - **The F1 menu tabs** are Algebra (A), Calculus (C), Trig (T), More (S, D, V, N, F) and All (A-Z).
   The help text is written fresh: FlowCE's English catalog has gaps (cat §7.4).
-- **Templates and labels** follow FlowCE's required-argument rule (cat §1.3): `diff(` inserts
-  `diff(,)` with the caret in the first slot.
+- **Templates and labels** follow the TI-Nspire (MATHPRINT.md 0.10, 3): nothing is
+  prefilled. In MathPrint a command with a 2D template inserts that template with every box
+  empty (`diff(` → d/d□(□) as `diff(,)`, `integrate(` → `integrate(,,,)`, `limit(` →
+  `limit(,,,)`, `log(` → `log(,)`) and the caret in the first box in drawn order; any other
+  command inserts one empty box per required argument (FlowCE's required-argument rule, cat
+  §1.3). Classic inserts the required boxes only, as before.
 
 ### 15.4 Help line and F5 help
 
@@ -3348,7 +3352,7 @@ The palette is FlowCE's (cat §6.2), drawn with `ti_draw.set_color(r, g, b)`:
 |---|---|---|---|
 | BG | `#F7F8FA` | `#0C0F14` | stage |
 | INK | `#111419` | `#EAEEF3` | results, edit line |
-| SUB | `#6C7581` | `#86919E` | inputs, hints, `+ C`, `≈`, messages |
+| SUB | `#6C7581` | `#86919E` | inputs, hints, `≈`, messages |
 | LINE | `#DBE0E7` | `#262E3A` | separators |
 | ACC | `#245CCC` | `#64A5FF` | caret, selection, chip text |
 | ACCSOFT | `#E2EAFA` | `#182840` | selected entry, chips |
