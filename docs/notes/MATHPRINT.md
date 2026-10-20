@@ -211,6 +211,14 @@ device lenses) confirmed the defects below; each fix has a regression test in
 | A history input whose layout raised `MemoryError` was laid out again on every redraw | the failure is cached (§7.1, §7.3) |
 | The focused answer's cap subtracted the input height on a one-row entry (2/3 drawn as "2") | only for a two-row entry (§7.1) |
 | ICACHE's byte cost understated the native heap ~2× | measured cost formula, cap 4 KB (§7.3, §9.3) |
+| ∫'s `dx` slot height was not in its box: a template there drew outside the entry | folded into the box (§3) |
+| An empty Σ was 60 px: a fraction in a bound or a Σ in a fraction went over 76 and the line went 1D | tighter Σ/∫ geometry (§3, §6.2) |
+| Fraction bars were cut at the scroll edges without their digits | strokes cut by the view are skipped (§5.4) |
+| Empty slots filled in LINE had 1.25:1 (light) / 1.40:1 (dark) contrast | 1 px SUB outline (§5.4, §6.4) |
+| Fraction bars and the radical hook touched `+` (1 px) | 2 px side padding (§3) |
+| The caret sat left of an empty box and touched the fraction bar | 15-row caret on 2D lines, centred in an empty box (§6.1) |
+| The picker footer said `1-7` on the 6-row page 2, with no page cue | `Templates  n/2`, `1-n pick  <> page` (§3.2) |
+| Nested radicals drew their overbars 1 row apart | 3 rows apart (§3) |
 
 ---
 
@@ -513,11 +521,11 @@ today.
 
 | Template | Inserted by → buffer (caret) | 2D rendering (one 10 px font; boxes from `draw.frame/large`) | Slots, drawn order | Engine text |
 |---|---|---|---|---|
-| Fraction | 42, picker 1 → `(T)/(|)` or `(|)/()` | `frame('frac')`: bar at baseline−4, both operands centred, w = max+4, **+3 px trailing gap** | num, den | `a/b`; `(a+1)/(b-1)` |
+| Fraction | 42, picker 1 → `(T)/(|)` or `(|)/()` | `frame('frac')`: bar at baseline−4, both operands centred, w = max+8 with the bar 2 px in from each side (2 px over the operands, 2 px clear of the neighbours; §0.8), **+3 px trailing gap** | num, den | `a/b`; `(a+1)/(b-1)` |
 | Linear ÷ | 55 → `a/b` | entry: inline text; history: as a fraction | – | as typed |
 | Power | 51, picker 2 → `B^(|)` | `frame('sup')`: exponent bottom at `-(a*9//20)`, x = base.w+1 | exp | `x^2`, `x^(n+1)` |
 | Square | 61 → `B^(2)|` | as power | exp | `x^2` |
-| √ | 2nd 61, picker 3 → `sqrt(|)` | `frame('sqrt')` + 3 px | radicand | `sqrt(u)` |
+| √ | 2nd 61, picker 3 → `sqrt(|)` | `frame('sqrt')`: the hook 2 px in from the left, the overbar 2 px over the radicand (4 px over a radicand that is itself a radical, so nested overbars are 3 rows apart; §0.8) + 3 px | radicand | `sqrt(u)` |
 | ⁿ√ | 2nd 51, picker 4 → `surd(|,)` | `frame('root')` (index raised at the left) + 3 px | **index, radicand** | `surd(u,n)` |
 | eˣ | 2nd 81, picker 5 → `e^(|)` | power with base `e` | exp | `e^u` / `e^(u)` |
 | `exp(u)` (catalog or typed) | `exp(|)` | `frame('sup')` of leaf `e` and u | u | `exp(u)` |
@@ -525,9 +533,9 @@ today.
 | log_b | picker 7 → `log(,)`; PENDING puts the caret on b | text `log`, then b lowered 6 px at x 30, then `(u)` (text parens if one row, else stroked) + 3 px | **b, u** | `log(u,b)`; an empty b gives `log(u)` |
 | \|x\| | picker 8 → `abs(|)` | `frame('abs')` + 3 px | u | `abs(u)` |
 | ∫ | picker 9, catalog → `integrate(|,x)` | `large('integral')`, `d`, x; + 3 px | f, x | `integrate(f,x)` |
-| ∫ₐᵇ | picker 10 → `integrate(,x,|,)` | `large('integral')` with bounds + 3 px | **a, b, f, x** | `integrate(f,x,a,b)` |
+| ∫ₐᵇ | picker 10 → `integrate(,x,|,)` | `large('integral')` with bounds + 3 px. The sign spans the text cell and 4 rows each way; the lower bound starts 6 rows above its foot, the upper ends 7 rows below its top; the `dx` slot's height counts in the box (§0.8) | **a, b, f, x** | `integrate(f,x,a,b)` |
 | d/dx | picker 11, catalog → `diff(|,x)` | `frame('frac')` of `d` over `d x`, then f in parens (text parens if one row) + 3 px | **x, f** | `diff(f,x)` |
-| Σ | picker 12, catalog → `sum(,k,|,)` | `large('sum')`; `k=a` below, b above + 3 px | **k, a, b, f** | `sum(f,k,a,b)` |
+| Σ | picker 12, catalog → `sum(,k,|,)` | `large('sum')`; `k=a` below, b above (1 px off the sign, which spans the text cell and 2 rows each way: an empty Σ is 51 px, so a one-level fraction in a bound or a Σ in a fraction stays under the 76 px cap; §0.8) + 3 px | **k, a, b, f** | `sum(f,k,a,b)` |
 | lim | picker 13, catalog → `limit(,x,|)` | `large('limit')`, `x->a` below; the 4-argument form draws dir as a superscript on a; + 3 px | **x, a, (dir), f** | `limit(f,x,a[,dir])` |
 | Call | `sin(|)` … | text: name + `(` + args + `)`, merged into one run when one row high | args in order | as typed |
 | Group | `(|)` | text parens if one row, else `frame('paren')` | interior | as typed |
@@ -571,9 +579,10 @@ positions. The text prototype showed `integrate(,x,,)` with both at the same pix
 
 ### 3.2 Picker: `ui.picker()` (L2, CASUX, engine-free)
 
-- **Screen.** It is drawn like `menu.open`: full-screen BG, title `Templates` at (5, 2),
-  rule at 19, rows at `22 + 17*j`, the selected row prefixed `>`, a rule at 188, and the
-  footer `1-7 pick  CLEAR back` at (5, 192) in ACC. It runs its own `TS.wait_key` loop.
+- **Screen.** It is drawn like `menu.open`: full-screen BG, title `Templates  1/2` (the
+  page) at (5, 2), rule at 19, rows at `22 + 17*j`, the selected row prefixed `>`, a rule
+  at 188, and the footer `1-n pick  <> page  CLEAR back` at (5, 192) in ACC, `n` the rows
+  on the page (7, then 6; §0.8). It runs its own `TS.wait_key` loop.
 - **Pages.** 7 rows per page (a literal in `picker`, not a new global; `PAGE` is already a
   menu name). Page 1 holds rows 1–7 and page 2 rows 8–13, each numbered from 1.
 - **Keys.**
@@ -877,15 +886,19 @@ before every job and in `panic`.
 
 Draws, in color `c`, the items whose x-range meets `[x0, x1]` (item left edge ≤ `x1` and
 right edge ≥ `x0`; `x1 = 319` for "everything right of `x0`"). One call draws one kind:
-- `boxes=True`: only `'b'` items, as `D.rect` fills (the caller passes LINE). A box that
+- `boxes=True`: only `'b'` items, as a 1 px outline of four `D.clipped_line` strokes (the
+  caller passes SUB: the LINE fill of milestone C had 1.25:1 contrast, §0.8). A box that
   is the trailing missing operand at the caret (`2+|`; flag 1 and `pos == cur`) is skipped,
   so typing linear text never flashes a box. The color is set only if an item is drawn.
 - `boxes=False`: every other item: text through `D.text` with `clip`, lines and glyph
   strokes through `D.clipped_line` (the caller passes INK for the entry, SUB for history
-  inputs).
+  inputs). Text is clipped by whole characters, so a stroke cut by the clip's left or right
+  edge is skipped (a bar would otherwise stay without its digits); only a horizontal rule
+  wider than 30 px is drawn cut, 2 px clear of the scroll markers (§0.8).
 
-Splitting by kind is what keeps a full redraw at ≤ 6 `set_color`: all box passes run in the
-LINE batch and all ink passes in the SUB/INK batches (§6.4). It returns nothing. The caret
+Splitting by kind is what keeps a full redraw at ≤ 6 `set_color`: a full redraw draws the
+entry's boxes (from `EDL`) in its SUB batch, and all ink passes run in the SUB/INK batches
+(§6.4). It returns nothing. The caret
 is drawn by `epaint`.
 
 ---
@@ -911,9 +924,12 @@ is drawn by `epaint`.
 So there are at most 3 stage repaints per input, and none for linear input. Content top:
 `ytop = EY + (EH - h)//2`, which is 172 for one text row, as today.
 
-**Caret.** `D.line(cx-1, ytop+Y-1, cx-1, ytop+Y+15, INK)` with `cx = 10 + X[CUR] - EXOFF`.
-For a one-row line this is today's `x = 9+10k`, rows 171..187. Flat lines use today's
-formula exactly. `CARETC = 'INK'` is a single constant.
+**Caret.** On a 2D line `D.line(cx-1, ytop+Y, cx-1, ytop+Y+14, INK)` with
+`cx = 10 + X[CUR] - EXOFF`: the 15 rows of the text cell, so it stays 1 px clear of a
+fraction bar (17 rows touched it and drew an L); in an empty slot's box it is drawn 5 px
+further right, rows `ytop+Y+1 .. ytop+Y+11`, inside the outline (§0.8). Flat lines use
+today's formula exactly, `D.line(cx-1, ytop-1, cx-1, ytop+15)`: for a one-row line
+`x = 9+10k`, rows 171..187. `CARETC = 'INK'` is a single constant.
 
 ### 6.2 Height classes (text prototype)
 
@@ -921,8 +937,8 @@ formula exactly. `CARETC = 'INK'` is a single constant.
 |---|---|---|
 | text, √, \|x\|, calls | 15–19 | 20 |
 | x², a/b, ⁿ√, log_b | ≤ 36 | 40 |
-| ∫ab, Σ, nested fraction, fraction in an exponent | ≤ 56 | 60 |
-| Σ of a fraction, deeper nesting | ≤ 76 | 80 |
+| ∫ab, Σ (measured 44 and 51 empty), nested fraction, fraction in an exponent | ≤ 56 | 60 |
+| Σ of a fraction, a fraction bound, Σ in a fraction (69), ∫ with two fraction bounds (76), deeper nesting | ≤ 76 | 80 |
 | taller | – | 1D (§5.3) |
 
 ### 6.3 Horizontal scroll
@@ -955,8 +971,8 @@ formula exactly. `CARETC = 'INK'` is a single constant.
 3. **Full.** Paint everything in color batches:
    1. BG: screen.
    2. ACCSOFT: tabs and the selection band.
-   3. LINE: rules and boxes.
-   4. SUB: history inputs, messages, hint/footer.
+   3. LINE: rules.
+   4. SUB: the entry's empty-slot outlines, history inputs, messages, hint/footer.
    5. INK: status text, results, entry, caret, markers.
    6. ACC: chip and F-key labels.
 
@@ -966,16 +982,17 @@ formula exactly. `CARETC = 'INK'` is a single constant.
    - hint row when `HINTVIEW` changed;
    - entry when `LINE`, `CUR` or the geometry differ from `EKEY` (§0.6).
 
-   All BG fills come first, then LINE (boxes), SUB (hint), INK, and ACC (chip, only when
-   the status row repaints).
+   All BG fills come first, then SUB (boxes, hint), INK, and ACC (chip, only when the
+   status row repaints).
 5. **Entry paint (`epaint(full)`, L3).** Three paths, first match:
    - **Full entry repaint** — a full redraw, a flat line, or `EFLAT`/`XOFF`/`EXOFF`/`EH`/
      `theme`, content top or ascent changed: `rect(0, EY, 320, EH)`, then the row, or
-     `mrender(…, x0=10, x1=319, LINE, True)` and `mrender(…, INK, False)`, markers, caret.
+     `mrender(…, x0=10, x1=319, SUB, True)` (not in a full redraw, whose SUB batch draws
+     the boxes) and `mrender(…, INK, False)`, markers, caret.
    - **Caret only** — LINE (hence the display list) unchanged, only `CUR` moved (←/→,
      home/end, ↑/↓, `)`/`,` step-overs): erase the old caret with
      `rect(ocx-1, oy-1, 2, 17)` in BG (`ocx`, `oy` its old column and top), redraw the items
-     that meet columns `ocx-1..ocx` (`mrender(…, x0=ocx-1, x1=ocx, …)`: boxes in LINE, then
+     that meet columns `ocx-1..ocx` (`mrender(…, x0=ocx-1, x1=ocx, …)`: boxes in SUB, then
      the rest in INK; a text run is redrawn whole at the same place), then the new caret.
      Typically 2 colors, 1 fill, 0–2 texts, 1–3 lines, independent of the line length.
      It does not rely on any font property: whatever ink the strip held is redrawn.

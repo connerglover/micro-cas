@@ -195,23 +195,27 @@ def frame(boxes, kind, ids, ti=-1):                              #@L 5
     b = boxes[ids[0]]
     w, a, d = b[:3]
     decor = []
-    if kind == 'frac':
-        c = boxes[ids[1]]
-        w = max(w,c[0])+4
+    if kind == 'frac':                  # the bar 2 px wider than the operands each side, and
+        c = boxes[ids[1]]               # 2 px clear of the neighbours ('+' never touches it)
+        w = max(w,c[0])+8
         ny, dy = -AXIS-1-d, -AXIS+2+c[1]
         children = [(ids[0],(w-b[0])//2,ny),(ids[1],(w-c[0])//2,dy)]
         a, d = a-ny, c[2]+dy
-        decor = [('l',0,-AXIS,w-1,-AXIS)]
+        decor = [('l',2,-AXIS,w-3,-AXIS)]
     elif kind == 'sup':
         c = boxes[ids[1]]
         sy = -(a*9//20)-c[2]
         children = [(ids[0],0,0),(ids[1],w+1,sy)]
         w, a = w+c[0]+1, max(a,c[1]-sy)
     elif kind in ('sqrt','root'):
-        pad = max(0,boxes[ids[1]][0]-5) if kind == 'root' else 0
-        children = [(ids[0],pad+12,0)]
-        decor = [('g',pad,-a-2,'sqrt',12,a+d+2),('l',pad+10,-a-2,pad+w+13,-a-2)]
-        w, a = w+pad+14, a+2
+        pad = max(0,boxes[ids[1]][0]-5) if kind == 'root' else 2
+        q = b
+        while q[5] == 'row' and len(q[3]) == 1:     # through the slot rows around it
+            q = boxes[q[3][0][0]]
+        g = 4 if q[5] in ('sqrt','root') else 2     # a nested radical: its own bar 3 rows
+        children = [(ids[0],pad+12,0)]              # below this one, not 1
+        decor = [('g',pad,-a-g,'sqrt',12,a+d+g),('l',pad+10,-a-g,pad+w+13,-a-g)]
+        w, a = w+pad+14, a+g
         if kind == 'root':
             c = boxes[ids[1]]
             children.append((ids[1],0,-(a//2)-c[2]))
@@ -241,7 +245,11 @@ def large(boxes, kind, ids, ti):                                 #@L 5
         decor = [('t',(col-3*CW)//2,-ASC,'lim')]
         a, d, w = max(a,ASC), max(d,DESC+1+lo[1]+lo[2]), col+5+f[0]
     else:
-        top, bottom = -ASC-6, DESC+6        # the stroked sign spans the integrand and more
+        # The stroked sign spans the text cell and 2 (sigma) or 4 (integral) rows more each
+        # way; the bounds sit close to it, so a sum or integral with a one-level fraction in
+        # a bound (or a sum in a fraction) fits the 76 px cap (MATHPRINT.md 5.3, 6.2).
+        e = 2 if kind == 'sum' else 4
+        top, bottom = -ASC-e, DESC+e
         lower, upper = (ids[2],ids[3]) if len(ids)>3 else (-1,-1)
         col = 12
         gx = 0
@@ -250,10 +258,10 @@ def large(boxes, kind, ids, ti):                                 #@L 5
             if kind == 'sum':               # bounds centered under and over the sigma
                 col = max(col,lo[0],hi[0])
                 gx = (col-12)//2
-                ly, uy = bottom+2+lo[1], top-1-hi[2]
+                ly, uy = bottom+1+lo[1], top-1-hi[2]
                 children.extend([(lower,(col-lo[0])//2,ly),(upper,(col-hi[0])//2,uy)])
             else:                           # integral bounds at the sign's lower and upper end
-                ly, uy = bottom-4+lo[1], top+5-hi[2]
+                ly, uy = bottom-6+lo[1], top+7-hi[2]
                 children.extend([(lower,13,ly),(upper,13,uy)])
                 col = 13+max(lo[0],hi[0])
             a, d = max(a,hi[1]-uy), max(d,ly+lo[2])
@@ -263,8 +271,10 @@ def large(boxes, kind, ids, ti):                                 #@L 5
         a, d, w = max(a,-top), max(d,bottom), prefix+f[0]
         if kind == 'integral':
             decor.append(('t',w+4,-ASC,'d'))
-            children.append((ids[1],w+5+CW,0))
-            w += 5+CW+boxes[ids[1]][0]
+            v = boxes[ids[1]]               # the variable slot, on the baseline: its height
+            children.append((ids[1],w+5+CW,0))  # counts too (a template typed into dx)
+            w += 5+CW+v[0]
+            a, d = max(a,v[1]), max(d,v[2])
     boxes.append((w,a,d,children,decor,kind,ti))
     return len(boxes)-1
 
@@ -1143,7 +1153,10 @@ def mrender(dl, dx, dy, clip, x0, x1, c, boxes, cur=-1):        #@L 4
                 continue
         if x > x1 or r < x0:
             continue
-        if first:
+        cut = x < clip[0] or r > clip[2]
+        if cut and k != 't' and k != 'b' and (k == 'g' or r - x < 3 * CW or item[2] != item[4]):
+            continue                    # a stroke cut by the view edge would lose its text,
+        if first:                       # which is clipped by whole characters (section 6.3)
             color(c)
             first = False
         x = item[1] + dx
@@ -1151,7 +1164,11 @@ def mrender(dl, dx, dy, clip, x0, x1, c, boxes, cur=-1):        #@L 4
         if k == 't':
             text(item[3], x, y, None, clip)
         elif k == 'l':
-            clipped_line(x, y, item[3] + dx, item[4] + dy, clip)
+            if cut:                     # a wide rule: kept 2 px clear of the scroll markers
+                clipped_line(x, y, item[3] + dx, item[4] + dy,
+                             (clip[0] + 2, clip[1], clip[2] - 2, clip[3]))
+            else:
+                clipped_line(x, y, item[3] + dx, item[4] + dy, clip)
         elif k == 'g':
             w = item[4]
             h = item[5]
@@ -1159,10 +1176,9 @@ def mrender(dl, dx, dy, clip, x0, x1, c, boxes, cur=-1):        #@L 4
             for j in range(0, len(g), 4):
                 clipped_line(x + g[j]*(w-1)//10, y + g[j+1]*(h-1)//10,
                              x + g[j+2]*(w-1)//10, y + g[j+3]*(h-1)//10, clip)
-        else:
-            left = max(x, clip[0])
-            top = max(y, clip[1])
-            right = min(r, clip[2])
-            bottom = min(y + item[4] - 1, clip[3])
-            if right > left and bottom > top:
-                rect(left, top, right - left + 1, bottom - top + 1)
+        else:                           # an empty slot: a 1 px outline (as on the Nspire)
+            b = y + item[4] - 1
+            clipped_line(x, y, r, y, clip)
+            clipped_line(x, b, r, b, clip)
+            clipped_line(x, y + 1, x, b - 1, clip)
+            clipped_line(r, y + 1, r, b - 1, clip)

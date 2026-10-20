@@ -256,3 +256,138 @@ def test_focused_answer_is_not_cut_when_the_entry_grows():
     texts = [c for c in TD.CALLS[last:] if c[0] == 'draw_text' and c[1] > 280 and
              c[2] < 190 - u.EH]
     assert any(c[3] == '2' for c in texts) and any(c[3] == '3' for c in texts), texts
+
+
+# -- looks: layout extents, the large operators, strokes, slots, caret, picker ------------------
+
+def _extent(m):
+    """The rows the display list of an mlayout result reaches, from its top-left corner."""
+    lo, hi = 10 ** 6, -10 ** 6
+    for it in m[1]:
+        if it[0] == 't':
+            a, b = it[2], it[2] + 14
+        elif it[0] == 'l':
+            a, b = min(it[2], it[4]), max(it[2], it[4])
+        elif it[0] == 'g':
+            a, b = it[2], it[2] + it[5] - 1
+        else:
+            a, b = it[2], it[2] + it[4] - 1
+        lo, hi = min(lo, a), max(hi, b)
+    return lo, hi
+
+
+def test_integral_variable_slot_counts_in_the_height():
+    s = KS.run('')
+    d = s.mods['draw']
+    for t in ('integrate(1,(1)/(2))', 'integrate(1,xsum(,k,,))', 'integrate(x,x)'):
+        m = d.mlayout(t, 2)
+        lo, hi = _extent(m)
+        assert 0 <= lo and hi < m[3] + m[4], (t, lo, hi, m[3], m[4])
+
+
+def test_caret_stays_in_the_entry_box_with_a_tall_variable_slot():
+    for script in ('{2nd,frac}{right}2{right}{right}{del}{frac}{frac}',
+                   '{2nd,frac}{right}2{right}{right}{2nd,frac}{right}5'):
+        s = KS.run(script)
+        u = s.mods['ui']
+        ey = 190 - u.EH
+        caret = [c for c in TD.CALLS if c[0] == 'draw_line'][-1]
+        assert ey <= caret[2] and caret[4] <= 189, (script, caret, ey)
+
+
+def test_large_operators_with_one_fraction_level_stay_2d():
+    s = KS.run('')
+    d = s.mods['draw']
+    for t in ('sum(1,k,1,(n)/(2))', 'sum(1,k,(1)/(2),n)', '(sum(1,k,1,n))/(2)',
+              'integrate(1,x,(1)/(2),(3)/(2))', 'sum((1)/(k^(2)),k,1,n)'):
+        m = d.mlayout(t, 2)
+        assert m is not None, t
+        lo, hi = _extent(m)
+        assert 0 <= lo and hi < m[3] + m[4] <= 80, (t, lo, hi)
+    assert d.mlayout('sum(,k,,)', 2)[3] + d.mlayout('sum(,k,,)', 2)[4] <= 56
+    assert not KS.run('{frac}{2nd,frac}{right}5').mods['ui'].EFLAT
+
+
+def test_no_orphan_strokes_at_the_scroll_edges():
+    script = '1{frac}2{right}' + ''.join('+1{frac}%d{right}' % n for n in range(3, 14))
+    for tail in ('', '{2nd,left}'):
+        s = KS.run(script + tail)
+        u = s.mods['ui']
+        ey = 190 - u.EH
+        bars = set()
+        for it in u.EDL:
+            if it[0] == 'l':
+                bars.add(it[1:])
+        last = max(j for j in range(len(TD.CALLS)) if TD.CALLS[j][0] == 'fill_rect' and
+                   TD.CALLS[j][2] <= ey)
+        for c in TD.CALLS[last:]:
+            if c[0] == 'draw_line' and c[2] == c[4] and ey <= c[2] < 190:
+                assert c[1:] in bars, (tail, c)          # never a cut-off bar
+
+
+def _contrast(a, b):
+    def lum(c):
+        out = []
+        for v in c:
+            v = v / 255.0
+            out.append(v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4)
+        return 0.2126 * out[0] + 0.7152 * out[1] + 0.0722 * out[2]
+    x, y = sorted((lum(a), lum(b)))
+    return (y + 0.05) / (x + 0.05)
+
+
+def test_empty_slots_are_visible_in_both_themes():
+    for pre in ('', '{f3}{down}{enter}{clear}'):
+        s = KS.run(pre + '{frac}')
+        u, d = s.mods['ui'], s.mods['draw']
+        bg = d.COLORS['BG']
+        boxes = [it for it in u.EDL if it[0] == 'b']
+        assert len(boxes) == 2
+        colors = set()
+        color = None
+        for c in TD.CALLS:
+            if c[0] == 'set_color':
+                color = c[1:]
+            elif c[0] in ('fill_rect', 'draw_line') and color != bg:
+                for b in boxes:
+                    if b[1] <= c[1] < b[1] + b[3] and b[2] <= c[2] < b[2] + b[4]:
+                        colors.add(color)
+        assert colors and min(_contrast(c, bg) for c in colors) >= 3, (pre, colors)
+
+
+def test_fraction_bar_keeps_clear_of_its_neighbours():
+    s = KS.run('1{frac}2{right}+1{frac}3{enter}')
+    m = s.mods['draw'].mlayout('1/2+1/3', 1)
+    bars = sorted(it for it in m[0] if it[0] == 'l')
+    plus = [it for it in m[0] if it[0] == 't' and it[3] == '+'][0]
+    assert bars[0][3] <= plus[1] - 3 and bars[1][1] >= plus[1] + 10 + 2, (bars, plus)
+    m = s.mods['draw'].mlayout('2+(1)/(x)', 2)
+    bar = [it for it in m[1] if it[0] == 'l'][0]
+    assert bar[1] >= 20 + 2, m[1]                                 # '2+' is 20 px
+
+
+def test_caret_in_an_empty_slot_is_inside_its_box_and_clear_of_the_bar():
+    for script in ('{frac}', '{frac}{down}', '{frac}12'):
+        s = KS.run(script)
+        caret = [c for c in TD.CALLS if c[0] == 'draw_line'][-1]
+        bar = [it for it in s.mods['ui'].EDL if it[0] == 'l'][0]
+        assert caret[2] > bar[2] + 1 or caret[4] < bar[2] - 1, (script, caret, bar)
+        if script != '{frac}12':
+            box = [it for it in s.mods['ui'].EDL if it[0] == 'b'][0 if script == '{frac}' else 1]
+            assert box[1] < caret[1] < box[1] + box[3], (script, caret, box)
+
+
+def test_picker_footer_follows_the_page():
+    s = KS.run('{2nd,frac}{snap:a}' + '{down}' * 8 + '{snap:b}')
+    a, b = s.snap('a'), s.snap('b')
+    assert '1/2' in a and '1-7 pick' in a and '<> page' in a
+    assert '2/2' in b and '1-6 pick' in b and '1-7' not in b
+
+
+def test_nested_radicals_have_two_clear_overbars():
+    s = KS.run('')
+    m = s.mods['draw'].mlayout('sqrt(sqrt(2))', 2)
+    bars = sorted(set(it[2] for it in m[1] if it[0] == 'l' and it[2] == it[4]))
+    assert len(bars) == 2 and bars[1] - bars[0] >= 3, m[1]
+    m = s.mods['draw'].mlayout('sqrt(2)', 2)
+    assert m[3] + m[4] <= 18

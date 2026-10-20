@@ -372,8 +372,8 @@ def test_layout_never_raises_on_noise():
 def test_mrender_kinds_and_range():
     m = lay('(|)/()+1'.replace('|', ''))
     D.mrender(m[1], 10, 172, D.SCREEN, 10, 319, D.COLORS['LINE'], True)
-    fills = [c for c in TD.CALLS if c[0] == 'fill_rect']
-    assert len(fills) == 2 and not [c for c in TD.CALLS if c[0] in ('draw_text', 'draw_line')]
+    lines = [c for c in TD.CALLS if c[0] == 'draw_line']       # two 1 px outlines
+    assert len(lines) == 8 and not [c for c in TD.CALLS if c[0] in ('draw_text', 'fill_rect')]
     TD.reset()
     D.reset()
     D.mrender(m[1], 10, 172, D.SCREEN, 10, 319, D.COLORS['INK'], False)
@@ -390,7 +390,7 @@ def test_mrender_skips_the_trailing_box_at_the_caret():
     D.mrender(m[1], 10, 172, D.SCREEN, 10, 319, D.COLORS['LINE'], True, 6)
     assert not TD.CALLS
     D.mrender(m[1], 10, 172, D.SCREEN, 10, 319, D.COLORS['LINE'], True, 5)
-    assert [c[0] for c in TD.CALLS] == ['set_color', 'fill_rect']
+    assert [c[0] for c in TD.CALLS] == ['set_color'] + ['draw_line'] * 4
 
 
 # -- history inputs (mode 1) ----------------------------------------------------------------------

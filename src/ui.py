@@ -951,12 +951,13 @@ def picker():                                                  #@L 2
         D.rect(0, 0, 320, 210, C['BG'])
         D.line(0, 19, 319, 19, C['LINE'])
         D.line(0, 188, 319, 188)
+        n = min(7, len(TMPL) - page * 7)
         D.color(C['INK'])
-        D.text('Templates', 5, 2)
-        for j in range(page * 7, min(page * 7 + 7, len(TMPL))):
+        D.text('Templates  ' + str(page + 1) + '/2', 5, 2)
+        for j in range(page * 7, page * 7 + n):
             D.text(('>' if j == sel else ' ') + str(j - page * 7 + 1) + ' ' + TMPL[j][0], 5,
                    22 + 17 * (j - page * 7))
-        D.text('1-7 pick  CLEAR back', 5, 192, C['ACC'])
+        D.text('1-' + str(n) + ' pick  <> page  CLEAR back', 5, 192, C['ACC'])
         k = TS.wait_key()
         if k == 45 or k == 11 or k == 42:
             return None
@@ -995,12 +996,17 @@ def epaint(full):                                              #@L 3
     top = ey + (EH - h) // 2
     geo = (M is None, XOFF if M is None else 0, EXOFF, EH, C['BG'], top, asc)
     old = EKEY
+    box = False
     if M is None:
         cx = 9 + 10 * (CUR - XOFF)
         cy = top
     else:
         cx = 9 + M[5][CUR] - EXOFF
         cy = top + M[6][CUR]
+        for e in M[12]:
+            if e[0] == CUR and not e[1] & 1:
+                box = True              # the caret in the middle of the box (5.4)
+                cx += 5
     if not full and old is not None and old[0] == LINE and old[1] == CUR and old[2] == geo:
         return
     EKEY = (LINE, CUR, geo, cx, cy)
@@ -1037,7 +1043,7 @@ def epaint(full):                                              #@L 3
     if path == 1:
         x0 = old[3]
         D.rect(x0, old[4] - 1, 2, 17, C['BG'])
-        D.mrender(dl, 0, 0, clip, x0, x0 + 1, C['LINE'], True)
+        D.mrender(dl, 0, 0, clip, x0, x0 + 1, C['SUB'], True)
         D.mrender(dl, 0, 0, clip, x0, x0 + 1, ink, False)
     elif path == 2:
         x0 = min(cx, old[3])
@@ -1055,7 +1061,7 @@ def epaint(full):                                              #@L 3
                             x0 = x
         x0 = max(0, x0)
         D.rect(x0, ey, 320 - x0, EH, C['BG'])
-        D.mrender(dl, 0, 0, clip, x0, 319, C['LINE'], True)
+        D.mrender(dl, 0, 0, clip, x0, 319, C['SUB'], True)
         D.mrender(dl, 0, 0, clip, x0, 319, ink, False)
     else:
         if not full:
@@ -1063,7 +1069,8 @@ def epaint(full):                                              #@L 3
         if M is None:
             D.text(LINE[XOFF:XOFF + 30], 10, top, ink)
         else:
-            D.mrender(dl, 0, 0, clip, 0, 319, C['LINE'], True)
+            if not full:                # a full redraw draws the boxes in its SUB batch
+                D.mrender(dl, 0, 0, clip, 0, 319, C['SUB'], True)
             D.mrender(dl, 0, 0, clip, 0, 319, ink, False)
     if M is None:
         less = XOFF > 0
@@ -1076,7 +1083,12 @@ def epaint(full):                                              #@L 3
         D.text('<', 0, by, ink)
     if more and path != 1:
         D.text('>', 310, by, ink)
-    D.line(cx, cy - 1, cx, cy + 15, C[CARETC])
+    if M is None:                       # a flat line: today's caret
+        D.line(cx, cy - 1, cx, cy + 15, C[CARETC])
+    elif box:                           # inside an empty slot's box, clear of its outline
+        D.line(cx, cy + 1, cx, cy + 11, C[CARETC])
+    else:                               # the text cell: 1 px clear of a fraction bar
+        D.line(cx, cy, cx, cy + 14, C[CARETC])
 
 
 def redraw():                                                  #@L 2
@@ -1248,6 +1260,8 @@ def redraw():                                                  #@L 2
         D.text('cas-evo', 125, 58)
     clip = (0, 20, 319, sb - 1)
     D.color(C['SUB'])
+    if EDL is not None:                 # the entry's empty-slot boxes (epaint skipped them)
+        D.mrender(EDL, 0, 0, (10, ey, 309, 189), 0, 319, C['SUB'], True)
     for p in plan:
         if p[3] is None:
             D.text(hist[p[2]][0][:31], 5, p[0] + p[4], None, clip)

@@ -131,7 +131,7 @@ def test_content_and_caret_are_centred_in_the_box(editor):
     ytop = ey + (U.EH - m[3] - m[4]) // 2
     cx = 10 + m[5][U.CUR] - U.EXOFF
     cy = ytop + m[6][U.CUR]
-    assert TD.CALLS[-1] == ('draw_line', cx - 1, cy - 1, cx - 1, cy + 15)
+    assert TD.CALLS[-1] == ('draw_line', cx - 1, cy, cx - 1, cy + 14)   # clear of the bar
     assert TD.COLOR == D.COLORS['INK']                         # the caret is INK (CARETC)
 
 
