@@ -170,6 +170,8 @@ not match the code. Each section is edited to match.
 | `VIEWEND` recomputed "starting from SEL" | `redraw` plans backwards from `VIEWEND` (or `SEL` when `SEL > VIEWEND`); when `SEL` is above the page it runs a forward pass from `SEL` (the same height rules) and plans backwards again from the new `VIEWEND`: at most 3 passes, inline in `redraw`, because a helper at L3 could not call `D.mlayout` (L3) |
 | `DX` clamped when the focused answer is wider than 300 | Clamped to the focused answer's overflow in every full redraw, so to 0 when it has none (today's hero left `DX` growing with each → on a narrow answer) |
 | §12.7 "`TD.pixel` after each key" | `tests/test_mathprint_screen.py` drives `ui.key` engine-free from 7 seed lines, 200 sequences × 16 keys (text keys, templates, DEL, ←/→/↑/↓, home/end), and compares rows `EY..189` and the visible texts with a forced full entry repaint (`EDIFF = False`, `EKEY = None`) |
+| `VIEW = (theme, MODE, SEL, VIEWEND, DX, len(hist), EH)` | (Verification of milestone C.) `VIEW` also holds `span`, the focused answer's overflow at the last full redraw, and `redraw` clamps `DX` to it before comparing: ←/→ on an empty line with an answer that fits made a full 6-color redraw only to clamp `DX` back to 0 (§10: a no-op key draws nothing) (§6.4) |
+| History input: 1D when the layout returns None or raises `MemoryError` | (Verification of milestone C.) Any `Exception` from the mode-1 layout draws that input 1D. A layout bug on one history input otherwise raised out of every full redraw, so every key ended in `panic` until the history was cleared; `EFAIL` only guards the entry line (§7.1) |
 | Budgets | CVUI measured 1284 lines / 34.0 KB: budget `('ui', 'CVUI', 'R', 1400, 37)`. CASUX ~30.9 KB, CASUI ~3.9 KB (`build/release.py`) |
 
 ---
@@ -888,7 +890,9 @@ formula exactly. `CARETC = 'INK'` is a single constant.
    `D.mlayout` for the entry. Defensively, `redraw` paints the entry flat whenever
    `EDMAP is None or EDMAP[0] != LINE` (for example a test calling `u.redraw()` right after
    `panic`), so it can never index a stale map.
-2. **Full or partial.** `full = FULL or VIEW != (theme, MODE, SEL, VIEWEND, DX, len(hist), EH)`.
+2. **Full or partial.** `full = FULL or VIEW != (theme, MODE, SEL, VIEWEND, DX, len(hist), EH, span)`,
+   `span` the focused answer's overflow at the last full redraw; `DX` is first clamped to it,
+   so ←/→ on an answer that fits is a no-op key (§0.6).
    `HERO` is deliberately not in `VIEW`: it only changes the hint row, which `HINTVIEW`
    covers. (With `HERO` in `VIEW`, the first key after every answer, and every key that
    empties or un-empties LINE, would cost a full 6-color redraw, contradicting the
@@ -981,7 +985,7 @@ today.
 
 | Part | Rule |
 |---|---|
-| Input | `D.mlayout(e[0], 1)`. If it returns None, raises `MemoryError`, or `w > 300` or `h > 60` (`LISTH`; §0.6), use 1D `e[0][:31]` (h 15). Drawn at x 5 through `mrender(…, SUB, False)` in the SUB batch. |
+| Input | `D.mlayout(e[0], 1)`. If it returns None, raises (`MemoryError`, or any `Exception`: a layout bug; §0.6), or `w > 300` or `h > 60` (`LISTH`; §0.6), use 1D `e[0][:31]` (h 15). Drawn at x 5 through `mrender(…, SUB, False)` in the SUB batch. |
 | Result, `R_ANS` | `D.layout(e[1], 300, 92)` (see above). Rendered right-aligned (`scrollx = min(0, w-300)`) into the view `(10, y, 300, cap)`; the focused entry uses `DX` (clamped to `w - 300`) when `w > 300`, with `<`/`>` at its row centre. |
 | Result, `R_MSG` | SUB text, right-aligned at `310-10*len`; the focused one wraps into ≤ 3 lines of 30. |
 | One row | If `in.w + res.w + 20 ≤ 300` and the result is ≤ 60 high (§0.6): baselines aligned, result right edge at 309. |

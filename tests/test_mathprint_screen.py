@@ -430,3 +430,50 @@ def test_status_draw_forces_the_status_row_back():
     u.redraw()
     assert fills() == [('fill_rect', -1, -1, 321, 20)]
     assert 'Calculating' not in TD.screen_text()
+
+
+def test_input_layout_bug_draws_the_input_1d_and_the_shell_keeps_working(monkeypatch):
+    """A history input whose layout raises (a layout bug, not MemoryError) must not panic every
+    later redraw: with the history on screen, no key could ever paint the shell again."""
+    s = KS.run('1/2{enter}')
+    u, d = s.mods['ui'], s.mods['draw']
+    real = d.mlayout
+
+    def bug(text, mode):
+        if mode == 1:
+            raise ValueError('layout bug')
+        return real(text, mode)
+
+    monkeypatch.setattr(d, 'mlayout', bug)
+    d.clear_cache()
+    TD.reset()
+    u.FULL = True
+    u.redraw()
+    assert '1/2' in TD.screen_text()
+    u.key(92)
+    assert u.LINE == '1'
+
+
+@pytest.mark.parametrize('k', [LEFT, RIGHT])
+def test_scroll_key_on_a_narrow_answer_draws_nothing(k):
+    """An answer that fits has nothing to scroll: <-/-> on the empty line is a no-op key
+    (MATHPRINT.md 10), not a full redraw."""
+    s = KS.run('2+3{enter}')
+    u = s.mods['ui']
+    TD.reset()
+    u.key(k)
+    u.key(k)
+    assert u.DX == 0
+    assert TD.CALLS == []
+
+
+def test_welcome_keeps_its_colors(editor):
+    """No history: the title in ink, the two lines under it in gray, as before."""
+    TD.reset()
+    U.FULL = True
+    U.redraw()
+    colors = dict((t[2], t[3]) for t in TD.texts())
+    assert colors['cas-evo'] == D.COLORS['INK']
+    assert colors['Exact algebra and calculus'] == D.COLORS['SUB']
+    assert colors['Type math, or press menu'] == D.COLORS['SUB']
+    assert TD.COUNTS['set_color'] <= 6

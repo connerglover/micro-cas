@@ -1072,7 +1072,10 @@ def redraw():                                                  #@L 2
     sv = (STATUS[:room()], MOD, deg)
     hv = (left, right, ey)
     chip = CHIPS[MOD]
-    if not FULL and VIEW == (theme, MODE, SEL, VIEWEND, DX, n, EH):
+    span = VIEW[7] if VIEW is not None else DX
+    if DX > span:                   # the focused answer's overflow at the last full redraw:
+        DX = span                   # <-/-> past it is a no-op key, not a full redraw
+    if not FULL and VIEW == (theme, MODE, SEL, VIEWEND, DX, n, EH, span):
         st = sv != STATVIEW
         ht = hv != HINTVIEW
         if st:
@@ -1111,7 +1114,7 @@ def redraw():                                                  #@L 2
             inp = None
             try:
                 inp = D.mlayout(f[0], 1)
-            except MemoryError:
+            except Exception:       # MemoryError, or a layout bug: drawn 1D, the shell lives on
                 gc.collect()
             if inp is None or inp[1] > VIEWW or inp[2] + inp[3] > LISTH:
                 inp = None
@@ -1218,7 +1221,7 @@ def redraw():                                                  #@L 2
     for i in range(5):
         D.text(FKEYS[i], 64*i + (63 - 10*len(FKEYS[i])) // 2, 193)
     D.text(right, 315 - 10*len(right), ey - 17)
-    VIEW = (theme, MODE, SEL, VIEWEND, DX, n, EH)
+    VIEW = (theme, MODE, SEL, VIEWEND, DX, n, EH, span)
     FULL = False
     STATVIEW = sv
     HINTVIEW = hv
