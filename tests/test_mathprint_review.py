@@ -73,7 +73,7 @@ def test_parse_memory_error_degrades_tidy_structure_and_paste():
     d.mparse = failing
     try:
         assert u.tidy('(1)/(4)') == '(1)/(4)'
-        assert u.structure('1/4') == '1/4'
+        assert u.tidy('1/4', 1) == '1/4'
         d.ICACHE[:] = []
         u.LINE, u.CUR, u.MODE, u.SEL, u.EMODEL = '', 0, 1, 0, None
         u.key(21)
@@ -315,7 +315,7 @@ def test_no_orphan_strokes_at_the_scroll_edges():
         u = s.mods['ui']
         ey = 190 - u.EH
         bars = set()
-        for it in u.EDL:
+        for it in KS.painted(u):
             if it[0] == 'l':
                 bars.add(it[1:])
         last = max(j for j in range(len(TD.CALLS)) if TD.CALLS[j][0] == 'fill_rect' and
@@ -341,7 +341,7 @@ def test_empty_slots_are_visible_in_both_themes():
         s = KS.run(pre + '{frac}')
         u, d = s.mods['ui'], s.mods['draw']
         bg = d.COLORS['BG']
-        boxes = [it for it in u.EDL if it[0] == 'b']
+        boxes = [it for it in KS.painted(u) if it[0] == 'b']
         assert len(boxes) == 2
         colors = set()
         color = None
@@ -370,10 +370,10 @@ def test_caret_in_an_empty_slot_is_inside_its_box_and_clear_of_the_bar():
     for script in ('{frac}', '{frac}{down}', '{frac}12'):
         s = KS.run(script)
         caret = [c for c in TD.CALLS if c[0] == 'draw_line'][-1]
-        bar = [it for it in s.mods['ui'].EDL if it[0] == 'l'][0]
+        bar = [it for it in KS.painted(s.mods['ui']) if it[0] == 'l'][0]
         assert caret[2] > bar[2] + 1 or caret[4] < bar[2] - 1, (script, caret, bar)
         if script != '{frac}12':
-            box = [it for it in s.mods['ui'].EDL if it[0] == 'b'][0 if script == '{frac}' else 1]
+            box = [it for it in KS.painted(s.mods['ui']) if it[0] == 'b'][0 if script == '{frac}' else 1]
             assert box[1] < caret[1] < box[1] + box[3], (script, caret, box)
 
 

@@ -125,13 +125,13 @@ def test_panic_works_without_ui_or_layout_phase(monkeypatch, reason, message):
     before = (u.LINE, u.CUR, s.ans, tuple(s.hist[0]))
     with monkeypatch.context() as patch:
         for module, names in ((u, ('redraw', 'enclosing', 'wrapped', 'empty_slot', 'tidy',
-                                   'structure', 'emodel', 'edkey', 'picker', 'edins', 'eddel',
+                                   'emodel', 'edkey', 'picker', 'edins', 'eddel',
                                    'edmove', 'edvert', 'paste', 'empty_map', 'edslot', 'edterm',
                                    'leave', 'put', 'bmatch', 'spans', 'keep', 'blank', 'insert',
                                    'epaint', 'TMPL', 'PREFILL', 'PLAIN', 'SECOND', 'ALPHA', 'HINT',
-                                   'ALIAS')),
-                              (d, ('layout', 'paint', 'tree', 'measure', 'place', 'render',
-                                   'TPL', 'TGAP', 'MPREC', 'MFNT', 'mlayout', 'mflat', 'mcall',
+                                   'ALIAS', 'kmap', 'hint', 'tmpl', 'TN')),
+                              (d, ('layout', 'glyph', 'tree', 'measure', 'place', 'render',
+                                   'TPL', 'TGAP', 'MPREC', 'MFNT', 'mlayout', 'mflat', 'mcall', 'mname',
                                    'mstop', 'mlex', 'mparse', 'mpush', 'mshut', 'mreduce',
                                    'mbox', 'tleaf', 'mplace', 'mmark', 'mrender'))):
             for name in names:

@@ -9,6 +9,29 @@ import node as K
 ON_EVO = {'set_color', 'fill_rect', 'draw_text', 'draw_line'}
 
 
+def lay(s, width=300, height=92):
+    """draw.layout's (dl, w, asc, h) as a dict; whether the text fell back to one plain line,
+    and the box kinds, come from the parts layout() runs (tree, measure)."""
+    dl, w, asc, h = D.layout(s, width, height)
+    try:
+        code = P.rpn(P.lex(s))
+        if len(code) > 400:
+            raise ValueError('layout size')
+        boxes, root = D.measure(D.tree(code))
+        kinds, fallback = set(b[5] for b in boxes), False
+    except Exception:
+        kinds, fallback = set(), True
+    return {'dl': dl, 'w': w, 'h': h, 'asc': asc, 'desc': h - asc, 'vw': width, 'vh': height,
+            'overflow': w > width or h > height, 'fallback': fallback, 'kinds': kinds}
+
+
+def paint(box, x, y, scrollx=0, scrolly=0):
+    """The answer view's drawing: box in its view (x, y, vw, vh), shifted left by scrollx and
+    up by scrolly, clipped to the view and the screen (ui.redraw draws answers this way)."""
+    clip = (max(x, 0), max(y, 0), min(x + box['vw'] - 1, D.W - 1), min(y + box['vh'] - 1, D.H - 1))
+    D.render(box['dl'], x - scrollx, clip, y - scrolly)
+
+
 @pytest.fixture(autouse=True)
 def screen(monkeypatch):
     # ui.engine() hands draw its engine modules on the device; here the test does it
@@ -38,23 +61,23 @@ def cells(calls):
     ('[x,2/3]', 'list'), ('x=1,x=2', 'row'), ('O(x^6)', 'call'),
 ])
 def test_special_layout(source, kind):
-    box = D.layout(source)
+    box = lay(source)
     assert not box['fallback'], source
     assert kind in box['kinds']
     assert box['w'] > 0 and box['h'] > 0
     assert all(isinstance(v, int) for item in box['dl'] for v in item[1:3])
     # every item lies inside the box: nothing is drawn above, below or beside it
-    D.paint(box, 0, 20)
+    paint(box, 0, 20)
     for left, top, right, bottom in cells(TD.CALLS):
         assert 0 <= left and right < box['w'] and 20 <= top and bottom < 20 + box['h'], source
 
 
 def test_fraction_is_stacked_and_exponent_is_raised():
-    frac = D.layout('2/3')
+    frac = lay('2/3')
     texts = [a for a in frac['dl'] if a[0] == 't']
     assert texts[0][2] != texts[1][2]
     assert any(a[0] == 'l' for a in frac['dl'])
-    power = D.layout('x^(y^2)')
+    power = lay('x^(y^2)')
     ts = {a[3]: a for a in power['dl'] if a[0] == 't'}
     assert all(len(a) == 4 for a in ts.values())        # one font: no size field
     assert ts['2'][2] < ts['y'][2] < ts['x'][2]          # each script level is raised again
@@ -65,14 +88,14 @@ def test_scripts_stay_sensible_with_one_font():
     for source, most in (('x^2', 25), ('2/3', 35), ('x^(y^2)', 40),
                          ('integrate(x,x,0,1)', 50), ('sum(k^2,k,1,10)', 62),
                          ('limit(sin(x)/x,x,0)', 42), ('surd(x,3)', 26)):
-        box = D.layout(source)
+        box = lay(source)
         assert box['h'] <= most, (source, box['h'])
 
 
 def test_fitting_scroll_and_clip():
-    box = D.layout('abcdefghij+klmnopqrstuvwxyz', width=60, height=36)
+    box = lay('abcdefghij+klmnopqrstuvwxyz', width=60, height=36)
     assert box['overflow'] and box['w'] > 60
-    D.paint(box, 10, 20, scrollx=25)
+    paint(box, 10, 20, scrollx=25)
     assert cells(TD.CALLS)
     for left, top, right, bottom in cells(TD.CALLS):
         assert 10 <= left and right < 70 and 20 <= top and bottom < 56
@@ -83,32 +106,32 @@ def test_fitting_scroll_and_clip():
 
 
 def test_negative_scroll_centers_and_the_screen_clips():
-    box = D.layout('2/3')
-    D.paint(box, 10, 40, (box['w'] - 300) // 2, (box['h'] - 92) // 2)
+    box = lay('2/3')
+    paint(box, 10, 40, (box['w'] - 300) // 2, (box['h'] - 92) // 2)
     xs = [c[0] for c in cells(TD.CALLS)]
     assert all(140 <= x <= 170 for x in xs)
     TD.reset()
     D.reset()
-    D.paint(D.layout('x+1'), 300, 200)                  # mostly off the screen
+    paint(lay('x+1'), 300, 200)                  # mostly off the screen
     assert TD.OFFSCREEN == []
 
 
 def test_parser_session_and_arena_untouched():
     before = K.NN
-    box = D.layout('x+1')
+    box = lay('x+1')
     assert K.NN == before and not box['fallback']
 
 
 def test_caps_and_messages_fallback():
-    assert D.layout('(' * 25 + 'x' + ')' * 25)['fallback']
-    assert D.layout('+'.join(['x'] * 202))['fallback']
-    assert D.layout('does not exist: left 0, right 1')['fallback']
+    assert lay('(' * 25 + 'x' + ')' * 25)['fallback']
+    assert lay('+'.join(['x'] * 202))['fallback']
+    assert lay('does not exist: left 0, right 1')['fallback']
 
 
 def test_cache_bounds():
-    D.layout('sqrt(2)')
+    lay('sqrt(2)')
     for n in range(10):
-        D.layout('x+' + str(n))
+        lay('x+' + str(n))
     assert len(D.CACHE) <= 6 and D.CACHE_BYTES <= 4096
     D.clear_cache()
     assert not D.CACHE and D.CACHE_BYTES == 0
@@ -116,8 +139,8 @@ def test_cache_bounds():
 
 def test_palette_and_native_calls():
     D.theme(1)
-    box = D.layout('sqrt(2)/pi')
-    D.paint(box, 10, 20)
+    box = lay('sqrt(2)/pi')
+    paint(box, 10, 20)
     assert set(TD.COUNTS) <= ON_EVO
     assert all(a[0] != 'draw_text' or all(ord(c) < 128 for c in a[3]) for a in TD.CALLS)
     assert D.COLORS['BG'] == (12, 15, 20)
@@ -127,8 +150,8 @@ def test_palette_and_native_calls():
 @pytest.mark.parametrize('s', ['1/(x+1)', 'x^(y^2)', 'sqrt(x+1)',
     'integrate(x^2,x,0,1)', 'sum(k^2,k,1,10)', 'limit(sin(x)/x,x,0)', 'surd(x+1,3)'])
 def test_layout_text_cells_do_not_overlap(s):
-    box = D.layout(s)
-    D.paint(box, 0, 0)
+    box = lay(s)
+    paint(box, 0, 0)
     assert not TD.OVERDRAW
 
 
@@ -140,7 +163,7 @@ def test_every_t1_print_golden_parses():
             continue
         parts = line.split('|', 2)
         if len(parts) == 3 and not parts[-1].startswith('!'):
-            assert not D.layout(parts[-1])['fallback'], line
+            assert not lay(parts[-1])['fallback'], line
 
 
 # -- the EVO helpers: exact rectangles, the text anchor, clipping and the color cache ----------
@@ -204,9 +227,9 @@ def test_wrap():
 def test_cache_is_lru():
     D.clear_cache()
     for n in range(6):
-        D.layout('x+' + str(n))
-    D.layout('x+0')                         # a hit moves it to the end
-    D.layout('x+9')                         # so x+1 gives way, not x+0
+        lay('x+' + str(n))
+    lay('x+0')                         # a hit moves it to the end
+    lay('x+9')                         # so x+1 gives way, not x+0
     keys = [c[0][0] for c in D.CACHE]
     assert 'x+0' in keys and 'x+1' not in keys
     D.clear_cache()

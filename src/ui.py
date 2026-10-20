@@ -39,7 +39,7 @@ VIEW = None         # what the stage showed at the last redraw
 EXOFF = 0           # pixel scroll of a 2D entry (XOFF scrolls a flat one, in characters)
 EH = 20             # entry box height: 20, 40, 60 or 80
 EDMAP = None        # the caret map of the last 2D layout of LINE (draw.mlayout mode 2), or None
-EDL = None          # the last painted entry: display list and key (diff paint)
+EDL = None          # the last painted entry: EDMAP's display list (as laid out) and key
 EKEY = None
 EMODEL = None       # (LINE, CLASSIC) of the model; None: rebuild at the next emodel()
 EFLAT = True        # LINE is drawn and edited as a flat (1D) line
@@ -69,39 +69,47 @@ CHIPS = ('', '2nd', 'a', 'a-lock', 'A-LOCK')
 # The TI-84 Evo keypad (TI's Evo key map and keypad notes): x^n left of sin (51; 2nd xRoot),
 # the fraction template on the CE's apps key (42), / * - + one row up (55 65 75 85), and < >
 # in the CE's + place (95), which switches representations: here the answer's forms (as F4).
-PLAIN = {32:'x', 42:'/', 51:'^', 52:'sin(', 53:'cos(', 54:'tan(', 55:'/', 61:'^2',
-         62:',', 63:'(', 64:')', 65:'*', 71:'log(', 72:'7', 73:'8', 74:'9',
-         75:'-', 81:'ln(', 82:'4', 83:'5', 84:'6', 85:'+', 91:'=>',
-         92:'1', 93:'2', 94:'3', 102:'0', 103:'.', 104:'-'}
-SECOND = {32:'t', 51:'surd(', 52:'asin(', 53:'acos(', 54:'atan(', 55:'pi', 61:'sqrt(',
-          62:'E', 63:'{', 64:'}', 65:'e', 71:'10^(', 75:'[', 81:'e^(',
-          85:']', 103:'i', 104:'ans()'}
-ALPHA = {32:'theta', 41:'a', 42:'b', 43:'c', 51:'d', 52:'e', 53:'f', 54:'g',
-         55:'h', 61:'i', 62:'j', 63:'k', 64:'l', 65:'m', 71:'n', 72:'o',
-         73:'p', 74:'q', 75:'r', 81:'s', 82:'t', 83:'u', 84:'v', 85:'w',
-         91:'x', 92:'y', 93:'z', 94:'theta', 102:' ', 103:"'"}
+# (key codes, texts): kmap(T, k) is the text of key k in table T, or None.
+PLAIN = (b' *34567=>?@AGHIJKQRSTU[\\]^fgh',
+         'x|/|^|sin(|cos(|tan(|/|^2|,|(|)|*|log(|7|8|9|-|ln(|4|5|6|+|=>|1|2|3|0|.|-')
+SECOND = (b' 34567=>?@AGKQUgh',
+         't|surd(|asin(|acos(|atan(|pi|sqrt(|E|{|}|e|10^(|[|e^(|]|i|ans()')
+ALPHA = (b' )*+34567=>?@AGHIJKQRSTU[\\]^fg',
+         "theta|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z|theta| |'")
 # The hint line's signatures (UI data, available before the engine loads; each fits the 31
 # columns). ALIAS repeats run.ALIAS (tests/test_run.py keeps the two equal).
-HINT = {'simplify': 'simplify(e)', 'expand': 'expand(e)', 'factor': 'factor(e,[x])',
-        'together': 'together(e)', 'solve': 'solve(eq,[x])', 'diff': 'diff(f,x,[n])',
-        'integrate': 'integrate(f,x,[a,b])', 'limit': 'limit(f,x,a,[dir])',
-        'taylor': 'taylor(f,x=a,[n])', 'partfrac': 'partfrac(e,[x])',
-        'sum': 'sum(f,k,a,b)', 'riemann': 'riemann(f,x,a,b,n,[method])',
-        'desolve': 'desolve(eq,[y])', 'grad': 'grad(f,[x,y,z])',
-        'polararea': 'polararea(r,t,a,b)', 'paramarea': 'paramarea(x,y,t,a,b)',
-        'arclen': 'arclen(f,x,a,b)', 'purge': 'purge(x,...)', 'approx': 'approx(e)'}
+HINT = (' simplify(e) expand(e) factor(e,[x]) together(e) solve(eq,[x]) diff(f,x,[n])'
+        ' integrate(f,x,[a,b]) limit(f,x,a,[dir]) taylor(f,x=a,[n]) partfrac(e,[x])'
+        ' sum(f,k,a,b) riemann(f,x,a,b,n,[method]) desolve(eq,[y]) grad(f,[x,y,z])'
+        ' polararea(r,t,a,b) paramarea(x,y,t,a,b) arclen(f,x,a,b) purge(x,...) approx(e) ')
 ALIAS = {'int': 'integrate', 'd': 'diff', 'deriv': 'diff', 'lim': 'limit', 'series': 'taylor',
          'ratnormal': 'together', 'dsolve': 'desolve', 'gradient': 'grad'}
 # The template picker (MATHPRINT.md 3.2): (label, text, caret); caret -1: the first empty slot
 # in drawn order (PENDING). Rows 1 and 2 are the fraction and power keys' actions.
-TMPL = (('n/d  fraction', '', 0), ('x^n  power', '', 0), ('sqrt  square root', 'sqrt()', 5),
-        ('n-root  nth root', 'surd(,)', 5), ('e^x', 'e^()', 3), ('10^x', '10^()', 4),
-        ('log_b  log base b', 'log(,)', -1), ('|x|  absolute value', 'abs()', 4),
-        ('int  integral', 'integrate(,x)', -1), ('int a..b  definite', 'integrate(,x,,)', -1),
-        ('d/dx  derivative', 'diff(,x)', -1), ('sum  k=a..b', 'sum(,k,,)', -1),
-        ('lim  limit', 'limit(,x,)', -1))
+TMPL = ('n/d  fraction##0;x^n  power##0;sqrt  square root#sqrt()#5;n-root  nth root#surd(,)#5;'
+        'e^x#e^()#3;10^x#10^()#4;log_b  log base b#log(,)#-1;|x|  absolute value#abs()#4;'
+        'int  integral#integrate(,x)#-1;int a..b  definite#integrate(,x,,)#-1;'
+        'd/dx  derivative#diff(,x)#-1;sum  k=a..b#sum(,k,,)#-1;lim  limit#limit(,x,)#-1')
+TN = 13
 # The prefilled second parameter of these rows (menub.insertion): it counts as empty for DEL.
 PREFILL = {'integrate': 'x', 'diff': 'x', 'limit': 'x', 'riemann': 'x', 'arclen': 'x', 'sum': 'k'}
+
+
+def hint(name):                                                #@L 4
+    """The hint-row signature of the command name (HINT), or ''."""
+    i = HINT.find(' ' + name + '(')
+    return HINT[i + 1:HINT.find(' ', i + 1)] if i >= 0 else ''
+
+
+def tmpl(j):                                                   #@L 3
+    """TMPL row j: [label, text, caret]."""
+    return TMPL.split(';')[j].split('#')
+
+
+def kmap(t, k):                                                #@L 3
+    """The text of key k in the key table t (PLAIN, SECOND, ALPHA), or None."""
+    i = t[0].find(bytes((k,))) if 0 < k < 256 else -1
+    return t[1].split('|')[i] if i >= 0 else None
 
 
 def clock():                                                   #@L 4
@@ -197,10 +205,15 @@ def wrapped(text):                                             #@L 3
     return '(' + text + ')'
 
 
-def tidy(s):                                                   #@L 3
+def tidy(s, back=0):                                           #@L 3
     """ENTER's text in MathPrint (docs/notes/MATHPRINT.md 1.3): drop the structure parens
     around a fraction operand or exponent that is one number or letter (x^(-1) also), when the
-    neighbours keep the meaning, and the empty base of log(u,). History stays short 1D text."""
+    neighbours keep the meaning, and the empty base of log(u,). History stays short 1D text.
+    back: recalled text instead (1.4): wrap each stacked-fraction operand and exponent that is
+    not one group in parens, so the recalled input is 2D again. A construct with an operand
+    that ends in a letter right before '(' is left as it is: x(2) is a product unless x is a
+    user function, and wrapping would change which. (The layout already keeps a fraction or
+    power over a name the engine may cut, a/bc, inline.) Past 256 characters: s unchanged."""
     r = None
     try:
         r = D.mparse(s, D.mlex(s), 1) if s else None
@@ -210,16 +223,30 @@ def tidy(s):                                                   #@L 3
         return s
     nodes = r[0]
     n = len(s)
-    cut = []
+    ins = []                                # (i, t): t goes before s[i]; '' drops s[i]
     for nd in nodes:
         k = nd[0]
+        if back:
+            if k != 'Q' and k != 'W':
+                continue
+            m = len(ins)
+            for o in ((nd[4][0], nd[4][1]) if k == 'Q' else (nd[4][1],)):
+                g = nodes[o]
+                e = g[2]
+                if e < n and s[e] == '(' and s[e - 1].isalpha():
+                    del ins[m:]
+                    break
+                if g[0] != 'G' or not g[4] & 2:
+                    ins.append((g[1], '('))
+                    ins.append((e, ')'))
+            continue
         cands = ()
         if k == 'Q':
             cands = ((nd[4][0], False), (nd[4][1], False))
         elif k == 'W':
             cands = ((nd[4][1], True),)
         elif k == 'T' and s[nd[1]:nd[4][0]] == 'log' and nodes[nodes[nd[3][1]][3][0]][0] == 'E':
-            cut.append(nodes[nd[3][0]][2])
+            ins.append((nodes[nd[3][0]][2], ''))
         for gi, power in cands:
             g = nodes[gi]
             if g[0] != 'G' or not g[4] & 2:
@@ -245,51 +272,8 @@ def tidy(s):                                                   #@L 3
                 continue                    # 2E+(3)/(4): 2E+3 would be one number (D.mlex)
             if c and (c.isalpha() or c.isdigit() or c in ".([!'^"):
                 continue
-            cut.append(a)
-            cut.append(b)
-    if not cut:
-        return s
-    cut.sort()
-    out = []
-    p = 0
-    for i in cut:
-        out.append(s[p:i])
-        p = i + 1
-    out.append(s[p:])
-    return ''.join(out)
-
-
-def structure(s):                                              #@L 3
-    """Recalled text in MathPrint (1.4): wrap each stacked-fraction operand and exponent that is
-    not one group in parens, so the recalled input is 2D again. A construct with an operand
-    that ends in a letter right before '(' is left as it is: x(2) is a product unless x is a
-    user function, and wrapping would change which. (The layout already keeps a fraction or
-    power over a name the engine may cut, a/bc, inline.) Past 256 characters: s unchanged."""
-    r = None
-    try:
-        r = D.mparse(s, D.mlex(s), 1) if s else None
-    except MemoryError:                     # recalled as the 1D text
-        gc.collect()
-    if r is None:
-        return s
-    nodes = r[0]
-    n = len(s)
-    ins = []
-    for nd in nodes:
-        k = nd[0]
-        if k != 'Q' and k != 'W':
-            continue
-        ops = (nd[4][0], nd[4][1]) if k == 'Q' else (nd[4][1],)
-        m = len(ins)
-        for o in ops:
-            g = nodes[o]
-            e = g[2]
-            if e < n and s[e] == '(' and s[e - 1].isalpha():
-                del ins[m:]
-                break
-            if g[0] != 'G' or not g[4] & 2:
-                ins.append((g[1], '('))
-                ins.append((e, ')'))
+            ins.append((a, ''))
+            ins.append((b, ''))
     if not ins:
         return s
     ins.sort()
@@ -298,7 +282,7 @@ def structure(s):                                              #@L 3
     for i, c in ins:
         out.append(s[p:i])
         out.append(c)
-        p = i
+        p = i if c else i + 1
     out.append(s[p:])
     t = ''.join(out)
     return s if len(t) > 256 else t
@@ -311,12 +295,8 @@ def empty_slot():                                              #@L 3
         i = LINE.find(token)
         while i >= 0 and token == ',)' and not CLASSIC:
             o = bmatch(LINE, i + 1, -1)
-            j = o                           # the call name as the layout reads it (D.mcall):
-            while j > 0 and (LINE[j-1].isalpha() or LINE[j-1].isdigit()):
-                j -= 1                      # 2log( and xlog( are log_b too
-            while j < o and LINE[j].isdigit():
-                j += 1
-            if o < 3 or j >= o or D.mcall(LINE, j, o) != o - 3 or LINE[o-3:o] != 'log':
+            # the call name as the layout reads it (D.mname): 2log( and xlog( are log_b too
+            if o < 3 or D.mname(LINE, o) != o - 3 or LINE[o-3:o] != 'log':
                 break
             if len(spans(o, i + 1)) != 2:
                 break
@@ -329,7 +309,7 @@ def empty_slot():                                              #@L 3
         while j and (LINE[j-1].isalpha() or LINE[j-1].isdigit()):
             j -= 1
         name = ALIAS.get(LINE[j:i], LINE[j:i])
-        if name in HINT or name in P.FNAMES:
+        if hint(name) or name in P.FNAMES:
             return i + 1
         while j < i and LINE[j].isdigit():
             j += 1
@@ -500,12 +480,7 @@ def edslot(i):                                                 #@L 4
         e = n
     if o < 0:
         return (a, e, 'R', 0, n, k, ns, False, 0)
-    j = o
-    while j and (s[j-1].isalpha() or s[j-1].isdigit()):
-        j -= 1
-    while j < o and s[j].isdigit():
-        j += 1
-    m = D.mcall(s, j, o) if j < o else -1
+    m = D.mname(s, o)
     if m >= 0:
         return (a, e, 'C', m, oe, k, ns, False, 1)
     return (a, e, 'G', o, oe, k, ns, False, 1)
@@ -784,12 +759,7 @@ def eddel():                                                   #@L 3
         o = c - 1
         cl = bmatch(s, o, 1)
         if cl >= 0:
-            j = o
-            while j and (s[j-1].isalpha() or s[j-1].isdigit()):
-                j -= 1
-            while j < o and s[j].isdigit():
-                j += 1
-            m = D.mcall(s, j, o) if j < o else -1
+            m = D.mname(s, o)
             if m < 0:
                 put(s[:o] + s[o+1:cl] + s[cl+1:], o)
                 return False
@@ -805,12 +775,7 @@ def eddel():                                                   #@L 3
     elif s[c - 1] in ')]}':
         o = bmatch(s, c - 1, -1)
         if o >= 0:
-            j = o
-            while j and (s[j-1].isalpha() or s[j-1].isdigit()):
-                j -= 1
-            while j < o and s[j].isdigit():
-                j += 1
-            m = D.mcall(s, j, o) if j < o else -1
+            m = D.mname(s, o)
             if m < 0:
                 m = o
             sp = spans(o, c - 1)
@@ -833,12 +798,12 @@ def edmove(d, mod):                                            #@L 3
         return
     M = EDMAP
     if M is not None and M[0] == LINE:
-        X, Y, RK, ORD = M[5], M[6], M[7], M[8]
+        X, Y, ORD = M[5], M[6], M[8]
         while CUR < n and X[CUR] < 0:
             CUR += 1
         x = X[CUR]
         y = Y[CUR]
-        r = RK[CUR] + d
+        r = ORD.index(CUR) + d
         while 0 <= r < len(ORD) and X[ORD[r]] == x and Y[ORD[r]] == y:
             r += d
         if 0 <= r < len(ORD):
@@ -930,7 +895,7 @@ def edkey(k, mod):                                             #@L 2
     elif mod == 1 and k == 51:
         put(LINE[:CUR] + 'surd(,)' + LINE[CUR:], CUR + 5)
     else:
-        t = SECOND.get(k) if mod == 1 else PLAIN.get(k)
+        t = kmap(SECOND if mod == 1 else PLAIN, k)
         if t is None:
             return
         if t in '([{':
@@ -953,11 +918,11 @@ def picker():                                                  #@L 2
         D.rect(0, 0, 320, 210, C['BG'])
         D.line(0, 19, 319, 19, C['LINE'])
         D.line(0, 188, 319, 188)
-        n = min(7, len(TMPL) - page * 7)
+        n = min(7, TN - page * 7)
         D.color(C['INK'])
         D.text('Templates  ' + str(page + 1) + '/2', 5, 2)
         for j in range(page * 7, page * 7 + n):
-            D.text(('>' if j == sel else ' ') + str(j - page * 7 + 1) + ' ' + TMPL[j][0], 5,
+            D.text(('>' if j == sel else ' ') + str(j - page * 7 + 1) + ' ' + tmpl(j)[0], 5,
                    22 + 17 * (j - page * 7))
         D.text('1-' + str(n) + ' pick  <> page  CLEAR back', 5, 192, C['ACC'])
         k = TS.wait_key()
@@ -966,13 +931,13 @@ def picker():                                                  #@L 2
         if k == 105:
             return sel
         if k == 25 or k == 34:
-            sel = (sel + (1 if k == 34 else -1)) % len(TMPL)
+            sel = (sel + (1 if k == 34 else -1)) % TN
         elif k == 24 or k == 26:
-            sel = min((1 - page) * 7 + sel % 7, len(TMPL) - 1)
+            sel = min((1 - page) * 7 + sel % 7, TN - 1)
         else:
-            t = PLAIN.get(k)
+            t = kmap(PLAIN, k)
             if t is not None and t.isdigit() and 0 < int(t) <= 7 and \
-                    page * 7 + int(t) <= len(TMPL):
+                    page * 7 + int(t) <= TN:
                 return page * 7 + int(t) - 1
 
 
@@ -982,8 +947,8 @@ def epaint(full):                                              #@L 3
     move on an unchanged 2D line: only a 2 px strip at the old caret and the items meeting it;
     a 2D text change: everything right of the leftmost change. Nothing when neither the line,
     the caret nor the geometry changed. full: the screen is already cleared. Every path stores
-    the painted display list (absolute coordinates, hidden boxes left out) in EDL and
-    (LINE, CUR, geometry, caret column, caret top) in EKEY."""
+    the painted display list in EDL (EDMAP's own, in layout coordinates: drawn at
+    10 - EXOFF, top; no copy) and (LINE, CUR, geometry, caret column, caret top) in EKEY."""
     global EDL, EKEY
     C = D.COLORS
     ey = 190 - EH
@@ -1022,49 +987,34 @@ def epaint(full):                                              #@L 3
                 if e[1] & 1 and (e[0] == CUR or e[0] == old[1]):
                     path = 2
     was = EDL
-    dl = None
-    if path == 1:
-        dl = was
-    elif M is not None:
-        dl = []
-        dx = 10 - EXOFF
-        for it in M[1]:
-            k = it[0]
-            if k == 't':
-                dl.append(('t', it[1] + dx, it[2] + top, it[3]))
-            elif k == 'l':
-                dl.append(('l', it[1] + dx, it[2] + top, it[3] + dx, it[4] + top))
-            elif k == 'g':
-                dl.append(('g', it[1] + dx, it[2] + top, it[3], it[4], it[5]))
-            elif not (it[6] & 1 and it[5] == CUR):
-                dl.append(('b', it[1] + dx, it[2] + top, it[3], it[4], 0, 0))
-    EDL = dl
+    dl = EDL = None if M is None else M[1]
+    dx = 10 - EXOFF
     clip = (10, ey, 309, 189)
     ink = C['INK']
     x0 = 0
     if path == 1:
         x0 = old[3]
         D.rect(x0, old[4] - 1, 2, 17, C['BG'])
-        D.mrender(dl, 0, 0, clip, x0, x0 + 1, C['SUB'], True)
-        D.mrender(dl, 0, 0, clip, x0, x0 + 1, ink, False)
+        D.mrender(dl, dx, top, clip, x0, x0 + 1, C['SUB'], True, CUR)
+        D.mrender(dl, dx, top, clip, x0, x0 + 1, ink, False)
     elif path == 2:
-        x0 = min(cx, old[3])
+        x0 = min(cx, old[3]) - dx       # in display-list coordinates (the geometry is the same)
         n = max(len(was), len(dl))
         for j in range(n):
             a = was[j] if j < len(was) else None
             b = dl[j] if j < len(dl) else None
-            if a != b:
-                for it in (a, b):
-                    if it is not None:
-                        x = it[1]
-                        if it[0] == 'l' and it[3] < x:
-                            x = it[3]
-                        if x < x0:
-                            x0 = x
-        x0 = max(0, x0)
+            for it in (a, b):           # a trailing box shown or hidden at either caret: changed
+                if it is not None and (a != b or it[0] == 'b' and it[6] & 1 and
+                                       (it[5] == CUR or it[5] == old[1])):
+                    x = it[1]
+                    if it[0] == 'l' and it[3] < x:
+                        x = it[3]
+                    if x < x0:
+                        x0 = x
+        x0 = max(0, x0 + dx)
         D.rect(x0, ey, 320 - x0, EH, C['BG'])
-        D.mrender(dl, 0, 0, clip, x0, 319, C['SUB'], True)
-        D.mrender(dl, 0, 0, clip, x0, 319, ink, False)
+        D.mrender(dl, dx, top, clip, x0, 319, C['SUB'], True, CUR)
+        D.mrender(dl, dx, top, clip, x0, 319, ink, False)
     else:
         if not full:
             D.rect(0, ey, 320, EH, C['BG'])
@@ -1072,8 +1022,8 @@ def epaint(full):                                              #@L 3
             D.text(LINE[XOFF:XOFF + 30], 10, top, ink)
         else:
             if not full:                # a full redraw draws the boxes in its SUB batch
-                D.mrender(dl, 0, 0, clip, 0, 319, C['SUB'], True)
-            D.mrender(dl, 0, 0, clip, 0, 319, ink, False)
+                D.mrender(dl, dx, top, clip, 0, 319, C['SUB'], True, CUR)
+            D.mrender(dl, dx, top, clip, 0, 319, ink, False)
     if M is None:
         less = XOFF > 0
         more = len(LINE) > XOFF + 30
@@ -1123,7 +1073,7 @@ def redraw():                                                  #@L 2
                 :29 - len(right)]
     else:
         name = enclosing()
-        left = HINT.get(ALIAS.get(name, name), '')[:31]
+        left = hint(ALIAS.get(name, name))[:31]
     deg = R is not None and R.SET['deg']
     sv = (STATUS[:room()], MOD, deg)
     hv = (left, right, ey)
@@ -1184,16 +1134,16 @@ def redraw():                                                  #@L 2
             b = lines = None
             if f[2] == R.R_ANS:
                 b = D.layout(f[1], VIEWW, HEROH)
-                rw = b['w']
-                ra = b['asc']
+                rw = b[1]
+                ra = b[2]
                 cap = LISTH
                 if i == fi:         # the stage's height, less the input's when it goes under it
                     cap = sb - 21
-                    if iw + rw + 20 > VIEWW or b['h'] > LISTH:
+                    if iw + rw + 20 > VIEWW or b[3] > LISTH:
                         cap -= ih + 2
                     cap = max(15, min(HEROH, cap))
                     span = max(0, rw - VIEWW)
-                rh = min(b['h'], cap)
+                rh = min(b[3], cap)
             else:
                 lines = D.wrap(f[1], 30)[:3] if i == fi else [f[1][:30]]
                 rw = 0
@@ -1251,7 +1201,7 @@ def redraw():                                                  #@L 2
         if b is not None:
             y = p[0] + p[7]
             x = 310 - p[8] if p[8] <= VIEWW else 10 - (DX if p[2] == fi else 0)
-            D.render(b['dl'], x, (10, max(20, y), 309, min(sb - 1, y + p[9] - 1)), y)
+            D.render(b[0], x, (10, max(20, y), 309, min(sb - 1, y + p[9] - 1)), y)
             if p[2] == fi and span:
                 y += p[9] // 2 - 7
                 if DX:
@@ -1263,7 +1213,7 @@ def redraw():                                                  #@L 2
     clip = (0, 20, 319, sb - 1)
     D.color(C['SUB'])
     if EDL is not None:                 # the entry's empty-slot boxes (epaint skipped them)
-        D.mrender(EDL, 0, 0, (10, ey, 309, 189), 0, 319, C['SUB'], True)
+        D.mrender(EDL, 10 - EXOFF, EKEY[2][5], (10, ey, 309, 189), 0, 319, C['SUB'], True, CUR)
     for p in plan:
         if p[3] is None:
             D.text(hist[p[2]][0][:31], 5, p[0] + p[4], None, clip)
@@ -1364,11 +1314,12 @@ def key(k):                                                    #@L 1
     if MOD < 3:
         MOD = 0
     hist = R.HIST if R is not None else []
-    if mod >= 2 and k in ALPHA:
+    al = kmap(ALPHA, k) if mod >= 2 else None
+    if al is not None:
         line, at = LINE, CUR
         if k == 103 and not CLASSIC:
             line, at = wrapend(line, at, 0)     # the prime, like !: (x^(2))'
-        t = ALPHA[k].upper() if mod == 4 else ALPHA[k]
+        t = al.upper() if mod == 4 else al
         put(line[:at] + t + line[at:], at + len(t))
     elif k == 22 and mod == 1:
         return QUIT
@@ -1395,7 +1346,7 @@ def key(k):                                                    #@L 1
             if CLASSIC:
                 insert(e[0] if mod == 1 else wrapped(e[1]))
             elif mod == 1:
-                paste(structure(e[0]), None)
+                paste(tidy(e[0], 1), None)
             else:
                 paste(wrapped(e[1]), e[1])
         elif mod == 1:
@@ -1403,7 +1354,7 @@ def key(k):                                                    #@L 1
                 ENTRYPOS = min(ENTRYPOS+1, len(hist)-1) if LINE == LASTENTRY else 0
                 LINE = hist[-1-ENTRYPOS][0]
                 if not CLASSIC:
-                    LINE = structure(LINE)
+                    LINE = tidy(LINE, 1)
                 CUR = len(LINE)
                 LASTENTRY = LINE
         else:
@@ -1445,26 +1396,7 @@ def key(k):                                                    #@L 1
         if EMODEL != (LINE, CLASSIC):
             emodel()                    # the menu may have switched Classic
         if choice is not None:
-            text, wrap, offset = choice
-            if wrap and (CUR == len(LINE) or not CLASSIC and not LINE[CUR:].strip(')]}')) and \
-                    (LINE or R.ANS is not None):   # MathPrint: only closers after the caret
-                first = LINE or 'ans()'
-                j = text.find('(') + 1
-                text = text[:j] + first + text[j:]
-                offset += len(first)
-                if len(text) > 256:
-                    STATUS, text = 'Input limit: 256 characters', None
-                else:
-                    LINE, CUR = '', 0
-            if text is not None:
-                if not CLASSIC and not wrap and text in ('=', '!=', '<', '<=', '>', '>='):
-                    leave(0)
-                line, at = LINE, CUR
-                if not CLASSIC and text == '!':
-                    line, at = wrapend(line, at, 0)     # x^(2)|! is (x^(2))!
-                if put(line[:at] + text + line[at:], at + offset) and not CLASSIC and \
-                        '(' in text:
-                    PENDING = (at, at + len(text))
+            R.need('menub').apply(choice)   # CASMNU is loaded: the menu just ran
     elif k == 42 and mod == 1 and not CLASSIC:
         row = picker()
         FULL = True
@@ -1473,10 +1405,10 @@ def key(k):                                                    #@L 1
         elif row == 1:
             edins('pow')
         elif row is not None:
-            text, at = TMPL[row][1], CUR
-            if put(LINE[:at] + text + LINE[at:],
-                   at + (TMPL[row][2] if TMPL[row][2] >= 0 else text.find('(') + 1)) and \
-                    TMPL[row][2] < 0:
+            text, at = tmpl(row)[1], CUR
+            c = int(tmpl(row)[2])
+            if put(LINE[:at] + text + LINE[at:], at + (c if c >= 0 else text.find('(') + 1)) and \
+                    c < 0:
                 PENDING = (at, at + len(text))
     elif not CLASSIC:
         edkey(k, mod)
@@ -1498,7 +1430,7 @@ def key(k):                                                    #@L 1
             MODE, SEL = 1, len(hist)-1
         DX = 0
     else:
-        text = SECOND.get(k) if mod == 1 else PLAIN.get(k)
+        text = kmap(SECOND if mod == 1 else PLAIN, k)
         if text is not None:
             if not LINE and R is not None and R.ANS is not None and \
                     k in (51, 55, 61, 65, 75, 85, 91, 95) and mod == 0:
@@ -1592,8 +1524,9 @@ def panic(reason):                                             #@L 1
 
 
 # Boot order (MATHPRINT.md 0.8): the view pack CASUX is imported right after this module, and
-# the engine's resident packs only at the first ENTER or menu. Held until then, this block keeps
-# the low heap free, so CASUX loads above it and engine() puts the resident engine there:
-# shedding CASUX during a computation then leaves one hole at the top, not one under the engine
-# (native ui_calculus passed down to about 188 KB without it, 180 KB with it).
+# the engine's resident packs only at the first ENTER or menu. This block keeps the low heap
+# free while CASUX loads, so CASUX sits above it; boot() releases it at once, and the engine
+# later loads into that low heap: shedding CASUX during a computation then leaves one hole at
+# the top, not one under the engine (native ui_calculus needed about 194 KB without the block,
+# 180 KB with it, whether it is released at boot or held until the engine loads).
 BALLAST = bytearray(80000) if hasattr(gc, 'mem_free') and gc.mem_free() > 144000 else None

@@ -91,11 +91,10 @@ def test_catalog_stops_in_drawn_order(s, order, drawn, owners):
     line, dl, w, asc, desc, X, Y, RK, ORD, SL, SLOTS, CONS, EMPTY = m
     assert ORD == order, (s, ORD)
     assert sorted(ORD) == stops(m)
-    for r in range(len(ORD)):
-        assert RK[ORD[r]] == r
+    assert RK is None                       # edmove ranks a stop by ORD.index (no RK table)
     for i in range(len(s) + 1):
         if X[i] < 0:
-            assert RK[i] == -1 and Y[i] == -1
+            assert Y[i] == -1 and i not in ORD
     if drawn is not None:
         assert texts(dl) == drawn, (s, texts(dl))
     assert ''.join(row[2] for row in SLOTS) == owners, (s, SLOTS)
@@ -447,12 +446,12 @@ def test_tidy(s, want):
     ('1/f(x)', '(1)/(f(x))'), ('1/2x', '(1)/(2)x'), ('2/xsqrt(4)', '(2)/(x)sqrt(4)'),
 ])
 def test_structure(s, want):
-    assert U.structure(s) == want
+    assert U.tidy(s, 1) == want
 
 
 def test_structure_falls_back_past_256():
     s = '+'.join(['1/2'] * 60)[:255]
-    assert U.structure(s) == s
+    assert U.tidy(s, 1) == s
 
 
 # the round trip needs the engine: tidy(structure(s)) gives the same run.go record as s
@@ -503,5 +502,5 @@ def record(s):
 
 @pytest.mark.parametrize('s', corpus())
 def test_round_trip_through_the_engine(s):
-    t = U.tidy(U.structure(s))
-    assert record(t) == record(s), (s, U.structure(s), t)
+    t = U.tidy(U.tidy(s, 1))
+    assert record(t) == record(s), (s, U.tidy(s, 1), t)

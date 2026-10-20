@@ -89,7 +89,7 @@ def test_hint_line_works_before_the_engine_loads():
     assert 'run' not in s.mods
     assert 'integrate(f,x,[a,b])' in s.screen
     import ui as U
-    assert all(len(h) <= 31 for h in U.HINT.values())     # the hint line has 31 columns
+    assert all(len(h) <= 31 for h in U.HINT.split())      # the hint line has 31 columns
 
 
 # -- (b) the first ENTER loads the engine; later commands reuse it -----------------------------

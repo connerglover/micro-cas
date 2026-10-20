@@ -824,3 +824,47 @@ def test_enter_on_a_failed_line_does_not_parse_it_again(monkeypatch):
     monkeypatch.setattr(d, 'mparse', failing)
     job = u.key(ENTER)
     assert calls == [] and job == ('eval', '(1)/(2)')
+
+
+# The key, hint and template tables are strings (a dict of 30 short strings costs about three
+# times the heap of one string on the device); these are the tables they encode.
+KEYS_PLAIN = {32: 'x', 42: '/', 51: '^', 52: 'sin(', 53: 'cos(', 54: 'tan(', 55: '/', 61: '^2',
+              62: ',', 63: '(', 64: ')', 65: '*', 71: 'log(', 72: '7', 73: '8', 74: '9',
+              75: '-', 81: 'ln(', 82: '4', 83: '5', 84: '6', 85: '+', 91: '=>',
+              92: '1', 93: '2', 94: '3', 102: '0', 103: '.', 104: '-'}
+KEYS_SECOND = {32: 't', 51: 'surd(', 52: 'asin(', 53: 'acos(', 54: 'atan(', 55: 'pi',
+               61: 'sqrt(', 62: 'E', 63: '{', 64: '}', 65: 'e', 71: '10^(', 75: '[', 81: 'e^(',
+               85: ']', 103: 'i', 104: 'ans()'}
+KEYS_ALPHA = {32: 'theta', 41: 'a', 42: 'b', 43: 'c', 51: 'd', 52: 'e', 53: 'f', 54: 'g',
+              55: 'h', 61: 'i', 62: 'j', 63: 'k', 64: 'l', 65: 'm', 71: 'n', 72: 'o',
+              73: 'p', 74: 'q', 75: 'r', 81: 's', 82: 't', 83: 'u', 84: 'v', 85: 'w',
+              91: 'x', 92: 'y', 93: 'z', 94: 'theta', 102: ' ', 103: "'"}
+HINTS = {'simplify': 'simplify(e)', 'expand': 'expand(e)', 'factor': 'factor(e,[x])',
+         'together': 'together(e)', 'solve': 'solve(eq,[x])', 'diff': 'diff(f,x,[n])',
+         'integrate': 'integrate(f,x,[a,b])', 'limit': 'limit(f,x,a,[dir])',
+         'taylor': 'taylor(f,x=a,[n])', 'partfrac': 'partfrac(e,[x])',
+         'sum': 'sum(f,k,a,b)', 'riemann': 'riemann(f,x,a,b,n,[method])',
+         'desolve': 'desolve(eq,[y])', 'grad': 'grad(f,[x,y,z])',
+         'polararea': 'polararea(r,t,a,b)', 'paramarea': 'paramarea(x,y,t,a,b)',
+         'arclen': 'arclen(f,x,a,b)', 'purge': 'purge(x,...)', 'approx': 'approx(e)'}
+TEMPLATES = (('n/d  fraction', '', 0), ('x^n  power', '', 0), ('sqrt  square root', 'sqrt()', 5),
+             ('n-root  nth root', 'surd(,)', 5), ('e^x', 'e^()', 3), ('10^x', '10^()', 4),
+             ('log_b  log base b', 'log(,)', -1), ('|x|  absolute value', 'abs()', 4),
+             ('int  integral', 'integrate(,x)', -1), ('int a..b  definite', 'integrate(,x,,)', -1),
+             ('d/dx  derivative', 'diff(,x)', -1), ('sum  k=a..b', 'sum(,k,,)', -1),
+             ('lim  limit', 'limit(,x,)', -1))
+
+
+def test_string_tables_decode_to_the_key_hint_and_template_tables():
+    for table, want in ((U.PLAIN, KEYS_PLAIN), (U.SECOND, KEYS_SECOND), (U.ALPHA, KEYS_ALPHA)):
+        assert len(table[0]) == len(table[1].split('|')) == len(want)
+        for k in range(256):
+            assert U.kmap(table, k) == want.get(k), k
+    for name, sig in HINTS.items():
+        assert U.hint(name) == sig
+    assert len(U.HINT.split()) == len(HINTS)
+    for name in ('', 'sin', 'integ', 'integrat', 'x', 'egrate'):
+        assert U.hint(name) == ''
+    assert U.TN == len(TEMPLATES)
+    for j, (label, text, caret) in enumerate(TEMPLATES):
+        assert U.tmpl(j) == [label, text, str(caret)]

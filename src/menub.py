@@ -58,3 +58,29 @@ def recall():                                                 #@L 3
         params, body = R.FUNCS[name]
         rows.append((name + '(' + ','.join(params) + ')', body, name))
     return rows
+
+
+def apply(choice):                                             #@L 3
+    """Put a menu's choice (text, wrap, offset) in the entry (ui.key, MATHPRINT.md 3): a
+    wrapping command takes the line (or ans()) as its first argument when only closers follow
+    the caret in MathPrint (Classic: the caret at the end); a relation leaves its group first
+    and ! wraps a power before it; a call's text is PENDING until its slots are filled."""
+    text, wrap, offset = choice
+    line, at = U.LINE, U.CUR
+    if wrap and (at == len(line) or not U.CLASSIC and not line[at:].strip(')]}')) and \
+            (line or U.R.ANS is not None):
+        first = line or 'ans()'
+        j = text.find('(') + 1
+        text = text[:j] + first + text[j:]
+        offset += len(first)
+        if len(text) > 256:
+            U.STATUS = 'Input limit: 256 characters'
+            return
+        U.LINE, U.CUR = '', 0
+    if not U.CLASSIC and not wrap and text in ('=', '!=', '<', '<=', '>', '>='):
+        U.leave(0)
+    line, at = U.LINE, U.CUR
+    if not U.CLASSIC and text == '!':
+        line, at = U.wrapend(line, at, 0)   # x^(2)|! is (x^(2))!
+    if U.put(line[:at] + text + line[at:], at + offset) and not U.CLASSIC and '(' in text:
+        U.PENDING = (at, at + len(text))

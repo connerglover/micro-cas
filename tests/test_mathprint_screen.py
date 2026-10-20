@@ -220,15 +220,15 @@ def test_caret_move_cost_is_flat(editor, monkeypatch):
 def test_trailing_box_appears_when_the_caret_leaves_it(editor):
     press([92, PLUS])                                          # 1+| : flat, no box
     press([92, FRAC, 93, RIGHT, PLUS])                         # 1+(1)/(2)+|  (2D, box hidden)
-    boxes = [i for i in U.EDL if i[0] == 'b']
+    boxes = [i for i in KS.painted(U) if i[0] == 'b']
     assert boxes == []
     press([LEFT])
-    assert [i for i in U.EDL if i[0] == 'b']
+    assert [i for i in KS.painted(U) if i[0] == 'b']
     pixels, texts = entry_pixels(), entry_texts()
     repaint_entry()
     assert entry_pixels() == pixels and entry_texts() == texts
     press([RIGHT])
-    assert not [i for i in U.EDL if i[0] == 'b']
+    assert not [i for i in KS.painted(U) if i[0] == 'b']
     pixels = entry_pixels()
     repaint_entry()
     assert entry_pixels() == pixels
@@ -379,8 +379,8 @@ def test_page_shows_at_most_pagemax_and_every_layout_is_cached():
 def test_wide_focused_answer_scrolls_with_dx():
     s = KS.run('expand((x+1)^12){enter}' + '{right}' * 40)
     u = s.mods['ui']
-    box = s.mods['draw'].layout(s.hist[-1][1], 300, 92)
-    assert u.DX == box['w'] - 300
+    w = s.mods['draw'].layout(s.hist[-1][1], 300, 92)[1]
+    assert u.DX == w - 300
     assert any(t[2] == '<' and t[0] == 0 for t in s.texts)
     assert not any(t[2] == '>' and t[0] == 310 for t in s.texts)
     assert s.offscreen == [] and s.overdraw == []

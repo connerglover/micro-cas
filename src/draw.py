@@ -375,13 +375,11 @@ def measure(specs):                                             #@L 4
 
 
 def place(boxes, root):                                        #@L 4
-    dl, kinds = [],[]
+    dl = []
     work = [(root,0,boxes[root][1])]
     while work:
         n,x,y = work.pop()
         b = boxes[n]
-        if b[5] not in kinds:
-            kinds.append(b[5])
         for item in b[4]:
             if item[0]=='l':
                 dl.append(('l',x+item[1],y+item[2],x+item[3],y+item[4]))
@@ -390,7 +388,7 @@ def place(boxes, root):                                        #@L 4
         for j in range(len(b[3])-1,-1,-1):
             child,dx,dy = b[3][j]
             work.append((child,x+dx,y+dy))
-    return dl,kinds
+    return dl
 
 
 def layout(s, width=300, height=92):                            #@L 3
@@ -403,7 +401,6 @@ def layout(s, width=300, height=92):                            #@L 3
             cached = CACHE.pop(j)
             CACHE.append(cached)
             return cached[1]
-    fallback = False
     try:
         code = P.rpn(P.lex(s))
         if len(code)>400:
@@ -412,10 +409,9 @@ def layout(s, width=300, height=92):                            #@L 3
     except Exception:
         boxes = []
         root = leaf(boxes,s[:4000])
-        fallback = True
-    dl,kinds = place(boxes,root)
+    dl = place(boxes,root)
     w,a,d = boxes[root][:3]
-    result = {'dl':dl,'kinds':kinds,'w':w,'h':a+d,'asc':a,'desc':d,'fallback':fallback,'overflow':w>width or a+d>height,'vw':width,'vh':height}
+    result = (dl,w,a,a+d)
     cost = len(dl)*24+len(s)
     if cost<=4096:
         while CACHE and (len(CACHE)>=6 or CACHE_BYTES+cost>4096):
@@ -432,20 +428,18 @@ def render(dl, dx=0, clip=SCREEN, dy=0):                        #@L 4
         if item[0]=='l':
             clipped_line(x,y,item[3]+dx,item[4]+dy,clip)
         elif item[0]=='g':
-            name,w,h = item[3:]
-            g = GLYPHS[name]
-            for j in range(0, len(g), 4):
-                clipped_line(x+g[j]*(w-1)//10,y+g[j+1]*(h-1)//10,
-                             x+g[j+2]*(w-1)//10,y+g[j+3]*(h-1)//10,clip)
+            glyph(item,x,y,clip)
         else:
             text(item[3],x,y,None,clip)
 
 
-def paint(box,x,y,scrollx=0,scrolly=0):                         #@L 3
-    """Draw a layout in its view (x, y, vw, vh), shifted left by scrollx and up by scrolly
-    (negative values center a small answer), clipped to the view and the screen."""
-    clip = (max(x,0),max(y,0),min(x+box['vw']-1,W-1),min(y+box['vh']-1,H-1))
-    render(box['dl'],x-scrollx,clip,y-scrolly)
+def glyph(item, x, y, clip):                                   #@L 5
+    """Stroke the glyph item ('g', _, _, name, w, h) with its cell at x, y."""
+    w = item[4] - 1
+    h = item[5] - 1
+    g = GLYPHS[item[3]]
+    for j in range(0, len(g), 4):
+        clipped_line(x + g[j]*w//10, y + g[j+1]*h//10, x + g[j+2]*w//10, y + g[j+3]*h//10, clip)
 
 
 # -- MathPrint: the editor's engine-free 2D layout (docs/notes/MATHPRINT.md section 5) ------------
@@ -459,20 +453,25 @@ def mflat(s):                                                  #@L 4
         return False
     i = s.find('(')
     while i >= 0:
-        j = i
-        while j and (s[j-1].isalpha() or s[j-1].isdigit()):
-            j -= 1
-        while j < i and s[j].isdigit():
-            j += 1
-        if j < i:
-            j = mcall(s, j, i)
-            if j >= 0 and s[j:i] in TPL:
-                return False
+        j = mname(s, i)
+        if j >= 0 and s[j:i] in TPL:
+            return False
         i = s.find('(', i + 1)
     return True
 
 
-def mcall(s, i, j):                                            #@L 5
+def mname(s, o):                                               #@L 5
+    """Where the call name before the '(' at o starts as the engine reads it (letters and
+    digits before o, leading digits dropped, then mcall), or -1: no name or a product."""
+    j = o
+    while j and (s[j-1].isalpha() or s[j-1].isdigit()):
+        j -= 1
+    while j < o and s[j].isdigit():
+        j += 1
+    return mcall(s, j, o) if j < o else -1
+
+
+def mcall(s, i, j):                                            #@L 6
     """Where the call name starts in the name s[i:j] right before a '(' at j, as the engine
     reads it (parse.iscall, ti_rewrite, ti_implicit): -1 for a product (one letter but f, g, h:
     x(x+1) is x*(x+1); pi(2)); a later index when the letters before a function the engine
@@ -964,7 +963,8 @@ def mmark(M, i, x, y, dep, sl):                                #@L 5
 
 def mplace(s, nodes, boxes, root, mode):                       #@L 4
     """The display list of the boxes under root (text merged into one item per buffer run) and,
-    in mode 2, the caret map of section 4.1: (dl, X, Y, RK, ORD, SL, SLOTS, CONS, EMPTY)."""
+    in mode 2, the caret map of section 4.1: (dl, X, Y, None, ORD, SL, SLOTS, CONS, EMPTY); a
+    stop's rank is its index in ORD (the slot that held RK stays None)."""
     n = len(s)
     dl = []
     M = None
@@ -1081,17 +1081,15 @@ def mplace(s, nodes, boxes, root, mode):                       #@L 4
         if dp[i] >= 0:
             order[mq[i]] = i
     ORD = []
-    RK = [-1] * (n + 1)
     for i in order:
         if i >= 0:
-            RK[i] = len(ORD)
             ORD.append(i)
-    return dl, mx, my, RK, ORD, ms, slots, cons, empty
+    return dl, mx, my, None, ORD, ms, slots, cons, empty
 
 
 def mlayout(s, mode):                                          #@L 3
     """The MathPrint layout of a buffer (section 5.2). Mode 2, the editor (never cached):
-    (s, dl, w, asc, desc, X, Y, RK, ORD, SL, SLOTS, CONS, EMPTY). Mode 1, a history input
+    (s, dl, w, asc, desc, X, Y, None, ORD, SL, SLOTS, CONS, EMPTY). Mode 1, a history input
     (cached in ICACHE; every '/' stacked; no caret map or empty boxes): (dl, w, asc, desc).
     None past the caps of section 5.3: 160 characters, 24 open groups, 192 nodes, 76 px high.
     Display-list coordinates are relative to the content's top-left corner."""
@@ -1170,12 +1168,7 @@ def mrender(dl, dx, dy, clip, x0, x1, c, boxes, cur=-1):        #@L 4
             else:
                 clipped_line(x, y, item[3] + dx, item[4] + dy, clip)
         elif k == 'g':
-            w = item[4]
-            h = item[5]
-            g = GLYPHS[item[3]]
-            for j in range(0, len(g), 4):
-                clipped_line(x + g[j]*(w-1)//10, y + g[j+1]*(h-1)//10,
-                             x + g[j+2]*(w-1)//10, y + g[j+3]*(h-1)//10, clip)
+            glyph(item, x, y, clip)
         else:                           # an empty slot: a 1 px outline (as on the Nspire)
             b = y + item[4] - 1
             clipped_line(x, y, r, y, clip)

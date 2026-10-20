@@ -486,3 +486,22 @@ def run(script=(), program=None, fresh=True, latch_clear=False, words=True):
     for fn in AFTER_RUN:
         fn(sess)
     return sess
+
+
+def painted(u):
+    """The entry as ui.epaint last drew it: ui.EDL (mlayout's display list, kept as it is) in
+    screen coordinates, without the trailing box hidden at the caret (MATHPRINT.md 5.4)."""
+    if u.EDL is None:
+        return None
+    dx, top = 10 - u.EXOFF, u.EKEY[2][5]
+    out = []
+    for it in u.EDL:
+        if it[0] == 't':
+            out.append(('t', it[1] + dx, it[2] + top, it[3]))
+        elif it[0] == 'l':
+            out.append(('l', it[1] + dx, it[2] + top, it[3] + dx, it[4] + top))
+        elif it[0] == 'g':
+            out.append(('g', it[1] + dx, it[2] + top, it[3], it[4], it[5]))
+        elif not (it[6] & 1 and it[5] == u.CUR):
+            out.append(('b', it[1] + dx, it[2] + top, it[3], it[4], 0, 0))
+    return out
