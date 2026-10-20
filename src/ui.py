@@ -1208,8 +1208,6 @@ def redraw():                                                  #@L 2
                     D.text('<', 0, y)
                 if DX < span:
                     D.text('>', 310, y)
-    if not n and 72 < ey - 21:
-        D.text('cas-evo', 125, 58)
     clip = (0, 20, 319, sb - 1)
     D.color(C['SUB'])
     if EDL is not None:                 # the entry's empty-slot boxes (epaint skipped them)
@@ -1223,8 +1221,6 @@ def redraw():                                                  #@L 2
             for j in range(len(p[6])):
                 D.text(p[6][j], 310 - 10*len(p[6][j]), p[0] + p[7] + 17*j, None, clip)
     D.text(left, 5, ey - 17)
-    if not n and 98 < ey - 21:
-        D.text('Exact algebra and calculus', 30, 84)
     if not n and 118 < ey - 21:
         D.text('Type math, or press menu', 40, 104)
     D.color(C['ACC'])

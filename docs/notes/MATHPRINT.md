@@ -1094,7 +1094,7 @@ times (review, §0.8).
 | Two rows | Otherwise the input, then the result right-aligned 2 px below. |
 | Spacing | 3 px between entries. |
 | Selection | In MODE, an ACCSOFT `rect(0, top-1, 320, h+2)` behind the selected entry, drawn in the ACCSOFT batch. |
-| Welcome | No history: today's three texts, each drawn only if its row ends above `EY-21`. |
+| Empty page | No history: no title or tagline; only the gray hint line `Type math, or press menu`, drawn only if its row ends above `EY-21`. |
 
 ### 7.2 Scrolling
 

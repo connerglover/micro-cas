@@ -356,7 +356,8 @@ def test_boot_loads_only_the_ui(release_module):
     app = release_module.Release().run('{snap:boot}')
     kinds = set(app.meta['kinds'][n] for n in app.loads)
     assert kinds <= {'ui', 'view'}, app.loads
-    assert 'cas-evo' in app.snaps['boot'] or app.snaps['boot']
+    assert 'Type math, or press menu' in app.snaps['boot']
+    assert 'cas-evo' not in app.snaps['boot'] and 'Exact algebra' not in app.snaps['boot']
 
 
 def test_first_enter_loads_the_engine_once(release_module):

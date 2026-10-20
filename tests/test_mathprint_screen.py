@@ -467,13 +467,13 @@ def test_scroll_key_on_a_narrow_answer_draws_nothing(k):
     assert TD.CALLS == []
 
 
-def test_welcome_keeps_its_colors(editor):
-    """No history: the title in ink, the two lines under it in gray, as before."""
+def test_empty_page_is_plain(editor):
+    """No history: no title or tagline (the user asked for a plain page), only the gray hint
+    line where to start."""
     TD.reset()
     U.FULL = True
     U.redraw()
     colors = dict((t[2], t[3]) for t in TD.texts())
-    assert colors['cas-evo'] == D.COLORS['INK']
-    assert colors['Exact algebra and calculus'] == D.COLORS['SUB']
+    assert 'cas-evo' not in colors and 'Exact algebra and calculus' not in colors
     assert colors['Type math, or press menu'] == D.COLORS['SUB']
     assert TD.COUNTS['set_color'] <= 6
