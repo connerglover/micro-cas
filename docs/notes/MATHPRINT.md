@@ -21,8 +21,10 @@
 > settled a detail differently. Milestone B (the keys, §2–4, `emodel` and PENDING, §6.5,
 > recall/paste/ENTRY, §7.4, the picker, §3.2, the Classic setting, §8, and the keyscript
 > typist, §11.1) is implemented and tested (`tests/test_mathprint_keys.py`); §0.5 lists its
-> decisions. The entry is still drawn 1D (the raw buffer, today's row): the 2D entry, the
-> history page and the diff paint (§6.1–6.4, §7.1–7.3, §10) are milestone C.
+> decisions. Milestone C (the screen: rows and entry height, §6.1–6.3, the redraw with
+> `STATVIEW`/`HINTVIEW` and the entry paint `epaint` with its caret-strip and diff paths, §6.4,
+> the history page, §7.1–7.3, and the §10 cost pins) is implemented and tested
+> (`tests/test_mathprint_screen.py`, `tests/test_fastboot.py`); §0.6 lists its decisions.
 > All EVO timings below are estimates (host time × 75,
 > FASTBOOT.md); the draw-call counts come from the shim. Hardware acceptance needs an EVO
 > run.
@@ -152,6 +154,24 @@ contradicted itself or the code. Each section is edited to match.
 | Stage 2's log-base skip: the name before `(` is exactly `log` | The name as the layout reads it (`D.mcall`, after leading digits): `2log(100,)` and `xlog(100,)` draw log_b and `tidy` drops their base, but stage 2 refused them (§2.2) |
 | ENTER: `tidy(LINE)` | Not on the line a panic ran on (`LINE == EFAIL`): `tidy` parses it like the layout, which must not run again on it (§5.3); the structure parens are plain 1D text to the engine (§2.2) |
 
+### 0.6 Milestone C implementation notes (2026-10-20)
+
+Where the screen code settled a detail the sections below left open, or where the spec did
+not match the code. Each section is edited to match.
+
+| Spec said | Code does, and why |
+|---|---|
+| `EKEY = (LINE, CUR, XOFF, EXOFF, EH, EFLAT, theme)` | `EKEY = (LINE, CUR, geometry, caret column, caret top)` with geometry `(flat, XOFF, EXOFF, EH, theme BG, content top, ascent)`. The old caret's place is needed by the strip and diff paths, and a change of content top or ascent (a taller numerator with the same `EH`) moves every item and the markers' baseline, so it takes the full entry repaint (§6.4) |
+| `EDL`: the new absolute display list | The items of `EDMAP[1]` shifted to the screen, with the trailing box at the caret (flag 1, `pos == CUR`) left out and every `'b'` item's `pos`/`flags` set to 0: two lists then compare pairwise by what is drawn. A caret move that would show or hide such a box (onto or off a trailing `E`) takes the diff path, not the caret strip (§6.4) |
+| Caret strip `rect(ocx-1, oy-1, 2, 17)` | `rect(lx, cy-1, 2, 17)`, `lx` the column of the old caret line (`9 + X - EXOFF`) and `cy` its text top: the same two columns. `<` is repainted by the diff path only when `x0 < 10`; `>` whenever it shows (the diff region always reaches it, the caret strip never) |
+| Batch order BG, ACCSOFT, LINE, SUB, INK, ACC | Full: BG, ACCSOFT (tabs, band), LINE (rules, then the entry's boxes), INK (the entry, caret, status, answers), SUB (inputs, messages, hint), ACC (chip, labels, footer label): one `epaint` call paints the entry's two batches back to back, so it stays one L3 call and ≤ 6 colors. Partial: BG fills (status, hint, entry), LINE/INK (entry), INK (status), SUB (hint), ACC (footer label, chip) |
+| Footer: SUB hint row | Left part SUB, the right part (`exact  F4`) ACC, as today's hero drew it. `HINTVIEW = (left, right, EY)` |
+| History input: 1D if `h > 36`; one row if both heights ≤ 40 | 1D only past `LISTH` (60), one row when the result is ≤ 60 high and the widths fit. With 36 every ∫ₐᵇ and Σ input (48–60 px) fell back to `integrate(x^2,x,0,1)`, which is what MathPrint is meant to replace (screenshot review). A message result shares the row when it is one line |
+| `VIEWEND` recomputed "starting from SEL" | `redraw` plans backwards from `VIEWEND` (or `SEL` when `SEL > VIEWEND`); when `SEL` is above the page it runs a forward pass from `SEL` (the same height rules) and plans backwards again from the new `VIEWEND`: at most 3 passes, inline in `redraw`, because a helper at L3 could not call `D.mlayout` (L3) |
+| `DX` clamped when the focused answer is wider than 300 | Clamped to the focused answer's overflow in every full redraw, so to 0 when it has none (today's hero left `DX` growing with each → on a narrow answer) |
+| §12.7 "`TD.pixel` after each key" | `tests/test_mathprint_screen.py` drives `ui.key` engine-free from 7 seed lines, 200 sequences × 16 keys (text keys, templates, DEL, ←/→/↑/↓, home/end), and compares rows `EY..189` and the visible texts with a forced full entry repaint (`EDIFF = False`, `EKEY = None`) |
+| Budgets | CVUI measured 1284 lines / 34.0 KB: budget `('ui', 'CVUI', 'R', 1400, 37)`. CASUX ~30.9 KB, CASUI ~3.9 KB (`build/release.py`) |
+
 ---
 
 ## 1. Data model
@@ -167,7 +187,7 @@ contradicted itself or the code. Each section is edited to match.
 | `EDMAP` | `None` | Caret map of the last 2D layout of `LINE` (§5.2, "Result"), or `None` for a flat/1D line. |
 | `EMODEL` | `None` | `(LINE, CLASSIC)` for which `emodel()` last built the model. The model is rebuilt only when this differs, so a degraded line (`ED1D`, `EFAIL`) is not laid out again until the text changes, and the F3 Classic toggle rebuilds it. Set to `None` before every job and in `panic`. |
 | `EFLAT` | `True` | The current line is drawn and edited flat/1D (§5.1, §5.3). Set by `emodel()`. |
-| `EDL`, `EKEY` | `None` | Last painted entry: its display list (absolute coordinates) and `(LINE, CUR, XOFF, EXOFF, EH, EFLAT, theme)`. Used by the diff paint. |
+| `EDL`, `EKEY` | `None` | Last painted entry: its display list (absolute coordinates, hidden boxes left out) and `(LINE, CUR, geometry, caret column, caret top)`, geometry `(flat, XOFF, EXOFF, EH, theme, content top, ascent)` (§0.6). Used by the diff paint. |
 | `PENDING` | `None` | `(a, b)`: put the caret in the first empty slot (drawn order) inside `LINE[a:b]`. Resolved in `emodel()` (§6.5). |
 | `ED1D` | `False` | The current line is drawn 1D because the layout is over its caps or raised `MemoryError`. |
 | `EFAIL` | `None` | The `LINE` for which `panic` (reason 0 or 3) ran. While `LINE == EFAIL`, it is drawn 1D, so a failing layout is never retried in a loop. |
@@ -886,13 +906,13 @@ formula exactly. `CARETC = 'INK'` is a single constant.
 4. **Partial.** Each region repaints only if it changed:
    - status row when `STATVIEW != (STATUS[:room()], MOD, deg)`;
    - hint row when `HINTVIEW` changed;
-   - entry when `EKEY != (LINE, CUR, XOFF, EXOFF, EH, EFLAT, theme)`.
+   - entry when `LINE`, `CUR` or the geometry differ from `EKEY` (§0.6).
 
    All BG fills come first, then LINE (boxes), SUB (hint), INK, and ACC (chip, only when
    the status row repaints).
 5. **Entry paint (`epaint(full)`, L3).** Three paths, first match:
    - **Full entry repaint** — a full redraw, a flat line, or `EFLAT`/`XOFF`/`EXOFF`/`EH`/
-     `theme` changed: `rect(0, EY, 320, EH)`, then the row, or
+     `theme`, content top or ascent changed: `rect(0, EY, 320, EH)`, then the row, or
      `mrender(…, x0=10, x1=319, LINE, True)` and `mrender(…, INK, False)`, markers, caret.
    - **Caret only** — LINE (hence the display list) unchanged, only `CUR` moved (←/→,
      home/end, ↑/↓, `)`/`,` step-overs): erase the old caret with
@@ -961,10 +981,10 @@ today.
 
 | Part | Rule |
 |---|---|
-| Input | `D.mlayout(e[0], 1)`. If it returns None, raises `MemoryError`, or `w > 300` or `h > 36`, use 1D `e[0][:31]` (h 15). Drawn at x 5 through `mrender(…, SUB, False)` in the SUB batch. |
+| Input | `D.mlayout(e[0], 1)`. If it returns None, raises `MemoryError`, or `w > 300` or `h > 60` (`LISTH`; §0.6), use 1D `e[0][:31]` (h 15). Drawn at x 5 through `mrender(…, SUB, False)` in the SUB batch. |
 | Result, `R_ANS` | `D.layout(e[1], 300, 92)` (see above). Rendered right-aligned (`scrollx = min(0, w-300)`) into the view `(10, y, 300, cap)`; the focused entry uses `DX` (clamped to `w - 300`) when `w > 300`, with `<`/`>` at its row centre. |
 | Result, `R_MSG` | SUB text, right-aligned at `310-10*len`; the focused one wraps into ≤ 3 lines of 30. |
-| One row | If `in.w + res.w + 20 ≤ 300` and both heights ≤ 40: baselines aligned, result right edge at 309. |
+| One row | If `in.w + res.w + 20 ≤ 300` and the result is ≤ 60 high (§0.6): baselines aligned, result right edge at 309. |
 | Two rows | Otherwise the input, then the result right-aligned 2 px below. |
 | Spacing | 3 px between entries. |
 | Selection | In MODE, an ACCSOFT `rect(0, top-1, 320, h+2)` behind the selected entry, drawn in the ACCSOFT batch. |
@@ -1151,7 +1171,7 @@ and the allowed imports are unchanged.
 | Module | Today (lines / KB) | Estimated after | New budget |
 |---|---|---|---|
 | CVDRAW | 342/350, 10.5/13 KB | measured after milestone A: 973 lines, 24.4 KB | `('draw', 'CVDRAW', 'R', 1020, 27)` (set in milestone A) |
-| CVUI | 414/500, 14.1/16 KB | after milestone A: 498 lines, 15.9 KB; after milestone B: 1093 lines, 29.9 KB | `('ui', 'CVUI', 'R', 1200, 33)` (milestone B) |
+| CVUI | 414/500, 14.1/16 KB | after milestone A: 498 lines, 15.9 KB; after milestone B: 1093 lines, 29.9 KB; after milestone C: 1284 lines, 34.0 KB | `('ui', 'CVUI', 'R', 1400, 37)` (milestone C) |
 | CVMENU | 153/200 | +4 (setup row) | fits |
 | CVMENUB | 42/150 | +6 (prefill) | fits |
 
@@ -1317,9 +1337,10 @@ typed as `x^(2)`, and `tidy` restores `x^2`.
 
 ## 12. Test plan
 
-The new files `tests/test_mathprint_layout.py` (layout, `tidy`, `structure`) and
-`tests/test_mathprint_keys.py` (keys and sessions) run in the source and `--bundled` tiers
-with `--strict-depth`.
+The new files `tests/test_mathprint_layout.py` (layout, `tidy`, `structure`),
+`tests/test_mathprint_keys.py` (keys and sessions) and `tests/test_mathprint_screen.py` (rows,
+redraw paths, pixel equivalence, history page) run in the source and `--bundled` tiers with
+`--strict-depth`.
 
 1. **Layout units** (engine-free; assert `'run' not in sys.modules`):
    - stops and `ORD` for every §3 template (§4.1 table);

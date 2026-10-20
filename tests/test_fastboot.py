@@ -138,6 +138,15 @@ SCREENS = [
     'integrate(x*sin(x),x){enter}',
     '9' * 250 + '{enter}{right}{right}{2nd,enter}',
     'x' * 256 + '+{alpha}{alpha}{enter}',        # a long status, then the engine loads
+    # MathPrint (MATHPRINT.md 10): 2D entries, history inputs, the picker, scroll, EH growth
+    '1{frac}2{enter}',
+    '{2nd,frac}{down}{down}{enter}x^2',
+    '{2nd,frac}' + '{down}' * 8 + '{enter}',
+    '{2nd,frac}{snap:picker}{down}{right}{snap:page2}{clear}',
+    '(1)/(2)+' * 12 + '{2nd,left}{right}{2nd,right}',
+    '{2nd,frac}' + '{down}' * 11 + '{enter}1{frac}2{frac}3{right}{right}{right}+4{clear}5',
+    '1/2{enter}x^(3)/(4){enter}{2nd,frac}{down}{down}{down}{down}{down}{down}{down}{down}'
+    '{down}{enter}x^2{right},x,0,1{enter}{up}{up}{up}{down}',
 ]
 
 
@@ -182,11 +191,12 @@ def test_full_redraw_uses_few_colors():
     u.redraw()
     assert TD.COUNTS['set_color'] <= 6
     TD.reset()
-    u.redraw()                                      # an edit key: status, hint and editor rows
-    assert TD.COUNTS['set_color'] <= 4
-    assert [c for c in TD.CALLS if c[0] == 'fill_rect'] == [
-        ('fill_rect', -1, -1, 321, 20), ('fill_rect', -1, 150, 321, 19),
-        ('fill_rect', -1, 169, 321, 21)]
+    u.redraw()                                      # nothing changed: no ti_draw call at all
+    assert TD.CALLS == []
+    u.key(92)                                       # a flat edit key: the entry row only
+    assert [c for c in TD.CALLS if c[0] == 'fill_rect'] == [('fill_rect', -1, 169, 321, 21)]
+    assert TD.COUNTS['set_color'] <= 2
+    assert TD.COUNTS['draw_text'] == 1 and TD.COUNTS['draw_line'] == 1
     d.theme(1)
     TD.reset()
     u.FULL = True
@@ -199,7 +209,77 @@ def test_typing_costs_few_colors_per_key():
     s = KS.run(keys)
     assert s.colors <= 6 * len(keys)
     typing = KS.run('x+1' * 10)
-    assert typing.colors <= 4 * 31 + 6 * 2
+    assert typing.colors <= 2 * 30 + 6 * 2          # MATHPRINT.md 10 (was 4 * 31 + 6 * 2)
+
+
+def test_first_key_after_answer_keeps_stage():
+    s = KS.run('2/3{enter}')
+    u = s.mods['ui']
+    TD.reset()
+    u.key(92)
+    assert [c for c in TD.CALLS if c[0] == 'fill_rect' and c[2] < 150 and c[2] != -1] == []
+    assert ('fill_rect', -1, -1, 321, 211) not in TD.CALLS
+
+
+def test_modifier_repaints_status_only():
+    s = KS.run('2/3{enter}1+')
+    u = s.mods['ui']
+    TD.reset()
+    u.key(21)
+    assert [c for c in TD.CALLS if c[0] == 'fill_rect'] == [('fill_rect', -1, -1, 321, 20)]
+    assert TD.COUNTS['set_color'] <= 3
+
+
+def _counting(monkeypatch, d):
+    calls = []
+    for name in ('mlayout', 'mparse'):
+        real = getattr(d, name)
+
+        def wrapper(*a, _real=real, _name=name):
+            calls.append(_name)
+            return _real(*a)
+        monkeypatch.setattr(d, name, wrapper)
+    return calls
+
+
+def test_arrows_do_no_layout(monkeypatch):
+    s = KS.run('1{frac}2{right}+x^3')
+    u, d = s.mods['ui'], s.mods['draw']
+    calls = _counting(monkeypatch, d)
+    for keys in ((24,), (26,), (25,), (34,), (21, 24)):
+        for k in keys:
+            u.key(k)
+    assert calls == []
+
+
+def test_caret_move_cost_is_flat(monkeypatch):
+    s = KS.run('(1)/(2)+(1)/(3)+(1)/(4)+(1)/(5)')
+    u, d = s.mods['ui'], s.mods['draw']
+    assert u.LINE == '(1)/(2)+(1)/(3)+(1)/(4)+(1)/(5)' and u.EDMAP is not None
+    calls = _counting(monkeypatch, d)
+    ey = 190 - u.EH
+    for j in range(10):
+        del TD.CALLS[:]          # keep the framebuffer
+        TD.COUNTS.clear()
+        u.key(24)
+        assert TD.COUNTS['fill_rect'] == 1, TD.CALLS
+        assert TD.COUNTS.get('draw_text', 0) <= 2 and TD.COUNTS['set_color'] <= 3, TD.CALLS
+        rows = [list(TD.FB[y]) for y in range(ey, 190)]
+        u.EDIFF, u.EKEY = False, None
+        u.redraw()
+        u.EDIFF = True
+        assert rows == [list(TD.FB[y]) for y in range(ey, 190)]
+    assert calls == []
+
+
+def test_2d_typing_cost():
+    s = KS.run('1{frac}2{right}+1{frac}3{right}+')
+    u = s.mods['ui']
+    for k in (82, 83, 84):
+        TD.reset()
+        u.key(k)
+        assert TD.COUNTS['set_color'] <= 3 and TD.COUNTS['fill_rect'] == 1, TD.CALLS
+        assert TD.COUNTS.get('draw_text', 0) <= 3, TD.CALLS
 
 
 # -- (e) panic with and without the engine -----------------------------------------------------

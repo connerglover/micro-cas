@@ -812,7 +812,11 @@ def test_enter_on_a_failed_line_does_not_parse_it_again(monkeypatch):
     u.panic(3)
     calls = []
 
+    real = d.mparse
+
     def failing(*a):
+        if a[0] != '(1)/(2)':           # history inputs (mode 1) are laid out by redraw
+            return real(*a)
         calls.append(a)
         raise ValueError('layout bug')
     monkeypatch.setattr(d, 'mparse', failing)

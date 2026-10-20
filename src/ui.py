@@ -48,14 +48,19 @@ ED1D = False        # LINE is 2D but over the layout caps (or out of memory): ed
 EFAIL = None        # the LINE a panic (reason 0 or 3) ran on: edited flat until it changes
 CLASSIC = False     # F3 setup: Entry Classic, today's 1D editor
 VIEWEND = -1        # the bottom history entry shown in MODE
+STATVIEW = None     # what the status row last showed (repainted only when it changes)
+HINTVIEW = None     # what the hint row last showed
+CARETC = 'INK'      # the caret's color slot
+EDIFF = True        # False: every entry change repaints the whole entry box (no diff paint)
+PAGEMAX = 5         # history entries shown at most
 
-# Screen rows. A text cell is 15 rows of ink starting at its top (draw.py); 31 columns.
-#   0..18  status: angle, status text, modifier chip; a rule at 19
-#  20..150 stage: the hero (input 22, answer view 10..309 x 40..131, footer 134) or the
-#          newest entries stacked upwards from 150 (input row, then the answer right-aligned)
-# 151..168 hint (153); a rule at 169
-# 170..189 editor (172): 30 columns at x 10..309, scroll markers at x 0 and 310, caret
-# 190..209 F-key tabs (191..209), labels at 193
+# Screen rows (MATHPRINT.md 6.1). A text cell is 15 rows of ink starting at its top (draw.py);
+# EY = 190 - EH is the entry box's top (170 at EH 20, when every row is today's).
+#   0..18      status: angle, status text, modifier chip; a rule at 19
+#  20..EY-21   history: entries stacked upwards from EY-20, input left, result right-aligned
+# EY-19..EY-2  hint, or the focused entry's footer (text at EY-17); a rule at EY-1
+#  EY..189     entry: content centred, view x 10..309, scroll markers at x 0 and 310, caret
+# 190..209     F-key tabs (191..209), labels at 193
 VIEWW = 300
 HEROH = 92
 LISTH = 60
@@ -133,7 +138,10 @@ def room():                                                    #@L 4
 
 
 def status(s):                                                 #@L 3
-    """Show s in the status text area at once (accent color), without a redraw."""
+    """Show s in the status text area at once (accent color), without a redraw; the next redraw
+    repaints the status row (STATVIEW)."""
+    global STATVIEW
+    STATVIEW = None
     n = room()
     D.rect(45, 0, 10*n, 19, D.COLORS['BG'])
     D.text(s[:n], 45, 2, D.COLORS['ACC'])
@@ -923,102 +931,297 @@ def picker():                                                  #@L 2
                 return page * 7 + int(t) - 1
 
 
+def epaint(full):                                              #@L 3
+    """Paint the entry box (MATHPRINT.md 6.4, step 5), first matching path: the whole box (a
+    full redraw, a flat line, a changed geometry, no previous entry, or EDIFF off); a caret
+    move on an unchanged 2D line: only a 2 px strip at the old caret and the items meeting it;
+    a 2D text change: everything right of the leftmost change. Nothing when neither the line,
+    the caret nor the geometry changed. full: the screen is already cleared. Every path stores
+    the painted display list (absolute coordinates, hidden boxes left out) in EDL and
+    (LINE, CUR, geometry, caret column, caret top) in EKEY."""
+    global EDL, EKEY
+    C = D.COLORS
+    ey = 190 - EH
+    M = EDMAP
+    if EFLAT or M is None or M[0] != LINE:
+        M = None
+        h = 15
+        asc = 11
+    else:
+        h = M[3] + M[4]
+        asc = M[3]
+    top = ey + (EH - h) // 2
+    geo = (M is None, XOFF, EXOFF, EH, C['BG'], top, asc)
+    old = EKEY
+    if M is None:
+        cx = 9 + 10 * (CUR - XOFF)
+        cy = top
+    else:
+        cx = 9 + M[5][CUR] - EXOFF
+        cy = top + M[6][CUR]
+    if not full and old is not None and old[0] == LINE and old[1] == CUR and old[2] == geo:
+        return
+    EKEY = (LINE, CUR, geo, cx, cy)
+    path = 0
+    if not full and EDIFF and M is not None and old is not None and old[2] == geo and \
+            EDL is not None:
+        path = 2
+        if old[0] == LINE:
+            path = 1
+            for e in M[12]:             # the trailing box at the caret shows or hides: diff
+                if e[1] & 1 and (e[0] == CUR or e[0] == old[1]):
+                    path = 2
+    was = EDL
+    dl = None
+    if path == 1:
+        dl = was
+    elif M is not None:
+        dl = []
+        dx = 10 - EXOFF
+        for it in M[1]:
+            k = it[0]
+            if k == 't':
+                dl.append(('t', it[1] + dx, it[2] + top, it[3]))
+            elif k == 'l':
+                dl.append(('l', it[1] + dx, it[2] + top, it[3] + dx, it[4] + top))
+            elif k == 'g':
+                dl.append(('g', it[1] + dx, it[2] + top, it[3], it[4], it[5]))
+            elif not (it[6] & 1 and it[5] == CUR):
+                dl.append(('b', it[1] + dx, it[2] + top, it[3], it[4], 0, 0))
+    EDL = dl
+    clip = (10, ey, 309, 189)
+    ink = C['INK']
+    x0 = 0
+    if path == 1:
+        x0 = old[3]
+        D.rect(x0, old[4] - 1, 2, 17, C['BG'])
+        D.mrender(dl, 0, 0, clip, x0, x0 + 1, C['LINE'], True)
+        D.mrender(dl, 0, 0, clip, x0, x0 + 1, ink, False)
+    elif path == 2:
+        x0 = min(cx, old[3])
+        n = max(len(was), len(dl))
+        for j in range(n):
+            a = was[j] if j < len(was) else None
+            b = dl[j] if j < len(dl) else None
+            if a != b:
+                for it in (a, b):
+                    if it is not None:
+                        x = it[1]
+                        if it[0] == 'l' and it[3] < x:
+                            x = it[3]
+                        if x < x0:
+                            x0 = x
+        x0 = max(0, x0)
+        D.rect(x0, ey, 320 - x0, EH, C['BG'])
+        D.mrender(dl, 0, 0, clip, x0, 319, C['LINE'], True)
+        D.mrender(dl, 0, 0, clip, x0, 319, ink, False)
+    else:
+        if not full:
+            D.rect(0, ey, 320, EH, C['BG'])
+        if M is None:
+            D.text(LINE[XOFF:XOFF + 30], 10, top, ink)
+        else:
+            D.mrender(dl, 0, 0, clip, 0, 319, C['LINE'], True)
+            D.mrender(dl, 0, 0, clip, 0, 319, ink, False)
+    if M is None:
+        less = XOFF > 0
+        more = len(LINE) > XOFF + 30
+    else:
+        less = EXOFF > 0
+        more = M[2] - EXOFF > 300
+    by = top + asc - 11
+    if less and path != 1 and x0 < 10:
+        D.text('<', 0, by, ink)
+    if more and path != 1:
+        D.text('>', 310, by, ink)
+    D.line(cx, cy - 1, cx, cy + 15, C[CARETC])
+
+
 def redraw():                                                  #@L 2
-    """Repaint the shell. The status, hint and editor rows are always redrawn; the stage and
-    the F-key bar only when FULL is set or the stage's view changed. Drawing is batched by
-    color: background, rules, gray text, ink, accent."""
-    global XOFF, DX, FULL, VIEW
+    """Repaint the shell (MATHPRINT.md 6.4). A full redraw (FULL, or the view changed: theme,
+    MODE, selection, page, answer scroll, history length, entry height) paints everything in
+    six color batches: background, accent tint (tabs, selection band), rules and empty boxes,
+    ink, gray, accent. Otherwise only the rows whose contents changed: the status row
+    (STATVIEW), the hint row (HINTVIEW) and the entry (epaint); nothing at all when nothing
+    changed. emodel() ran before: redraw never lays out the entry."""
+    global XOFF, DX, FULL, VIEW, VIEWEND, STATVIEW, HINTVIEW
     theme = R.SET['theme'] if R is not None else 0
     hist = R.HIST if R is not None else []
+    n = len(hist)
     D.theme(theme)
     C = D.COLORS
-    hero = bool(hist) and bool(MODE or (not LINE and HERO))
-    full = FULL or VIEW != (theme, MODE, SEL, hero, DX, len(hist))
-    plan = []
-    e = box = None
-    span = 0
-    if full and hero:
-        e = hist[SEL if MODE else len(hist) - 1]
-        if e[2] == R.R_ANS:
-            box = D.layout(e[1], VIEWW, HEROH)
-            span = max(0, box['w'] - VIEWW)
-            DX = min(DX, span)
-    elif full and hist:
-        y = 150
-        for i in range(len(hist) - 1, max(-1, len(hist) - 6), -1):
-            f = hist[i]
-            b = D.layout(f[1], VIEWW, LISTH) if f[2] == R.R_ANS else None
-            top = y - 17 - (min(b['h'], LISTH) if b is not None else 15)
-            if top < 21:
-                break
-            plan.append((top, f, b))
-            y = top - 3
-    if full:
-        D.rect(0, 0, 320, 210, C['BG'])
-        D.color(C['ACCSOFT'])
-        for i in range(5):
-            D.rect(64*i, 191, 63, 19)
-        D.line(0, 19, 319, 19, C['LINE'])
-        D.line(0, 169, 319, 169)
-    else:
-        D.rect(0, 0, 320, 19, C['BG'])
-        D.rect(0, 151, 320, 18)
-        D.rect(0, 170, 320, 20)
-    name = enclosing()
-    D.text(HINT.get(ALIAS.get(name, name), '')[:31], 5, 153, C['SUB'])
-    footer = ''
-    if e is not None:
-        D.text(e[0][:31], 5, 22)
-        if box is not None:
-            label = e[5][-1][0] if e[5] else 'exact'
-            footer = label + '  F4'
-            left = ('+ C  ' if e[4] & R.F_PLUSC else '') + (
-                '~ ' + str(e[3]) if e[3] is not None and label == 'exact' else '')
-            D.text(left[:29 - len(footer)], 5, 134)
-        else:
-            lines = D.wrap(e[1], 31)
-            for j in range(min(5, len(lines))):
-                D.text(lines[j], 5, 48 + 17*j)
-    for top, f, b in plan:
-        D.text(f[0][:31], 5, top)
-        if b is None:
-            D.text(f[1][:30], 310 - 10*len(f[1][:30]), top + 17)
-    if full and not hist:
-        D.text('Exact algebra and calculus', 30, 84)
-        D.text('Type math, or press menu', 40, 104)
-    D.color(C['INK'])
-    D.text('DEG' if R is not None and R.SET['deg'] else 'RAD', 5, 2)
-    D.text(STATUS[:room()], 45, 2)
+    ey = 190 - EH
+    sb = ey - 20
     XOFF = max(0, min(XOFF, CUR))
     if CUR - XOFF > 29:
         XOFF = CUR - 29
-    D.text(LINE[XOFF:XOFF+30], 10, 172)
-    if box is not None:
-        D.paint(box, 10, 40, DX if span else (box['w'] - VIEWW) // 2,
-                (box['h'] - HEROH) // 2 if box['h'] < HEROH else 0)
-    for top, f, b in plan:
+    fi = (SEL if MODE else n - 1) if n else -1
+    left = right = ''
+    if n and (MODE or not LINE and HERO):           # the focused entry's footer
+        e = hist[fi]
+        if e[2] == R.R_ANS:
+            label = e[5][-1][0] if e[5] else 'exact'
+            right = label + '  F4'
+            left = (('+ C  ' if e[4] & R.F_PLUSC else '') + (
+                '~ ' + str(e[3]) if e[3] is not None and label == 'exact' else ''))[
+                :29 - len(right)]
+    else:
+        name = enclosing()
+        left = HINT.get(ALIAS.get(name, name), '')[:31]
+    deg = R is not None and R.SET['deg']
+    sv = (STATUS[:room()], MOD, deg)
+    hv = (left, right, ey)
+    chip = CHIPS[MOD]
+    if not FULL and VIEW == (theme, MODE, SEL, VIEWEND, DX, n, EH):
+        st = sv != STATVIEW
+        ht = hv != HINTVIEW
+        if st:
+            D.rect(0, 0, 320, 19, C['BG'])
+        if ht:
+            D.rect(0, ey - 19, 320, 18, C['BG'])
+        epaint(False)
+        if st:
+            D.text('DEG' if deg else 'RAD', 5, 2, C['INK'])
+            D.text(sv[0], 45, 2)
+        if ht and left:
+            D.text(left, 5, ey - 17, C['SUB'])
+        if ht and right:
+            D.text(right, 315 - 10*len(right), ey - 17, C['ACC'])
+        if st and chip:
+            D.text(chip, 315 - 10*len(chip), 2, C['ACC'])
+        STATVIEW = sv
+        HINTVIEW = hv
+        return
+    # The history page (MATHPRINT.md 7.1, 7.2): entries stacked upwards from sb, the focused
+    # one always shown. In MODE the page ends at VIEWEND; when SEL is above the page, a forward
+    # pass from SEL finds the new VIEWEND and the page is planned again from it.
+    plan = []
+    span = 0
+    d = -1
+    start = n - 1
+    if MODE:
+        start = VIEWEND if SEL <= VIEWEND < n else SEL
+    for ps in range(3 if n else 0):
+        plan = []
+        y = sb
+        used = 0
+        i = start
+        while 0 <= i < n and len(plan) < PAGEMAX:
+            f = hist[i]
+            inp = None
+            try:
+                inp = D.mlayout(f[0], 1)
+            except MemoryError:
+                gc.collect()
+            if inp is None or inp[1] > VIEWW or inp[2] + inp[3] > LISTH:
+                inp = None
+                iw = 10 * len(f[0][:31])
+                ia = 11
+                ih = 15
+            else:
+                iw = inp[1]
+                ia = inp[2]
+                ih = inp[2] + inp[3]
+            b = lines = None
+            if f[2] == R.R_ANS:
+                b = D.layout(f[1], VIEWW, HEROH)
+                rw = b['w']
+                ra = b['asc']
+                cap = LISTH
+                if i == fi:
+                    cap = max(15, min(HEROH, sb - 21 - ih - 2))
+                    span = max(0, rw - VIEWW)
+                rh = min(b['h'], cap)
+            else:
+                lines = D.wrap(f[1], 30)[:3] if i == fi else [f[1][:30]]
+                rw = 0
+                for t in lines:
+                    rw = max(rw, 10 * len(t))
+                ra = 11
+                rh = 17 * len(lines) - 2
+            if iw + rw + 20 <= VIEWW and rh <= LISTH:
+                a = max(ia, ra)
+                h = a + max(ih - ia, rh - ra)
+                it = a - ia
+                rt = a - ra
+            else:
+                h = ih + 2 + rh
+                it = 0
+                rt = ih + 2
+            if d > 0:
+                if plan and used + h > sb - 21:
+                    break
+                used += h + 3
+                plan.append(i)
+            else:
+                if plan and y - h < 21:
+                    break
+                y -= h
+                plan.append((y, h, i, inp, it, b, lines, rt, rw, rh))
+                y -= 3
+            i += d
+        if d > 0:
+            start = plan[-1]
+            d = -1
+        elif MODE and plan[-1][2] > SEL:
+            start = SEL
+            d = 1
+        else:
+            break
+    if MODE and plan:
+        VIEWEND = plan[0][2]
+    DX = min(DX, span)
+    D.rect(0, 0, 320, 210, C['BG'])
+    D.color(C['ACCSOFT'])
+    for i in range(5):
+        D.rect(64*i, 191, 63, 19)
+    for p in plan:
+        if MODE and p[2] == SEL:
+            y = max(20, p[0] - 1)
+            D.rect(0, y, 320, min(sb, p[0] + p[1] + 1) - y)
+    D.line(0, 19, 319, 19, C['LINE'])
+    D.line(0, ey - 1, 319, ey - 1)
+    epaint(True)
+    D.text('DEG' if deg else 'RAD', 5, 2, C['INK'])
+    D.text(sv[0], 45, 2)
+    for p in plan:
+        b = p[5]
         if b is not None:
-            D.paint(b, 10, top + 17, min(0, b['w'] - VIEWW), 0)
-    if full and not hist:
+            y = p[0] + p[7]
+            x = 310 - p[8] if p[8] <= VIEWW else 10 - (DX if p[2] == fi else 0)
+            D.render(b['dl'], x, (10, max(20, y), 309, min(sb - 1, y + p[9] - 1)), y)
+            if p[2] == fi and span:
+                y += p[9] // 2 - 7
+                if DX:
+                    D.text('<', 0, y)
+                if DX < span:
+                    D.text('>', 310, y)
+    if not n and 72 < ey - 21:
         D.text('cas-evo', 125, 58)
+    clip = (0, 20, 319, sb - 1)
+    D.color(C['SUB'])
+    for p in plan:
+        if p[3] is None:
+            D.text(hist[p[2]][0][:31], 5, p[0] + p[4], None, clip)
+        else:
+            D.mrender(p[3][0], 5, p[0] + p[4], clip, 0, 319, C['SUB'], False)
+        if p[6] is not None:
+            for j in range(len(p[6])):
+                D.text(p[6][j], 310 - 10*len(p[6][j]), p[0] + p[7] + 17*j, None, clip)
+    D.text(left, 5, ey - 17)
+    if not n and 98 < ey - 21:
+        D.text('Exact algebra and calculus', 30, 84)
+    if not n and 118 < ey - 21:
+        D.text('Type math, or press menu', 40, 104)
     D.color(C['ACC'])
-    D.text(CHIPS[MOD], 315 - 10*len(CHIPS[MOD]), 2)
-    x = 9 + 10*(CUR - XOFF)
-    D.line(x, 171, x, 187)
-    if XOFF:
-        D.text('<', 0, 172)
-    if len(LINE) > XOFF + 30:
-        D.text('>', 310, 172)
-    if full:
-        for i in range(5):
-            D.text(FKEYS[i], 64*i + (63 - 10*len(FKEYS[i])) // 2, 193)
-        D.text(footer, 315 - 10*len(footer), 134)
-        if DX:
-            D.text('<', 0, 78)
-        if DX < span:
-            D.text('>', 310, 78)
-    VIEW = (theme, MODE, SEL, hero, DX, len(hist))
+    D.text(chip, 315 - 10*len(chip), 2)
+    for i in range(5):
+        D.text(FKEYS[i], 64*i + (63 - 10*len(FKEYS[i])) // 2, 193)
+    D.text(right, 315 - 10*len(right), ey - 17)
+    VIEW = (theme, MODE, SEL, VIEWEND, DX, n, EH)
     FULL = False
+    STATVIEW = sv
+    HINTVIEW = hv
 
 
 def boot(t0=None):                                             #@L 1
@@ -1275,10 +1478,10 @@ def panic(reason):                                             #@L 1
     """After an exception in the entry loop: a plain screen (no layout), with or without the
     engine. The next key redraws everything."""
     global STATUS, MODE, SEL, HERO, DX, FULL, EH, XOFF, EXOFF, EDMAP, EDL, EKEY, PENDING, EMODEL
-    global EFLAT, ED1D, VIEWEND, EFAIL
+    global EFLAT, ED1D, VIEWEND, EFAIL, STATVIEW, HINTVIEW
     D.clear_cache()
     EH, XOFF, EXOFF, VIEWEND = 20, 0, 0, -1
-    EDMAP = EDL = EKEY = PENDING = EMODEL = None
+    EDMAP = EDL = EKEY = PENDING = EMODEL = STATVIEW = HINTVIEW = None
     EFLAT, ED1D = True, False
     if reason == 0 or reason == 3:
         EFAIL = LINE        # drawn and edited flat until it changes: never retry a failing layout

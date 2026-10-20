@@ -128,7 +128,7 @@ def test_panic_works_without_ui_or_layout_phase(monkeypatch, reason, message):
                                    'structure', 'emodel', 'edkey', 'picker', 'edins', 'eddel',
                                    'edmove', 'edvert', 'paste', 'empty_map', 'edslot', 'edterm',
                                    'leave', 'put', 'bmatch', 'spans', 'keep', 'blank', 'insert',
-                                   'TMPL', 'PREFILL', 'PLAIN', 'SECOND', 'ALPHA', 'HINT',
+                                   'epaint', 'TMPL', 'PREFILL', 'PLAIN', 'SECOND', 'ALPHA', 'HINT',
                                    'ALIAS')),
                               (d, ('layout', 'paint', 'tree', 'measure', 'place', 'render',
                                    'TPL', 'TGAP', 'MPREC', 'MFNT', 'mlayout', 'mflat', 'mcall',
