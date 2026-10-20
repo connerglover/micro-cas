@@ -758,3 +758,63 @@ def test_arrows_do_no_layout():
         assert calls == ['mlayout', 'mparse']
     finally:
         d.mlayout, d.mparse = real
+
+
+# -- verification of milestone B ----------------------------------------------------------------
+
+@pytest.mark.parametrize('before, keys, after', [
+    # ')' never moves a call's closer over a top-level comma: that would take the later
+    # arguments out of the call (f(a,b) -> f(a),b); there is nothing to close in that slot (4)
+    ('f(a|,b)', [RP], 'f(a|,b)'),
+    ('max(a|,b)', [RP], 'max(a|,b)'),
+    ('max(a|,(1)/(2))', [RP], 'max(a|,(1)/(2))'),
+    ('(a|,b)', [RP], '(a|,b)'),
+    ('max(a|+1,b)', [RP], 'max(a|+1,b)'),
+    # the last argument still closes early, and a nested group inside the slot still moves
+    ('max(a,b|+1)', [RP], 'max(a,b)|+1'),
+    ('max(a,(b|+1))', [RP], 'max(a,(b)|+1)'),
+    ('max((a|+1),b)', [RP], 'max((a)|+1,b)'),
+])
+def test_close_never_crosses_a_comma(before, keys, after):
+    assert ed(before, keys) == after
+
+
+def test_forms_key_without_history_inserts_nothing():
+    # < > (95) with an answer but no history (Clear history keeps Ans) has no action: the
+    # leading-operator rule must not leave a stray ans() (Classic inserts nothing either)
+    s = KS.run('2{enter}{f3}{down}{down}{enter}{enter}{clear}{<>}')
+    assert not s.hist and s.ans is not None
+    assert s.mods['ui'].LINE == ''
+
+
+@pytest.mark.parametrize('script, answer', [('2{2nd,frac}7{right}100{enter}', '4'),
+                                            ('x{2nd,frac}7{right}100{enter}', '2*x')])
+def test_log_base_skip_follows_the_drawn_name(script, answer):
+    # 2log(100,) and xlog(100,) draw log_b (the name the engine reads is log): its empty base
+    # is optional at stage 2 too
+    s = KS.run(script)
+    assert s.mods['ui'].STATUS != 'fill in the empty slot'
+    assert s.hist and s.hist[0][1] == answer
+
+
+def test_log_base_skip_name_rule():
+    for line, pos in (('2log(8,)', -1), ('xlog(8,)', -1), ('2xlog(8,)', -1),
+                      ('logb(8,)', 7)):
+        U.LINE = line
+        assert U.empty_slot() == pos, line
+
+
+def test_enter_on_a_failed_line_does_not_parse_it_again(monkeypatch):
+    # a line a panic (reason 0 or 3) ran on is never laid out again (5.3); ENTER's tidy parses
+    # it too, so it is skipped there: the structure parens are plain 1D text to the engine
+    s = KS.run('1{frac}2')
+    u, d = s.mods['ui'], s.mods['draw']
+    u.panic(3)
+    calls = []
+
+    def failing(*a):
+        calls.append(a)
+        raise ValueError('layout bug')
+    monkeypatch.setattr(d, 'mparse', failing)
+    job = u.key(ENTER)
+    assert calls == [] and job == ('eval', '(1)/(2)')

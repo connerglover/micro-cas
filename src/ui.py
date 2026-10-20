@@ -293,8 +293,12 @@ def empty_slot():                                              #@L 3
         i = LINE.find(token)
         while i >= 0 and token == ',)' and not CLASSIC:
             o = bmatch(LINE, i + 1, -1)
-            if o < 3 or LINE[o-3:o] != 'log' or o > 3 and (LINE[o-4].isalpha() or
-                                                          LINE[o-4].isdigit()):
+            j = o                           # the call name as the layout reads it (D.mcall):
+            while j > 0 and (LINE[j-1].isalpha() or LINE[j-1].isdigit()):
+                j -= 1                      # 2log( and xlog( are log_b too
+            while j < o and LINE[j].isdigit():
+                j += 1
+            if o < 3 or j >= o or D.mcall(LINE, j, o) != o - 3 or LINE[o-3:o] != 'log':
                 break
             if len(spans(o, i + 1)) != 2:
                 break
@@ -623,8 +627,10 @@ def edins(op, t=''):                                           #@L 3
         cl = bmatch(s, o, 1)
         if cl < 0:
             put(s[:c] + t + s[c:], c + 1)   # closes an unclosed group
-        elif cl > c:
-            put(s[:c] + t + s[c:cl] + s[cl+1:], c + 1)  # moves the autoclosed closer here
+        elif cl > c and (s.find(',', c, cl) < 0 or len(spans(c - 1, cl)) == 1):
+            # moves the autoclosed closer here, unless that would leave a top-level comma
+            # (a later argument) outside the call: then there is nothing to close (4)
+            put(s[:c] + t + s[c:cl] + s[cl+1:], c + 1)
     elif op == 'comma':
         leave(0)
         c = CUR
@@ -859,7 +865,7 @@ def edkey(k, mod):                                             #@L 2
         edvert(1)
         return
     if mod == 0 and not LINE and R is not None and R.ANS is not None and \
-            k in (51, 55, 61, 65, 75, 85, 91, 95):
+            k in (51, 55, 61, 65, 75, 85, 91):  # 95 has no text here (key's F4 branch)
         put('ans()', 5)                     # the leading-operator rule; the map is now stale
     if mod == 0 and k == 42:
         edins('frac')
@@ -1138,7 +1144,8 @@ def key(k):                                                    #@L 1
             if pos >= 0:
                 CUR, STATUS = pos, 'fill in the empty slot'
             elif LINE or hist:
-                job = ('eval', (LINE if CLASSIC else tidy(LINE)) or hist[-1][0])
+                job = ('eval', (LINE if CLASSIC or LINE == EFAIL else tidy(LINE)) or
+                       hist[-1][0])     # a failed line is not parsed again (EFAIL)
     elif (k == 14 or k == 95) and hist:
         idx = SEL if MODE else len(hist)-1
         if hist[idx][2] == R.R_ANS:

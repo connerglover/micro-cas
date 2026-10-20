@@ -147,6 +147,10 @@ contradicted itself or the code. Each section is edited to match.
 | `test_empty_slot_never_evaluates` "holds" | It asserted `len(s.hist) == 0`; with stage 1 the engine never loads, so `s.hist` is None: the test now asserts `not s.hist and 'run' not in s.mods` (§11.2) |
 | keyscript: "a name" as an exponent operand | One letter only (`x^ab` is `x^a*b` to the engine), a glyph, or `name(...)`. A `^` right after a **group** exponent cannot be typed inside the box (its `)` has left it): it is typed after it and the 51 wrap rule gives `(x^(2))^(…)`, so scripts write such a nested exponent inside the group (§11.1) |
 | Budgets | CVUI measured 1093 lines / 29.9 KB: budget `('ui', 'CVUI', 'R', 1200, 33)`. CASUX ~28.5 KB, CASUI ~3.8 KB (`build/release.py`) (§9.2) |
+| `)` rule (2): move the closer of the visible group or call around CUR | (Verification of milestone B.) Not when a top-level comma lies between CUR and that closer: `f(a|,b)` + `)` gave `f(a)|,b`, which takes the later arguments out of the call. Such a slot has nothing to close, so rule (4) applies (no-op). The last argument still closes early: `max(a,b|+1)` → `max(a,b)|+1` (§2) |
+| Leading-operator key set `51 55 61 65 75 85 91 95` | 95 (`< >`) has no text: with history it is the F4 branch of `key`, and without history (Clear history keeps Ans) Classic's table guard inserts nothing. `edkey` ran the rule before its table lookup, so it left a stray `ans()`; MathPrint now applies the rule to `51 55 61 65 75 85 91` only (§2, §11.3) |
+| Stage 2's log-base skip: the name before `(` is exactly `log` | The name as the layout reads it (`D.mcall`, after leading digits): `2log(100,)` and `xlog(100,)` draw log_b and `tidy` drops their base, but stage 2 refused them (§2.2) |
+| ENTER: `tidy(LINE)` | Not on the line a panic ran on (`LINE == EFAIL`): `tidy` parses it like the layout, which must not run again on it (§5.3); the structure parens are plain 1D text to the engine (§2.2) |
 
 ---
 
@@ -299,7 +303,8 @@ apply it only when the slot's whole content is one visible group (struct's rule)
 `(1)/((x+1)|)`, typing `+` gives `(1)/((x+1))+|`.
 
 **Leading-operator rule.** Unchanged. On an empty LINE with `R.ANS` set, plain keys
-51, 55, 61, 65, 75, 85, 91 and 95 insert `ans()` first. The keys 42 and 104 do not, nor
+51, 55, 61, 65, 75, 85 and 91 insert `ans()` first (95, also in today's set, has no text in
+the editor: Classic's table guard inserts nothing for it, and neither does `edkey`; §0.5). The keys 42 and 104 do not, nor
 does a picker row.
 
 **Dispatch order in `key` (L1).** Today's order is kept; new branches slot in as follows.
@@ -338,7 +343,7 @@ MathPrint tables.
 | 2nd 71 10ˣ, 2nd 81 eˣ | `10^(|)`, `e^(|)` | |
 | 71 log, 81 ln, 52–54 sin cos tan, 2nd 52–54 asin… | `log(|)`, `ln(|)`, `sin(|)` and so on. The closer goes in at once. `log(` stays a plain call; log base b comes from the picker. | |
 | 63 `(`, 2nd 63 `{`, 2nd 75 `[` | In an empty hidden exponent (`x^(|)`): no-op, because the box is the group. Otherwise insert the opener at CUR and its closer at the **end of the current slot** (§4.1; for a flat line, the innermost unmatched bracket pair, else the end of the line). | `|x+1` → `(|x+1)`; `1/|4` → `1/(|4)`; at the end: `(|)` |
-| 64 `)`, 2nd 64 `}`, 2nd 85 `]` | First match: (1) `LINE[CUR]` is the same closer, hidden or visible: step over it; at a hidden numerator closer this lands on the denominator start. (2) CUR is inside a visible group or a plain call (the innermost bracket pair around CUR that lies inside the current slot) whose opener is the same bracket type and whose closer is further right: **move** that closer to CUR. This undoes the autoclose of key 63 when the user closes earlier. (3) The current slot is the root: insert the closer literally (the layout draws it as text; the engine reports it). (2′) The innermost bracket is a visible opener of the same type with no closer: insert the closer (`(x+1|` → `(x+1)|`; §0.5). (4) Otherwise (inside a hidden or template slot, with nothing to close): no-op. | `x^(2|)` → `x^(2)|`; `sin(x|)` → `sin(x)|`; `2(3|x+1)` → `2(3)|x+1`; `sin(a|+b)` → `sin(a)|+b`; `x+1|` → `x+1)|`; `integrate(f|,x)` → unchanged |
+| 64 `)`, 2nd 64 `}`, 2nd 85 `]` | First match: (1) `LINE[CUR]` is the same closer, hidden or visible: step over it; at a hidden numerator closer this lands on the denominator start. (2) CUR is inside a visible group or a plain call (the innermost bracket pair around CUR that lies inside the current slot) whose opener is the same bracket type and whose closer is further right: **move** that closer to CUR. This undoes the autoclose of key 63 when the user closes earlier. Not when a top-level comma of that pair lies between CUR and the closer (it would take the later arguments out of the call): then (4) (§0.5). (3) The current slot is the root: insert the closer literally (the layout draws it as text; the engine reports it). (2′) The innermost bracket is a visible opener of the same type with no closer: insert the closer (`(x+1|` → `(x+1)|`; §0.5). (4) Otherwise (inside a hidden or template slot, with nothing to close): no-op. | `x^(2|)` → `x^(2)|`; `sin(x|)` → `sin(x)|`; `2(3|x+1)` → `2(3)|x+1`; `sin(a|+b)` → `sin(a)|+b`; `x+1|` → `x+1)|`; `integrate(f|,x)` → unchanged; `f(a|,b)` → unchanged |
 | 62 `,` | Leave rule. Then, if `LINE[CUR] == ','`, step over it; else insert `,`. | `surd(8|,)` → `surd(8,|)`; `integrate(x^(2|),x)` → `integrate(x^(2),|x)` |
 | ← → (24/26) | MODE or empty LINE: `DX ± 24`, as today. Otherwise move to the previous/next stop in drawn order (§4.2). No layout. | |
 | 2nd ← / 2nd → | MODE or empty LINE: `DX ± 24`, as today. Otherwise home / end: `CUR = 0` / `len(LINE)`. | |
@@ -402,7 +407,7 @@ if pos < 0 and LINE:
 if pos >= 0:
     CUR, STATUS = pos, 'fill in the empty slot'
 elif LINE or hist:
-    job = ('eval', (LINE if CLASSIC else tidy(LINE)) or hist[-1][0])
+    job = ('eval', (LINE if CLASSIC or LINE == EFAIL else tidy(LINE)) or hist[-1][0])
 ```
 
 `empty_map()` (L3) never lays out (the model is already fresh: `key` ran `emodel()` at
@@ -416,7 +421,8 @@ step 2 of its dispatch, and a degraded line must not be laid out again).
   the empty pair. Otherwise -1.
 
 `empty_slot()` (stage 2) keeps today's rules with one change: a `,)` hit whose closer ends
-a `log(` call with exactly two top-level arguments is skipped (the empty base is optional),
+a `log(` call (the name as `D.mcall` reads it after leading digits, so `2log(` and `xlog(`
+too) with exactly two top-level arguments is skipped (the empty base is optional),
 and the search continues after it. Without this, `log(8,)` from picker row 1.7 would be
 refused at stage 2.
 
@@ -1208,7 +1214,7 @@ Counts are ti_draw calls per key when the status and hint rows are unchanged.
 | Status change | +1 ACC if the chip shows | +1 | ≤ +2 | | |
 | EH step, ENTER, menu return, history move | full redraw: ≤ 6 colors | ≤ 6 + bands | | | layouts from the caches |
 
-**Device timing gate.** Host time ×75 is an estimate. `tests/test_mathprint.py` pins a host
+**Device timing gate.** Host time ×75 is an estimate. `tests/test_mathprint_layout.py` pins a host
 guard: one `mlayout` of a dense 160-character line < 400 µs. The EVO run times keys (§12.9).
 
 **New pins in `tests/test_fastboot.py`**
@@ -1303,7 +1309,7 @@ typed as `x^(2)`, and `tidy` restores `x^2`.
 | Menus | `menu.open` signature and returns are unchanged. Results go through the existing wrap code and `insert`, then PENDING. |
 | F4, help, recall, settings, history paste, ENTRY, empty-slot check, quit | Same control flow. |
 | Hero view, answer scrolling | The hero is replaced by the focused history entry (newest, or `SEL` in MODE) with a view of up to 92 px. ←/→ (and 2nd ←/→) in MODE or on an empty line still step `DX` by 24; `DX` is clamped to `w - 300` in the full redraw and reset by ↑/↓ and by every edit (`put`/`insert`), as today; `<`/`>` mark more content. |
-| Leading-operator Ans | Unchanged key set and condition (`not LINE and R.ANS is not None and mod == 0`); the `ans()` insert goes through `put`, then the key's own action runs on the new LINE under the stale-map rule. |
+| Leading-operator Ans | Unchanged key set (less 95, which has no text: §0.5) and condition (`not LINE and R.ANS is not None and mod == 0`); the `ans()` insert goes through `put`, then the key's own action runs on the new LINE under the stale-map rule. |
 | Boot | No new pack and no new module: CASEVO still imports only CASUI and CASUX before the first screen, and nothing on the boot path (`boot → emodel → redraw`) touches the engine (`LINE` is empty, so `emodel` does no layout). |
 | `busy` / status during a job | `busy` and `engine` draw through `status`, which now also clears `STATVIEW`, so the status row is repainted after the job. |
 
@@ -1311,8 +1317,9 @@ typed as `x^(2)`, and `tidy` restores `x^2`.
 
 ## 12. Test plan
 
-The new file `tests/test_mathprint.py` runs in the source and `--bundled` tiers with
-`--strict-depth`.
+The new files `tests/test_mathprint_layout.py` (layout, `tidy`, `structure`) and
+`tests/test_mathprint_keys.py` (keys and sessions) run in the source and `--bundled` tiers
+with `--strict-depth`.
 
 1. **Layout units** (engine-free; assert `'run' not in sys.modules`):
    - stops and `ORD` for every §3 template (§4.1 table);

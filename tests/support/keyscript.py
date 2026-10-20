@@ -23,9 +23,10 @@ have no key sequence here. MathPrint (docs/notes/MATHPRINT.md 11.1): `/` is the 
 (55, drawn inline); `^2` is x^2 (61); any other `^` is x^n (51), which opens an exponent box:
 its operand (a sign, then a group, a number, one letter, a glyph or name(...)) is typed inside
 and RIGHT (26) leaves the box when more text follows (a group's `)` leaves it by itself). The
-fraction template is `{frac}` (42) and the template picker `{2nd,frac}`; 2nd x^n is `{surd}`
-(type `surd(` with letters for the text). The editor autocloses `(` and `name(`, and `)` steps
-over the closer, so a typed balanced text gives the same line.
+fraction template is `{frac}` (42) and the template picker `{2nd,frac}`; 2nd x^n
+(`{2nd,x^n}`) is the action @surd (type `surd(` with letters for the text). The editor
+autocloses `(` and `name(`, and `)` steps over the closer, so a typed balanced text gives the
+same line.
 
 Typical use::
 
