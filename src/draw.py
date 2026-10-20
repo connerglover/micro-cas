@@ -178,7 +178,10 @@ def row(boxes, ids, gap=2, kind='row', ti=-1):                    #@L 5
         b = boxes[n]
         children.append((n,w,0))
         w += b[0]+gap
-        a, d = max(a,b[1]), max(d,b[2])
+        if b[1] > a:
+            a = b[1]
+        if b[2] > d:
+            d = b[2]
     boxes.append((max(0,w-gap),a,d,children,(),kind,ti))
     return len(boxes)-1
 
@@ -959,12 +962,19 @@ def mplace(s, nodes, boxes, root, mode):                       #@L 4
     if mode == 2:
         M = [[-1] * (n + 1), [-1] * (n + 1), [-1] * (n + 1), [0] * (n + 1), [-1] * (n + 1), 0]
         mx, my, dp, mq, ms = M[0], M[1], M[2], M[3], M[4]
-    run = None
+    ra = -1                             # the open text run: s[ra:rb] at rx, ry (none: -1)
+    rb = rx = ry = 0
     work = [(0, root, 0, boxes[root][1], 0, -1)]
     while work:
         tag, bi, x, y, dep, sl = work.pop()
-        if tag:
-            mmark(M, bi, x, y, dep, sl)
+        if tag:                         # mmark, inline: one stop after a construct
+            if dp[bi] < 0 or dep > dp[bi]:
+                mx[bi] = x
+                my[bi] = y
+                dp[bi] = dep
+                mq[bi] = M[5]
+                ms[bi] = sl
+                M[5] += 1
             continue
         b = boxes[bi]
         for item in b[4]:
@@ -972,17 +982,19 @@ def mplace(s, nodes, boxes, root, mode):                       #@L 4
             if k == 's' and item[4] >= 0:       # a buffer slice: extend the open run
                 tx = x + item[1]
                 ty = y + item[2]
-                if run is not None and run[1] == ty and run[3] == item[4] and \
-                        run[0] + CW * (run[3] - run[2]) == tx:
-                    run[3] = item[5]
+                if ra >= 0 and ry == ty and rb == item[4] and rx + CW * (rb - ra) == tx:
+                    rb = item[5]
                     continue
-                if run is not None:
-                    dl.append(('t', run[0], run[1], s[run[2]:run[3]]))
-                run = [tx, ty, item[4], item[5]]
+                if ra >= 0:
+                    dl.append(('t', rx, ry, s[ra:rb]))
+                rx = tx
+                ry = ty
+                ra = item[4]
+                rb = item[5]
                 continue
-            if run is not None:
-                dl.append(('t', run[0], run[1], s[run[2]:run[3]]))
-                run = None
+            if ra >= 0:
+                dl.append(('t', rx, ry, s[ra:rb]))
+                ra = -1
             if k == 'l':
                 dl.append(('l', x + item[1], y + item[2], x + item[3], y + item[4]))
             elif k == 't' or k == 's':
@@ -1048,8 +1060,8 @@ def mplace(s, nodes, boxes, root, mode):                       #@L 4
         for j in range(len(ch) - 1, -1, -1):
             c = ch[j]
             work.append((0, c[0], x + c[1], y + c[2], dep, sl))
-    if run is not None:
-        dl.append(('t', run[0], run[1], s[run[2]:run[3]]))
+    if ra >= 0:
+        dl.append(('t', rx, ry, s[ra:rb]))
     if M is None:
         return dl
     order = [-1] * M[5]

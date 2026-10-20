@@ -31,7 +31,7 @@ MODULES = (
     ('parse',     'CVPARSE',   'R',   1250,       33),
     ('printer',   'CVPRINT',   'R',   900,       21),
     ('run',       'CVRUN',     'R',   640,       22),   # + memory-failure recovery (sweep)
-    ('draw',      'CVDRAW',    'R',   1020,      27),   # + the MathPrint layout (MATHPRINT.md 5)
+    ('draw',      'CVDRAW',    'R',   1075,      28),   # + the MathPrint layout (MATHPRINT.md 5)
     ('ui',        'CVUI',      'R',   1400,      37),   # + the MathPrint editor and screen (MATHPRINT.md 2-7)
     # lazy (L) and lazy UI (U) modules and parts, DESIGN 4.1 and 4.3
     ('rules',     'CVRULE',    'L',   150,       4),

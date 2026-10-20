@@ -25,6 +25,11 @@
 > `STATVIEW`/`HINTVIEW` and the entry paint `epaint` with its caret-strip and diff paths, §6.4,
 > the history page, §7.1–7.3, and the §10 cost pins) is implemented and tested
 > (`tests/test_mathprint_screen.py`, `tests/test_fastboot.py`); §0.6 lists its decisions.
+> Milestone D (packaging, §9.2–9.3, and the full host acceptance: lint, framelint, the
+> not-slow suite in both tiers, `build/release.py`, `build/transfer.py`,
+> `build/check_release.py`) passes; §0.7 records the measured pack sizes. The native
+> MicroPython runs (`build/archive.py`, `micro_smoke --run`) still need the pinned v1.12
+> `mpy-cross`.
 > All EVO timings below are estimates (host time × 75,
 > FASTBOOT.md); the draw-call counts come from the shim. Hardware acceptance needs an EVO
 > run.
@@ -173,6 +178,16 @@ not match the code. Each section is edited to match.
 | `VIEW = (theme, MODE, SEL, VIEWEND, DX, len(hist), EH)` | (Verification of milestone C.) `VIEW` also holds `span`, the focused answer's overflow at the last full redraw, and `redraw` clamps `DX` to it before comparing: ←/→ on an empty line with an answer that fits made a full 6-color redraw only to clamp `DX` back to 0 (§10: a no-op key draws nothing) (§6.4) |
 | History input: 1D when the layout returns None or raises `MemoryError` | (Verification of milestone C.) Any `Exception` from the mode-1 layout draws that input 1D. A layout bug on one history input otherwise raised out of every full redraw, so every key ended in `panic` until the history was cleared; `EFAIL` only guards the entry line (§7.1) |
 | Budgets | CVUI measured 1284 lines / 34.0 KB: budget `('ui', 'CVUI', 'R', 1400, 37)`. CASUX ~30.9 KB, CASUI ~3.9 KB (`build/release.py`) |
+
+### 0.7 Milestone D: packaging and acceptance (2026-10-20)
+
+| Spec said | Code does, and why |
+|---|---|
+| §9.2 PACKS: every new function listed explicitly in CASUX | Done, and checked: of the `ui`/`draw` functions only `clock`, `since`, `secs`, `room`, `status`, `busy`, `reason`, `panic` and `theme`, `reset`, `color`, `rect`, `text`, `line`, `clipped_line`, `wrap`, `clear_cache` stay in CASUI, the same set as before MathPrint |
+| §9.2 budgets "about 10 % over the measurement" | CVDRAW `1020/27` left 4 % line headroom after the milestone A review; now `('draw', 'CVDRAW', 'R', 1075, 28)`. CVUI `1400/37` is 9 % over 1287 lines / 34.1 KB and stays |
+| §9.2 CASUX ~21 KB, reload ~30 KB | Measured 30,929 B and 43,812 B (`dist/release.json`). The editor needs more code than the 12.5 B/line estimate allowed for. CASUX still fits PACKMAX with 29 KB spare. `run.room('layout')` now asks for ~27.7 KB more free heap than before MathPrint before CASUX reloads after a heavy command; whether native `ui_calculus` still passes at 189,776 is the open gate (§12.9), not run here (no MicroPython v1.12 `mpy-cross` for `build/archive.py`) |
+| §9.3 boot ~+10 KB | +20.1 KB of bytecode (≈ +28 KB heap at 1.4×). Boot still loads only CASUI + CASUX |
+| §10 host guard: a dense 160-character `mlayout` < 400 µs | Measured 375–395 µs (lex ~37, parse ~115, boxes ~72, place ~125): 97 % of the guard, so `test_dense_line_host_time_guard` failed once in a full `--bundled` run and passed alone (5/5) and in the next full runs. Two device-oriented trims went in (`row` compares instead of two `max` calls per child; `mplace` keeps the open text run in locals and inlines the stop record for construct ends); on the host they are within noise. The bound was not loosened. A real margin needs a parser fast path for flat runs (operands joined by `+ - *` that merge into one leaf anyway), left for a follow-up |
 
 ---
 
@@ -1174,18 +1189,20 @@ and the allowed imports are unchanged.
 
 | Module | Today (lines / KB) | Estimated after | New budget |
 |---|---|---|---|
-| CVDRAW | 342/350, 10.5/13 KB | measured after milestone A: 973 lines, 24.4 KB | `('draw', 'CVDRAW', 'R', 1020, 27)` (set in milestone A) |
-| CVUI | 414/500, 14.1/16 KB | after milestone A: 498 lines, 15.9 KB; after milestone B: 1093 lines, 29.9 KB; after milestone C: 1284 lines, 34.0 KB | `('ui', 'CVUI', 'R', 1400, 37)` (milestone C) |
+| CVDRAW | 342/350, 10.5/13 KB | measured after milestone A: 973 lines, 24.4 KB; final (milestone D): 977 lines, 25.2 KB | `('draw', 'CVDRAW', 'R', 1075, 28)` (milestone D, ~10 % over the final measurement) |
+| CVUI | 414/500, 14.1/16 KB | after milestone A: 498 lines, 15.9 KB; after milestone B: 1093 lines, 29.9 KB; after milestone C: 1284 lines, 34.0 KB; final (milestone D): 1287 lines, 34.1 KB | `('ui', 'CVUI', 'R', 1400, 37)` (milestone C; ~9 % over the final measurement) |
 | CVMENU | 153/200 | +4 (setup row) | fits |
 | CVMENUB | 42/150 | +6 (prefill) | fits |
 
-**Pack bytecode (estimate, 12.5 B per minified line).**
+**Pack bytecode.** The spec estimated 12.5 B per minified line; the final `build/release.py`
+measurement (`dist/release.json`, `mpy_estimate` and `room`, milestone D) is well above it,
+because the editor came out at about twice the estimated size (§0.7).
 
-| Pack | Today | After |
-|---|---|---|
-| CASUX | ~11.2 KB | ~21 KB (PACKMAX 60,000) |
-| `room('layout')` reload | ~16.1 KB | ~30 KB |
-| CASUI | ~3.5 KB | ~3.8 KB |
+| Pack | Before MathPrint | Spec estimate | Measured (milestone D) |
+|---|---|---|---|
+| CASUX | 11,156 B | ~21 KB | **30,929 B** (PACKMAX 60,000: 29,071 B spare) |
+| `room('layout')` reload (`ROOMCOST` 1.4 × bytecode + 512) | 16,130 B | ~30 KB | **43,812 B** |
+| CASUI | 3,540 B | ~3.8 KB | **3,903 B** |
 
 The engine is untouched, and CASUX is shed during family commands as today, so compute
 speed and compute heap are unchanged. The cost is a heavier CASUX reload after heavy
@@ -1195,7 +1212,7 @@ commands. The gate is native `ui_calculus` at 189,776 (§12.9).
 
 | Item | Size |
 |---|---|
-| Boot (CASUI + CASUX) | ~+10 KB loaded over today |
+| Boot (CASUI + CASUX) | ~+10 KB estimated; measured +20.1 KB of bytecode (CASUX +19,773 B, CASUI +363 B), so about +28 KB of heap at `ROOMCOST` 1.4 (§9.2, §0.7). Boot still imports only CASUI and CASUX (`tests/test_release.py::test_boot_loads_only_the_ui`) |
 | Typing transient, per 2D key | ~3–5 KB (CPython), ≤ ~25 KB at the cap; freed by the next GC |
 | Flat key | ~0 |
 | Retained while idle: `EDMAP`/`EDL` | ≤ 4 KB |
