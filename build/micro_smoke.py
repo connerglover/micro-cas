@@ -53,7 +53,7 @@ import sys
 # checkout's absolute path once per imported page in the constrained heap.
 sys.path[0]=''
 KEYS = (93, 85, 94, 105, 21, 22)
-BLOCK = @BLOCK@
+BLOCK, ENGINE, SHED, AUX = @NAMES@
 POS = 0
 PROBE = False
 class ScriptExhausted(BaseException):
@@ -74,6 +74,15 @@ def wait_key():
             u = sys.modules.get('CASUI')
             b = getattr(u, BLOCK, None) if u is not None else None
             print('boot block held: %d' % (len(b) if b is not None else 0))
+        print('packs loaded: ' + ' '.join(sorted(m for m in sys.modules if m.startswith('CAS'))))
+        r = getattr(sys.modules.get('CASUI'), ENGINE, None) if POS == 4 else None
+        if r is not None:
+            # What is left once the idle input/printer/aux packs (a cache that room() keeps
+            # while it can) give way: comparable across builds whatever stayed cached.
+            while getattr(r, SHED)() or getattr(r, SHED)(None, getattr(r, AUX)):
+                pass
+            gc.collect()
+            print('heap result, idle packs shed: %d' % gc.mem_free())
     if POS >= len(KEYS):
         raise ScriptExhausted('UI did not quit after 2nd MODE')
     key = KEYS[POS]
@@ -234,7 +243,8 @@ def prepare(dist, output, archive=None):
     names = meta['names']
     scripts = {
         'ti_draw.py': GRAPHICS,
-        'ti_system.py': SYSTEM.replace('@BLOCK@', repr(names.get('BALLAST', 'BALLAST'))),
+        'ti_system.py': SYSTEM.replace('@NAMES@', repr(tuple(names.get(n, n) for n in
+                                                              ('BALLAST', 'R', 'shed', 'AUX')))),
         'ui.py': UI.format(ans=repr(names.get('ANS', 'ANS')),
                            hist=repr(names.get('HIST', 'HIST'))),
         'probe.py': PROBE,
