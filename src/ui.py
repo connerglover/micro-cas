@@ -410,7 +410,7 @@ def emodel():                                                  #@L 2
         EXOFF = x + 9 - 304 + 60
     elif 9 + x - EXOFF < 10:
         EXOFF = max(0, x - 60)
-    EXOFF = min(EXOFF, max(0, M[2] - 290))
+    EXOFF = min(EXOFF, max(0, M[2] - 230))    # keeps the 60 px look-ahead at the end
 
 
 def bmatch(s, i, d):                                           #@L 5
@@ -993,7 +993,7 @@ def epaint(full):                                              #@L 3
         h = M[3] + M[4]
         asc = M[3]
     top = ey + (EH - h) // 2
-    geo = (M is None, XOFF, EXOFF, EH, C['BG'], top, asc)
+    geo = (M is None, XOFF if M is None else 0, EXOFF, EH, C['BG'], top, asc)
     old = EKEY
     if M is None:
         cx = 9 + 10 * (CUR - XOFF)
@@ -1173,8 +1173,11 @@ def redraw():                                                  #@L 2
                 rw = b['w']
                 ra = b['asc']
                 cap = LISTH
-                if i == fi:
-                    cap = max(15, min(HEROH, sb - 21 - ih - 2))
+                if i == fi:         # the stage's height, less the input's when it goes under it
+                    cap = sb - 21
+                    if iw + rw + 20 > VIEWW or b['h'] > LISTH:
+                        cap -= ih + 2
+                    cap = max(15, min(HEROH, cap))
                     span = max(0, rw - VIEWW)
                 rh = min(b['h'], cap)
             else:

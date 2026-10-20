@@ -151,7 +151,7 @@ def test_2d_scroll_keeps_the_caret_in_view_and_marks_the_sides(editor):
     for j in range(40):
         press([DEL])
         if U.EDMAP is not None:
-            assert U.EXOFF <= max(0, U.EDMAP[2] - 290)
+            assert U.EXOFF <= max(0, U.EDMAP[2] - 230)
         x = 9 + (U.EDMAP[5][U.CUR] if U.EDMAP else 10 * (U.CUR - U.XOFF)) - U.EXOFF
         assert 9 <= x <= 304
 

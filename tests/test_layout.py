@@ -109,7 +109,7 @@ def test_cache_bounds():
     D.layout('sqrt(2)')
     for n in range(10):
         D.layout('x+' + str(n))
-    assert len(D.CACHE) <= 5 and D.CACHE_BYTES <= 4096
+    assert len(D.CACHE) <= 6 and D.CACHE_BYTES <= 4096
     D.clear_cache()
     assert not D.CACHE and D.CACHE_BYTES == 0
 
@@ -199,3 +199,14 @@ def test_wrap():
         ['Differentiate once, or n times,', 'in x.']
     assert D.wrap('a' * 40, 31) == ['a' * 31, 'a' * 9]
     assert D.wrap('', 31) == [] and D.wrap('short', 31) == ['short']
+
+
+def test_cache_is_lru():
+    D.clear_cache()
+    for n in range(6):
+        D.layout('x+' + str(n))
+    D.layout('x+0')                         # a hit moves it to the end
+    D.layout('x+9')                         # so x+1 gives way, not x+0
+    keys = [c[0][0] for c in D.CACHE]
+    assert 'x+0' in keys and 'x+1' not in keys
+    D.clear_cache()

@@ -417,7 +417,7 @@ def test_history_mode_stacks_every_fraction():
 def test_history_cache_is_bounded():
     for j in range(12):
         D.mlayout('%d/%d' % (j, j + 1), 1)
-        assert len(D.ICACHE) <= 5 and D.ICACHE_BYTES <= 3072
+        assert len(D.ICACHE) <= 6 and D.ICACHE_BYTES <= 4096
     total = 0
     for e in D.ICACHE:
         total += e[2]

@@ -388,8 +388,10 @@ def layout(s, width=300, height=92):                            #@L 3
     not parse, or nests too deeply, is laid out as one plain line."""
     global CACHE_BYTES
     key = (s,width,height)
-    for cached in CACHE:
-        if cached[0]==key:
+    for j in range(len(CACHE)):
+        if CACHE[j][0]==key:            # least recently used goes first (MATHPRINT.md 7.3)
+            cached = CACHE.pop(j)
+            CACHE.append(cached)
             return cached[1]
     fallback = False
     try:
@@ -406,7 +408,7 @@ def layout(s, width=300, height=92):                            #@L 3
     result = {'dl':dl,'kinds':kinds,'w':w,'h':a+d,'asc':a,'desc':d,'fallback':fallback,'overflow':w>width or a+d>height,'vw':width,'vh':height}
     cost = len(dl)*24+len(s)
     if cost<=4096:
-        while CACHE and (len(CACHE)>=5 or CACHE_BYTES+cost>4096):
+        while CACHE and (len(CACHE)>=6 or CACHE_BYTES+cost>4096):
             CACHE_BYTES-=CACHE.pop(0)[2]
         CACHE.append((key,result,cost))
         CACHE_BYTES+=cost
@@ -1085,24 +1087,33 @@ def mlayout(s, mode):                                          #@L 3
     Display-list coordinates are relative to the content's top-left corner."""
     global ICACHE_BYTES
     if mode == 1:
-        for c in ICACHE:
-            if c[0] == s:
+        for j in range(len(ICACHE)):
+            if ICACHE[j][0] == s:       # least recently used goes first (section 7.3)
+                c = ICACHE.pop(j)
+                ICACHE.append(c)
                 return c[1]
     res = None
     if len(s) <= 160:
-        r = mparse(s, mlex(s), mode)
-        if r is not None:
-            boxes, root = mbox(s, r[0], r[1], mode)
-            w, a, d = boxes[root][:3]
-            if a + d <= 76:
-                p = mplace(s, r[0], boxes, root, mode)
-                res = (p, w, a, d) if mode == 1 else (s, p[0], w, a, d) + p[1:]
-            boxes = None
-        r = None
+        try:
+            r = mparse(s, mlex(s), mode)
+            if r is not None:
+                boxes, root = mbox(s, r[0], r[1], mode)
+                w, a, d = boxes[root][:3]
+                if a + d <= 76:
+                    p = mplace(s, r[0], boxes, root, mode)
+                    res = (p, w, a, d) if mode == 1 else (s, p[0], w, a, d) + p[1:]
+                boxes = None
+            r = None
+        except MemoryError:             # a history input is drawn 1D, and the failure is
+            r = boxes = p = res = None  # cached like a result: no retry until the next job
+            if mode != 1:
+                raise
     if mode == 1:
-        cost = 24 * (len(res[0]) if res is not None else 1) + len(s)
-        if cost <= 3072:
-            while ICACHE and (len(ICACHE) >= 5 or ICACHE_BYTES + cost > 3072):
+        # the retained heap measured on MicroPython 1.12 (32-bit): ~128 B per entry, 32 B per
+        # display-list item and 4 B per character of text (section 9.3)
+        cost = 128 + 32 * (len(res[0]) if res is not None else 0) + 4 * len(s)
+        if cost <= 4096:
+            while ICACHE and (len(ICACHE) >= 6 or ICACHE_BYTES + cost > 4096):
                 ICACHE_BYTES -= ICACHE.pop(0)[2]
             ICACHE.append((s, res, cost))
             ICACHE_BYTES += cost

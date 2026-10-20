@@ -158,3 +158,101 @@ def test_power_and_fraction_keys_at_the_stop_after_a_base():
     assert line(KS.run('x{51}2{down}{51}3')) == ('(x^(2))^(3)', 10)
     assert line(KS.run('x{51}2{down}{61}')) == ('(x^(2))^(2)', 11)
     assert line(KS.run('x{51}2{down}{frac}')) == ('(x^(2))/()', 9)
+
+
+# -- per-key paint cost on long 2D lines (section 10) --------------------------------------------
+
+import ti_draw as TD                    # noqa: E402
+
+
+def _key_cost(u, k):
+    del TD.CALLS[:]                     # keep the framebuffer
+    TD.COUNTS.clear()
+    u.key(k)
+    full = [c for c in TD.CALLS if c[0] == 'fill_rect' and c[1] == -1]
+    return full, TD.COUNTS.get('draw_text', 0), TD.COUNTS.get('draw_line', 0)
+
+
+def test_caret_moves_past_index_29_of_a_2d_line_are_strips():
+    s = KS.run('(1)/(2)+(1)/(3)+(1)/(4)+(1)/(5)+(1)/(6)+(1)/(7)+{2nd,left}')
+    u = s.mods['ui']
+    assert u.CUR == 0 and u.EDMAP is not None and len(u.LINE) > 40
+    while u.CUR < len(u.LINE):
+        full, texts, lines = _key_cost(u, 26)
+        assert not full and texts <= 2 and lines <= 3, (u.CUR, TD.CALLS)
+
+
+def test_typing_at_the_end_of_a_long_2d_line_is_a_diff_paint():
+    s = KS.run('(1)/(2)+(1)/(3)+(1)/(4)+(1)/(5)+(1)/(6)+(1)/(7)+(1)/(8)+(1)/(9)+')
+    u = s.mods['ui']
+    assert u.CUR > 29 and u.EXOFF == 0
+    for k in (92, 93, 94):
+        full, texts, lines = _key_cost(u, k)
+        assert not full and texts <= 2 and lines <= 2, TD.CALLS
+
+
+def test_typing_past_the_scroll_repaints_once_per_jump():
+    s = KS.run('(1)/(2)+(1)/(3)+(1)/(4)+(1)/(5)+(1)/(6)+(1)/(7)+(1)/(8)+(1)/(9)+')
+    u = s.mods['ui']
+    fulls = 0
+    for j in range(8):
+        for k in (92, 93, 94, 85):
+            full, texts, lines = _key_cost(u, k)
+            fulls += texts > 3          # the whole visible entry painted again
+    assert u.EXOFF > 0
+    assert fulls <= 4, fulls
+
+
+def test_history_page_move_lays_out_one_new_entry(monkeypatch):
+    cmds = ['1/2+x^3', 'x^2+1', 'x^3/3', 'sqrt(x)+1', 'e^x', '2/x', 'x^4-1', 'sin(x)/x',
+            '1/x^2', 'ln(x)+x^2', 'x^5', 'limit(sin(x)/x,x,0)']
+    s = KS.run(''.join(c + '{enter}' for c in cmds) + '{up}' * 12)
+    u, d = s.mods['ui'], s.mods['draw']
+    parse = s.mods['parse']
+    calls = []
+    real_m, real_r = d.mparse, parse.rpn
+
+    def m(*a):
+        calls.append('m')
+        return real_m(*a)
+
+    def r(*a):
+        calls.append('r')
+        return real_r(*a)
+    monkeypatch.setattr(d, 'mparse', m)
+    monkeypatch.setattr(parse, 'rpn', r)
+    for j in range(11):
+        del calls[:]
+        u.key(34)
+        assert calls.count('m') <= 1 and calls.count('r') <= 1, (j, u.SEL, calls)
+
+
+def test_a_failed_history_layout_is_not_retried(monkeypatch):
+    s = KS.run('1{frac}2{right}+x^3{enter}')
+    u, d = s.mods['ui'], s.mods['draw']
+    real = d.mparse
+    calls = []
+
+    def failing(t, tk, mode):
+        if mode == 1:
+            calls.append(t)
+            raise MemoryError('layout')
+        return real(t, tk, mode)
+    monkeypatch.setattr(d, 'mparse', failing)
+    d.clear_cache()
+    for j in range(3):
+        u.FULL = True
+        u.redraw()
+    assert len(calls) == 1
+    assert '1/2+x^3' in TD.screen_text()
+
+
+def test_focused_answer_is_not_cut_when_the_entry_grows():
+    tmpl = '{2nd,frac}' + '{down}' * 9 + '{enter}'
+    s = KS.run(tmpl + '0{right}1{right}x{pow}1{frac}2{enter}' + tmpl)
+    u = s.mods['ui']
+    assert u.EH >= 40 and s.hist[0][1] == '2/3'
+    last = max(j for j in range(len(TD.CALLS)) if TD.CALLS[j] == ('fill_rect', -1, -1, 321, 211))
+    texts = [c for c in TD.CALLS[last:] if c[0] == 'draw_text' and c[1] > 280 and
+             c[2] < 190 - u.EH]
+    assert any(c[3] == '2' for c in texts) and any(c[3] == '3' for c in texts), texts

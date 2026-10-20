@@ -205,6 +205,12 @@ device lenses) confirmed the defects below; each fix has a regression test in
 | `2E+` then 42 drew `2E+`¾ but evaluated `(2E+3)/4` | `tidy` keeps the parens after `E+`/`E-`; the capture takes a whole E-number (§1.3, §2.1) |
 | `!`/`'` after leaving a power or fraction box bound to the last slot | `wrapend` wraps the box first, as 51/61 do (§2) |
 | 42 after `{1,2}` or `1/2` gave a flat line; 51/61/42 at a power's base stop split the power | reuse only a `(` group; capture an inline `a/b`; the base stop counts as the power's end (§2, §2.1) |
+| The flat `XOFF` was part of the 2D paint key, so past index 29 every key repainted the whole entry | `XOFF` counts only for a flat line (§6.4) |
+| The `w - 290` scroll clamp cancelled the 60 px look-ahead | clamp at `w - 230` (§6.3) |
+| Answer CACHE and ICACHE were FIFOs: a page-moving ↓ in MODE re-laid out the whole page | LRU, 6 entries (§7.3) |
+| A history input whose layout raised `MemoryError` was laid out again on every redraw | the failure is cached (§7.1, §7.3) |
+| The focused answer's cap subtracted the input height on a one-row entry (2/3 drawn as "2") | only for a two-row entry (§7.1) |
+| ICACHE's byte cost understated the native heap ~2× | measured cost formula, cap 4 KB (§7.3, §9.3) |
 
 ---
 
@@ -221,7 +227,7 @@ device lenses) confirmed the defects below; each fix has a regression test in
 | `EDMAP` | `None` | Caret map of the last 2D layout of `LINE` (§5.2, "Result"), or `None` for a flat/1D line. |
 | `EMODEL` | `None` | `(LINE, CLASSIC)` for which `emodel()` last built the model. The model is rebuilt only when this differs, so a degraded line (`ED1D`, `EFAIL`) is not laid out again until the text changes, and the F3 Classic toggle rebuilds it. Set to `None` before every job and in `panic`. |
 | `EFLAT` | `True` | The current line is drawn and edited flat/1D (§5.1, §5.3). Set by `emodel()`. |
-| `EDL`, `EKEY` | `None` | Last painted entry: its display list (absolute coordinates, hidden boxes left out) and `(LINE, CUR, geometry, caret column, caret top)`, geometry `(flat, XOFF, EXOFF, EH, theme, content top, ascent)` (§0.6). Used by the diff paint. |
+| `EDL`, `EKEY` | `None` | Last painted entry: its display list (absolute coordinates, hidden boxes left out) and `(LINE, CUR, geometry, caret column, caret top)`, geometry `(flat, XOFF, EXOFF, EH, theme, content top, ascent)` (§0.6); `XOFF` counts only for a flat line (it is 0 in a 2D key, §0.8). Used by the diff paint. |
 | `PENDING` | `None` | `(a, b)`: put the caret in the first empty slot (drawn order) inside `LINE[a:b]`. Resolved in `emodel()` (§6.5). |
 | `ED1D` | `False` | The current line is drawn 1D because the layout is over its caps or raised `MemoryError`. |
 | `EFAIL` | `None` | The `LINE` for which `panic` (reason 0 or 3) ran. While `LINE == EFAIL`, it is drawn 1D, so a failing layout is never retried in a loop. |
@@ -923,10 +929,12 @@ formula exactly. `CARETC = 'INK'` is a single constant.
 
 - **Flat/1D:** today's rule (`XOFF` in characters, `CUR - XOFF ≤ 29`).
 - **2D:** with caret pixel `c = 9 + X[CUR] - EXOFF`:
-  - if `c > 304`: `EXOFF = min(w - 290, X[CUR] + 9 - 304 + 60)`;
+  - if `c > 304`: `EXOFF = X[CUR] + 9 - 304 + 60`;
   - if `c < 10`: `EXOFF = max(0, X[CUR] - 60)`;
-  - then always `EXOFF = min(EXOFF, max(0, w - 290))`, so deleting text never leaves the
-    content scrolled off a now-short line.
+  - then always `EXOFF = min(EXOFF, max(0, w - 230))`, so deleting text never leaves the
+    content scrolled off a now-short line. (Review, §0.8: the bound was `w - 290`, which
+    cancelled the 60 px look-ahead at the end of the line, so 3 keys in 4 scrolled and
+    repainted the whole entry; with `w - 230` up to 60 px stay blank after the content.)
 
   Each 60 px step repaints the entry once. Otherwise the diff paint applies.
 
@@ -1017,7 +1025,9 @@ D.mreduce 6`, the same depth as the old `redraw` chain.
 The **focused** entry is `SEL` in MODE, else the newest. At most `PAGEMAX = 5` entries are
 shown, stacked upward from `SB` while `top ≥ 21`. The focused entry is always shown, even
 when it is taller than the stage: its result view height is then cut to what fits
-(`min(92, SB - 21 - input height - 2)`, at least 15) and it is clipped to rows 20..SB.
+(`min(92, SB - 21)`, less the input height + 2 only when the result goes under the input,
+at least 15) and it is clipped to rows 20..SB. (Review, §0.8: subtracting the input height
+for a one-row entry cut a 2/3 beside its input down to "2" when the entry box grew.)
 
 **One layout per answer.** Every answer is laid out with the same key,
 `D.layout(e[1], 300, 92)`, whatever view height it is shown in. The view height (92 for
@@ -1028,11 +1038,13 @@ the focused entry would need a sixth key next to the five `(…, 60)` keys, and 
 5-entry FIFO answer CACHE (pop the oldest, no refresh on a hit) would then miss on
 **every** lookup of every MODE ↑/↓ redraw. With one key per answer, a page of ≤ 5 answers
 fits the cache (the `test_layout` pin) as long as their total cost stays under 4 KB, as
-today.
+today. Both caches are LRU with 6 entries (§7.3): the page is planned newest-first, so a
+FIFO evicted exactly the next entry needed and every ↓ that moved the page missed five
+times (review, §0.8).
 
 | Part | Rule |
 |---|---|
-| Input | `D.mlayout(e[0], 1)`. If it returns None, raises (`MemoryError`, or any `Exception`: a layout bug; §0.6), or `w > 300` or `h > 60` (`LISTH`; §0.6), use 1D `e[0][:31]` (h 15). Drawn at x 5 through `mrender(…, SUB, False)` in the SUB batch. |
+| Input | `D.mlayout(e[0], 1)` (a `MemoryError` inside it is cached as None, so a failing input is not laid out again until the next job empties ICACHE). If it returns None, raises (`MemoryError`, or any `Exception`: a layout bug; §0.6), or `w > 300` or `h > 60` (`LISTH`; §0.6), use 1D `e[0][:31]` (h 15). Drawn at x 5 through `mrender(…, SUB, False)` in the SUB batch. |
 | Result, `R_ANS` | `D.layout(e[1], 300, 92)` (see above). Rendered right-aligned (`scrollx = min(0, w-300)`) into the view `(10, y, 300, cap)`; the focused entry uses `DX` (clamped to `w - 300`) when `w > 300`, with `<`/`>` at its row centre. |
 | Result, `R_MSG` | SUB text, right-aligned at `310-10*len`; the focused one wraps into ≤ 3 lines of 30. |
 | One row | If `in.w + res.w + 20 ≤ 300` and the result is ≤ 60 high (§0.6): baselines aligned, result right edge at 309. |
@@ -1050,9 +1062,14 @@ entry is at the bottom.
 
 ### 7.3 Caches
 
-- `draw.CACHE` (answers) is unchanged: 5 entries, 4 KB.
-- `draw.ICACHE` holds history-input layouts `(text, result, cost)`: ≤ 5 entries,
-  ≤ 3072 B, oldest dropped first, `cost = 24*len(dl) + len(text)`.
+- `draw.CACHE` (answers): ≤ 6 entries (`PAGEMAX + 1`, a page and the incoming entry),
+  4 KB of nominal cost as before; least recently used dropped first (a hit moves the entry
+  to the end).
+- `draw.ICACHE` holds history-input layouts `(text, result, cost)`: ≤ 6 entries,
+  ≤ 4096 B, least recently used dropped first. `cost = 128 + 32*len(dl) + 4*len(text)` is
+  the retained heap measured on native MicroPython 1.12 (32-bit) within ~10 %; the old
+  `24*len(dl) + len(text)` understated it about 2× (review, §0.8). A failed layout (None,
+  or a `MemoryError`) is cached too.
 - The editor never uses either cache.
 - `clear_cache()` (CASUI) empties both. It runs before every job and in `panic`.
 
@@ -1252,7 +1269,7 @@ commands. The gate is native `ui_calculus` at 189,776 (§12.9).
 | Typing transient, per 2D key | ~3–5 KB (CPython), ≤ ~25 KB at the cap; freed by the next GC |
 | Flat key | ~0 |
 | Retained while idle: `EDMAP`/`EDL` | ≤ 4 KB |
-| Retained while idle: ICACHE | ≤ 3 KB |
+| Retained while idle: ICACHE | ≤ 4 KB, measured (§7.3) |
 
 All retained state is cleared before every job.
 
