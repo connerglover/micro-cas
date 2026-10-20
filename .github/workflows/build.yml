@@ -101,10 +101,18 @@ jobs:
         # 173360 bytes were free after a probe imported ti_plotlib, ti_graphics and more.
         run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 173360 --suite ui
 
+      - name: Keep long MathPrint lines 2D after a result on a 173360-byte 32-bit heap
+        run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 173360 --suite ui_edit
+
       - name: Run the heavy calculus session at the measured EVO start heap
         # PROBE3 measured 185296 bytes free at program start; the harness itself uses 4480.
         # docs/notes/FASTBOOT.md records why packs need more heap than v1 for these cases.
         run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 189776 --suite ui_calculus
+
+      - name: Run the heavy calculus session 4 KiB under the measured EVO start heap
+        # A pass at the nominal heap alone could be luck: native heap layout varies with the
+        # run's path, so the gate keeps 4096 bytes of margin (docs/notes/MATHPRINT.md 0.8).
+        run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 185680 --suite ui_calculus
 
       - name: Run the 55-case diagnostic stress session on a 212000-byte 32-bit heap
         run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 212000 --suite probe

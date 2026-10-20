@@ -219,6 +219,21 @@ device lenses) confirmed the defects below; each fix has a regression test in
 | The caret sat left of an empty box and touched the fraction bar | 15-row caret on 2D lines, centred in an empty box (§6.1) |
 | The picker footer said `1-7` on the 6-row page 2, with no page cue | `Templates  n/2`, `1-n pick  <> page` (§3.2) |
 | Nested radicals drew their overbars 1 row apart | 3 rows apart (§3) |
+| After the first result, a 2D line of 72–97 characters ran out of memory natively and went 1D for good | the idle families and soft packs give way, then one retry; native `ui_edit` suite (§5.3, §12.9) |
+| The spec's `EDMAP`/`EDL` and transient sizes were CPython estimates | native measurements (§5.3, §9.3) |
+| Native `ui_calculus` passed at 189,776 by a few hundred bytes, depending on the run's path | the engine's resident packs now load where a boot block kept the heap free (below), so shedding CASUX leaves one hole at the top; across 12 path lengths it passes from 182,000 (before: 188,000, some paths failing at 189,776; v1.0 before MathPrint: 180,000). CI also runs it at 185,680 (§12.9) |
+
+**Boot block (`ui.BALLAST`).** The bulk of the difference from v1.0 was heap layout, not
+size: CASUX (34.6 KB of bytecode, 41.5 KB of heap) loaded at boot under the engine, which
+the first ENTER loads, so shedding CASUX for a computation left its hole under the resident
+engine, between long-lived objects, and the next family or printer import found no
+contiguous run (measured: an `arclen` alone needed 171 KB, against 159 KB in v1.0). The last
+statement of the `ui` module (CASUI) now allocates an 80,000-byte `bytearray` when more than
+144,000 bytes are free (never on the desktop, which has no `gc.mem_free`); CASUX is imported
+above it, and `engine()` drops it just before importing the engine, which then fills the low
+heap (`arclen` alone: 161 KB). A 2D layout that runs out of memory before the engine loads
+drops it too (§5.3). The native harness's "heap boot" figure includes the held block (about
+36 KB free at 173,360 instead of 116 KB); it is free again at the first ENTER or menu.
 
 ---
 
@@ -860,13 +875,20 @@ any of these holds:
 - `len(LINE) > 160`;
 - `mparse` returns None;
 - the laid-out height exceeds 76;
-- `D.mlayout` raises `MemoryError`. `emodel()` catches it, sets `EDMAP = None`, calls
-  `gc.collect()` and sets `ED1D`; `EMODEL` is still set to `(LINE, CLASSIC)`, so only the
-  next text change retries.
+- `D.mlayout` raises `MemoryError` twice. `emodel()` catches it, sets `EDMAP = None`, calls
+  `gc.collect()` and sets `ED1D = 2`; when the engine is loaded, `key` then frees what is
+  idle while typing (`EDL`, `EKEY`, the layout caches, and through `R.evict_all()` the
+  families and the input, printer and aux packs, which the next command reloads) and
+  rebuilds the model once (review, §0.8). If that fails too, `ED1D` becomes True; `EMODEL`
+  is still set to `(LINE, CLASSIC)`, so only the next text change retries. Measured on
+  native MicroPython 1.12 (32-bit, 173,360-byte heap, after `2+3` ENTER): a calculus line
+  went 1D at 83 characters before the retry, and stays 2D to about 140 characters with it
+  (`build/micro_smoke.py --suite ui_edit` pins 97-, 72- and 130-character lines).
 
-History inputs use the same caps (mode 1). `redraw` catches `MemoryError` around each
-history `D.mlayout(e[0], 1)` and draws that input 1D (`e[0][:31]`); a persistent failure
-there costs one exception per full redraw, never a loop through `panic`.
+History inputs use the same caps (mode 1). `D.mlayout` catches `MemoryError` in mode 1 and
+caches the failure (§7.3), so `redraw` draws that input 1D (`e[0][:31]`) without laying it
+out again until the next job; `redraw` still catches any `Exception` around the call, never
+a loop through `panic`.
 
 Width beyond 300 px scrolls (§6.3).
 
@@ -879,8 +901,12 @@ Memory (text prototype, tracemalloc on CPython; MicroPython about one third):
 | 95 characters, 8 fractions | 46 KB |
 | at the cap (177 characters, 181 nodes) | 76 KB |
 
-Retained `EDMAP` + `EDL`: about 0.6 KB at 30 characters, at most about 4 KB. Both are freed
-before every job and in `panic`.
+Retained `EDMAP`, measured on native MicroPython 1.12 (32-bit; review, §0.8): 1.5 KB at 23
+characters, 4.3 KB at 72, 7.8 KB at 156 (the text prototype's "about 0.6 KB at 30, at most
+4 KB" understated it); `EDL`, the absolute copy of the display list, adds about a third of
+that. The layout's live peak is about 265 B per character (23 KB for an 87-character
+calculus line). Both are freed before every job and in `panic`, and given back first when a
+layout runs out of memory (§5.3).
 
 ### 5.4 Render: `D.mrender(dl, dx, dy, clip, x0, x1, c, boxes, cur=-1)`, L4
 
@@ -1227,7 +1253,8 @@ assigned in a function, which `packs.Plan.constant` requires of a placed name).
 `ui`-kind pack; a view pack may not hold a global that a function assigns
 (`packs.py`: "lives in soft pack … but assigns globals").
 - `ui`: `EXOFF`, `EH`, `EDMAP`, `EDL`, `EKEY`, `EMODEL`, `EFLAT`, `PENDING`, `ED1D`,
-  `EFAIL`, `CLASSIC`, `VIEWEND`, `STATVIEW`, `HINTVIEW`, `CARETC`, `EDIFF`, `PAGEMAX`.
+  `EFAIL`, `CLASSIC`, `VIEWEND`, `STATVIEW`, `HINTVIEW`, `CARETC`, `EDIFF`, `PAGEMAX`,
+  and (review, §0.8) `BALLAST`, the boot block.
 - `draw`: `ICACHE`, `ICACHE_BYTES`.
 
 CASUX code assigns these only as ui/draw globals (`CASUI.X` after packing), as `key()`
@@ -1282,10 +1309,10 @@ commands. The gate is native `ui_calculus` at 189,776 (§12.9).
 
 | Item | Size |
 |---|---|
-| Boot (CASUI + CASUX) | ~+10 KB estimated; measured +20.1 KB of bytecode (CASUX +19,773 B, CASUI +363 B), so about +28 KB of heap at `ROOMCOST` 1.4 (§9.2, §0.7). Boot still imports only CASUI and CASUX (`tests/test_release.py::test_boot_loads_only_the_ui`) |
-| Typing transient, per 2D key | ~3–5 KB (CPython), ≤ ~25 KB at the cap; freed by the next GC |
+| Boot (CASUI + CASUX) | the boot block (80 KB, §0.8) is held until the engine loads; ~+10 KB estimated; measured +20.1 KB of bytecode (CASUX +19,773 B, CASUI +363 B), so about +28 KB of heap at `ROOMCOST` 1.4 (§9.2, §0.7). Boot still imports only CASUI and CASUX (`tests/test_release.py::test_boot_loads_only_the_ui`) |
+| Typing transient, per 2D key | ~265 B per character on MicroPython 1.12 (23 KB at 87 characters, ~42 KB at the 160 cap); freed by the next GC. On `MemoryError` the idle engine packs give way once (§5.3) |
 | Flat key | ~0 |
-| Retained while idle: `EDMAP`/`EDL` | ≤ 4 KB |
+| Retained while idle: `EDMAP`/`EDL` | measured 1.5 KB at 23 characters, 4.3 KB at 72, 7.8 KB at 156 (+ about a third for `EDL`) |
 | Retained while idle: ICACHE | ≤ 4 KB, measured (§7.3) |
 
 All retained state is cleared before every job.
@@ -1489,8 +1516,9 @@ redraw paths, pixel equivalence, history page) run in the source and `--bundled`
    - `pytest -m "not slow" --strict-depth` in source and bundled;
    - `build/release.py` (PACKMAX, budgets);
    - `check_release.py`, `test_release.py` (UI-only boot, depth ≤ 8);
-   - CI: `micro_smoke` `ui` at 173,360 and `ui_calculus` at 189,776 with the regenerated
-     streams, and 64-bit `all`.
+   - CI: `micro_smoke` `ui` and `ui_edit` (long 2D lines after a result stay 2D, §5.3) at
+     173,360 and `ui_calculus` at 189,776 and at 185,680 (4 KiB of margin, §0.8) with the
+     regenerated streams, and 64-bit `all`.
 
    Hardware acceptance means an EVO run that times typing, arrows and a template insert.
 

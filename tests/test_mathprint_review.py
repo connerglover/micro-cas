@@ -391,3 +391,61 @@ def test_nested_radicals_have_two_clear_overbars():
     assert len(bars) == 2 and bars[1] - bars[0] >= 3, m[1]
     m = s.mods['draw'].mlayout('sqrt(2)', 2)
     assert m[3] + m[4] <= 18
+
+
+# -- memory: a 2D layout that runs out of memory frees the idle engine packs first ----------
+
+def test_layout_memory_error_frees_idle_soft_packs_and_retries(monkeypatch):
+    s = KS.run('2+3{enter}1{frac}2')
+    u, d, r = s.mods['ui'], s.mods['draw'], s.mods['run']
+    real = d.mlayout
+    calls = []
+    fails = [1]
+
+    def flaky(t, mode):
+        calls.append(mode)
+        if mode == 2 and fails[0]:
+            fails[0] -= 1
+            raise MemoryError('layout')
+        return real(t, mode)
+    freed = []
+    monkeypatch.setattr(d, 'mlayout', flaky)
+    def shed(keep=None, packs=None):
+        freed.append(1)
+        return False
+    monkeypatch.setattr(r, 'shed', shed)
+    u.key(93)
+    assert freed == [1, 1] and calls.count(2) == 2          # soft, then aux packs
+    assert u.EDMAP is not None and not u.ED1D and not u.EFLAT
+    fails[0] = 5                        # out of memory for good: one retry, then flat
+    u.key(94)
+    assert len(freed) == 4 and u.ED1D is True and u.EFLAT
+    u.key(24)                           # the same text is not laid out again
+    assert len(freed) == 4 and calls.count(2) == 4
+
+
+def test_boot_ballast_is_given_to_the_engine():
+    s = KS.run('1+2')
+    u = s.mods['ui']
+    assert u.R is None
+    u.BALLAST = bytearray(16)           # the device holds it from boot (mem_free > 144000)
+    u.key(105)
+    assert u.R is not None and u.BALLAST is None
+
+
+def test_boot_ballast_gives_way_to_a_layout_before_the_engine(monkeypatch):
+    s = KS.run('1{frac}2')
+    u, d = s.mods['ui'], s.mods['draw']
+    assert u.R is None
+    u.BALLAST = bytearray(16)
+    real = d.mlayout
+    fails = [1]
+
+    def flaky(t, mode):
+        if fails[0]:
+            fails[0] -= 1
+            raise MemoryError('layout')
+        return real(t, mode)
+    monkeypatch.setattr(d, 'mlayout', flaky)
+    u.key(93)
+    assert u.BALLAST is None and u.EDMAP is not None and not u.ED1D and u.R is None

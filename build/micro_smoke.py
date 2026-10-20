@@ -129,6 +129,55 @@ print('UI CALCULUS PASS: 7 commands; normal quit')
 '''.format(keys=repr(keys), hist=repr(names.get('HIST', 'HIST')),
            ans=repr(names.get('ANS', 'ANS')), expected=repr(tuple(value for _, value in UI_CASES)))
 
+# MathPrint lines typed after a first result (docs/notes/MATHPRINT.md 0.8, 5.3): with the
+# engine loaded, a 2D layout that runs out of memory frees the idle families and soft packs and
+# tries again, so ordinary long lines stay 2D (ED1D false) at the documented minimum heap.
+EDIT_LINES = (
+    'sum((k^2+1)/(k^3+2k+1),k,1,10)+integrate(sqrt(x^2+1)/(x+1),x,0,1)+diff(x^3/(x^2+1),x)+1',
+    '{frac}1{down}x^2{right}{right}+' * 6,
+    'sum((k^2+1)/(k^3+2k+1),k,1,10)+integrate(sqrt(x^2+1)/(x+1),x,0,1)+diff(x^3/(x^2+1),x)+1'
+    '+sqrt(x^2+1)/(x+2)+x^3',
+)
+
+
+def edit_ui(names):
+    """Type each EDIT_LINES line after 2+3 ENTER and record (len(LINE), ED1D) before CLEAR."""
+    sys.path.insert(0, str(ROOT / 'tests/support'))
+    import keyscript
+    keys = list(keyscript.parse('2+3{enter}'))
+    watch = []
+    for line in EDIT_LINES:
+        keys.extend(keyscript.parse(line))
+        watch.append(len(keys))
+        keys.extend(keyscript.parse('{clear}'))
+    keys.extend(keyscript.parse('{2nd,mode}'))
+    assert all(type(key) is int for key in keys)
+    return '''import sys
+import ti_system as TS
+import ti_draw as G
+TS.KEYS={keys}
+WATCH={watch}
+STATES=[]
+_wait=TS.wait_key
+def wait():
+    if TS.POS in WATCH:
+        u=sys.modules['CASUI']
+        STATES.append((len(getattr(u,{line})),getattr(u,{flat})))
+    return _wait()
+TS.wait_key=wait
+import CASEVO
+assert TS.POS==len(TS.KEYS), 'key replay did not finish'
+assert G.ERROR is None,G.ERROR
+assert len(STATES)==len(WATCH),STATES
+for n,flat in STATES:
+ assert n>=70 and not flat,('a long 2D line went 1D',STATES)
+assert max(n for n,flat in STATES)>=120,STATES
+assert getattr(CASEVO.R,{ans})=='5' and len(getattr(CASEVO.R,{hist}))==1
+print('UI EDIT PASS: %d long 2D lines stay 2D; normal quit' % len(STATES))
+'''.format(keys=repr(tuple(keys)), watch=repr(tuple(watch)),
+           line=repr(names.get('LINE', 'LINE')), flat=repr(names.get('ED1D', 'ED1D')),
+           ans=repr(names.get('ANS', 'ANS')), hist=repr(names.get('HIST', 'HIST')))
+
 PROBE = '''# Import the unchanged self-contained release probe; auto-advance pages.
 import gc
 import ti_system as TS
@@ -185,6 +234,7 @@ def prepare(dist, output, archive=None):
         'probe.py': PROBE,
         'startup.py': STARTUP,
         'ui_calculus.py': calculus_ui(names),
+        'ui_edit.py': edit_ui(names),
     }
     for name, source in scripts.items():
         ast.parse(source, filename=name, feature_version=(3, 4))
@@ -233,7 +283,8 @@ def main(argv=None):
     parser.add_argument('--run', metavar='MICROPYTHON', help='explicitly run this native executable')
     parser.add_argument('--heap', type=int, default=512000,
                         help='native MicroPython heap bytes (default 512000 = 500 KiB)')
-    parser.add_argument('--suite', choices=('all', 'ui', 'ui_calculus', 'probe', 'startup'), default='all')
+    parser.add_argument('--suite', choices=('all', 'ui', 'ui_calculus', 'ui_edit', 'probe', 'startup'),
+                        default='all')
     args = parser.parse_args(argv)
     if args.heap <= 0:
         parser.error('--heap must be a positive byte count')
@@ -241,7 +292,8 @@ def main(argv=None):
     print('Prepared ' + str(output))
     print('Not an EVO emulator; native object sizes and limits differ, especially on 64-bit hosts.')
     print('No framebuffer is allocated. Each script runs in its own process.')
-    scripts = ('ui.py', 'ui_calculus.py', 'probe.py') if args.suite == 'all' else (args.suite + '.py',)
+    scripts = (('ui.py', 'ui_calculus.py', 'ui_edit.py', 'probe.py') if args.suite == 'all' else
+               (args.suite + '.py',))
     executable = args.run or 'micropython'
     if args.run and Path(executable).is_file():
         executable = str(Path(executable).resolve())

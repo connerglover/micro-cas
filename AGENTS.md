@@ -177,7 +177,9 @@ python build/archive.py --mpy-cross <pinned-v1.12-mpy-cross>
 python -m pytest -q tests/test_archive_release.py --strict-depth
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 95000 --suite startup
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 173360 --suite ui
+python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 173360 --suite ui_edit
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 189776 --suite ui_calculus
+python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 185680 --suite ui_calculus
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 212000 --suite probe
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas64> --heap 500000
 node build/package_archive.mjs
@@ -189,8 +191,11 @@ python build/check_pages.py dist/website
 
 The 32-bit heaps follow the device measurements: 173,360 bytes were free after
 a probe imported several `ti_*` modules, and 189,776 is PROBE3's 185,296 bytes
-free at program start plus the 4,480 bytes the harness uses. The 64-bit run uses
-the default `all` suite (UI, UI calculus and the 55 diagnostics). FASTBOOT.md
+free at program start plus the 4,480 bytes the harness uses; `ui_calculus` also
+runs 4,096 bytes below it, because native heap layout varies with the run's path
+and a pass at exactly the nominal heap can be luck. `ui_edit` types long 2D lines
+after a result. The 64-bit run uses the default `all` suite (UI, UI calculus, UI
+edit and the 55 diagnostics). FASTBOOT.md
 records why packs need more heap than v1 for the heaviest definite integrals.
 
 Use targeted tests during iteration, then the checks appropriate to the final

@@ -27,3 +27,14 @@ def test_complete_native_suite(monkeypatch, tmp_path):
     monkeypatch.setattr(MS.subprocess, 'run', lambda *a, **k:
                         subprocess.CompletedProcess(a[0], 0, 'UI CALCULUS PASS: 7 commands\n', ''))
     MS.main(['--run', 'micropython', '--suite', 'ui_calculus'])
+
+
+def test_edit_suite_is_generated_and_named(monkeypatch, tmp_path):
+    names = {'LINE': 'LINE', 'ED1D': 'ED1D', 'ANS': 'ANS', 'HIST': 'HIST'}
+    source = MS.edit_ui(names)
+    compile(source, 'ui_edit.py', 'exec')
+    assert 'UI EDIT PASS' in source and len(MS.EDIT_LINES) == 3
+    monkeypatch.setattr(MS, 'prepare', lambda *a: tmp_path)
+    monkeypatch.setattr(MS.subprocess, 'run', lambda *a, **k:
+                        subprocess.CompletedProcess(a[0], 0, 'UI EDIT PASS: 3 long\n', ''))
+    MS.main(['--run', 'micropython', '--suite', 'ui_edit'])

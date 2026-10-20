@@ -381,9 +381,11 @@ def emodel():                                                  #@L 2
                 EDMAP = D.mlayout(s, 2)
             except MemoryError:
                 EDMAP = None
+                ED1D = 2                # key() frees the idle engine packs and tries again
                 gc.collect()
             if EDMAP is None:
-                EFLAT = ED1D = True
+                EFLAT = True
+                ED1D = ED1D or True
     M = EDMAP
     if PENDING is not None:
         if M is not None:
@@ -1301,12 +1303,13 @@ def boot(t0=None):                                             #@L 1
 def engine():                                                  #@L 2
     """The run module, imported (leaf first) and wired on the first call, with the load time
     in ENGINE_MS and a 'Loading engine...' status drawn while it loads."""
-    global K, A, P, PR, R, ENGINE_MS, STATUS, NOTE
+    global K, A, P, PR, R, ENGINE_MS, STATUS, NOTE, BALLAST
     if R is not None:
         return R
     t0 = clock()
     STATUS = 'Loading engine...'
     status(STATUS)
+    BALLAST = None                      # the low heap it kept free takes the engine
     gc.collect()
     before = list(sys.modules)
     try:
@@ -1345,7 +1348,7 @@ def key(k):                                                    #@L 1
     keeps the 1D editor. The editor model is refreshed before dispatch and before every redraw;
     a job (ENTER, F4) frees it before the computation."""
     global LINE, CUR, MOD, MODE, SEL, HERO, DX, ENTRYPOS, LASTENTRY, STATUS, FULL, XOFF, EXOFF
-    global PENDING, VIEWEND, EDMAP, EDL, EKEY, EMODEL
+    global PENDING, VIEWEND, EDMAP, EDL, EKEY, EMODEL, ED1D, BALLAST
     job = None
     if k == 21 or k == 31:
         if k == 21:
@@ -1505,6 +1508,13 @@ def key(k):                                                    #@L 1
         STATUS = 'Calculating...'
         D.clear_cache()
     emodel()
+    if ED1D == 2 and (R is not None or BALLAST is not None):
+        EDL = EKEY = EMODEL = BALLAST = None    # the layout ran out of memory: the boot block,
+        D.clear_cache()                 # the idle soft and aux packs (input, printer), the
+        while R is not None and (R.shed() or R.shed(None, R.AUX)):  # layout caches and the
+            pass                        # last entry paint give way, then one more try; the
+        emodel()                        # families stay (room() reloads a soft pack as usual)
+        ED1D = bool(ED1D)               # no more tries until the text changes (5.3)
     redraw()
     if job is not None:
         EDMAP = EDL = EKEY = EMODEL = PENDING = None
@@ -1579,3 +1589,11 @@ def panic(reason):                                             #@L 1
     offset = max(0, CUR - 29)
     D.text(LINE[offset:offset+30], 10, 172)
     MODE, SEL, HERO, DX, FULL = 0, -1, False, 0, True
+
+
+# Boot order (MATHPRINT.md 0.8): the view pack CASUX is imported right after this module, and
+# the engine's resident packs only at the first ENTER or menu. Held until then, this block keeps
+# the low heap free, so CASUX loads above it and engine() puts the resident engine there:
+# shedding CASUX during a computation then leaves one hole at the top, not one under the engine
+# (native ui_calculus passed down to about 188 KB without it, 180 KB with it).
+BALLAST = bytearray(80000) if hasattr(gc, 'mem_free') and gc.mem_free() > 144000 else None
