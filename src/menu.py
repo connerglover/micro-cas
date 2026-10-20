@@ -44,7 +44,9 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
                     ('Theme: ' + ('Night' if R.SET['theme'] else 'Paper'), 'ENTER or arrows toggle'),
                     ('Clear history', 'Remove past inputs and results'),
                     ('Clear variables', 'Remove stored variables and functions'),
-                    ('About cas-evo', 'Version, timing, memory and loaded modules')]
+                    ('About cas-evo', 'Version, timing, memory and loaded modules'),
+                    ('Entry: ' + ('Classic' if U.CLASSIC else 'MathPrint'),
+                     'ENTER or arrows toggle')]
             title = 'Setup'
         elif kind == 'test':
             rows, title = [], 'TEST'
@@ -159,8 +161,10 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
                     D.theme(R.SET['theme'])
                 elif selected in (2, 3):
                     confirmation = selected
-                else:
+                elif selected == 4:
                     about = True
+                else:                   # the editor: MathPrint or Classic (a ui global)
+                    U.CLASSIC = not U.CLASSIC
             elif kind == 'recall':
                 text = rows[selected][2]
                 return (text, False, len(text))

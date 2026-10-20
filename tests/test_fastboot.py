@@ -79,7 +79,8 @@ print(json.dumps({'booted': booted, 'edited': edited, 'line': line, 'job': job,
 def test_keyscript_session_without_enter_never_loads_the_engine():
     s = KS.run('2+3{left}{del}{2nd,left}{right}*x{clear}sin(x{snap:typed}')
     assert 'run' not in s.mods and 'node' not in s.mods and 'parse' not in s.mods
-    assert s.mods['ui'].R is None and s.mods['ui'].LINE == 'sin(x'
+    # MathPrint autocloses sin( (MATHPRINT.md 11.2), so the unclosed text is typed closed
+    assert s.mods['ui'].R is None and s.mods['ui'].LINE == 'sin(x)'
     assert not any(c[0] == 'draw_text' and c[3] == 'Loading engine...' for c in s.calls)
 
 

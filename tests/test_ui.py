@@ -24,7 +24,9 @@ def test_atomic_ans_delete():
 
 def test_empty_slot_never_evaluates():
     s = KS.run('diff(,x){enter}')
-    assert len(s.hist) == 0
+    # MathPrint (MATHPRINT.md 2.2): the engine-free stage finds the slot, so the engine (and its
+    # history) never loads
+    assert not s.hist and 'run' not in s.mods
     assert 'empty slot' in s.screen
 
 
@@ -123,7 +125,11 @@ def test_panic_works_without_ui_or_layout_phase(monkeypatch, reason, message):
     before = (u.LINE, u.CUR, s.ans, tuple(s.hist[0]))
     with monkeypatch.context() as patch:
         for module, names in ((u, ('redraw', 'enclosing', 'wrapped', 'empty_slot', 'tidy',
-                                   'structure')),
+                                   'structure', 'emodel', 'edkey', 'picker', 'edins', 'eddel',
+                                   'edmove', 'edvert', 'paste', 'empty_map', 'edslot', 'edterm',
+                                   'leave', 'put', 'bmatch', 'spans', 'keep', 'blank', 'insert',
+                                   'TMPL', 'PREFILL', 'PLAIN', 'SECOND', 'ALPHA', 'HINT',
+                                   'ALIAS')),
                               (d, ('layout', 'paint', 'tree', 'measure', 'place', 'render',
                                    'TPL', 'TGAP', 'MPREC', 'MFNT', 'mlayout', 'mflat', 'mcall',
                                    'mstop', 'mlex', 'mparse', 'mpush', 'mshut', 'mreduce',

@@ -18,7 +18,11 @@
 >
 > **Status.** Milestone A (the engine-free layout core, §5, and `tidy`/`structure`, §1.3–1.4)
 > is implemented and tested (`tests/test_mathprint_layout.py`); §0.4 lists where the code
-> settled a detail differently. The editor keys, shell and picker are not implemented yet.
+> settled a detail differently. Milestone B (the keys, §2–4, `emodel` and PENDING, §6.5,
+> recall/paste/ENTRY, §7.4, the picker, §3.2, the Classic setting, §8, and the keyscript
+> typist, §11.1) is implemented and tested (`tests/test_mathprint_keys.py`); §0.5 lists its
+> decisions. The entry is still drawn 1D (the raw buffer, today's row): the 2D entry, the
+> history page and the diff paint (§6.1–6.4, §7.1–7.3, §10) are milestone C.
 > All EVO timings below are estimates (host time × 75,
 > FASTBOOT.md); the draw-call counts come from the shim. Hardware acceptance needs an EVO
 > run.
@@ -117,6 +121,32 @@ sections below left open or got wrong. Each section is edited to match.
 | `structure` wraps every non-group operand | It leaves alone a construct with an operand that ends in a letter right before `(` (`1/x(x+1)`, `e^x(x+1)`): `x(…)` is a product, but a call if `x` is a user function, and wrapping would change which (§1.4) |
 | Names follow `PREC` only | Names follow the engine's reading too (verification of milestone A; `parse.iscall`, `ti_rewrite`, `ti_implicit`), via `D.mcall` (L5) and the constant `D.MFNT` (a copy of `parse.FNT`). A single letter other than `f`, `g`, `h` before `(` is a product: `1/x(x+1)` is `(1/x)(x+1)` and `e^x(x+1)` is `e^x*(x+1)` (the first version drew `x(x+1)` as the denominator/exponent, and `structure` wrapped it, which changed the recalled answer). Letters before an `FNT` function or a template are cut off (`xsqrt(4)` is `x*sqrt(4)` and draws the √ template; `ysin(x)` is `y*sin(x)`). A multi-letter name the engine may cut (`ab` is `a*b`: `x^ab` is `b*x^a`, `1/ab` is `b/a`), or a call it may read as a product (`ab(2)`, `xexpand(x)`), outside brackets in the right operand of `^` or of a stacked `/` keeps that operator inline text: its extent depends on session names that draw cannot see, so no picture is drawn that the engine might not evaluate. `x^(ab)` and `1/sin(x)` are 2D as before (§1.2, §5.2) |
 | Performance (not specified) | Contiguous text leaves merge while a row is built (`2+3*x` is one leaf, one box, one text item); leaf stops are written inline. Host: a dense 160-character line lays out in 200–340 µs (`test_dense_line_host_time_guard`) |
+
+### 0.5 Milestone B implementation notes (2026-10-20)
+
+Where the editor keys settled a detail the sections below left open, or where the spec
+contradicted itself or the code. Each section is edited to match.
+
+| Spec said | Code does, and why |
+|---|---|
+| The fraction key captures `a*b|` as `a*(b)/(|)`, and `2*(a+b)/(|)` is a DEL example of a stacked fraction | With `*` and `/` left-associative, `2*(a)/(b)` parsed as `(2*(a))/(b)`, which the entry rule (§1.2) draws inline, so the captured fraction was not stacked. `draw.mreduce` (mode 2) now makes a group that follows `*` or a juxtaposition the numerator when the denominator is a group, as it already hoists a sign: `2*(a)/(b)` is `2*[(a)/(b)]`, the same value. After an inline `/` it does not (`a/(b)/(c)` is `(a/b)/c`); a row records whether its last operator was `/` in its aux field (§1.2, §5.2) |
+| 42 in a bare exponent (`x^2|`) | The capture stays in the exponent slot, which gets its parens first: `x^((2)/(|))`. Without them `x^(2)/()` would leave the exponent (§2.1) |
+| 2f: `f(a,|b)` → `f(a|,b)`; flat lines: "a call's commas are visible, so DEL after one deletes it by rule 5" | The two disagreed on the same (flat) line. A call's commas are visible text, flat or 2D: DEL after one deletes it (rule 5), `f(a,|b)` → `f(a|b)`. 2f (act like ←) applies to templates only, whose commas are hidden (§4.3) |
+| 2f example `integrate(f,x,|0,1)` → `integrate(f,x|,0,1)` | The lower bound `a` is the first slot of `∫ₐᵇ` in drawn order (§3), so 2e′ applies: `|integrate(f,x,0,1)`. A 2f example is `integrate(f,x,0,|1)` → `integrate(f,x,0|,1)` (§4.3) |
+| Keep-`(U)` test: a top-level `+ - = < > ,`, `=>`, `:=` or relation | Also `* / ^`: `a/sqrt(x*y)` must not become `a/x*y`, nor `sqrt(x^2)^3` `x^2^3`. The parens stay only when the construct has a neighbour (§4.3) |
+| `)` rules (1)–(4) | (2′): the innermost bracket around the caret is a visible opener of the same type with no closer at all (an unbalanced recalled or Classic text): `)` inserts its closer (`(x+1|` → `(x+1)|`) instead of doing nothing (§2) |
+| Flat current slot: the innermost bracket pair, else the line | A top-level comma ends it too, as a 2D slot does: `(` in `sin(|a,b)` gives `sin((|a),b)` on both paths (§4.1) |
+| `edkey` handles the editing keys | It takes DEL (calling `edmove(-1)` when `eddel` returns True: `eddel` and `edmove` are both L3), the arrows outside MODE, up/down outside MODE, the template keys and the text keys. `key` keeps CLEAR, MODE, ENTER, F4, the menus and the picker (§2, §9.1) |
+| `paste(text, bare)` | `bare` is the unwrapped result (or None): `paste` (L3) cannot call `wrapped` (L3), so `key` passes both (§7.4, §9.1) |
+| `edins(op)` | `edins(op, t='')`: `t` is the bracket for `open`/`close` and the text for `text` (§9.1) |
+| Helpers | New L4 helpers `spans(o, cl)` (top-level argument spans), `keep(os, oe, u)` (the keep test), `blank(a, e, k, os)` (a slot that is empty or holds its prefill, through the CASUX constant `ui.PREFILL`), and L5 `bmatch(s, i, d)` (the matching bracket) (§9.1, §9.2) |
+| Menu PENDING "if the line is 2D" | `key` sets PENDING for every MathPrint menu text with a `(`; `emodel` drops it on a flat line, so the offset stands there (§2) |
+| Picker row 1.2 on an empty line | `^(|)` (an empty base box), the same as the 51 key |
+| ENTER: stage 1 | `2+|` on a **flat** line has no map: stage 1 finds nothing and stage 2 (engine) reports it, as before. On a 2D line the trailing box is found by stage 1 |
+| `emodel` step 4 | It keeps `EH` and `EXOFF` as §6.1/§6.3 say, but `redraw` still draws the buffer 1D until milestone C; `XOFF` stays `redraw`'s |
+| `test_empty_slot_never_evaluates` "holds" | It asserted `len(s.hist) == 0`; with stage 1 the engine never loads, so `s.hist` is None: the test now asserts `not s.hist and 'run' not in s.mods` (§11.2) |
+| keyscript: "a name" as an exponent operand | One letter only (`x^ab` is `x^a*b` to the engine), a glyph, or `name(...)`. A `^` right after a **group** exponent cannot be typed inside the box (its `)` has left it): it is typed after it and the 51 wrap rule gives `(x^(2))^(…)`, so scripts write such a nested exponent inside the group (§11.1) |
+| Budgets | CVUI measured 1093 lines / 29.9 KB: budget `('ui', 'CVUI', 'R', 1200, 33)`. CASUX ~28.5 KB, CASUI ~3.8 KB (`build/release.py`) (§9.2) |
 
 ---
 
@@ -308,7 +338,7 @@ MathPrint tables.
 | 2nd 71 10ˣ, 2nd 81 eˣ | `10^(|)`, `e^(|)` | |
 | 71 log, 81 ln, 52–54 sin cos tan, 2nd 52–54 asin… | `log(|)`, `ln(|)`, `sin(|)` and so on. The closer goes in at once. `log(` stays a plain call; log base b comes from the picker. | |
 | 63 `(`, 2nd 63 `{`, 2nd 75 `[` | In an empty hidden exponent (`x^(|)`): no-op, because the box is the group. Otherwise insert the opener at CUR and its closer at the **end of the current slot** (§4.1; for a flat line, the innermost unmatched bracket pair, else the end of the line). | `|x+1` → `(|x+1)`; `1/|4` → `1/(|4)`; at the end: `(|)` |
-| 64 `)`, 2nd 64 `}`, 2nd 85 `]` | First match: (1) `LINE[CUR]` is the same closer, hidden or visible: step over it; at a hidden numerator closer this lands on the denominator start. (2) CUR is inside a visible group or a plain call (the innermost bracket pair around CUR that lies inside the current slot) whose opener is the same bracket type and whose closer is further right: **move** that closer to CUR. This undoes the autoclose of key 63 when the user closes earlier. (3) The current slot is the root: insert the closer literally (the layout draws it as text; the engine reports it). (4) Otherwise (inside a hidden or template slot, with nothing to close): no-op. | `x^(2|)` → `x^(2)|`; `sin(x|)` → `sin(x)|`; `2(3|x+1)` → `2(3)|x+1`; `sin(a|+b)` → `sin(a)|+b`; `x+1|` → `x+1)|`; `integrate(f|,x)` → unchanged |
+| 64 `)`, 2nd 64 `}`, 2nd 85 `]` | First match: (1) `LINE[CUR]` is the same closer, hidden or visible: step over it; at a hidden numerator closer this lands on the denominator start. (2) CUR is inside a visible group or a plain call (the innermost bracket pair around CUR that lies inside the current slot) whose opener is the same bracket type and whose closer is further right: **move** that closer to CUR. This undoes the autoclose of key 63 when the user closes earlier. (3) The current slot is the root: insert the closer literally (the layout draws it as text; the engine reports it). (2′) The innermost bracket is a visible opener of the same type with no closer: insert the closer (`(x+1|` → `(x+1)|`; §0.5). (4) Otherwise (inside a hidden or template slot, with nothing to close): no-op. | `x^(2|)` → `x^(2)|`; `sin(x|)` → `sin(x)|`; `2(3|x+1)` → `2(3)|x+1`; `sin(a|+b)` → `sin(a)|+b`; `x+1|` → `x+1)|`; `integrate(f|,x)` → unchanged |
 | 62 `,` | Leave rule. Then, if `LINE[CUR] == ','`, step over it; else insert `,`. | `surd(8|,)` → `surd(8,|)`; `integrate(x^(2|),x)` → `integrate(x^(2),|x)` |
 | ← → (24/26) | MODE or empty LINE: `DX ± 24`, as today. Otherwise move to the previous/next stop in drawn order (§4.2). No layout. | |
 | 2nd ← / 2nd → | MODE or empty LINE: `DX ± 24`, as today. Otherwise home / end: `CUR = 0` / `len(LINE)`. | |
@@ -340,6 +370,10 @@ relations. Only text left of CUR is captured: `ab|c` → `(ab)/(|)c`.
 The group is **reused** (only `/()` is inserted) exactly when the captured term is one
 visible bracket group `( … )` with no name and no other factor before it, i.e. the term
 starts at the group's opener. `2(a+b)|` captures `2(a+b)` and gives `(2(a+b))/(|)`.
+
+After `*` (`a*b|` → `a*(b)/(|)`) the fraction is stacked because the layout makes the group
+after `*` the numerator (§0.5). In a bare exponent the slot gets its parens first:
+`x^2|` → `x^((2)/(|))`.
 
 The scan reads the fresh map when there is one (stale-map rule, §1.1); otherwise it treats
 `)` as a visible closer, which gives the same text for every row below.
@@ -542,7 +576,8 @@ its `(`, i.e. positions `start+1 .. index of '('`, where the call name is what `
 (L5) keeps of the name (§1.2: none for `x(`, `sin` in `ysin(`). `D.mstop(s, i)` (L4) tests
 this by a local scan.
 The current slot is the interior of the innermost unmatched bracket pair around CUR, else
-the whole line. `X[i] = 10*i`.
+the whole line; a top-level comma ends it too, as on a 2D line (`ui.edslot`, §0.5).
+`X[i] = 10*i`.
 
 ### 4.2 ← / → (`edmove`, L3)
 
@@ -570,16 +605,17 @@ the whole line. `X[i] = 10*i`.
 | 2b | power, exponent start, non-empty | `CUR = os` (before `^`) | `x^(|2)` → `x|^(2)` |
 | 2c | fraction, denominator start | denominator empty: unwrap the numerator U (the keep-`(U)` test of 2e applies, with the fraction's own neighbours), caret at its end; else go to the numerator end | `(a)/(|)` → `a|`; `(a+b)/(|)` → `a+b|`; `2*(a+b)/(|)` → `2*(a+b)|`; `(a)/(|b)` → `(a|)/(b)` |
 | 2d | fraction, numerator start | denominator empty: unwrap as in 2c, caret at its start; else `CUR = os` | `(|a)/()` → `|a`; `(|a)/(b)` → `|(a)/(b)` |
-| 2e | template or call, first slot in drawn order, all other slots empty (prefill counts) | unwrap the content U. **Keep-`(U)` test:** keep the parens if U has a top-level `+ - = < > ,`, `=>`, `:=` or relation, or a leading sign, **unless** the construct is alone in its slot: the char before its start is the line start, `(` (visible or hidden) or `,`, **and** the char at `oe` is the line end, `)` or `,`. (Any other neighbour, including `*`, `/`, `^`, `-` and `+`, keeps the parens: `a-sqrt(x+1)` must not become `a-x+1`.) | `2sqrt(|x+1)` → `2(|x+1)`; `a-sqrt(|x+1)` → `a-(|x+1)`; `sqrt(|x+1)` → `|x+1`; `sqrt(|x)` → `|x`; `sin(|x)` → `|x`; `sin(|)` → `|` |
-| 2e′ | template or call, first slot in drawn order, some other slot non-empty | act like ← (to the construct's outer start); nothing is deleted | `f(|a,b)` → `|f(a,b)`; `surd(8,|3)` → `|surd(8,3)` |
-| 2f | template or call, any other slot start | act like ← | `f(a,|b)` → `f(a|,b)`; `integrate(f,x,|0,1)` → `integrate(f,x|,0,1)` |
+| 2e | template or call, first slot in drawn order, all other slots empty (prefill counts) | unwrap the content U. **Keep-`(U)` test:** keep the parens if U has a top-level `+ - * / ^ = < > ,`, `=>`, `:=` or relation, or a leading sign (`* / ^` added in milestone B, §0.5), **unless** the construct is alone in its slot: the char before its start is the line start, `(` (visible or hidden) or `,`, **and** the char at `oe` is the line end, `)` or `,`. (Any other neighbour, including `*`, `/`, `^`, `-` and `+`, keeps the parens: `a-sqrt(x+1)` must not become `a-x+1`.) | `2sqrt(|x+1)` → `2(|x+1)`; `a-sqrt(|x+1)` → `a-(|x+1)`; `sqrt(|x+1)` → `|x+1`; `sqrt(|x)` → `|x`; `sin(|x)` → `|x`; `sin(|)` → `|` |
+| 2e′ | template or call, first slot in drawn order, some other slot non-empty | act like ← (to the construct's outer start); nothing is deleted | `f(|a,b)` → `|f(a,b)`; `surd(8,|3)` → `|surd(8,3)`; `integrate(f,x,|0,1)` → `|integrate(f,x,0,1)` |
+| 2f | template, any other slot start (a call's commas are visible: rule 5 deletes them, `f(a,|b)` → `f(a|b)`; §0.5) | act like ← | `integrate(f,x,0,|1)` → `integrate(f,x,0|,1)`; `integrate(f,x,|0,1)` is 2e′ (a is drawn first) |
 | 2g | visible group start | remove both brackets if matched; an unmatched opener falls through to rule 5 (deleted alone) | `(|a+b)` → `|a+b` |
 | 3 | the previous stop p and CUR lie in one visible leaf | delete `LINE[p:CUR]` | `x+pi|` → `x+|`; `12|` → `1|` |
 | 4 | CUR just after a construct (template, fraction, power, call, or a **matched** group) | if it is empty (prefill counts): delete it (for a power, `^(…)` only); else step into it (←) | `sqrt()|` → `|`; `sqrt(x)|` → `sqrt(x|)`; `x^(2)|` → `x^(2|)`; `(a+b)|` → `(a+b|)`; `sin(x)|` → `sin(x|)`; `x+1)|` (stray) → rule 5: `x+1|` |
 | 5 | otherwise, `CUR > 0` | delete `LINE[CUR-1]` (never a hidden character: every hidden one sits at a slot start or construct end that an earlier rule takes) | |
 
 Flat lines apply rules 1, 2e/2e′/2g (via a bracket scan around CUR; a call's commas are
-visible, so DEL after one deletes it by rule 5), 4 for a matched `)`, and 5. Hidden
+visible, so DEL after one deletes it by rule 5, as on a 2D line), 4 for a matched `)` (an empty
+call or group, prefill counting, is deleted with its name: `riemann(,x,,,)|` → `|`), and 5. Hidden
 characters are never deleted one at a time; structure changes only through the rules
 above, so the buffer stays well formed.
 
@@ -1024,10 +1060,10 @@ History inputs stay 2D. Classic also serves as:
 | `picker()` | ui | 2 | CASUX | D.rect/text/line 5, D.color 6, TS.wait_key (native) |
 | `redraw()` (rewritten, §6.4; history plan inline) | ui | 2 | CASUX | D.mlayout, D.layout, D.theme, epaint, enclosing 3; D.render, D.mrender, room 4; D.text/rect/line 5; D.color 6 |
 | `engine`, `busy` | ui | 2 | as today | unchanged |
-| `edins(op)`: `frac`, `pow`, `sq`, `open`, `close`, `comma`, `text` | ui | 3 | CASUX | edslot, edterm, leave, put 4 |
-| `eddel()` | ui | 3 | CASUX | edslot, put 4; D.mstop 4 |
+| `edins(op, t='')`: `frac`, `pow`, `sq`, `open`, `close`, `comma`, `text` | ui | 3 | CASUX | edslot, edterm, leave, put 4; bmatch 5 |
+| `eddel()` → True: move left instead | ui | 3 | CASUX | put, keep, blank, spans 4; bmatch, D.mcall 5 |
 | `edmove(d, mod)`, `edvert(d)` → bool | ui | 3 | CASUX | D.mstop 4 |
-| `paste(text, bare)` | ui | 3 | CASUX | edslot, put 4 |
+| `paste(text, bare)` (`bare`: the unwrapped result, or None) | ui | 3 | CASUX | edslot, put 4 |
 | `tidy(s)`, `structure(s)` | ui | 3 | CASUX | D.mlex, D.mparse 4 |
 | `empty_map()` | ui | 3 | CASUX | – |
 | `empty_slot()` (log-base skip, §2.2) | ui | 3 | CASUX | – |
@@ -1035,7 +1071,8 @@ History inputs stay 2D. Classic also serves as:
 | `insert`, `wrapped` (unchanged) | ui | 3 | CASUX | – |
 | `epaint(full)` | ui | 3 | CASUX | D.mrender 4; D.rect/text/line 5 |
 | `status(s)` (also `STATVIEW = None`) | ui | 3 | CASUI | D.rect/text 5 |
-| `edslot(i)` → SLOTS row; `edterm(i)`; `leave(kind)`; `put(line, cur)` → bool | ui | 4 | CASUX | – |
+| `edslot(i)` → SLOTS row; `edterm(i)`; `leave(grp)`; `put(line, cur)` → bool; `spans(o, cl)`; `keep(os, oe, u)`; `blank(a, e, k, os)` | ui | 4 | CASUX | bmatch, D.mcall 5 |
+| `bmatch(s, i, d)` (the matching bracket) | ui | 5 | CASUX | – |
 | `mlayout(s, mode)` | draw | 3 | CASUX | mlex, mparse, mbox, mplace 4 |
 | `clear_cache()` (also ICACHE) | draw | 3 | CASUI | – |
 | `mflat(s)`, `mstop(s, i)`, `mlex(s)` | draw | 4 | CASUX | mcall 5 |
@@ -1065,7 +1102,8 @@ must not call `emodel` either: `key` refreshes a stale model at dispatch step 2.
 **Tables and constants placed in CASUX** (each is bound once to a literal and never
 assigned in a function, which `packs.Plan.constant` requires of a placed name).
 - `ui`: `PLAIN`, `SECOND`, `ALPHA`, `HINT`, `ALIAS` (unchanged, as today), plus the new
-  `TMPL` (picker rows, a tuple of tuples).
+  `TMPL` (picker rows, a tuple of tuples) and `PREFILL` (the prefilled second parameter per
+  name, for DEL's empty test).
 - `draw`: the new `TPL` (dict literal), `TGAP` (int), `MPREC` (dict) and `MFNT` (tuple). No
   CASUI function reads them;
   a CASUI function that read a CASUX name would be rejected by the packer ("reads … by
@@ -1086,7 +1124,8 @@ already does.
 **PACKS.** The CASUX tuple gains, by name:
 - `'ui.emodel'`, `'ui.edkey'`, `'ui.picker'`, `'ui.edins'`, `'ui.eddel'`, `'ui.edmove'`,
   `'ui.edvert'`, `'ui.paste'`, `'ui.tidy'`, `'ui.structure'`, `'ui.empty_map'`,
-  `'ui.epaint'`, `'ui.edslot'`, `'ui.edterm'`, `'ui.leave'`, `'ui.put'`;
+  `'ui.epaint'`, `'ui.edslot'`, `'ui.edterm'`, `'ui.leave'`, `'ui.put'`, and (milestone B)
+  `'ui.bmatch'`, `'ui.spans'`, `'ui.keep'`, `'ui.blank'`, `'ui.PREFILL'`;
 - `'ui.TMPL'`, `'draw.TPL'`, `'draw.TGAP'`, `'draw.MPREC'` (milestone A placed the draw
   names, `ui.tidy` and `ui.structure`);
 - `'draw.MFNT'`, `'draw.mlayout'`, `'draw.mflat'`, `'draw.mcall'`, `'draw.mstop'`,
@@ -1106,7 +1145,7 @@ and the allowed imports are unchanged.
 | Module | Today (lines / KB) | Estimated after | New budget |
 |---|---|---|---|
 | CVDRAW | 342/350, 10.5/13 KB | measured after milestone A: 973 lines, 24.4 KB | `('draw', 'CVDRAW', 'R', 1020, 27)` (set in milestone A) |
-| CVUI | 414/500, 14.1/16 KB | after milestone A: 498 lines, 15.9 KB; ~820 at the end | `('ui', 'CVUI', 'R', 550, 18)` now; ~900/30 at the end |
+| CVUI | 414/500, 14.1/16 KB | after milestone A: 498 lines, 15.9 KB; after milestone B: 1093 lines, 29.9 KB | `('ui', 'CVUI', 'R', 1200, 33)` (milestone B) |
 | CVMENU | 153/200 | +4 (setup row) | fits |
 | CVMENUB | 42/150 | +6 (prefill) | fits |
 
@@ -1235,7 +1274,7 @@ typed as `x^(2)`, and `tidy` restores `x^2`.
 |---|---|
 | `test_ui.test_entry_and_repeat` (`'2+3'`) | holds (`structure` is the identity) |
 | `test_atomic_ans_delete` | holds (DEL rule 1) |
-| `test_empty_slot_never_evaluates` (`diff(,x)`) | holds: stage 1, engine not loaded |
+| `test_empty_slot_never_evaluates` (`diff(,x)`) | **changes**: stage 1 finds the slot and the engine never loads, so `s.hist` is None; it asserts `not s.hist and 'run' not in s.mods` |
 | `test_history_fraction_paste_is_parenthesized` (`'x^(2/3)'`) | holds: `x^(|)`, ↑ → history (§4.4), bare paste into the empty hidden slot |
 | `test_evo_keys_forms_fraction_and_xroot` | holds: `(1)/(4)` → tidy `'1/4'`; `{2nd,x^n}8,3` → `surd(8,3)` = 2 |
 | `test_help_example_paste` | holds: `diff(` types as `diff(|)` (autoclose), F5 finds `diff`, and the example `diff(x^3,x,2)` is inserted unchanged at CUR, giving `diff(diff(x^3,x,2))`, which contains it. Its bare `^3` follows the bare-power rule (§1.2). |

@@ -3239,14 +3239,14 @@ confirms the rest.
 | 31 [V] | alpha | modifier; alpha alpha or 2nd alpha = lock | | |
 | 32 | X,T,θ,n | `x` | `t` | `theta` |
 | 41 [V] | math | menu (F1, Calculus tab) | TEST picker: `= != < <= > >= !` (D16, §16.7) | `a` |
-| 42 | fraction template (Evo; apps on the CE) | `/` | – | `b` |
+| 42 | fraction template (Evo; apps on the CE) | fraction template with term capture, `(x)/(□)` (Classic: `/`) | template picker (MathPrint) | `b` |
 | 43 | prgm | – | – | `c` |
 | 44 [V] | vars | recall (F2) | | |
 | 45 [V] | clear | clear / back / hide hero; cancel while computing | | |
-| 51 | x^n (Evo; x⁻¹ on the CE) | `^` | `surd(` (xRoot) | `d` |
+| 51 | x^n (Evo; x⁻¹ on the CE) | exponent box `^(□)` (Classic: `^`) | `surd(□,)` (xRoot; Classic: `surd(`) | `d` |
 | 52, 53, 54 | sin cos tan | `sin(` `cos(` `tan(` | `asin(` `acos(` `atan(` | `e` `f` `g` |
 | 55 | ÷ (Evo; ^ on the CE) | `/` | `pi` | `h` |
-| 61 | x² | `^2` | `sqrt(` | `i` |
+| 61 | x² | `^(2)` (Classic: `^2`) | `sqrt(□)` | `i` |
 | 62 | , | `,` | `E` (EE) | `j` |
 | 63, 64 | ( ) | `(` `)` | `{` `}` | `k` `l` |
 | 65 | × (Evo; ÷ on the CE) | `*` | `e` | `m` |
@@ -3269,6 +3269,11 @@ confirms the rest.
 - **Dispatch** goes through dict tables `code -> text or action code` (one per modifier), then one
   `if/elif` chain over the action codes in `U.key`. There is no function per key, which saves
   frames and code.
+- **MathPrint** (the default entry; docs/notes/MATHPRINT.md 2): `U.edkey` handles the editing
+  keys. Table texts ending in `(` are closed at once (`sin(□)`), `)` steps over a closer or
+  closes the nearest visible group, 42/51/61 and 2nd 51 insert templates, and DEL, the arrows and
+  up/down follow the 2D caret map. F3 Setup row 6, `Entry: Classic`, restores the 1D editor of
+  this section exactly.
 
 ### 16.5 Editor (1D, FlowCE habits, cat §5)
 

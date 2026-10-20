@@ -375,6 +375,11 @@ def test_first_enter_loads_the_engine_once(release_module):
     ('sqrt(2){enter}{f4}{f3}{down}{enter}{clear}', '1.4142135623731'),
     ('2/3{enter}{f2}{enter}{enter}', '2/3'),
     ('expand((x+y)^20){enter}{clear@1}2+3{enter}', '5'),
+    # the MathPrint editor in the packs (docs/notes/MATHPRINT.md 2-4, 8): the picker, the
+    # fraction and power keys, DEL unwrapping a fraction, and the Classic setting
+    ('{2nd,frac}316{right}+1{frac}2{right}*2^3{enter}', '8'),
+    ('1{frac}2{del}{del}5{enter}', '15'),
+    ('{f3}6{clear}1{frac}2+1{enter}', '3/2'),          # Classic: 1/2+1, not (1)/(2+1)
 ])
 def test_actual_entry_editor_menus_forms_and_cancel(release_module, script, answer):
     app = release_module.Release().run(script)

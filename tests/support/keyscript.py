@@ -19,7 +19,13 @@ Typing: each run of plain text is cut greedily into the longest texts that one k
 `<` `<=` `>` `>=` `!` go through the TEST picker: 2nd math, then 1-7). `-` is always the minus
 key, which triggers the leading-operator rule on an empty line after a result (`_` types (-)).
 A literal `{` or `}` needs `{2nd,(}` / `{2nd,)}`. Uppercase letters other than `E` (2nd ,)
-have no key sequence here.
+have no key sequence here. MathPrint (docs/notes/MATHPRINT.md 11.1): `/` is the divide key
+(55, drawn inline); `^2` is x^2 (61); any other `^` is x^n (51), which opens an exponent box:
+its operand (a sign, then a group, a number, one letter, a glyph or name(...)) is typed inside
+and RIGHT (26) leaves the box when more text follows (a group's `)` leaves it by itself). The
+fraction template is `{frac}` (42) and the template picker `{2nd,frac}`; 2nd x^n is `{surd}`
+(type `surd(` with letters for the text). The editor autocloses `(` and `name(`, and `)` steps
+over the closer, so a typed balanced text gives the same line.
 
 Typical use::
 
@@ -96,11 +102,11 @@ KEYTEXT = {
     33: (None, None, None),
     34: ('@down', '@pagedown', None),
     41: ('@menu:calculus', '@test', 'a'),
-    42: ('/', None, 'b'),
+    42: ('@frac', '@templates', 'b'),
     43: (None, None, 'c'),
     44: ('@recall', None, None),
     45: ('@clear', None, None),
-    51: ('^', 'surd(', 'd'),
+    51: ('^', '@surd', 'd'),
     52: ('sin(', 'asin(', 'e'),
     53: ('cos(', 'acos(', 'f'),
     54: ('tan(', 'atan(', 'g'),
@@ -160,12 +166,76 @@ TYPE = _typing_table()
 _LONGEST = max(len(t) for t in TYPE)
 
 
+def _group_end(text, i):
+    """The index after the bracket group opening at text[i] (or len(text) if unclosed)."""
+    depth = 0
+    for j in range(i, len(text)):
+        if text[j] in '([{':
+            depth += 1
+        elif text[j] in ')]}':
+            depth -= 1
+            if depth == 0:
+                return j + 1
+    return len(text)
+
+
+def _power(text, i, words):
+    """Keys for the power that starts at text[i] == '^' (MathPrint, MATHPRINT.md 11.1), the
+    index after it and the number of exponent boxes the caret is still in. '^2' (not followed by
+    a digit, '.' or '^') is x^2 (61). Otherwise x^n (51) and the exponent: an optional sign, then
+    a bracket group (its '(' is a no-op in the empty box and its ')' steps out), a number, a
+    letter (one only: the engine reads x^ab as x^a*b), a glyph, or name(...); a '^' right after
+    a non-group operand is typed inside the box, right-associatively."""
+    n = len(text)
+    if text.startswith('^2', i) and (i + 2 >= n or not (text[i + 2].isdigit() or
+                                                     text[i + 2] in '.^')):
+        return [61], i + 2, 0
+    out = [51]
+    j = i + 1
+    if j < n and text[j] in '+-':
+        j += 1
+    if j < n and text[j] in '([{':
+        k = _group_end(text, j)
+        group = True
+    else:
+        group = False
+        k = j
+        if k < n and (text[k].isdigit() or text[k] == '.'):
+            while k < n and (text[k].isdigit() or text[k] == '.'):
+                k += 1
+        elif k < n and text[k].isalpha():
+            m = k
+            while m < n and (text[m].isalpha() or text[m].isdigit()):
+                m += 1
+            if m < n and text[m] == '(':
+                k = _group_end(text, m)
+            elif text.startswith('theta', k) or text.startswith('pi', k) or \
+                    text.startswith('oo', k):
+                k += 5 if text.startswith('theta', k) else 2
+            else:
+                k += 1
+    out.extend(type_keys(text[i + 1:k], words))
+    owed = 0 if group else 1
+    if not group and k < n and text[k] == '^':
+        more, k, inner = _power(text, k, words)
+        out.extend(more)
+        owed += inner
+    return out, k, owed
+
+
 def type_keys(text, words=True):
     """Key codes that type `text`. words=False uses only one-character keys (letters are then
-    spelled with alpha, `sin(` as s, i, n, ()."""
+    spelled with alpha, `sin(` as s, i, n, (). A '^' types a MathPrint power (_power); RIGHT
+    leaves its exponent box when more text follows."""
     out = []
     i = 0
     while i < len(text):
+        if text[i] == '^':
+            keys, i, owed = _power(text, i, words)
+            out.extend(keys)
+            if i < len(text):
+                out.extend([26] * owed)
+            continue
         for n in range(min(_LONGEST if words else 2, len(text) - i), 0, -1):
             t = text[i:i + n]
             if t in TYPE and (words or n == 1 or t in TEST_OPS):
@@ -249,9 +319,9 @@ def decode(items):
     out = []
     mod = 0                             # 0 plain, 1 2nd, 2 alpha
     test = False
-    for it in items:
-        if type(it) is tuple:
-            continue
+    owed = 0                            # exponent boxes opened by x^n that RIGHT leaves
+    ints = [it for it in items if type(it) is not tuple]
+    for pos, it in enumerate(ints):
         if test:
             test = False
             n = DIGIT.index(it) if it in DIGIT else 0
@@ -269,11 +339,16 @@ def decode(items):
         mod = 0
         if t is None:
             raise ValueError('key %s does nothing in that state' % NAME.get(it, it))
-        if t == '@test':
+        if t == '@right' and owed:
+            owed -= 1
+        elif t == '@test':
             test = True
         elif t[0] == '@':
+            owed = 0
             out.append('{%s}' % t[1:])
         else:
+            if it == 51 and t == '^' and (pos + 1 >= len(ints) or ints[pos + 1] != 63):
+                owed += 1
             out.append(t)
     return ''.join(out)
 

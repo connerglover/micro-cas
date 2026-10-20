@@ -90,3 +90,46 @@ def test_about_shows_boot_and_engine_times(monkeypatch):
     with pytest.raises(TS.StopScript):
         R.need('menu').open('setup')
     assert 'Boot 0.4s, engine 3.1s' in TD.screen_text()
+
+
+def row(sig):
+    for r in R.need('cat').CAT:
+        if r[0] == sig:
+            return r
+    raise KeyError(sig)
+
+
+def test_insertion_prefills_x_and_k_after_the_first_parameter():
+    # MATHPRINT.md 3 and 11.2: a required x or k at position 1 or later is prefilled; the first
+    # parameter never is, so a one-argument row or purge(x,...) stays empty
+    R.need('menu')
+    mb = R.MODS['menub']
+    assert mb.insertion(row('sin(x)')) == ('sin()', False, 4)
+    assert mb.insertion(row('purge(x,...)'))[0] == 'purge()'
+    assert mb.insertion(row('paramarea(x,y,t,a,b)'))[0] == 'paramarea(,,,,)'
+    assert mb.insertion(row('diff(f,x,[n])'))[0] == 'diff(,x)'
+    assert mb.insertion(row('sum(f,k,a,b)'))[0] == 'sum(,k,,)'
+    assert mb.insertion(row('limit(f,x,a,[dir])'))[0] == 'limit(,x,)'
+    assert mb.insertion(row('taylor(f,x=a,[n])'))[0] == 'taylor(,)'
+    for r in R.need('cat').CAT:
+        if r[0].startswith('surd('):
+            assert mb.insertion(r)[0] == 'surd(,)'
+
+
+def test_setup_row_toggles_the_editor():
+    monkey = U.CLASSIC
+    try:
+        menu('setup', [34] * 5 + [105, 45])
+        assert U.CLASSIC is True
+        menu('setup', [84, 26, 24, 45])                  # digit 6, then the arrows
+        assert U.CLASSIC is False
+        menu('setup', [34] * 5 + [24, 45])
+        assert U.CLASSIC is True
+        assert 'Entry: Classic' in TD.screen_text()
+        U.CLASSIC = False
+        TS.load([34, 34, 34, 34, 105])                  # row 4 still opens About
+        with pytest.raises(TS.StopScript):
+            R.need('menu').open('setup')
+        assert 'Free heap' in TD.screen_text() and U.CLASSIC is False
+    finally:
+        U.CLASSIC = monkey

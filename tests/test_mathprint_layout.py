@@ -191,6 +191,15 @@ def test_entry_stacking_rule():
     assert not stacked('1/(2)+x^(2)')
     assert stacked('-(a)/(b)+x^(2)')     # the minus is drawn outside the bar
     assert not stacked('(1)/((2)+x^(2)')   # unclosed group: inline
+    # milestone B: a group after * or a juxtaposition is the numerator (2*(a)/(b) has the
+    # value of 2*((a)/(b))), so the fraction key's capture a*(b)/() is stacked; after an inline
+    # '/' it is not (a/(b)/(c) is (a/b)/c)
+    for s, cs in (('2*(a+b)/(c)', 2), ('a*(b)/(c)', 2), ('2(a)/(b)', 1), ('x^(2)(a)/(b)+1', 5),
+                  ('a/2*(b)/(c)', 4)):
+        q = [c for c in lay(s)[11] if c[3] == 'Q']
+        assert len(q) == 1 and q[0][0] == cs, (s, q)
+    assert [c[3] for c in lay('a/(b)/(c)')[11]].count('Q') == 0
+    assert [c[3] for c in lay('(a)/(b)/(c)')[11]].count('Q') == 1
 
 
 def test_glyphs_and_ans_are_units():

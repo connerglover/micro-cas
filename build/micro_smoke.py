@@ -92,6 +92,9 @@ assert getattr(R, {hist})[0][2] == 'ans', getattr(R, {hist})[0]
 print('UI PASS: 2+3 = 5; normal quit')
 '''
 
+# Typed through tests/support/keyscript.py, so the key stream follows the MathPrint editor
+# (docs/notes/MATHPRINT.md 11.1): autoclosed calls, x^n boxes; tests/test_mathprint_keys.py
+# checks that each command is typed back to the same text and answer.
 UI_CASES = (
     ('2+3', '5'),
     ('integrate(1/(2+cos(x)),x,0,2*pi)', '2*sqrt(3)*pi/3'),

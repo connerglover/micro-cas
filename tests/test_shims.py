@@ -589,6 +589,28 @@ def test_typing_uses_function_keys():
     assert KS.type_keys('sin(x)', words=False) == [31, 81, 31, 61, 31, 71, 63, 32, 64]
 
 
+def test_typing_mathprint_powers_and_fractions():
+    # docs/notes/MATHPRINT.md 11.1: x^n (51) opens an exponent box that RIGHT (26) leaves; ^2 is
+    # x^2 (61); / is the divide key (55); the fraction key (42) and 2nd x^n are actions
+    assert KS.type_keys('x^3+1') == [32, 51, 94, 26, 85, 92]
+    assert KS.type_keys('1/2') == [92, 55, 93]
+    assert KS.type_keys('x^2') == [32, 61]
+    assert KS.type_keys('e^(x)') == [21, 81, 32, 64]
+    assert KS.type_keys('x^(2/3)+1') == [32, 51, 63, 93, 55, 94, 64, 85, 92]
+    assert KS.type_keys('x^-1') == [32, 51, 75, 92]
+    assert KS.type_keys('x^-1*2') == [32, 51, 75, 92, 26, 65, 93]
+    assert KS.type_keys('x^23') == [32, 51, 93, 94]
+    assert KS.type_keys('x^2^3+1') == [32, 51, 93, 51, 94, 26, 26, 85, 92]
+    assert KS.type_keys('2^sin(x)+1') == [93, 51, 52, 32, 64, 26, 85, 92]
+    assert KS.type_keys('x^ab') == [32, 51, 31, 41, 26, 31, 42]
+    assert KS.type_keys('x^pi+1') == [32, 51, 21, 55, 26, 85, 92]
+    assert KS.KEYTEXT[42] == ('@frac', '@templates', 'b')
+    assert KS.KEYTEXT[51] == ('^', '@surd', 'd')
+    assert KS.decode([32, 51, 94, 26, 85, 92]) == 'x^3+1'
+    assert KS.decode([42, 21, 42, 21, 51]) == '{frac}{templates}{surd}'
+    assert KS.decode([32, 51, 94, 26, 26]) == 'x^3{right}'
+
+
 def test_typing_relations_use_the_test_picker():
     assert KS.type_keys('x=2') == [32, 21, 41, 92, 93]
     assert KS.type_keys('x<=2') == [32, 21, 41, 82, 93]

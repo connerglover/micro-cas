@@ -731,6 +731,10 @@ def mreduce(nodes, vals, op, mode):                            #@L 6
         if nodes[a][0] == 'N':          # -a/b: the sign stays outside the bar
             sg = a
             a = nodes[a][3][1]
+        elif mode == 2 and pb and nodes[a][0] == 'R' and not nodes[a][4] and \
+                nodes[nodes[a][3][-1]][0] == 'G' and nodes[nodes[a][3][-1]][4] & 2:
+            sg = a                      # 2*(a)/(b): the same value as 2*((a)/(b)), so the
+            a = nodes[a][3][-1]         # group after * or a juxtaposition is the numerator
         na = nodes[a]
         pa = na[0] == 'G' and na[4] & 2
         if mode == 1 or pa and pb:
@@ -746,7 +750,7 @@ def mreduce(nodes, vals, op, mode):                            #@L 6
                 nodes[kb][4] = [n, 1]
             nodes.append(['Q', na[1], nb[2], [ka, kb], (a, b)])
             if sg >= 0:
-                nodes[sg][3][1] = n
+                nodes[sg][3][-1] = n
                 nodes[sg][2] = nb[2]
                 n = sg
             vals.append(n)
@@ -792,6 +796,7 @@ def mreduce(nodes, vals, op, mode):                            #@L 6
             kids.append(c)
             last = x
     na[2] = nb[2]
+    na[4] = 1 if op[1] == '/' else 0    # a row that ends in a '/' keeps a later one inline
     vals.append(a)
 
 
