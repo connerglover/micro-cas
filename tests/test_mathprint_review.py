@@ -424,28 +424,30 @@ def test_layout_memory_error_frees_idle_soft_packs_and_retries(monkeypatch):
     assert len(freed) == 4 and calls.count(2) == 4
 
 
-def test_boot_ballast_is_given_to_the_engine():
+def test_boot_block_is_released_when_the_view_pack_boots():
+    """CASUI allocates the block before CASUX is imported, so the view pack loads above it;
+    boot() lets it go at once (MATHPRINT.md 0.8): free-heap readings after boot are true."""
     s = KS.run('1+2')
     u = s.mods['ui']
-    assert u.R is None
-    u.BALLAST = bytearray(16)           # the device holds it from boot (mem_free > 144000)
+    u.BALLAST = bytearray(16)           # the device allocates it (mem_free > 144000)
+    u.boot()
+    assert u.BALLAST is None and u.R is None
     u.key(105)
-    assert u.R is not None and u.BALLAST is None
+    assert u.R is not None
 
 
-def test_boot_ballast_gives_way_to_a_layout_before_the_engine(monkeypatch):
+def test_layout_memory_error_before_the_engine_goes_flat_without_a_retry(monkeypatch):
     s = KS.run('1{frac}2')
     u, d = s.mods['ui'], s.mods['draw']
-    assert u.R is None
-    u.BALLAST = bytearray(16)
+    assert u.R is None and u.BALLAST is None
     real = d.mlayout
-    fails = [1]
+    calls = []
 
-    def flaky(t, mode):
-        if fails[0]:
-            fails[0] -= 1
+    def failing(t, mode):
+        if mode == 2:
+            calls.append(t)
             raise MemoryError('layout')
         return real(t, mode)
-    monkeypatch.setattr(d, 'mlayout', flaky)
+    monkeypatch.setattr(d, 'mlayout', failing)
     u.key(93)
-    assert u.BALLAST is None and u.EDMAP is not None and not u.ED1D and u.R is None
+    assert len(calls) == 1 and u.ED1D and u.EFLAT and u.R is None     # drawn 1D

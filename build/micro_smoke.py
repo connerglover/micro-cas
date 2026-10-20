@@ -53,6 +53,7 @@ import sys
 # checkout's absolute path once per imported page in the constrained heap.
 sys.path[0]=''
 KEYS = (93, 85, 94, 105, 21, 22)
+BLOCK = @BLOCK@
 POS = 0
 PROBE = False
 class ScriptExhausted(BaseException):
@@ -68,6 +69,11 @@ def wait_key():
     if POS == 0 or POS == 4:
         gc.collect()
         print('heap %s: %d' % ('boot' if POS == 0 else 'result', gc.mem_free()))
+        if POS == 0:
+            # ui.BALLAST, the boot block: 'heap boot' counts it as used while it is held.
+            u = sys.modules.get('CASUI')
+            b = getattr(u, BLOCK, None) if u is not None else None
+            print('boot block held: %d' % (len(b) if b is not None else 0))
     if POS >= len(KEYS):
         raise ScriptExhausted('UI did not quit after 2nd MODE')
     key = KEYS[POS]
@@ -228,7 +234,7 @@ def prepare(dist, output, archive=None):
     names = meta['names']
     scripts = {
         'ti_draw.py': GRAPHICS,
-        'ti_system.py': SYSTEM,
+        'ti_system.py': SYSTEM.replace('@BLOCK@', repr(names.get('BALLAST', 'BALLAST'))),
         'ui.py': UI.format(ans=repr(names.get('ANS', 'ANS')),
                            hist=repr(names.get('HIST', 'HIST'))),
         'probe.py': PROBE,
