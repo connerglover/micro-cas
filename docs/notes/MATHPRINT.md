@@ -16,7 +16,10 @@
 > This document is the spec the implementation follows. Input research is in
 > [MATHPRINT-RESEARCH.md](MATHPRINT-RESEARCH.md).
 >
-> **Status.** Not implemented. All EVO timings below are estimates (host time × 75,
+> **Status.** Milestone A (the engine-free layout core, §5, and `tidy`/`structure`, §1.3–1.4)
+> is implemented and tested (`tests/test_mathprint_layout.py`); §0.4 lists where the code
+> settled a detail differently. The editor keys, shell and picker are not implemented yet.
+> All EVO timings below are estimates (host time × 75,
 > FASTBOOT.md); the draw-call counts come from the shim. Hardware acceptance needs an EVO
 > run.
 
@@ -94,6 +97,26 @@ follows. Each item is folded into the section named.
 | `parse.mclose` already exists | the new draw function is `mshut` (§5.2, §9) |
 | The spec cited a scratchpad prototype path and a shim-only font property | removed as evidence; §12.7 is the acceptance check, and no paint path relies on the font (§6.4) |
 
+### 0.4 Milestone A implementation notes (2026-10-20)
+
+Where the layout core (`draw.py`) or the text transforms (`ui.py`) settled a detail the
+sections below left open or got wrong. Each section is edited to match.
+
+| Spec said | Code does, and why |
+|---|---|
+| `mbox` builds boxes in index order (postorder node indices) | A row extended in place (and a sign hoisted over a fraction, and a power's slot) gets kids with higher indices, so index order is not children-first. `mbox` walks the reachable nodes children-first with an explicit stack instead (still no recursion) (§5.2) |
+| Node kind `X` (postfix) | Not used. A postfix `!`/`'`, a stray closer and any other `?` character cling to the adjacent operand as an `R` row (after an operand; before the next one when an operand is expected). Juxtaposing them would add an implicit product: `x^ 2` would then read `(x^ )*2` (§5.2) |
+| Spaces are juxtaposition separators | They cling, as above; the engine ignores them |
+| `E` box item `('b', 1, -12, 8, 13)` | `('b', 1, -11, 8, 13)`: at −12 the box began one row above its own text cell and above the content box (an empty integral upper bound landed at y −1) (§5.2) |
+| `mrender(dl, dx, dy, clip, x0, x1, c, boxes)` | An extra `cur=-1`: the buffer index of the caret, so the trailing-operand box at the caret can be skipped; each `'b'` item carries `(pos, flags)` (§5.4) |
+| `mreduce(nodes, vals, op)`; `mshut`, `mpush` unspecified | `mreduce(nodes, vals, op, mode)` (the stacking rule needs the mode); `mpush(nodes, vals, ops, op, mode)`; `mshut(s, nodes, vals, ops, pos, how, expect, trail, mode)`; `mparse` returns `(nodes, root)` (§9.1) |
+| `tleaf(boxes, s)` | `tleaf(boxes, i0, i1, txt, ti)`: a buffer slice `[i0, i1)` (cut once when the display list is built, so runs merge) or a literal `txt` when `i0 < 0` |
+| Precedence from `parse.PREC` | draw cannot read the engine: the same table is the CASUX constant `draw.MPREC` (§9.2) |
+| `TGAP` on every template box | Editor (mode 2) only: the gap separates two caret stops, and history inputs have no caret |
+| A stacked fraction with a signed numerator (`-a/b`) unspecified in the parser | The parser follows `parse.PREC` (`neg` 6 > `/` 5), then hoists the sign over the bar: `N(Q(a, b))`, the same value, drawn with the minus outside (§1.2) |
+| `structure` wraps every non-group operand | A fraction or power whose right operand is a multi-letter name is left alone: the engine splits `bc` into `b*c`, so `a/bc` is `(a/b)c`, and `(a)/(bc)` would change the value (§1.4) |
+| Performance (not specified) | Contiguous text leaves merge while a row is built (`2+3*x` is one leaf, one box, one text item); leaf stops are written inline. Host: a dense 160-character line lays out in 200–340 µs (`test_dense_line_host_time_guard`) |
+
 ---
 
 ## 1. Data model
@@ -118,7 +141,7 @@ follows. Each item is folded into the section named.
 | `STATVIEW`, `HINTVIEW` | `None` | What the status row and the hint row last showed. A row is repainted only when this changes. |
 | `HERO` | `True` | Now means "show the focused entry's footer in the hint row". CLEAR on an empty line clears it. It only affects `HINTVIEW`; it is **not** part of `VIEW`, so it never causes a full redraw. |
 | `draw.ICACHE`, `draw.ICACHE_BYTES` | `[]`, `0` | History-input layouts (§7.3). |
-| `draw.TPL`, `draw.TGAP` | constants | The template table (§1.2) and the trailing gap (§3.1). They live in **draw**, not ui, because `draw.mflat/mparse/mbox` read them and draw never imports ui; ui code reads `D.TPL`. |
+| `draw.TPL`, `draw.TGAP`, `draw.MPREC` | constants | The template table (§1.2), the trailing gap (§3.1) and the operator precedences of `parse.PREC` (§1.2). They live in **draw**, not ui, because `draw.mflat/mparse/mbox` read them and draw never imports ui; ui code reads `D.TPL`. |
 
 **Stale-map rule.** Every structural lookup in the editing code (`edslot`, `edterm`, `leave`,
 the 51/61 wrap test, `empty_map`, `paste`'s bare test) reads `EDMAP` only when
@@ -198,7 +221,9 @@ engine is unchanged.
 that is not exactly one group, it inserts `(` at the operand's start and `)` at its end.
 Insertions are collected as `(pos, ch)` tuples, sorted with a plain `list.sort()`, and
 applied right to left. If the result is longer than 256 characters, `s` is returned
-unchanged.
+unchanged. A fraction or power whose right operand (after a sign) is a multi-letter name is
+left alone: the engine reads `a/bc` as `(a/b)c`, so wrapping `bc` would change the value
+(§0.4).
 
 | Input | Output |
 |---|---|
@@ -208,6 +233,7 @@ unchanged.
 | `1/(x+1)` | `(1)/(x+1)` |
 | `x^2/3` | `(x^(2))/(3)` |
 | `-a/b` | `-(a)/(b)` |
+| `a/bc`, `x^ab` | unchanged |
 
 Round trip: `tidy(structure(s))` must evaluate to the same `run.go` record as `s` (test §12.4).
 
@@ -410,7 +436,7 @@ user typed.
 
 ### 3.1 Trailing gap
 
-`draw.TGAP = 3` px is added to the width of every template box except power, group and call. Its
+`draw.TGAP = 3` px is added, in the editor (mode 2), to the width of every template box except power, group and call. Its
 purpose: "end of the last slot" and "after the construct" must be distinct caret
 positions. The text prototype showed `integrate(,x,,)` with both at the same pixel.
 
@@ -610,18 +636,20 @@ map.
    - `(` `)` for `([{` and `)]}`.
    - `,`.
    - `!` postfix `!` and `'`.
-   - `?` any other character (drawn as text; space is a juxtaposition separator).
+   - `?` any other character (drawn as text; it clings to the adjacent operand, §0.4).
 2. **`D.mparse(s, tk, mode)`, L4.** A shunting-yard over `PREC` with explicit operand and
    operator stacks. It never raises:
    - a missing operand becomes an `E` node at that index;
    - juxtaposition pushes an implicit `*`;
-   - a stray closer becomes a text leaf;
+   - a stray closer, a postfix `!`/`'` and any `?` character become a text leaf that
+     clings to the adjacent operand (an `R` row);
    - an unclosed group ends at `len(s)`;
    - a top-level comma list is an unbracketed group.
 
-   It returns `None` past the caps: more than 24 open groups or more than 192 nodes. Nodes
-   are lists `[kind, s, e, kids, aux]`, appended in postorder, so a node's index is greater
-   than its children's. Kinds:
+   It returns `None` past the caps: more than 24 open groups or more than 192 nodes
+   (every appended node counts). Otherwise it returns `(nodes, root)`, the root being the
+   line's slot. Nodes are lists `[kind, s, e, kids, aux]`; children are not always at lower
+   indices (a row grows in place). Kinds:
 
    | Kind | Node |
    |---|---|
@@ -635,7 +663,6 @@ map.
    | `G` | group |
    | `C` | call |
    | `T` | template |
-   | `X` | postfix |
 
    Construction rules:
    - `D.mpush` and `D.mshut` (L5) reduce through `D.mreduce` (L6), which builds rows,
@@ -645,14 +672,18 @@ map.
      prototype's first version was O(n²), with a 327 KB peak at 255 characters.
    - In mode 2, a `/` whose two operands are not both exactly one group becomes an inline
      row item. In mode 1, every `/` is a `Q`.
-3. **`D.mbox(s, nodes, root, mode)`, L4.** Marks the nodes reachable from the root. Builds
-   boxes in index order (children first, no recursion) with:
+   - Contiguous text leaves merge while a row is built (glyphs never; in mode 1 neither do
+     operators, which may be glyphs there).
+3. **`D.mbox(s, nodes, root, mode)`, L4.** Walks the nodes reachable from the root
+   children-first with an explicit stack (no recursion) and builds their boxes with:
    - the existing `D.row(…, gap=0)`, `D.frame`, `D.large` and `D.leaf` (glyphs, history
      mode);
-   - the new `D.tleaf(boxes, s)` (L5, always text: `( ) , * <=` …);
+   - the new `D.tleaf(boxes, i0, i1, txt, ti)` (L5, always text: `( ) , * <=` …; a buffer
+     slice, or `txt` when `i0 < 0`);
    - inline geometry for `logb`.
 
-   An `E` box is 10×15 with item `('b', 1, -12, 8, 13)`.
+   An `E` box is 10×15 with item `('b', 1, -11, 8, 13, pos, flags)` (flags: 1 trailing
+   operand, 2 log base). Mode 1 E boxes have no item.
 4. **`D.mplace(s, nodes, boxes, root, mode)`, L4.** An iterative walk with a child cursor.
    - It emits the display list in today's item format plus `'b'`.
    - It merges consecutive text items with the same top and contiguous x into one
@@ -704,13 +735,13 @@ Memory (text prototype, tracemalloc on CPython; MicroPython about one third):
 Retained `EDMAP` + `EDL`: about 0.6 KB at 30 characters, at most about 4 KB. Both are freed
 before every job and in `panic`.
 
-### 5.4 Render: `D.mrender(dl, dx, dy, clip, x0, x1, c, boxes)`, L4
+### 5.4 Render: `D.mrender(dl, dx, dy, clip, x0, x1, c, boxes, cur=-1)`, L4
 
 Draws, in color `c`, the items whose x-range meets `[x0, x1]` (item left edge ≤ `x1` and
 right edge ≥ `x0`; `x1 = 319` for "everything right of `x0`"). One call draws one kind:
 - `boxes=True`: only `'b'` items, as `D.rect` fills (the caller passes LINE). A box that
-  is the trailing missing operand at the caret (`2+|`) is skipped, so typing linear text
-  never flashes a box.
+  is the trailing missing operand at the caret (`2+|`; flag 1 and `pos == cur`) is skipped,
+  so typing linear text never flashes a box. The color is set only if an item is drawn.
 - `boxes=False`: every other item: text through `D.text` with `clip`, lines and glyph
   strokes through `D.clipped_line` (the caller passes INK for the entry, SUB for history
   inputs).
@@ -989,9 +1020,9 @@ History inputs stay 2D. Classic also serves as:
 | `mparse(s, tk, mode)` | draw | 4 | CASUX | mpush, mshut 5; mreduce 6 |
 | `mbox(s, nodes, root, mode)` | draw | 4 | CASUX | row, frame, large, tleaf 5; leaf 6 |
 | `mplace(s, nodes, boxes, root, mode)` | draw | 4 | CASUX | mmark 5 |
-| `mrender(dl, dx, dy, clip, x0, x1, c, boxes)` | draw | 4 | CASUX | rect, text 5; clipped_line, color 6 |
+| `mrender(dl, dx, dy, clip, x0, x1, c, boxes, cur=-1)` | draw | 4 | CASUX | rect, text 5; clipped_line, color 6 |
 | `mpush`, `mshut`, `mmark`, `tleaf` | draw | 5 | CASUX | mreduce 6 (mpush, mshut) |
-| `mreduce(nodes, vals, op)` | draw | 6 | CASUX | – |
+| `mreduce(nodes, vals, op, mode)` | draw | 6 | CASUX | – |
 | `menu.open` (setup row 5) | menu | 2 | CASMNU | unchanged calls |
 | `menub.insertion` (prefill at position ≥ 1) | menub | 3 | CASMNU | – |
 
@@ -1032,7 +1063,8 @@ already does.
 - `'ui.emodel'`, `'ui.edkey'`, `'ui.picker'`, `'ui.edins'`, `'ui.eddel'`, `'ui.edmove'`,
   `'ui.edvert'`, `'ui.paste'`, `'ui.tidy'`, `'ui.structure'`, `'ui.empty_map'`,
   `'ui.epaint'`, `'ui.edslot'`, `'ui.edterm'`, `'ui.leave'`, `'ui.put'`;
-- `'ui.TMPL'`, `'draw.TPL'`, `'draw.TGAP'`;
+- `'ui.TMPL'`, `'draw.TPL'`, `'draw.TGAP'`, `'draw.MPREC'` (milestone A placed the draw
+  names, `ui.tidy` and `ui.structure`);
 - `'draw.mlayout'`, `'draw.mflat'`, `'draw.mstop'`, `'draw.mlex'`, `'draw.mparse'`,
   `'draw.mpush'`, `'draw.mshut'`, `'draw.mreduce'`, `'draw.mbox'`, `'draw.tleaf'`,
   `'draw.mplace'`, `'draw.mmark'`, `'draw.mrender'`.
@@ -1048,8 +1080,8 @@ and the allowed imports are unchanged.
 
 | Module | Today (lines / KB) | Estimated after | New budget |
 |---|---|---|---|
-| CVDRAW | 342/350, 10.5/13 KB | ~760 lines | `('draw', 'CVDRAW', 'R', 820, 27)` |
-| CVUI | 414/500, 14.1/16 KB | ~820 lines | `('ui', 'CVUI', 'R', 900, 30)` |
+| CVDRAW | 342/350, 10.5/13 KB | measured after milestone A: 926 lines, 24.0 KB | `('draw', 'CVDRAW', 'R', 1020, 27)` (set in milestone A) |
+| CVUI | 414/500, 14.1/16 KB | after milestone A: 498 lines, 15.9 KB; ~820 at the end | `('ui', 'CVUI', 'R', 550, 18)` now; ~900/30 at the end |
 | CVMENU | 153/200 | +4 (setup row) | fits |
 | CVMENUB | 42/150 | +6 (prefill) | fits |
 

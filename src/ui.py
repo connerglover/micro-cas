@@ -152,6 +152,101 @@ def wrapped(text):                                             #@L 3
     return '(' + text + ')'
 
 
+def tidy(s):                                                   #@L 3
+    """ENTER's text in MathPrint (docs/notes/MATHPRINT.md 1.3): drop the structure parens
+    around a fraction operand or exponent that is one number or letter (x^(-1) also), when the
+    neighbours keep the meaning, and the empty base of log(u,). History stays short 1D text."""
+    r = D.mparse(s, D.mlex(s), 1) if s else None
+    if r is None:
+        return s
+    nodes = r[0]
+    n = len(s)
+    cut = []
+    for nd in nodes:
+        k = nd[0]
+        cands = ()
+        if k == 'Q':
+            cands = ((nd[4][0], False), (nd[4][1], False))
+        elif k == 'W':
+            cands = ((nd[4][1], True),)
+        elif k == 'T' and s[nd[1]:nd[4][0]] == 'log' and nodes[nodes[nd[3][1]][3][0]][0] == 'E':
+            cut.append(nodes[nd[3][0]][2])
+        for gi, power in cands:
+            g = nodes[gi]
+            if g[0] != 'G' or not g[4] & 2:
+                continue
+            a = g[1]
+            b = g[2] - 1
+            c = s[b + 1] if b + 1 < n else ''
+            j = a + 1
+            sign = power and j < b and s[j] == '-'
+            if sign:
+                j += 1
+            num = j < b
+            for i in range(j, b):
+                if not (s[i].isdigit() or s[i] == '.'):
+                    num = False
+            if not (num or not sign and b == a + 2 and s[a + 1].isalpha()):
+                continue
+            if sign and c and c not in '+-,)=<>':
+                continue
+            if a and (s[a - 1].isalpha() or s[a - 1].isdigit() or s[a - 1] == '.'):
+                continue
+            if c and (c.isalpha() or c.isdigit() or c in ".([!'^"):
+                continue
+            cut.append(a)
+            cut.append(b)
+    if not cut:
+        return s
+    cut.sort()
+    out = []
+    p = 0
+    for i in cut:
+        out.append(s[p:i])
+        p = i + 1
+    out.append(s[p:])
+    return ''.join(out)
+
+
+def structure(s):                                              #@L 3
+    """Recalled text in MathPrint (1.4): wrap each stacked-fraction operand and exponent that is
+    not one group in parens, so the recalled input is 2D again. A fraction or power whose right
+    operand is a multi-letter name is left as it is: the engine may read the name as a product
+    (a/bc is (a/b)c). A result past 256 characters gives s unchanged."""
+    r = D.mparse(s, D.mlex(s), 1) if s else None
+    if r is None:
+        return s
+    nodes = r[0]
+    ins = []
+    for nd in nodes:
+        k = nd[0]
+        if k != 'Q' and k != 'W':
+            continue
+        g = nodes[nd[4][1]]
+        if g[0] == 'N':
+            g = nodes[g[3][1]]
+        if g[0] == 'L' and g[2] - g[1] > 1 and s[g[1]].isalpha() and not g[4] & 1:
+            continue
+        ops = (nd[4][0], nd[4][1]) if k == 'Q' else (nd[4][1],)
+        for o in ops:
+            g = nodes[o]
+            if g[0] != 'G' or not g[4] & 2:
+                ins.append((g[1], '('))
+                ins.append((g[2], ')'))
+    if not ins:
+        return s
+    ins.sort()
+    out = []
+    p = 0
+    for i, c in ins:
+        out.append(s[p:i])
+        out.append(c)
+        p = i
+    out.append(s[p:])
+    t = ''.join(out)
+    return s if len(t) > 256 else t
+
+
 def empty_slot():                                              #@L 3
     """The caret position of an empty argument slot, or -1. Needs the engine (P.FNAMES)."""
     for token in ('(,', ',,', ',)'):

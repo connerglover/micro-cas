@@ -31,8 +31,8 @@ MODULES = (
     ('parse',     'CVPARSE',   'R',   1250,       33),
     ('printer',   'CVPRINT',   'R',   900,       21),
     ('run',       'CVRUN',     'R',   640,       22),   # + memory-failure recovery (sweep)
-    ('draw',      'CVDRAW',    'R',   350,       13),
-    ('ui',        'CVUI',      'R',   500,       16),
+    ('draw',      'CVDRAW',    'R',   1020,      27),   # + the MathPrint layout (MATHPRINT.md 5)
+    ('ui',        'CVUI',      'R',   550,       18),   # + tidy and structure (MATHPRINT.md 1.3)
     # lazy (L) and lazy UI (U) modules and parts, DESIGN 4.1 and 4.3
     ('rules',     'CVRULE',    'L',   150,       4),
     ('rulesb',    'CVRULEB',   'L',   150,       4),
@@ -149,7 +149,12 @@ PACKS = (
                'ui.enclosing', 'ui.empty_slot', 'ui.wrapped', 'draw.leaf', 'draw.row',
                'draw.frame', 'draw.large', 'draw.tree', 'draw.measure', 'draw.place',
                'draw.layout', 'draw.render', 'draw.paint', 'ui.PLAIN', 'ui.SECOND', 'ui.ALPHA',
-               'ui.HINT', 'ui.ALIAS'), 'view'),
+               'ui.HINT', 'ui.ALIAS',
+               # MathPrint (docs/notes/MATHPRINT.md 9.2): the engine-free editor layout
+               'ui.tidy', 'ui.structure', 'draw.TPL', 'draw.TGAP', 'draw.MPREC',
+               'draw.mlayout', 'draw.mflat', 'draw.mstop', 'draw.mlex', 'draw.mparse',
+               'draw.mpush', 'draw.mshut', 'draw.mreduce', 'draw.mbox', 'draw.tleaf',
+               'draw.mplace', 'draw.mmark', 'draw.mrender'), 'view'),
     ('CASALG', ('poly', 'polyb', 'polyc', 'rules', 'rulesb', 'ident', 'norm', 'normb', 'normc',
                 'diff'), 'family'),
     ('CASFAC', ('factor', 'factorb', 'factorc', 'factord', 'forms'), 'family'),

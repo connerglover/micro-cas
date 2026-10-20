@@ -23,6 +23,16 @@ COLORS = {}
 CURRENT = None      # the color set_color last received
 CACHE = []
 CACHE_BYTES = 0
+ICACHE = []         # history-input layouts (MathPrint, mode 1): (text, result, cost)
+ICACHE_BYTES = 0
+# MathPrint (docs/notes/MATHPRINT.md 1.2, 3.1): argument counts of the template form of a call,
+# the trailing gap after a template, and the operator precedences of parse.PREC (draw cannot
+# read the engine), with 8 for a blank or stray character that clings to the next operand.
+TPL = {'sqrt': (1,), 'abs': (1,), 'exp': (1,), 'surd': (2,), 'log': (2,), 'integrate': (2, 4),
+       'diff': (2,), 'sum': (4,), 'limit': (3, 4)}
+TGAP = 3
+MPREC = {'=>': 1, ':=': 1, '=': 3, '!=': 3, '<': 3, '<=': 3, '>': 3, '>=': 3, '+': 4, '-': 4,
+         '*': 5, '/': 5, '^': 7}
 # Line segments (x1,y1,x2,y2 on a 0..10 grid), four bytes each: compact on the heap.
 GLYPHS = {
     'pi': b'\x00\x02\x0a\x02\x03\x02\x03\x0a\x08\x02\x08\x0a',
@@ -139,9 +149,10 @@ def wrap(s, cols):                                             #@L 3
 
 
 def clear_cache():                                             #@L 3
-    global CACHE_BYTES
+    global CACHE_BYTES, ICACHE_BYTES
     del CACHE[:]
-    CACHE_BYTES = 0
+    del ICACHE[:]
+    CACHE_BYTES = ICACHE_BYTES = 0
 
 
 # -- the 2D layout: every text is one size, so scripts are raised and lowered ---------------------
@@ -417,3 +428,655 @@ def paint(box,x,y,scrollx=0,scrolly=0):                         #@L 3
     (negative values center a small answer), clipped to the view and the screen."""
     clip = (max(x,0),max(y,0),min(x+box['vw']-1,W-1),min(y+box['vh']-1,H-1))
     render(box['dl'],x-scrollx,clip,y-scrolly)
+
+
+# -- MathPrint: the editor's engine-free 2D layout (docs/notes/MATHPRINT.md section 5) ------------
+# A parse node is a list [kind, start, end, kids, aux] over the buffer: L leaf, E empty, R row,
+# N prefix sign, S slot, Q stacked fraction, W power, G group, C call, T template. Boxes keep
+# the 2D layout's format; a box's ti is the node it draws (or -1), for the caret marks.
+
+def mflat(s):                                                  #@L 4
+    """True when s has no 2D construct (section 5.1), so it is drawn and edited as a 1D row."""
+    if '^' in s or ')/(' in s or 'pi' in s or 'theta' in s or 'oo' in s or 'ans()' in s:
+        return False
+    i = s.find('(')
+    while i >= 0:
+        j = i
+        while j and (s[j-1].isalpha() or s[j-1].isdigit()):
+            j -= 1
+        while j < i and s[j].isdigit():
+            j += 1
+        if j < i and s[j:i] in TPL:
+            return False
+        i = s.find('(', i + 1)
+    return True
+
+
+def mstop(s, i):                                               #@L 4
+    """Whether caret position i of a flat line is a stop: not inside a name( run (section 4.1)."""
+    n = len(s)
+    j = i
+    while j < n and (s[j].isalpha() or s[j].isdigit()):
+        j += 1
+    if i <= 0 or j >= n or s[j] != '(':
+        return True
+    k = i
+    while k and (s[k-1].isalpha() or s[k-1].isdigit()):
+        k -= 1
+    while k < i and s[k].isdigit():
+        k += 1
+    return not (k < i and s[k].isalpha())
+
+
+def mlex(s):                                                   #@L 4
+    """Tokens (kind, start, end) of a buffer: n number, a name, f name before '(', A ans(),
+    o operator, ( and ) any bracket, ',' comma, ! postfix ! or ', ? anything else."""
+    out = []
+    n = len(s)
+    i = 0
+    while i < n:
+        c = s[i]
+        j = i + 1
+        if c.isdigit() or c == '.':
+            while j < n and (s[j].isdigit() or s[j] == '.'):
+                j += 1
+            if j < n and s[j] == 'E' and s[j-1].isdigit():
+                m = j + 1
+                if m < n and (s[m] == '-' or s[m] == '+'):
+                    m += 1
+                if m < n and s[m].isdigit():
+                    j = m + 1
+                    while j < n and s[j].isdigit():
+                        j += 1
+            k = 'n'
+        elif c.isalpha():
+            while j < n and (s[j].isalpha() or s[j].isdigit()):
+                j += 1
+            k = 'a'
+            if j == i + 3 and s.find('ans()', i, i + 5) == i:
+                j = i + 5
+                k = 'A'
+            elif j < n and s[j] == '(':
+                k = 'f'
+        elif c in '([{':
+            k = '('
+        elif c in ')]}':
+            k = ')'
+        elif c == ',':
+            k = ','
+        elif j < n and (s[j] == '=' and c in '<>!:' or c == '=' and s[j] == '>'):
+            j += 1
+            k = 'o'
+        elif c in '+-*/^=<>':
+            k = 'o'
+        elif c == '!' or c == "'":
+            k = '!'
+        else:
+            k = '?'
+        out.append((k, i, j))
+        i = j
+    return out
+
+
+def mparse(s, tk, mode):                                       #@L 4
+    """A tolerant shunting-yard over the tokens (section 5.2): (nodes, root slot), or None past
+    the caps (24 open groups, 192 nodes). It never raises: a missing operand is an E node, a
+    juxtaposition an implicit product, a stray closer or other character clings to its operand
+    as text, and an unclosed group ends at len(s). Mode 1 stacks every '/', mode 2 only a '/'
+    between two groups (..)/(..)."""
+    nodes = []
+    vals = []
+    ops = [['(', -1, -1, [], 0]]        # openers: ['(', at, name start, slots, slot start]
+    expect = True                       # an operand comes next
+    trail = False                       # the last token was an operator (not ^)
+    fs = -1
+    depth = 0
+    for t in tk:
+        k, a, b = t
+        if len(nodes) > 192:
+            return None
+        if k == ')' and not depth or k == '!' and expect:
+            k = '?'
+        if k == 'o':
+            o = s[a:b]
+            if expect and (o == '-' or o == '+'):
+                nodes.append(['L', a, b, (), 2])
+                ops.append(('N', o, 6, len(nodes) - 1))
+                trail = True
+                continue
+            if expect:
+                nodes.append(['E', a, a, (), 0])
+                vals.append(len(nodes) - 1)
+            nodes.append(['L', a, b, (), 2])
+            mpush(nodes, vals, ops, ('o', o, MPREC[o], len(nodes) - 1), mode)
+            expect = True
+            trail = o != '^'
+        elif k == ',' or k == ')':
+            mshut(s, nodes, vals, ops, a, 0 if k == ',' else 1, expect, trail, mode)
+            if k == ')':
+                depth -= 1
+            expect = k == ','
+            trail = False
+        elif k == '?' or k == '!':
+            nodes.append(['L', a, b, (), 0])
+            if expect:
+                ops.append(('P', '', 8, len(nodes) - 1))
+            else:
+                v = vals.pop()
+                nodes.append(['R', nodes[v][1], b, [v, len(nodes) - 1], 0])
+                vals.append(len(nodes) - 1)
+        else:
+            if not expect:
+                mpush(nodes, vals, ops, ('o', '*', 5, -1), mode)
+            expect = True
+            trail = False
+            if k == 'f':
+                fs = a
+            elif k == '(':
+                depth += 1
+                if depth > 24:
+                    return None
+                ops.append(['(', a, fs, [], a + 1])
+                fs = -1
+            else:
+                g = k == 'a' and b - a in (2, 5) and s[a:b] in ('pi', 'oo', 'theta')
+                nodes.append(['A' if k == 'A' else 'L', a, b, (), 1 if g else 0])
+                vals.append(len(nodes) - 1)
+                expect = False
+    n = len(s)
+    while depth:
+        mshut(s, nodes, vals, ops, n, 2, expect, trail, mode)
+        depth -= 1
+        expect = trail = False
+    root = mshut(s, nodes, vals, ops, n, 2, expect, trail, mode)
+    if len(nodes) > 192:
+        return None
+    return nodes, root
+
+
+def mpush(nodes, vals, ops, op, mode):                         #@L 5
+    """Push a binary operator after reducing those that bind at least as tightly (^, => and
+    := are right-associative). op: ('o', text, precedence, leaf node or -1)."""
+    p = op[2]
+    right = op[1] == '^' or op[1] == '=>' or op[1] == ':='
+    while ops[-1][0] != '(':
+        q = ops[-1][2]
+        if q > p or q == p and not right:
+            mreduce(nodes, vals, ops.pop(), mode)
+        else:
+            break
+    ops.append(op)
+
+
+def mshut(s, nodes, vals, ops, pos, how, expect, trail, mode):    #@L 5
+    """End the innermost argument at pos (how 0: a comma, 1: its closer, 2: the end of the line)
+    as a slot. Unless a comma, then build the group, call or template; the root returns its
+    slot (a top-level comma list is an unbracketed group)."""
+    if expect:
+        nodes.append(['E', pos, pos, (), 1 if trail else 0])
+        vals.append(len(nodes) - 1)
+    while ops[-1][0] != '(':
+        mreduce(nodes, vals, ops.pop(), mode)
+    op = ops[-1]
+    args = op[3]
+    nodes.append(['S', op[4], pos, [vals.pop()], [-1, len(args)]])
+    args.append(len(nodes) - 1)
+    if not how:
+        op[4] = pos + 1
+        return -1
+    ops.pop()
+    at = op[1]
+    f = op[2]
+    n = len(nodes)
+    end = pos + 1 if how == 1 else pos
+    if at < 0:
+        if len(args) == 1:
+            return args[0]
+        nodes.append(['G', 0, pos, args, 8])
+        nodes.append(['S', 0, pos, [n], [-1, 0]])
+    elif f >= 0:
+        nm = s[f:at]
+        if how == 1 and nm in TPL and len(args) in TPL[nm]:
+            nodes.append(['T', f, end, args, [at, True]])
+            e = nodes[nodes[args[-1]][3][0]]
+            if nm == 'log' and e[0] == 'E':
+                e[4] |= 2               # the optional base of log_b
+        else:
+            nodes.append(['C', f, end, args, [at, how == 1]])
+    else:
+        fl = 0
+        if how == 1:
+            fl = 6 if len(args) == 1 and s[at] == '(' and s[pos] == ')' else 4
+        nodes.append(['G', at, end, args, fl])
+    for j in args:
+        nodes[j][4][0] = n
+    if at < 0:
+        return n + 1
+    vals.append(n)
+    return n
+
+
+def mreduce(nodes, vals, op, mode):                            #@L 6
+    """Apply one operator to the operand stack: a sign, a clinging character, a fraction, a
+    power, or a row (extended in place, so a long sum stays O(n))."""
+    b = vals.pop()
+    nb = nodes[b]
+    if op[0] != 'o':
+        nodes.append(['N' if op[0] == 'N' else 'R', nodes[op[3]][1], nb[2], [op[3], b], 0])
+        vals.append(len(nodes) - 1)
+        return
+    a = vals.pop()
+    o = op[1]
+    n = len(nodes)
+    pb = nb[0] == 'G' and nb[4] & 2
+    if o == '/':
+        sg = -1
+        if nodes[a][0] == 'N':          # -a/b: the sign stays outside the bar
+            sg = a
+            a = nodes[a][3][1]
+        na = nodes[a]
+        pa = na[0] == 'G' and na[4] & 2
+        if mode == 1 or pa and pb:
+            ka = a
+            kb = b
+            if pa:
+                na[4] |= 1
+                ka = na[3][0]
+                nodes[ka][4] = [n, 0]
+            if pb:
+                nb[4] |= 1
+                kb = nb[3][0]
+                nodes[kb][4] = [n, 1]
+            nodes.append(['Q', na[1], nb[2], [ka, kb], (a, b)])
+            if sg >= 0:
+                nodes[sg][3][1] = n
+                nodes[sg][2] = nb[2]
+                n = sg
+            vals.append(n)
+            return
+        if sg >= 0:
+            a = sg
+    elif o == '^':
+        sl = n + 1
+        if pb:
+            nb[4] |= 1
+            sl = nb[3][0]
+            nodes[sl][4] = [n, 0]
+        nodes.append(['W', nodes[a][1], nb[2], [a, sl], (nodes[op[3]][1], b)])
+        if not pb:
+            nodes.append(['S', nb[1], nb[2], [b], [n, 0]])
+        vals.append(n)
+        return
+    na = nodes[a]
+    if na[0] == 'R':
+        kids = na[3]
+    else:
+        kids = [a]
+        na = ['R', na[1], 0, kids, 0]
+        nodes.append(na)
+        a = n
+    # Append the operator's leaf, then b (or b's row items). A text leaf that continues the
+    # previous one is merged into it (glyphs never; in mode 1 neither are operators, which may
+    # be glyphs there), so a run like 2+3*x is one leaf, one box and one text item.
+    mask = 1 if mode == 2 else 3
+    last = nodes[kids[-1]]
+    more = nb[3] if nb[0] == 'R' else (b,)
+    j = -1
+    while j < len(more):
+        c = op[3] if j < 0 else more[j]
+        j += 1
+        if c < 0:
+            continue
+        x = nodes[c]
+        if last[0] == 'L' and x[0] == 'L' and not (last[4] | x[4]) & mask and last[2] == x[1]:
+            last[2] = x[2]
+        else:
+            kids.append(c)
+            last = x
+    na[2] = nb[2]
+    vals.append(a)
+
+
+def tleaf(boxes, i0, i1, txt, ti):                             #@L 5
+    """A text box, always drawn as text: the buffer slice [i0, i1) (cut when the display list is
+    built, so runs merge), or txt when i0 < 0."""
+    w = CW * (i1 - i0) if i0 >= 0 else CW * len(txt)
+    boxes.append((w, ASC, DESC, (), (('s', 0, -ASC, txt, i0, i1),), 'text', ti))
+    return len(boxes) - 1
+
+
+def mbox(s, nodes, root, mode):                                #@L 4
+    """Boxes for the nodes under root, children first through an explicit stack, built with the
+    2D layout's row/frame/large/leaf (section 3). Returns (boxes, root box)."""
+    boxes = []
+    bx = [-1] * len(nodes)
+    st = [root]
+    while st:
+        n = st.pop()
+        nd = nodes[n]
+        k = nd[0]
+        kids = nd[3]
+        if kids and bx[n] == -1:
+            bx[n] = -2
+            st.append(n)
+            for c in kids:
+                st.append(c)
+            continue
+        a = nd[1]
+        e = nd[2]
+        if k == 'L':
+            if nd[4] & 1 or mode == 1 and nd[4] & 2 and s[a:e] in GLYPHS:
+                r = leaf(boxes, s[a:e], n)
+            else:
+                boxes.append((CW * (e - a), ASC, DESC, (), (('s', 0, -ASC, None, a, e),), 'text',
+                              n))
+                r = len(boxes) - 1
+            bx[n] = r
+            continue
+        if k == 'E':
+            boxes.append((CW, ASC, DESC, (), (('b', 1, -11, 8, 13, a, nd[4]),) if mode == 2
+                          else (), 'empty', n))
+            bx[n] = len(boxes) - 1
+            continue
+        if k == 'S':                            # a slot: a row of its one item
+            c = bx[kids[0]]
+            cb = boxes[c]
+            boxes.append((cb[0], cb[1], cb[2], [(c, 0, 0)], (), 'row', n))
+            bx[n] = len(boxes) - 1
+            continue
+        sb = []
+        for c in kids:
+            sb.append(bx[c])
+        if k == 'A':
+            r = tleaf(boxes, -1, -1, 'Ans', n)
+        elif k == 'R' or k == 'N':
+            r = row(boxes, sb, 0, 'row', -1)
+        elif k == 'Q':
+            for j in range(2):
+                if boxes[sb[j]][5] != 'row':
+                    sb[j] = row(boxes, [sb[j]], 0)
+            r = frame(boxes, 'frac', sb, n)
+        elif k == 'W':
+            r = frame(boxes, 'sup', sb, n)
+        elif k == 'T':
+            at = nd[4][0]
+            nm = s[a:at]
+            if nm == 'sqrt' or nm == 'abs':
+                r = frame(boxes, nm, sb, n)
+            elif nm == 'exp':
+                r = frame(boxes, 'sup', [tleaf(boxes, -1, -1, 'e', -1), sb[0]], n)
+            elif nm == 'surd':
+                r = frame(boxes, 'root', sb, n)
+                ch = boxes[r][3]
+                ch[0], ch[1] = ch[1], ch[0]     # the index is drawn, and visited, first
+            elif nm == 'integrate':
+                r = large(boxes, 'integral', sb, n)
+            elif nm == 'sum':
+                lo = row(boxes, [sb[1], tleaf(boxes, -1, -1, '=', -1), sb[2]], 0)
+                r = large(boxes, 'sum', [sb[0], sb[1], lo, sb[3]], n)
+            elif nm == 'limit':
+                p = sb[2]
+                if len(sb) > 3:
+                    p = frame(boxes, 'sup', [sb[2], sb[3]])
+                lo = row(boxes, [sb[1], leaf(boxes, '->'), p], 0)
+                r = large(boxes, 'limit', [sb[0], lo], n)
+            else:                               # diff and log: the operand u in parens
+                u = sb[0]
+                if boxes[u][1] <= ASC and boxes[u][2] <= DESC:
+                    p = row(boxes, [tleaf(boxes, at, at + 1, None, -1), u,
+                                    tleaf(boxes, e - 1, e, None, -1)], 0)
+                else:
+                    p = frame(boxes, 'paren', [u])
+                if nm == 'diff':
+                    den = row(boxes, [tleaf(boxes, -1, -1, 'd', -1), sb[1]], 0)
+                    fr = frame(boxes, 'frac', [tleaf(boxes, -1, -1, 'd', -1), den])
+                    r = row(boxes, [fr, p], 2, 'row', n)
+                else:                           # log_b: the base lowered 6 px at x 30
+                    lb = tleaf(boxes, a, a + 3, None, -1)
+                    bb = boxes[sb[1]]
+                    pb = boxes[p]
+                    boxes.append((3*CW + bb[0] + pb[0], max(ASC, pb[1], bb[1] - 6),
+                                  max(DESC, pb[2], 6 + bb[2]),
+                                  [(lb, 0, 0), (sb[1], 3*CW, 6), (p, 3*CW + bb[0], 0)], (),
+                                  'log', n))
+                    r = len(boxes) - 1
+        else:                                   # G and C: brackets (or name) and arguments
+            one = True
+            for c in sb:
+                if boxes[c][1] > ASC or boxes[c][2] > DESC:
+                    one = False
+            closed = nd[4][1] if k == 'C' else nd[4] & 4
+            at = nd[4][0] if k == 'C' else a
+            items = []
+            for j in range(len(sb)):
+                if j:
+                    c = nodes[kids[j - 1]][2]
+                    items.append(tleaf(boxes, c, c + 1, None, -1))
+                items.append(sb[j])
+            if k == 'G' and nd[4] & 8:
+                r = row(boxes, items, 0, 'row', -1)
+            elif one or not closed:
+                items.insert(0, tleaf(boxes, a, at + 1, None, -1))
+                if closed:
+                    items.append(tleaf(boxes, e - 1, e, None, -1))
+                r = row(boxes, items, 0, 'row', n)
+            elif k == 'C':
+                p = frame(boxes, 'paren', [row(boxes, items, 0)])
+                r = row(boxes, [tleaf(boxes, a, at, None, -1), p], 0, 'row', n)
+            else:
+                r = frame(boxes, 'list' if s[a] == '[' else 'paren', [row(boxes, items, 0)], n)
+        if mode == 2 and (k == 'T' or k == 'Q'):
+            b = boxes[r]
+            boxes[r] = (b[0] + TGAP, b[1], b[2], b[3], b[4], b[5], b[6])
+        bx[n] = r
+    return boxes, bx[root]
+
+
+def mmark(M, i, x, y, dep, sl):                                #@L 5
+    """Record caret stop i at x, text top y, in slot sl of depth dep, unless it has a record
+    from a slot at least as deep (section 4.1: ties keep the first emission)."""
+    if M[2][i] < 0 or dep > M[2][i]:
+        M[0][i] = x
+        M[1][i] = y
+        M[2][i] = dep
+        M[3][i] = M[5]
+        M[4][i] = sl
+        M[5] += 1
+
+
+def mplace(s, nodes, boxes, root, mode):                       #@L 4
+    """The display list of the boxes under root (text merged into one item per buffer run) and,
+    in mode 2, the caret map of section 4.1: (dl, X, Y, RK, ORD, SL, SLOTS, CONS, EMPTY)."""
+    n = len(s)
+    dl = []
+    M = None
+    slots = []
+    cons = []
+    empty = []
+    if mode == 2:
+        M = [[-1] * (n + 1), [-1] * (n + 1), [-1] * (n + 1), [0] * (n + 1), [-1] * (n + 1), 0]
+        mx, my, dp, mq, ms = M[0], M[1], M[2], M[3], M[4]
+    run = None
+    work = [(0, root, 0, boxes[root][1], 0, -1)]
+    while work:
+        tag, bi, x, y, dep, sl = work.pop()
+        if tag:
+            mmark(M, bi, x, y, dep, sl)
+            continue
+        b = boxes[bi]
+        for item in b[4]:
+            k = item[0]
+            if k == 's' and item[4] >= 0:       # a buffer slice: extend the open run
+                tx = x + item[1]
+                ty = y + item[2]
+                if run is not None and run[1] == ty and run[3] == item[4] and \
+                        run[0] + CW * (run[3] - run[2]) == tx:
+                    run[3] = item[5]
+                    continue
+                if run is not None:
+                    dl.append(('t', run[0], run[1], s[run[2]:run[3]]))
+                run = [tx, ty, item[4], item[5]]
+                continue
+            if run is not None:
+                dl.append(('t', run[0], run[1], s[run[2]:run[3]]))
+                run = None
+            if k == 'l':
+                dl.append(('l', x + item[1], y + item[2], x + item[3], y + item[4]))
+            elif k == 't' or k == 's':
+                dl.append(('t', x + item[1], y + item[2], item[3]))
+            else:
+                dl.append((k, x + item[1], y + item[2]) + item[3:])
+        ch = b[3]
+        ti = b[6]
+        if M is not None and ti >= 0:
+            nd = nodes[ti]
+            k = nd[0]
+            a = nd[1]
+            e = nd[2]
+            top = y - ASC
+            if k == 'L' and not nd[4] & 1:      # every index of a text leaf (mmark, inline)
+                q = M[5]
+                for i in range(a, e + 1):
+                    if dp[i] < 0 or dep > dp[i]:
+                        mx[i] = x + CW * (i - a)
+                        my[i] = top
+                        dp[i] = dep
+                        mq[i] = q
+                        ms[i] = sl
+                        q += 1
+                M[5] = q
+            elif k == 'L' or k == 'A':
+                mmark(M, a, x, top, dep, sl)
+                mmark(M, e, x + b[0], top, dep, sl)
+            elif k == 'E':
+                mmark(M, a, x, top, dep, sl)
+                empty.append((a, nd[4]))
+            elif k == 'S':
+                own = nd[4][0]
+                if own < 0:
+                    slots.append((a, e, 'R', 0, n, 0, 1, False, dep))
+                else:
+                    o = nodes[own]
+                    ok = o[0]
+                    os = o[1]
+                    ns = len(o[3])
+                    hid = ok == 'T' or ok == 'Q'
+                    if ok == 'W':
+                        os = o[4][0]
+                        ns = 1
+                        g = nodes[o[4][1]]
+                        hid = g[0] == 'G' and g[4] & 1 != 0
+                    dep += 1
+                    slots.append((a, e, ok, os, o[2], nd[4][1], ns, hid, dep))
+                sl = len(slots) - 1
+                mmark(M, a, x, top, dep, sl)
+                work.append((1, e, x + b[0], top, dep, sl))
+            else:                               # a construct: Q W T C G
+                os = nd[4][0] if k == 'W' else a
+                cons.append((a, os, e, k))
+                work.append((1, e, x + b[0], top, dep, sl))
+                if k == 'W':                    # base, the stop after it (at ^), exponent
+                    c = ch[1]
+                    work.append((0, c[0], x + c[1], y + c[2], dep, sl))
+                    work.append((1, os, x + boxes[ch[0][0]][0], top, dep, sl))
+                    work.append((0, ch[0][0], x, y, dep, sl))
+                    continue
+                mmark(M, a, x, top, dep, sl)
+        for j in range(len(ch) - 1, -1, -1):
+            c = ch[j]
+            work.append((0, c[0], x + c[1], y + c[2], dep, sl))
+    if run is not None:
+        dl.append(('t', run[0], run[1], s[run[2]:run[3]]))
+    if M is None:
+        return dl
+    order = [-1] * M[5]
+    for i in range(n + 1):
+        if dp[i] >= 0:
+            order[mq[i]] = i
+    ORD = []
+    RK = [-1] * (n + 1)
+    for i in order:
+        if i >= 0:
+            RK[i] = len(ORD)
+            ORD.append(i)
+    return dl, mx, my, RK, ORD, ms, slots, cons, empty
+
+
+def mlayout(s, mode):                                          #@L 3
+    """The MathPrint layout of a buffer (section 5.2). Mode 2, the editor (never cached):
+    (s, dl, w, asc, desc, X, Y, RK, ORD, SL, SLOTS, CONS, EMPTY). Mode 1, a history input
+    (cached in ICACHE; every '/' stacked; no caret map or empty boxes): (dl, w, asc, desc).
+    None past the caps of section 5.3: 160 characters, 24 open groups, 192 nodes, 76 px high.
+    Display-list coordinates are relative to the content's top-left corner."""
+    global ICACHE_BYTES
+    if mode == 1:
+        for c in ICACHE:
+            if c[0] == s:
+                return c[1]
+    res = None
+    if len(s) <= 160:
+        r = mparse(s, mlex(s), mode)
+        if r is not None:
+            boxes, root = mbox(s, r[0], r[1], mode)
+            w, a, d = boxes[root][:3]
+            if a + d <= 76:
+                p = mplace(s, r[0], boxes, root, mode)
+                res = (p, w, a, d) if mode == 1 else (s, p[0], w, a, d) + p[1:]
+            boxes = None
+        r = None
+    if mode == 1:
+        cost = 24 * (len(res[0]) if res is not None else 1) + len(s)
+        if cost <= 3072:
+            while ICACHE and (len(ICACHE) >= 5 or ICACHE_BYTES + cost > 3072):
+                ICACHE_BYTES -= ICACHE.pop(0)[2]
+            ICACHE.append((s, res, cost))
+            ICACHE_BYTES += cost
+    return res
+
+
+def mrender(dl, dx, dy, clip, x0, x1, c, boxes, cur=-1):        #@L 4
+    """Draw in color c the display-list items of one kind (boxes: the empty-slot boxes; else
+    text, lines and glyphs) whose screen x-range meets [x0, x1], clipped to clip. An empty box
+    flagged as the trailing operand at buffer index cur is skipped (section 5.4)."""
+    first = True
+    for item in dl:
+        k = item[0]
+        if (k == 'b') != boxes:
+            continue
+        x = item[1] + dx
+        if k == 't':
+            r = x + CW * len(item[3]) - 1
+        elif k == 'l':
+            r = max(x, item[3] + dx)
+            x = min(x, item[3] + dx)
+        elif k == 'g':
+            r = x + item[4] - 1
+        else:
+            r = x + item[3] - 1
+            if item[6] & 1 and item[5] == cur:
+                continue
+        if x > x1 or r < x0:
+            continue
+        if first:
+            color(c)
+            first = False
+        x = item[1] + dx
+        y = item[2] + dy
+        if k == 't':
+            text(item[3], x, y, None, clip)
+        elif k == 'l':
+            clipped_line(x, y, item[3] + dx, item[4] + dy, clip)
+        elif k == 'g':
+            w = item[4]
+            h = item[5]
+            g = GLYPHS[item[3]]
+            for j in range(0, len(g), 4):
+                clipped_line(x + g[j]*(w-1)//10, y + g[j+1]*(h-1)//10,
+                             x + g[j+2]*(w-1)//10, y + g[j+3]*(h-1)//10, clip)
+        else:
+            left = max(x, clip[0])
+            top = max(y, clip[1])
+            right = min(r, clip[2])
+            bottom = min(y + item[4] - 1, clip[3])
+            if right > left and bottom > top:
+                rect(left, top, right - left + 1, bottom - top + 1)
