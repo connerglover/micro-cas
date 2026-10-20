@@ -1539,8 +1539,9 @@ def panic(reason):                                             #@L 1
     D.text('CLEAR edits; 2nd MODE quits', 5, 193)
     D.color(C['INK'])
     D.text(STATUS, 5, 2)
-    if e is not None:
-        D.text(e[1][:28] + '...' if len(e[1]) > 31 else e[1], 5, 56)
+    if e is not None:               # an antiderivative keeps its + C (MATHPRINT.md 7.1)
+        a = e[1] + (' + C' if e[4] & R.F_PLUSC else '')
+        D.text(a[:28] + '...' if len(a) > 31 else a, 5, 56)
     offset = max(0, CUR - 29)
     D.text(LINE[offset:offset+30], 10, 172)
     MODE, SEL, HERO, DX, FULL = 0, -1, False, 0, True

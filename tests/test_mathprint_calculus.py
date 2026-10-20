@@ -600,6 +600,18 @@ def test_plus_c_on_older_entries_and_the_selection():
     assert TD.OFFSCREEN == [] and TD.OVERDRAW == []
 
 
+def test_plus_c_on_the_panic_screen():
+    # the plain screen after an exception shows the answer as 1D text: + C stays with it
+    s = KS.run('integrate(x^2,x){enter}')
+    TD.reset()
+    s.mods['ui'].panic(0)
+    assert 'x^3/3 + C' in TD.screen_text()
+    s = KS.run('2/3{enter}')
+    TD.reset()
+    s.mods['ui'].panic(0)
+    assert '+ C' not in TD.screen_text()
+
+
 # -- Classic -------------------------------------------------------------------------------------
 
 def test_classic_is_unchanged():

@@ -150,8 +150,9 @@ still returns `5`.
 | CLEAR | Clear input, leave history/menu, or cancel a calculation |
 | 2nd MATH | Relation picker: `= != < <= > >= !` |
 | 2nd 0 | All commands |
-| Fraction key | `/` |
-| 2nd x^n | `surd(` (xRoot: `surd(8,3)` is `2`) |
+| Fraction key | Stacked fraction: numerator box over denominator box (Classic entry: `/`) |
+| 2nd fraction key | Template picker: square and nth root, e^x, 10^x, log base b, absolute value, integral, d/dx, nth derivative, sum, limit. Every box starts empty; optional boxes (log base, derivative order, limit direction, both integral bounds) may stay empty |
+| 2nd x^n | nth root template, index box first (Classic entry: `surd(`; `surd(8,3)` is `2`) |
 | 2nd MODE | Quit to Python |
 
 Starting with `+`, `-`, `*`, `/`, a power key, or STO uses the previous answer.
