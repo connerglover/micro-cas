@@ -1433,7 +1433,7 @@ When it ships, update DESIGN §16 (16.1, 16.4, 16.5, 16.6, 16.9), `docs/notes/UI
 
 | Risk | Mitigation |
 |---|---|
-| CASUX ~+10 KB raises reload pressure; `ui_calculus` at 189,776 had under 2 KB spare | Measure first in CI. Phase 3 option: lay answers out with `mparse(mode 1)` and drop `draw.tree/measure` (~−1.7 KB). Picker rows and menu code stay small. |
+| CASUX ~+10 KB (measured +19.8 KB bytecode, `room('layout')` +27.7 KB; §9.2) raises reload pressure; `ui_calculus` at 189,776 had under 2 KB spare | Measure first in CI (not yet run: the open gate of §0.7). Phase 3 option: lay answers out with `mparse(mode 1)` and drop `draw.tree/measure` (~−1.7 KB). Picker rows and menu code stay small. |
 | EVO cost of `draw_text`/`draw_line`/`set_color` is unknown | Flat fast path; the diff paint; INK caret. `EDIFF`, `CARETC` and Classic are switches. Time keys on the device. |
 | Diff paint leaves stale pixels | The pixel-equivalence property test (§12.7); full repaint on any geometry change; kill switch. |
 | The display disagrees with the engine (`ti_rewrite` notation such as `sin^2(x)`, `xy`) | It is drawn as typed; the value is the engine's. Precedence-agreement test. |
