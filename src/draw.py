@@ -33,6 +33,9 @@ TPL = {'sqrt': (1,), 'abs': (1,), 'exp': (1,), 'surd': (2,), 'log': (2,), 'integ
 TGAP = 3
 MPREC = {'=>': 1, ':=': 1, '=': 3, '!=': 3, '<': 3, '<=': 3, '>': 3, '>=': 3, '+': 4, '-': 4,
          '*': 5, '/': 5, '^': 7}
+# parse.FNT: the functions the engine cuts out of a longer name (ysin( is y*sin(, kln( k*ln()
+MFNT = ('asinh', 'acosh', 'atanh', 'log10', 'sinh', 'cosh', 'tanh', 'asin', 'acos', 'atan',
+        'sqrt', 'sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'exp', 'abs', 'log', 'ln')
 # Line segments (x1,y1,x2,y2 on a 0..10 grid), four bytes each: compact on the heap.
 GLYPHS = {
     'pi': b'\x00\x02\x0a\x02\x03\x02\x03\x0a\x08\x02\x08\x0a',
@@ -446,14 +449,39 @@ def mflat(s):                                                  #@L 4
             j -= 1
         while j < i and s[j].isdigit():
             j += 1
-        if j < i and s[j:i] in TPL:
-            return False
+        if j < i:
+            j = mcall(s, j, i)
+            if j >= 0 and s[j:i] in TPL:
+                return False
         i = s.find('(', i + 1)
     return True
 
 
+def mcall(s, i, j):                                            #@L 5
+    """Where the call name starts in the name s[i:j] right before a '(' at j, as the engine
+    reads it (parse.iscall, ti_rewrite, ti_implicit): -1 for a product (one letter but f, g, h:
+    x(x+1) is x*(x+1); pi(2)); a later index when the letters before a function the engine
+    cuts out are a product (ysin( is y*sin(, xsqrt( x*sqrt(; before surd and the template
+    commands at most two letters); else i."""
+    if j - i == 1:
+        return i if s[i] in 'fgh' else -1
+    nm = s[i:j]
+    if nm == 'pi' or nm == 'oo' or nm == 'theta':
+        return -1
+    if j - i > 2 and nm.isalpha() and nm not in MFNT:
+        for t in MFNT:
+            if nm.startswith(t):
+                return i                # sinsin( stays whole (parse.fnpre)
+        for k in range(1, j - i - 1):
+            t = nm[k:]
+            if t in MFNT or k <= 2 and t in TPL:
+                return i + k
+    return i
+
+
 def mstop(s, i):                                               #@L 4
-    """Whether caret position i of a flat line is a stop: not inside a name( run (section 4.1)."""
+    """Whether caret position i of a flat line is a stop: not inside a call name before its '('
+    (section 4.1; a cut letter or a product's letter is no call name, as in mcall)."""
     n = len(s)
     j = i
     while j < n and (s[j].isalpha() or s[j].isdigit()):
@@ -465,7 +493,10 @@ def mstop(s, i):                                               #@L 4
         k -= 1
     while k < i and s[k].isdigit():
         k += 1
-    return not (k < i and s[k].isalpha())
+    if k >= i or not s[k].isalpha():
+        return True
+    k = mcall(s, k, j)
+    return k < 0 or i <= k
 
 
 def mlex(s):                                                   #@L 4
@@ -497,7 +528,12 @@ def mlex(s):                                                   #@L 4
                 j = i + 5
                 k = 'A'
             elif j < n and s[j] == '(':
-                k = 'f'
+                m = mcall(s, i, j)
+                if m > i:                       # xsqrt( is x, then the call sqrt(
+                    out.append(('a', i, m))
+                    i = m
+                if m >= 0:
+                    k = 'f'
         elif c in '([{':
             k = '('
         elif c in ')]}':
@@ -579,8 +615,14 @@ def mparse(s, tk, mode):                                       #@L 4
                 ops.append(['(', a, fs, [], a + 1])
                 fs = -1
             else:
-                g = k == 'a' and b - a in (2, 5) and s[a:b] in ('pi', 'oo', 'theta')
-                nodes.append(['A' if k == 'A' else 'L', a, b, (), 1 if g else 0])
+                g = 0                   # 1 a glyph; 4 a name the engine may cut (ab: a*b)
+                if k == 'a' and b - a > 1:
+                    t = s[a:b]
+                    if t == 'pi' or t == 'oo' or t == 'theta':
+                        g = 1
+                    elif t.isalpha():
+                        g = 4
+                nodes.append(['A' if k == 'A' else 'L', a, b, (), g])
                 vals.append(len(nodes) - 1)
                 expect = False
     n = len(s)
@@ -641,8 +683,9 @@ def mshut(s, nodes, vals, ops, pos, how, expect, trail, mode):    #@L 5
             e = nodes[nodes[args[-1]][3][0]]
             if nm == 'log' and e[0] == 'E':
                 e[4] |= 2               # the optional base of log_b
-        else:
-            nodes.append(['C', f, end, args, [at, how == 1]])
+        else:                           # 2: a name the engine may cut (ab( is a*b*()
+            nodes.append(['C', f, end, args, [at, how == 1,
+                                              at - f > 1 and nm not in MFNT and nm not in TPL]])
     else:
         fl = 0
         if how == 1:
@@ -669,6 +712,20 @@ def mreduce(nodes, vals, op, mode):                            #@L 6
     o = op[1]
     n = len(nodes)
     pb = nb[0] == 'G' and nb[4] & 2
+    if o == '/' or o == '^':            # a name the engine may cut outside brackets in the
+        st = [b]                        # right operand (x^ab is b*x^a, 1/(-2)^ab is b/(-2)^a):
+        while st:                       # its extent is unknown, so the operator stays inline
+            x = nodes[st.pop()]
+            k = x[0]
+            if k == 'L' and x[4] & 4 or k == 'C' and x[4][2]:
+                o = ''
+                break
+            if k == 'N' or k == 'R':
+                for c in x[3]:
+                    st.append(c)
+            elif k == 'W':
+                st.append(x[3][0])
+                st.append(x[4][1])
     if o == '/':
         sg = -1
         if nodes[a][0] == 'N':          # -a/b: the sign stays outside the bar
@@ -730,6 +787,7 @@ def mreduce(nodes, vals, op, mode):                            #@L 6
         x = nodes[c]
         if last[0] == 'L' and x[0] == 'L' and not (last[4] | x[4]) & mask and last[2] == x[1]:
             last[2] = x[2]
+            last[4] |= x[4]             # keeps 4, a name the engine may cut
         else:
             kids.append(c)
             last = x

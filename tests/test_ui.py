@@ -125,9 +125,9 @@ def test_panic_works_without_ui_or_layout_phase(monkeypatch, reason, message):
         for module, names in ((u, ('redraw', 'enclosing', 'wrapped', 'empty_slot', 'tidy',
                                    'structure')),
                               (d, ('layout', 'paint', 'tree', 'measure', 'place', 'render',
-                                   'TPL', 'TGAP', 'MPREC', 'mlayout', 'mflat', 'mstop', 'mlex',
-                                   'mparse', 'mpush', 'mshut', 'mreduce', 'mbox', 'tleaf',
-                                   'mplace', 'mmark', 'mrender'))):
+                                   'TPL', 'TGAP', 'MPREC', 'MFNT', 'mlayout', 'mflat', 'mcall',
+                                   'mstop', 'mlex', 'mparse', 'mpush', 'mshut', 'mreduce',
+                                   'mbox', 'tleaf', 'mplace', 'mmark', 'mrender'))):
             for name in names:
                 patch.delattr(module, name)
         TD.reset()

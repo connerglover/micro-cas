@@ -210,29 +210,31 @@ def tidy(s):                                                   #@L 3
 
 def structure(s):                                              #@L 3
     """Recalled text in MathPrint (1.4): wrap each stacked-fraction operand and exponent that is
-    not one group in parens, so the recalled input is 2D again. A fraction or power whose right
-    operand is a multi-letter name is left as it is: the engine may read the name as a product
-    (a/bc is (a/b)c). A result past 256 characters gives s unchanged."""
+    not one group in parens, so the recalled input is 2D again. A construct with an operand
+    that ends in a letter right before '(' is left as it is: x(2) is a product unless x is a
+    user function, and wrapping would change which. (The layout already keeps a fraction or
+    power over a name the engine may cut, a/bc, inline.) Past 256 characters: s unchanged."""
     r = D.mparse(s, D.mlex(s), 1) if s else None
     if r is None:
         return s
     nodes = r[0]
+    n = len(s)
     ins = []
     for nd in nodes:
         k = nd[0]
         if k != 'Q' and k != 'W':
             continue
-        g = nodes[nd[4][1]]
-        if g[0] == 'N':
-            g = nodes[g[3][1]]
-        if g[0] == 'L' and g[2] - g[1] > 1 and s[g[1]].isalpha() and not g[4] & 1:
-            continue
         ops = (nd[4][0], nd[4][1]) if k == 'Q' else (nd[4][1],)
+        m = len(ins)
         for o in ops:
             g = nodes[o]
+            e = g[2]
+            if e < n and s[e] == '(' and s[e - 1].isalpha():
+                del ins[m:]
+                break
             if g[0] != 'G' or not g[4] & 2:
                 ins.append((g[1], '('))
-                ins.append((g[2], ')'))
+                ins.append((e, ')'))
     if not ins:
         return s
     ins.sort()

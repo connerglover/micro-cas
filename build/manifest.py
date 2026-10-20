@@ -152,8 +152,8 @@ PACKS = (
                'ui.HINT', 'ui.ALIAS',
                # MathPrint (docs/notes/MATHPRINT.md 9.2): the engine-free editor layout
                'ui.tidy', 'ui.structure', 'draw.TPL', 'draw.TGAP', 'draw.MPREC',
-               'draw.mlayout', 'draw.mflat', 'draw.mstop', 'draw.mlex', 'draw.mparse',
-               'draw.mpush', 'draw.mshut', 'draw.mreduce', 'draw.mbox', 'draw.tleaf',
+               'draw.MFNT', 'draw.mlayout', 'draw.mflat', 'draw.mcall', 'draw.mstop', 'draw.mlex',
+               'draw.mparse', 'draw.mpush', 'draw.mshut', 'draw.mreduce', 'draw.mbox', 'draw.tleaf',
                'draw.mplace', 'draw.mmark', 'draw.mrender'), 'view'),
     ('CASALG', ('poly', 'polyb', 'polyc', 'rules', 'rulesb', 'ident', 'norm', 'normb', 'normc',
                 'diff'), 'family'),

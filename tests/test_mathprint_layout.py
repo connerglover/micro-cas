@@ -220,7 +220,8 @@ def test_layout_heights():
     ('', True), ('2+3', True), ('sin(x)+1', True), ('1/4', True), ('log(8)', False),
     ('surd(8', False), ('diff(x', False), ('(1)/(4)', False), ('x^2', False), ('pi', False),
     ('ans()+1', False), ('2sqrt(x)', False), ('integrate(x,x)', False), ('abs(', False),
-    ('mysqrt(2)', True), ('sqrt2(x)', True), ('(1)/4', True),
+    ('mysqrt(2)', False), ('sqrt2(x)', True), ('(1)/4', True), ('xsqrt(4)', False),
+    ('2x(x+1)', True), ('x(x+1)/2', True),
 ])
 def test_mflat(s, flat):
     assert D.mflat(s) is flat
@@ -230,6 +231,68 @@ def test_mstop_flat_lines():
     s = '2sin(x)+ln(y)'
     want = [0, 1, 5, 6, 7, 8, 11, 12, 13]
     assert [i for i in range(len(s) + 1) if D.mstop(s, i)] == want
+    # a single letter other than f, g, h before '(' is a product, so the caret may sit before
+    # its '(' (the engine reads x(x+1) as x*(x+1)); a call name's interior is no stop
+    for s, want in (('x(x+1)', [0, 1, 2, 3, 4, 5, 6]), ('f(x)', [0, 2, 3, 4]),
+                    ('pi(2)', [0, 1, 2, 3, 4, 5]), ('ysin(x)', [0, 1, 5, 6, 7]),
+                    ('abc(2)', [0, 4, 5, 6]),
+                    ('xsqrt(4)', [0, 1, 6, 7, 8])):
+        assert [i for i in range(len(s) + 1) if D.mstop(s, i)] == want, s
+
+
+# -- names as the engine reads them (parse.ti_implicit, iscall) -----------------------------------
+
+@pytest.mark.parametrize('s,want', [
+    ('x(x+1)', [('a', 0, 1), ('(', 1, 2), ('a', 2, 3), ('o', 3, 4), ('n', 4, 5), (')', 5, 6)]),
+    ('f(x)', [('f', 0, 1), ('(', 1, 2), ('a', 2, 3), (')', 3, 4)]),
+    ('pi(2)', [('a', 0, 2), ('(', 2, 3), ('n', 3, 4), (')', 4, 5)]),
+    ('xsqrt(4)', [('a', 0, 1), ('f', 1, 5), ('(', 5, 6), ('n', 6, 7), (')', 7, 8)]),
+    ('xyzabs(4)', [('a', 0, 3), ('f', 3, 6), ('(', 6, 7), ('n', 7, 8), (')', 8, 9)]),
+    ('ksum(', [('a', 0, 1), ('f', 1, 4), ('(', 4, 5)]),
+    ('xyzsum(', [('f', 0, 6), ('(', 6, 7)]),       # four pieces: the engine keeps it whole
+    ('kln(', [('a', 0, 1), ('f', 1, 3), ('(', 3, 4)]),
+    ('xyasinh(', [('a', 0, 2), ('f', 2, 7), ('(', 7, 8)]),
+    ('asin(', [('f', 0, 4), ('(', 4, 5)]), ('sinsin(', [('f', 0, 6), ('(', 6, 7)]),
+    ('x2sqrt(', [('f', 0, 6), ('(', 6, 7)]),       # a digit: never cut
+    ('sqrt(', [('f', 0, 4), ('(', 4, 5)]),
+])
+def test_mlex_cuts_names_like_the_engine(s, want):
+    assert D.mlex(s) == want
+
+
+def test_letter_before_a_template_draws_the_template():
+    m = lay('xsqrt(4)')
+    assert [c[3] for c in m[11]] == ['T'] and texts(m[1]) == ['x', '4']
+    assert stops(m) == [0, 1, 6, 7, 8]
+
+
+def test_right_operand_follows_the_engine():
+    # 1/x(x+1) is (1/x)(x+1) and e^x(x+1) is e^x*(x+1): the operand is the letter only
+    r = D.mlayout('1/x(x+1)', 1)
+    assert texts(r[0]) == ['1', 'x', '(x+1)']
+    r = D.mlayout('e^x(x+1)', 1)
+    assert texts(r[0]) == ['e', 'x', '(x+1)'] and r[0][1][2] < r[0][0][2]
+    # a multi-letter name may be cut into a product (x^ab is b*x^a, x/ab is b*x/a), so the
+    # operator stays inline text rather than a picture the engine does not evaluate
+    for s in ('x^ab', '1/ab', 'x^-ab', '2^xy+1', 'x^pie', '(2)/(-2)^ab', '1/ab^2'):
+        r = D.mlayout(s, 1)
+        assert not [it for it in r[0] if it[0] == 'l'], s
+        if s != '1/ab^2':                                         # b^2 is a power
+            assert len(set(it[2] for it in r[0] if it[0] == 't')) == 1, (s, r[0])
+    m = lay('x^ab')
+    assert not m[11] and texts(m[1]) == ['x^ab']
+    assert D.mlayout('x^pi', 1)[0][1][0] == 'g'                   # a glyph name is one unit
+    assert [c[3] for c in lay('x^(ab)')[11]] == ['W']             # a group is fine
+    assert [c[3] for c in lay('1/sin(x)+x^ln(2)')[11]] == ['C', 'W', 'C']
+    # a call the engine may read as a product (ab(2) is a*b*2, xexpand(x) is x*expand(x))
+    for s in ('1/ab(2)', 'x^xexpand(x)', '1/abc(2)'):
+        r = D.mlayout(s, 1)
+        assert not [it for it in r[0] if it[0] == 'l'], s
+    r = D.mlayout('1/kln(2)^(3)', 1)                               # (1/k)*ln(2)^3
+    assert texts(r[0]) == ['1', 'k', 'ln(2)', '3']
+    for s in ('1/sin(x)', '1/f(x)', '1/ln(2)', '1/diff(x^2,x)', '1/log(8,2)'):
+        r = D.mlayout(s, 1)
+        assert [it for it in r[0] if it[0] == 'l'], s
 
 
 # -- section 5.3: caps and degrade ----------------------------------------------------------------
@@ -270,8 +333,13 @@ def test_dense_line_host_time_guard():
     import timeit
     s = ('2x^(2)+3x-(1)/(2)+sin(x)^(2)-sqrt(x+1)+' * 4)[:160]
     assert D.mlayout(s, 2) is not None
-    ref = min(timeit.repeat(_calibration, number=20, repeat=7)) / 20
-    took = min(timeit.repeat(lambda: D.mlayout(s, 2), number=50, repeat=7)) / 50
+    # the same bound, measured up to three times: a regression fails every try, while a busy
+    # host (another test process) only spoils one
+    for attempt in range(3):
+        ref = min(timeit.repeat(_calibration, number=20, repeat=7)) / 20
+        took = min(timeit.repeat(lambda: D.mlayout(s, 2), number=50, repeat=7)) / 50
+        if took < 400e-6 * max(1.0, ref / 86e-6):
+            break
     assert took < 400e-6 * max(1.0, ref / 86e-6), (took, ref)
 
 
@@ -365,7 +433,9 @@ def test_tidy(s, want):
     ('1/4', '(1)/(4)'), ('x^2+1', 'x^(2)+1'), ('(1+x)/2', '(1+x)/(2)'), ('1/(x+1)', '(1)/(x+1)'),
     ('x^2/3', '(x^(2))/(3)'), ('-a/b', '-(a)/(b)'), ('2+3', '2+3'), ('x^-1', 'x^(-1)'),
     ('e^(x)', 'e^(x)'), ('2^3^2', '2^(3^(2))'), ('a/bc', 'a/bc'), ('x^ab', 'x^ab'),
-    ('sin(x)', 'sin(x)'), ('', ''),
+    ('sin(x)', 'sin(x)'), ('', ''), ('1/x(x+1)', '1/x(x+1)'), ('e^x(x+1)', 'e^x(x+1)'),
+    ('x^ab+1', 'x^ab+1'), ('1/ab^2', '1/ab^(2)'),
+    ('1/f(x)', '(1)/(f(x))'), ('1/2x', '(1)/(2)x'), ('2/xsqrt(4)', '(2)/(x)sqrt(4)'),
 ])
 def test_structure(s, want):
     assert U.structure(s) == want
@@ -384,6 +454,11 @@ ROUND = [
     'sum(1/k^2,k,1,oo)', 'limit(sin(x)/x,x,0)', 'x^2!', '-x^2', '2*-3/4', '1E-3^2',
     'surd(8,3)/2', '3/4+5/6', '(1/2)^(1/3)', 'x^y^z', 'a/bc', 'sin(x)^2/2', 'abs(-3)/3',
     'x/y^2', '1/2/3/4', '2x^2/4', '-1/2', '--2/3', 'x=1/2', 'f(x):=x^2/2',
+    # names the engine cuts or reads as a product (parse.ti_implicit, iscall)
+    '1/x(x+1)', 'e^x(x+1)', 'x^ab', 'x^ab+1', '1/ab^2', 'x^-ab', '2^xy', 'x/-ab', '1/2pi',
+    'xsqrt(4)/2', '2/xsqrt(4)', 'pi(2)/3', 'e(2)^2', 'x^pie', 'b^ab^(sin(x))',
+    'x^(1.5)/(b)/ab^(ab)', '(2)/(-2)^ab+pi', 'a*1.5^(b)/(ab)^pie', '1/kk^2', 'x/2!', 'a/b!',
+    'sqrt(3)/kln(2)^(3)', 'x!(abs(-2))/(ln(2))^ab(e)/(f(x))+1.5', '1/ysin(x)', '1/xexpand(x)',
 ]
 
 
@@ -396,7 +471,7 @@ def corpus():
             if line.strip() and not line.startswith('#'):
                 out.append(line.split('\t')[0])
     rnd = random.Random(42)
-    atoms = ['x', '2', '3', 'a', 'pi', '1.5', 'e']
+    atoms = ['x', '2', '3', 'a', 'pi', '1.5', 'e', 'ab', 'x(x+1)', 'ksqrt(2)', 'sin(x)']
     for n in range(60):
         st = [rnd.choice(atoms)]
         for j in range(rnd.randint(1, 4)):

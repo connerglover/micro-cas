@@ -114,7 +114,8 @@ sections below left open or got wrong. Each section is edited to match.
 | Precedence from `parse.PREC` | draw cannot read the engine: the same table is the CASUX constant `draw.MPREC` (§9.2) |
 | `TGAP` on every template box | Editor (mode 2) only: the gap separates two caret stops, and history inputs have no caret |
 | A stacked fraction with a signed numerator (`-a/b`) unspecified in the parser | The parser follows `parse.PREC` (`neg` 6 > `/` 5), then hoists the sign over the bar: `N(Q(a, b))`, the same value, drawn with the minus outside (§1.2) |
-| `structure` wraps every non-group operand | A fraction or power whose right operand is a multi-letter name is left alone: the engine splits `bc` into `b*c`, so `a/bc` is `(a/b)c`, and `(a)/(bc)` would change the value (§1.4) |
+| `structure` wraps every non-group operand | It leaves alone a construct with an operand that ends in a letter right before `(` (`1/x(x+1)`, `e^x(x+1)`): `x(…)` is a product, but a call if `x` is a user function, and wrapping would change which (§1.4) |
+| Names follow `PREC` only | Names follow the engine's reading too (verification of milestone A; `parse.iscall`, `ti_rewrite`, `ti_implicit`), via `D.mcall` (L5) and the constant `D.MFNT` (a copy of `parse.FNT`). A single letter other than `f`, `g`, `h` before `(` is a product: `1/x(x+1)` is `(1/x)(x+1)` and `e^x(x+1)` is `e^x*(x+1)` (the first version drew `x(x+1)` as the denominator/exponent, and `structure` wrapped it, which changed the recalled answer). Letters before an `FNT` function or a template are cut off (`xsqrt(4)` is `x*sqrt(4)` and draws the √ template; `ysin(x)` is `y*sin(x)`). A multi-letter name the engine may cut (`ab` is `a*b`: `x^ab` is `b*x^a`, `1/ab` is `b/a`), or a call it may read as a product (`ab(2)`, `xexpand(x)`), outside brackets in the right operand of `^` or of a stacked `/` keeps that operator inline text: its extent depends on session names that draw cannot see, so no picture is drawn that the engine might not evaluate. `x^(ab)` and `1/sin(x)` are 2D as before (§1.2, §5.2) |
 | Performance (not specified) | Contiguous text leaves merge while a row is built (`2+3*x` is one leaf, one box, one text item); leaf stops are written inline. Host: a dense 160-character line lays out in 200–340 µs (`test_dense_line_host_time_guard`) |
 
 ---
@@ -164,9 +165,20 @@ dict (the lint rejects unordered dict iteration without `#@unordered-ok`).
 paste, a line typed in Classic) can hold a bare `B^E`. It is drawn as a power. Its exponent
 slot end and the power's end are the same buffer index; by the "strictly deeper record wins"
 rule of §4.1 that stop is drawn raised, at the end of the exponent. Typing `+`, `-`, `=` or
-`,` there lands at the baseline because that is how the text parses; typing a digit or a
-letter extends the exponent (`x^2|` + `3` → `x^23`). This is WYSIWYG with the caret, and
-recall (`structure`) is the only path that adds parens.
+`,` there lands at the baseline because that is how the text parses; typing a digit extends
+the exponent (`x^2|` + `3` → `x^23`), and a letter after a letter makes a name the engine
+cuts (`x^ab` is `b*x^a`), so the `^` is then drawn inline (`x^ab`, §0.4). This is WYSIWYG
+with the caret, and recall (`structure`) is the only path that adds parens.
+
+**Names.** The picture also follows how the engine reads names (`parse.iscall`,
+`ti_rewrite`, `ti_implicit`), as far as it can without the session: one letter other than
+`f`, `g`, `h` (or `pi`, `oo`, `theta`) before `(` is a product, not a call (`x(x+1)`);
+letters before a function of `parse.FNT` (`D.MFNT`) or a template name are a separate
+product factor (`xsqrt(4)`, `kln(2)`; before `surd`, `integrate`, `diff`, `sum`, `limit`
+at most two letters, as the engine cuts at most three pieces). A right operand of `^`, or of
+a stacked `/`, that holds a multi-letter name or an unknown multi-letter call outside
+brackets keeps that operator inline: the engine may cut the name into a product
+(`1/ab` is `b/a`) unless the session defines it, which draw cannot know.
 
 | In-buffer form | Drawn as | Hidden characters |
 |---|---|---|
@@ -221,9 +233,11 @@ engine is unchanged.
 that is not exactly one group, it inserts `(` at the operand's start and `)` at its end.
 Insertions are collected as `(pos, ch)` tuples, sorted with a plain `list.sort()`, and
 applied right to left. If the result is longer than 256 characters, `s` is returned
-unchanged. A fraction or power whose right operand (after a sign) is a multi-letter name is
-left alone: the engine reads `a/bc` as `(a/b)c`, so wrapping `bc` would change the value
-(§0.4).
+unchanged. A fraction or power over a name the engine may cut is not one in the mode-1
+parse (it stays inline, §1.2), so `a/bc` is left alone: the engine reads it as `(a/b)c`. A
+construct with an operand that ends in a letter right before `(` is left alone too:
+`1/x(x+1)` is `(1/x)(x+1)`, but a call if `x` is a user function, and wrapping `x` alone or
+`x(x+1)` would decide that (§0.4).
 
 | Input | Output |
 |---|---|
@@ -233,7 +247,8 @@ left alone: the engine reads `a/bc` as `(a/b)c`, so wrapping `bc` would change t
 | `1/(x+1)` | `(1)/(x+1)` |
 | `x^2/3` | `(x^(2))/(3)` |
 | `-a/b` | `-(a)/(b)` |
-| `a/bc`, `x^ab` | unchanged |
+| `a/bc`, `x^ab`, `1/x(x+1)`, `e^x(x+1)` | unchanged |
+| `2/xsqrt(4)` | `(2)/(x)sqrt(4)` |
 
 Round trip: `tidy(structure(s))` must evaluate to the same `run.go` record as `s` (test §12.4).
 
@@ -522,8 +537,10 @@ Prototype stop lists (text design, `t1.py`):
 | `integrate(,x,,)` | | 0 13 14 10 11 12 15 |
 | `sin(x)` | 0 4 5 6 | same |
 
-**Flat lines** have no map. Every index is a stop except the interior of a `name(` run,
-i.e. positions `start+1 .. index of '('`. `D.mstop(s, i)` (L4) tests this by a local scan.
+**Flat lines** have no map. Every index is a stop except the interior of a call name before
+its `(`, i.e. positions `start+1 .. index of '('`, where the call name is what `D.mcall`
+(L5) keeps of the name (§1.2: none for `x(`, `sin` in `ysin(`). `D.mstop(s, i)` (L4) tests
+this by a local scan.
 The current slot is the interior of the innermost unmatched bracket pair around CUR, else
 the whole line. `X[i] = 10*i`.
 
@@ -616,7 +633,8 @@ any of the following, and True otherwise:
 - the name `pi`, `theta` or `oo` (a simple substring test is enough: a false hit only costs
   the 2D path);
 - `ans()`;
-- a TPL name directly followed by `(`.
+- a TPL name directly followed by `(`, after `D.mcall` cut off letters before it
+  (`xsqrt(4)` is not flat; `sqrt2(` is).
 
 It is O(n) and allocation-free (`find` and `in`). A flat line is drawn as today's row
 (`LINE[XOFF:XOFF+30]` at (10, top), character caret) and has `EDMAP = None`.
@@ -630,7 +648,8 @@ map.
 1. **`D.mlex(s)`, L4.** Returns a flat list of `(kind, start, end)`. Kinds:
    - `n` number: `[0-9.]` run, plus `E` and an optional sign and digits after a digit.
    - `a` name: a letter, then letters/digits.
-   - `f` name directly followed by `(`.
+   - `f` name directly followed by `(` that the engine reads as a call (`D.mcall`, §1.2):
+     `x(` is `a`, and `xsqrt(` is `a` `x` then `f` `sqrt`.
    - `A` `ans()`.
    - `o` operator: longest of `=> := <= >= != + - * / ^ = < >`.
    - `(` `)` for `([{` and `)]}`.
@@ -644,7 +663,10 @@ map.
    - a stray closer, a postfix `!`/`'` and any `?` character become a text leaf that
      clings to the adjacent operand (an `R` row);
    - an unclosed group ends at `len(s)`;
-   - a top-level comma list is an unbracketed group.
+   - a top-level comma list is an unbracketed group;
+   - a `^`, or a stacked `/`, whose right operand holds a name the engine may cut (leaf
+     flag 4) or an unknown multi-letter call outside brackets stays an inline row item
+     (§1.2).
 
    It returns `None` past the caps: more than 24 open groups or more than 192 nodes
    (every appended node counts). Otherwise it returns `(nodes, root)`, the root being the
@@ -1016,7 +1038,8 @@ History inputs stay 2D. Classic also serves as:
 | `edslot(i)` → SLOTS row; `edterm(i)`; `leave(kind)`; `put(line, cur)` → bool | ui | 4 | CASUX | – |
 | `mlayout(s, mode)` | draw | 3 | CASUX | mlex, mparse, mbox, mplace 4 |
 | `clear_cache()` (also ICACHE) | draw | 3 | CASUI | – |
-| `mflat(s)`, `mstop(s, i)`, `mlex(s)` | draw | 4 | CASUX | – |
+| `mflat(s)`, `mstop(s, i)`, `mlex(s)` | draw | 4 | CASUX | mcall 5 |
+| `mcall(s, i, j)` (§1.2) | draw | 5 | CASUX | – |
 | `mparse(s, tk, mode)` | draw | 4 | CASUX | mpush, mshut 5; mreduce 6 |
 | `mbox(s, nodes, root, mode)` | draw | 4 | CASUX | row, frame, large, tleaf 5; leaf 6 |
 | `mplace(s, nodes, boxes, root, mode)` | draw | 4 | CASUX | mmark 5 |
@@ -1043,7 +1066,8 @@ must not call `emodel` either: `key` refreshes a stale model at dispatch step 2.
 assigned in a function, which `packs.Plan.constant` requires of a placed name).
 - `ui`: `PLAIN`, `SECOND`, `ALPHA`, `HINT`, `ALIAS` (unchanged, as today), plus the new
   `TMPL` (picker rows, a tuple of tuples).
-- `draw`: the new `TPL` (dict literal) and `TGAP` (int). No CASUI function reads either;
+- `draw`: the new `TPL` (dict literal), `TGAP` (int), `MPREC` (dict) and `MFNT` (tuple). No
+  CASUI function reads them;
   a CASUI function that read a CASUX name would be rejected by the packer ("reads … by
   name, which may be evicted").
 
@@ -1065,7 +1089,8 @@ already does.
   `'ui.epaint'`, `'ui.edslot'`, `'ui.edterm'`, `'ui.leave'`, `'ui.put'`;
 - `'ui.TMPL'`, `'draw.TPL'`, `'draw.TGAP'`, `'draw.MPREC'` (milestone A placed the draw
   names, `ui.tidy` and `ui.structure`);
-- `'draw.mlayout'`, `'draw.mflat'`, `'draw.mstop'`, `'draw.mlex'`, `'draw.mparse'`,
+- `'draw.MFNT'`, `'draw.mlayout'`, `'draw.mflat'`, `'draw.mcall'`, `'draw.mstop'`,
+  `'draw.mlex'`, `'draw.mparse'`,
   `'draw.mpush'`, `'draw.mshut'`, `'draw.mreduce'`, `'draw.mbox'`, `'draw.tleaf'`,
   `'draw.mplace'`, `'draw.mmark'`, `'draw.mrender'`.
 
@@ -1080,7 +1105,7 @@ and the allowed imports are unchanged.
 
 | Module | Today (lines / KB) | Estimated after | New budget |
 |---|---|---|---|
-| CVDRAW | 342/350, 10.5/13 KB | measured after milestone A: 926 lines, 24.0 KB | `('draw', 'CVDRAW', 'R', 1020, 27)` (set in milestone A) |
+| CVDRAW | 342/350, 10.5/13 KB | measured after milestone A: 973 lines, 24.4 KB | `('draw', 'CVDRAW', 'R', 1020, 27)` (set in milestone A) |
 | CVUI | 414/500, 14.1/16 KB | after milestone A: 498 lines, 15.9 KB; ~820 at the end | `('ui', 'CVUI', 'R', 550, 18)` now; ~900/30 at the end |
 | CVMENU | 153/200 | +4 (setup row) | fits |
 | CVMENUB | 42/150 | +6 (prefill) | fits |
