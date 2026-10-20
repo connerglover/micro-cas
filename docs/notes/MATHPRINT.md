@@ -1,0 +1,1303 @@
+# MathPrint input editor: implementation spec
+
+> **Provenance.** A 3-design judge panel produced this spec on 2026-10-20. Three designs
+> (text-backed FlowCE model, structured token buffer, performance-first) were each scored
+> by three judges. Scores, out of 10:
+>
+> | Design | UX faithfulness | Performance / device safety | Integration risk / testability | Total |
+> |---|---|---|---|---|
+> | text (text-backed, FlowCE model) | 8 | 7 | 7 | **22** |
+> | struct (structured buffer) | 7 | 7 | 6 | 20 |
+> | perf (performance-first) | 6 | 8 | 6 | 20 |
+>
+> No judge found a fatal flaw in **text**, so it is the base. The judges' fixes and the
+> runners-up's best ideas are folded in. §0.2 lists each change.
+>
+> This document is the spec the implementation follows. Input research is in
+> [MATHPRINT-RESEARCH.md](MATHPRINT-RESEARCH.md).
+>
+> **Status.** Not implemented. All EVO timings below are estimates (host time × 75,
+> FASTBOOT.md); the draw-call counts come from the shim. Hardware acceptance needs an EVO
+> run.
+
+Notation:
+- `|` is the caret inside a buffer string.
+- `before → after` shows `(LINE, CUR)` around a key.
+- "Hidden" means buffer characters that are not drawn.
+- `L<n>` is a framelint `#@L` level.
+
+---
+
+## 0. Summary
+
+### 0.1 Decisions
+
+| Topic | Decision |
+|---|---|
+| Model | `ui.LINE` (str ≤ 256) and `ui.CUR` stay the single editor state, in engine syntax. A template is ordinary text, e.g. `(a)/(b)`, `x^(2)`, `sqrt(u)`, `surd(u,n)`, `log(u,b)`, `abs(u)`, `integrate(f,x[,a,b])`, `diff(f,x)`, `sum(f,k,a,b)`, `limit(f,x,a[,dir])`, `e^(u)`, `10^(u)`, `exp(u)`. Its structural parens, names and commas are hidden when drawn. No tree survives between keys. |
+| Fast path | A **flat** line (no 2D construct, §5.1) is drawn exactly like today's 1D row, with no lexing or layout. |
+| 2D layout | Engine-free, non-recursive: lexer, tolerant shunting-yard parser, box build with the existing `draw.row/frame/large/leaf`, then placement. Every 2D line is laid out again on each text-changing key. Arrows, home/end and up/down reuse the stored caret map (`EDMAP`) and do no layout. |
+| ÷ versus fraction (Nspire) | **55** inserts a linear `/`, drawn inline while typing. **42** is the fraction template with term capture (`(a+b)|` → `(a+b)/(|)`). In the entry, a `/` is stacked only when both operands are hidden-paren groups `(..)/(..)`. After ENTER, every history input is drawn with all `/` stacked by precedence. |
+| ENTER | Map-based empty-slot check first, with no engine. Then `engine()` and today's textual check. Then `job = ('eval', tidy(LINE))`. `tidy` strips structure parens around one-token operands, so HIST stays short 1D text (`1/4`, `x^2`). |
+| Recall | ENTRY (2nd ENTER) and input paste go through `structure(text)`, which re-wraps bare `/` and `^` operands, so the recalled input is 2D again. Result pastes keep today's `wrapped()`, plus one rule: inside an empty hidden slot the text is pasted bare. |
+| Shell | Nspire-style page. The hero is removed. A history list is always shown: pretty input on the left, result right-aligned, on one row when both fit. An ACCSOFT band marks the selection. The hint row doubles as the focused entry's footer and keeps today's strings. The entry box grows in steps (20/40/60/80 px) and shrinks only when LINE becomes empty. Geometry at EH = 20 is pixel-identical to today. |
+| Per-key draw | Status and hint rows repaint only when their text changes. The caret is drawn in INK. The entry box uses a dirty-region diff (2D text change), a 2 px caret strip (2D caret move) or a full row (flat lines). Typical key: **2 `set_color`, 1 `fill_rect`, 1 `draw_text`, 1 `draw_line`**; today it is 4/3/2/1. |
+| Picker | 2nd+42 opens an engine-free template picker in CASUX with 13 rows. A parameter `x`/`k` at position ≥ 1 is prefilled (FlowCE), also in `menub.insertion`. |
+| Setting | F3 Setup row 5, `Entry: MathPrint/Classic`, is a ui global. Classic is today's editor exactly, and it shares the 1D path used for degrading. |
+| Placement | Every new function goes in the existing `ui.py`/`draw.py`, placed in **CASUX**. CASUI gains globals only (plus a one-line change to `status`, `clear_cache` and `panic`). The highest framelint level stays **6**. Engine modules are unchanged. |
+| Model refresh | One L2 function, `emodel()`, owns the editor model (flat test, layout, map, PENDING, caret snap, EH, scroll). `key` calls it before dispatch and before `redraw`; `show` and `boot` call it before `redraw`. `redraw` never lays out the entry (§6.4). |
+
+### 0.2 What changed from the text design, and why
+
+| Judge finding (source) | Resolution here |
+|---|---|
+| 55 drew stacked while typing (ux), so 42 and 55 looked alike | Entry stacking rule `(..)/(..)` (§1.2); 55 stays inline. History stacks everything. |
+| A bare `1/4` had no caret stop around the fraction body (ux) | In the entry, bare `/` is inline text, so every index is a stop. Recall wraps operands (`structure`). |
+| `)` with nothing to step over wrapped the slot (ux) | `)` inserts a literal `)` (perf). The layout draws a stray closer as text, and the engine reports it. |
+| The hint was folded into the status row (ux) | The hint row is kept. It doubles as the footer (perf). |
+| `surd()` typed with 2nd 51 became `surd(,)` (ux) | keyscript 2nd 51 becomes the action `@surd`. Text `surd(` is typed with alpha letters, so the test is unchanged (§11.1). |
+| ACC caret costs a color per key (perf) | INK caret. `CARETC` is one constant if the device shows it needs ACC. |
+| Prototype `edit.py` failed lint: a generator and `isalnum` (perf) | Explicit rule: loops only, `isalpha`/`isdigit` only (§9.4). |
+| Full lex and parse on every text key (perf) | Flat fast path (struct). Arrows do no layout (text). |
+| Full entry repaint every key (perf) | Dirty-region diff for 2D lines (perf), with a pixel-equivalence property test (§12) against stale pixels (risk). |
+| Map-based `empty_slot` dropped `P.FNAMES` (risk) | Two stages: an engine-free template stage, then today's textual stage after `engine()`. |
+| Hero and hint tests would need re-deriving (risk) | At EH = 20, every row and fill rectangle equals today's. The footer strings are unchanged. §11.3 lists each pin. |
+| DEL `2sqrt(|x+1)` changed the meaning (struct) | Perf's paren-keeping unwrap: `2(|x+1)`. |
+| Index-first caret broke `{2nd,x^n}8,3` (perf) | Caret starts in the radicand and `,` steps to the index. The index is still drawn first and visited first by → (§3). |
+| `slot_at`(L4) was called from `empties`(L4) (perf) | §9 levels are checked: callee > caller everywhere, maximum level 6. |
+| New module homed in a view pack is unproven (perf, risk) | No new module. |
+| `x^(…)` after a fraction or power binds to the wrong operand | 51/61 right after a stacked fraction or power wrap it in a visible group first (struct). |
+
+### 0.3 Completeness review (2026-10-20)
+
+An adversarial pass against the code (`ui.py`, `draw.py`, `menu.py`, `menub.py`,
+`catalog.py`, `build/packs.py`, `framelint.py`, `lint.py`, the tests) changed the spec as
+follows. Each item is folded into the section named.
+
+| Gap found | Fix |
+|---|---|
+| The map was refreshed only in `redraw`, after the key had already edited with it; after `panic` (map `None`) the first key used flat rules on a 2D line, and ENTER's refresh would re-run a layout that `EFAIL`/`ED1D` had banned | `emodel()` (L2) owns the model, keyed by `EMODEL = (LINE, CLASSIC)`; `key` runs it before dispatch and before every `redraw`; stale-map rule for every structural lookup (§1.1, §2, §6.5) |
+| `HERO` in `VIEW` forced a full redraw on the first key after every answer, contradicting the §10 pins | `HERO` only drives `HINTVIEW` (§6.4) |
+| Answers laid out with two caps (92 focused, 60 others) need 6 cache keys for a 5-entry FIFO cache: every MODE redraw misses every lookup | one `D.layout(e[1], 300, 92)` key per answer, view height applied at render time (§7.1) |
+| ←/→ repainted everything right of the leftmost caret column: cost grew with the line | caret-only path: a 2 px strip and the items meeting it (§6.4, §10) |
+| `mrender` drew boxes and ink in one call: a full redraw would need a 7th `set_color` | `mrender` draws one kind in one color per call (§5.4) |
+| Prefill of `x` filled the *first* parameter of `sin(x)`, `sqrt(x)`, `purge(x,...)`, `paramarea(x,…)` | prefill only at position ≥ 1 (§3) |
+| 2a deleted the base with an empty exponent (`x^(|)` → nothing); the power's span was undefined | a power's span starts at `^`; `CONS` carries the base start `cs` (§4.1, §4.3, §5.2) |
+| ↓ from an exponent had no candidate although the table said `x|^(2)` | explicit power rules for ↑/↓ (§4.4) |
+| DEL at the first slot of a call with other filled slots fell to rule 5 and deleted a `(` | rule 2e′ (←) (§4.3) |
+| The keep-parens test let `a-sqrt(x+1)` and `2*(a+b)/()` lose their meaning on DEL | keep `(U)` unless the construct is alone in its slot (§4.3) |
+| `)` inside a template slot inserted a stray closer that broke the template; `)` inside an autoclosed group left `(3)x+1)` | `)` moves the autoclosed closer, is a no-op in hidden/template slots, literal only at the root (§2) |
+| Stage 2 (`empty_slot`) flagged `log(u,)` although the base is optional | log-base skip in `empty_slot` (§2.2) |
+| `ui.TPL` and `ui.TGAP` were read by draw functions, but draw never imports ui | both are `draw` constants (§1.1, §9) |
+| `CPLAIN`/`CSECOND` duplicated the tables | one set of tables; `edkey` intercepts action keys and autocloses `name(` texts (§2) |
+| Unspecified: 2nd ↑/↓, 2nd ←/→ in MODE, keys with no entry, picker ←/→/digits/closing, who applies a picker row, Classic + picker, setup row 5 with arrows/digit 6, `VIEWEND` after Clear history, EXOFF after deletion, scroll-marker baseline, `status()` vs `STATVIEW`, history-input `MemoryError`, `enclosing` on `2sin(` | specified in §2, §3.2, §6.1, §6.3, §6.4, §7, §8 |
+| `parse.mclose` already exists | the new draw function is `mshut` (§5.2, §9) |
+| The spec cited a scratchpad prototype path and a shim-only font property | removed as evidence; §12.7 is the acceptance check, and no paint path relies on the font (§6.4) |
+
+---
+
+## 1. Data model
+
+### 1.1 State (ui globals; home CASUI)
+
+| Global | Type, initial | Meaning |
+|---|---|---|
+| `LINE`, `CUR` | `''`, `0` | Unchanged names. After every `emodel()` (so at every `redraw`), `CUR` is a caret stop (§4.1). |
+| `XOFF` | `0` | Character scroll of the **flat/1D** row, as today. |
+| `EXOFF` | `0` | Pixel scroll of the **2D** entry. |
+| `EH` | `20` | Entry box height, one of 20/40/60/80. |
+| `EDMAP` | `None` | Caret map of the last 2D layout of `LINE` (§5.2, "Result"), or `None` for a flat/1D line. |
+| `EMODEL` | `None` | `(LINE, CLASSIC)` for which `emodel()` last built the model. The model is rebuilt only when this differs, so a degraded line (`ED1D`, `EFAIL`) is not laid out again until the text changes, and the F3 Classic toggle rebuilds it. Set to `None` before every job and in `panic`. |
+| `EFLAT` | `True` | The current line is drawn and edited flat/1D (§5.1, §5.3). Set by `emodel()`. |
+| `EDL`, `EKEY` | `None` | Last painted entry: its display list (absolute coordinates) and `(LINE, CUR, XOFF, EXOFF, EH, EFLAT, theme)`. Used by the diff paint. |
+| `PENDING` | `None` | `(a, b)`: put the caret in the first empty slot (drawn order) inside `LINE[a:b]`. Resolved in `emodel()` (§6.5). |
+| `ED1D` | `False` | The current line is drawn 1D because the layout is over its caps or raised `MemoryError`. |
+| `EFAIL` | `None` | The `LINE` for which `panic` (reason 0 or 3) ran. While `LINE == EFAIL`, it is drawn 1D, so a failing layout is never retried in a loop. |
+| `CLASSIC` | `False` | F3 setting (§8). |
+| `VIEWEND` | `-1` | Index of the bottom-most history entry shown in MODE (§7.2). |
+| `STATVIEW`, `HINTVIEW` | `None` | What the status row and the hint row last showed. A row is repainted only when this changes. |
+| `HERO` | `True` | Now means "show the focused entry's footer in the hint row". CLEAR on an empty line clears it. It only affects `HINTVIEW`; it is **not** part of `VIEW`, so it never causes a full redraw. |
+| `draw.ICACHE`, `draw.ICACHE_BYTES` | `[]`, `0` | History-input layouts (§7.3). |
+| `draw.TPL`, `draw.TGAP` | constants | The template table (§1.2) and the trailing gap (§3.1). They live in **draw**, not ui, because `draw.mflat/mparse/mbox` read them and draw never imports ui; ui code reads `D.TPL`. |
+
+**Stale-map rule.** Every structural lookup in the editing code (`edslot`, `edterm`, `leave`,
+the 51/61 wrap test, `empty_map`, `paste`'s bare test) reads `EDMAP` only when
+`EDMAP is not None and EDMAP[0] == LINE`. Otherwise (a flat line, a degraded line, or a key
+that already changed LINE once, such as the leading-operator `ans()` insert) it uses the
+flat-line bracket scan of §4.1 and treats every bracket as visible. This keeps a stale map
+from indexing a different buffer.
+
+`MOD`, `MODE`, `SEL`, `DX`, `ENTRYPOS`, `LASTENTRY`, `STATUS`, `NOTE`, `FULL` and `VIEW` are
+unchanged; `VIEW` gains fields (§6.4).
+
+### 1.2 Structure is the text
+
+`draw.TPL = {'sqrt':(1,), 'abs':(1,), 'exp':(1,), 'surd':(2,), 'log':(2,), 'integrate':(2,4), 'diff':(2,), 'sum':(4,), 'limit':(3,4)}`
+(argument counts allowed for the template form). Code that scans for "a TPL name followed by
+`(`" uses a lookup `name in TPL` on the name it has already cut out, never iteration over the
+dict (the lint rejects unordered dict iteration without `#@unordered-ok`).
+
+**Bare powers.** Text that was not typed with 51/61 (a help example, an F2 recall, a result
+paste, a line typed in Classic) can hold a bare `B^E`. It is drawn as a power. Its exponent
+slot end and the power's end are the same buffer index; by the "strictly deeper record wins"
+rule of §4.1 that stop is drawn raised, at the end of the exponent. Typing `+`, `-`, `=` or
+`,` there lands at the baseline because that is how the text parses; typing a digit or a
+letter extends the exponent (`x^2|` + `3` → `x^23`). This is WYSIWYG with the caret, and
+recall (`structure`) is the only path that adds parens.
+
+| In-buffer form | Drawn as | Hidden characters |
+|---|---|---|
+| `A/B` where both operands are exactly one closed `( … )` group (**entry**); any `/` (**history**, mode 1) | stacked fraction. Numerator = the precedence-5 term to the left; denominator = the unary/power operand to the right. | `/`, and the parens of an operand that is exactly one group |
+| `A/B` otherwise, in the entry | inline text `/` | none |
+| `B^E` | power; E is raised | `^`, and E's parens when E is exactly one group |
+| `name(args)`, name in `TPL`, argument count allowed | template (§3) | the name, its parens and its top-level commas |
+| `sqrt()`, `abs()`, `exp()` | the template with one empty slot (an empty list counts as one empty argument when the minimum count is 1) | as above |
+| `name(args)` otherwise | plain call, drawn as text, e.g. `sin(x)`, `log(x)`, `surd()` | none |
+| `( … )` elsewhere | visible group: text parens when one row high, stroked `frame('paren')` when taller | none |
+| `ans()` | `Ans` (one unit) | – |
+| `pi`, `theta`, `oo` | `draw.GLYPHS` strokes (one unit) | – |
+| `*` | text `*` in the entry; the dot glyph in history inputs (as in answers) | – |
+
+The 2D view follows `parse.PREC` (`'=>' ':='` 1, relations 3, `+ -` 4, `* /` and implicit
+product 5, `neg` 6, `^` 7; `^`, `=>` and `:=` are right-associative). The picture is
+therefore what the engine evaluates. `-a/b` with a stacked fraction is drawn with the minus
+outside the bar; the value is the same.
+
+### 1.3 `tidy(s)` (ENTER, MathPrint only), L3
+
+`tidy` parses `s` in mode 1 (`D.mlex`, `D.mparse`, no boxes). It removes a structure-paren
+pair `(`…`)` around a fraction operand or exponent when all of these hold:
+
+1. The operand is exactly one group: `s[a] == '('` and its match is the operand's last character.
+2. The interior is one leaf token: a number made of `[0-9.]`, or a single letter. An exponent
+   may also be `-` followed by a number, provided the character after the group is the end of
+   the line or one of `+ - , ) = < >`.
+3. The character before `(` is not a letter, digit or `.`.
+4. The character after `)` is not a letter, digit, `.`, `(`, `[`, `!`, `'` or `^`.
+
+It also turns `log(u,)` (empty base) into `log(u)`. Pairs are removed right to left in a
+single pass.
+
+| Input | Output |
+|---|---|
+| `(1)/(4)` | `1/4` |
+| `x^(2)+1` | `x^2+1` |
+| `x^(-1)` | `x^-1` |
+| `e^(x)` | `e^x` |
+| `(x+1)/(2)` | `(x+1)/2` |
+| `x^(2)3` | unchanged (rule 4) |
+| `(1)/(4)x` | `1/(4)x` |
+| `expand((x+1)^(12))` | `expand((x+1)^12)` |
+
+`run.start` still applies autoclose, Ans, `ti_rewrite` and implicit multiplication. The
+engine is unchanged.
+
+### 1.4 `structure(s)` (recall only), L3
+
+`structure` parses `s` in mode 1. For every stacked fraction operand and every exponent
+that is not exactly one group, it inserts `(` at the operand's start and `)` at its end.
+Insertions are collected as `(pos, ch)` tuples, sorted with a plain `list.sort()`, and
+applied right to left. If the result is longer than 256 characters, `s` is returned
+unchanged.
+
+| Input | Output |
+|---|---|
+| `1/4` | `(1)/(4)` |
+| `x^2+1` | `x^(2)+1` |
+| `(1+x)/2` | `(1+x)/(2)` |
+| `1/(x+1)` | `(1)/(x+1)` |
+| `x^2/3` | `(x^(2))/(3)` |
+| `-a/b` | `-(a)/(b)` |
+
+Round trip: `tidy(structure(s))` must evaluate to the same `run.go` record as `s` (test §12.4).
+
+---
+
+## 2. Keys (MathPrint; Classic is §8)
+
+Every edit goes through `ui.put(line, cur)` (L4). If `len(line) > 256`, it sets
+`STATUS = 'Input limit: 256 characters'` and changes nothing. Otherwise it applies
+`insert()`'s side effects: `MODE = 0`, `STATUS = ''`, `DX = 0`, `NOTE = ''` and
+`HERO = not line`. Modifier handling (21, 31, lock, chip), 2nd MODE quit and the MODE
+(history) branches of `key` are unchanged unless a row below says otherwise.
+
+**Leave rule (`ui.leave`, L4).** While `CUR` is at the end of a hidden denominator or
+exponent slot, `CUR` moves to that construct's end. The keys `,`, `=>` and the TEST
+relations (`=`, `!=`, `<`, `<=`, `>`, `>=`) apply this rule always. `+` (85) and `−` (75)
+apply it only when the slot's whole content is one visible group (struct's rule): with
+`(1)/((x+1)|)`, typing `+` gives `(1)/((x+1))+|`.
+
+**Leading-operator rule.** Unchanged. On an empty LINE with `R.ANS` set, plain keys
+51, 55, 61, 65, 75, 85, 91 and 95 insert `ans()` first. The keys 42 and 104 do not, nor
+does a picker row.
+
+**Dispatch order in `key` (L1).** Today's order is kept; new branches slot in as follows.
+1. 21 (2nd) and 31 (alpha) change `MOD`, then `emodel()` (a no-op unless stale) and
+   `redraw()`, as today. **Every** `redraw` call is preceded by `emodel()`.
+2. `if EMODEL != (LINE, CLASSIC): emodel()` (normally a no-op; it matters after `panic` and
+   after a menu changed CLASSIC).
+3. `mod >= 2 and k in ALPHA` → plain insert of the letter (so alpha+42 is still `b`).
+4. 2nd MODE → `QUIT`; CLEAR; DEL; ←/→; ↑/↓; ENTER; F4/95; menus; as listed below.
+5. 2nd 42 → picker (MathPrint only).
+6. Otherwise, in MathPrint, `edkey(k, mod)`; in Classic, today's `PLAIN`/`SECOND` insert.
+   A key with no entry does nothing, and the following `redraw` makes no ti_draw call
+   (§6.4 step 6).
+7. If a job was set: `STATUS = 'Calculating...'`, `emodel()`, `redraw()`, then free the
+   editor (`EDMAP = EDL = EKEY = None`, `EMODEL = None`, `PENDING = None`) and
+   `D.clear_cache()`; else `emodel()`, `redraw()`.
+
+**Tables.** `PLAIN`, `SECOND` and `ALPHA` stay exactly as today (Classic uses them as
+today). In MathPrint, `edkey` handles the action keys (42, 51, 61, 62, 63, 64, 2nd 51,
+2nd 63, 2nd 64, 2nd 75, 2nd 85) itself and otherwise inserts the table text, with one
+rule: a table text ending in `(` (`sin(`, `log(`, `ln(`, `asin(`, `sqrt(`, `10^(`, `e^(`)
+is inserted as `text + ')'` with the caret before the `)`. There are no separate
+MathPrint tables.
+
+| Key | MathPrint behaviour | Examples |
+|---|---|---|
+| digits, `.`, alpha letters, `x`/`t`/`theta` (32), `E` (2nd 62), `i` (2nd 103), `pi` (2nd 55), `e` (2nd 65), space, `'`, `*` (65), `(-)` (104, `-`), 2nd (−) (`ans()`) | Plain insert at CUR. `ans()` is inserted whole. | `x|` + `2` → `x2|` |
+| `+` 85, `−` 75 | Leave rule (group-only form), then insert. | |
+| `=>` 91 | Leave rule, then insert. | `x^(2|)` → `x^(2)=>|` |
+| **55 ÷** | Insert a bare `/`. Drawn inline. | `1|` → `1/|` |
+| **42 fraction** | Term capture (§2.1). | `x|` → `(x)/(|)` |
+| **51 xⁿ** | If `CUR` equals the end `oe` of a stacked fraction (Q) or power (W) in `EDMAP.CONS` (fresh map only), wrap that construct, from its full start `cs` (the numerator start, or the **base** start of a power) to `oe`, in `(`…`)` first. Then insert `^()` with the caret inside. Typing `+` inside stays in the exponent. → leaves it. Only the power itself is wrapped, never a preceding factor. | `x|` → `x^(|)`; `x^(2)|` → `(x^(2))^(|)`; `2x^(2)|` → `2(x^(2))^(|)` |
+| **61 x²** | Same wrap rule, then insert `^(2)` with the caret after it. | `x|` → `x^(2)|`; `sin(x|)` → `sin(x^(2)|)` |
+| 2nd 61 √ | `sqrt(|)` | |
+| 2nd 51 ⁿ√ | `surd(|,)`: caret in the radicand (offset 5, not PENDING). `,` steps to the index. | `{2nd,x^n}8,3` → `surd(8,3)` |
+| 2nd 71 10ˣ, 2nd 81 eˣ | `10^(|)`, `e^(|)` | |
+| 71 log, 81 ln, 52–54 sin cos tan, 2nd 52–54 asin… | `log(|)`, `ln(|)`, `sin(|)` and so on. The closer goes in at once. `log(` stays a plain call; log base b comes from the picker. | |
+| 63 `(`, 2nd 63 `{`, 2nd 75 `[` | In an empty hidden exponent (`x^(|)`): no-op, because the box is the group. Otherwise insert the opener at CUR and its closer at the **end of the current slot** (§4.1; for a flat line, the innermost unmatched bracket pair, else the end of the line). | `|x+1` → `(|x+1)`; `1/|4` → `1/(|4)`; at the end: `(|)` |
+| 64 `)`, 2nd 64 `}`, 2nd 85 `]` | First match: (1) `LINE[CUR]` is the same closer, hidden or visible: step over it; at a hidden numerator closer this lands on the denominator start. (2) CUR is inside a visible group or a plain call (the innermost bracket pair around CUR that lies inside the current slot) whose opener is the same bracket type and whose closer is further right: **move** that closer to CUR. This undoes the autoclose of key 63 when the user closes earlier. (3) The current slot is the root: insert the closer literally (the layout draws it as text; the engine reports it). (4) Otherwise (inside a hidden or template slot, with nothing to close): no-op. | `x^(2|)` → `x^(2)|`; `sin(x|)` → `sin(x)|`; `2(3|x+1)` → `2(3)|x+1`; `sin(a|+b)` → `sin(a)|+b`; `x+1|` → `x+1)|`; `integrate(f|,x)` → unchanged |
+| 62 `,` | Leave rule. Then, if `LINE[CUR] == ','`, step over it; else insert `,`. | `surd(8|,)` → `surd(8,|)`; `integrate(x^(2|),x)` → `integrate(x^(2),|x)` |
+| ← → (24/26) | MODE or empty LINE: `DX ± 24`, as today. Otherwise move to the previous/next stop in drawn order (§4.2). No layout. | |
+| 2nd ← / 2nd → | MODE or empty LINE: `DX ± 24`, as today. Otherwise home / end: `CUR = 0` / `len(LINE)`. | |
+| ↑ (25) | MODE: as today (2nd ↑ moves 5). Empty LINE: enter history (as today, if any). 2nd ↑ with a non-empty LINE: enter history directly, as today. Otherwise `edvert(-1)` (§4.4). If that returns False and history exists: `MODE, SEL = 1, len(hist)-1`. | `x^(|)` ↑ → history |
+| ↓ (34) | MODE: as today (2nd ↓ moves 5; past the newest leaves MODE). Otherwise `edvert(+1)` (2nd ↓ too); nothing if False. | `(a|)/(b)` ↓ → `(a)/(b|)` |
+| DEL (23) | §4.3 | |
+| CLEAR (45), with or without 2nd | Unchanged order: leave MODE; else empty LINE (`CUR = XOFF = EXOFF = 0`, `PENDING = None`; `emodel` then sets `EH = 20`); else `HERO = False`. Always `STATUS = ''` and `TS.escape()`. `ENTRYPOS`/`LASTENTRY` are untouched, as today. | |
+| ENTER (105) | MODE: paste the result (§7.4). Otherwise (§2.2): two-stage empty-slot check, then the job. | |
+| 2nd ENTER | MODE: paste `structure(e[0])`. Otherwise ENTRY recall: `ENTRYPOS` as today; `LINE = structure(hist[-1-ENTRYPOS][0])`, `CUR = len(LINE)`, `LASTENTRY = LINE`. No 256 check, as today. | |
+| **2nd 42** (new) | MathPrint: `row = picker()` (§3.2), then `key` applies the row (rows 1–2 through `edins`, the others through `put` + PENDING). Classic: nothing, as today. | |
+| F1, math (41), 2nd math (TEST), vars (44), F2, F3, mode (22), F5, 2nd 0 | `R.need('menu').open(kind, LINE, CUR, enclosing())`, unchanged. The result goes through today's wrap/limit code, then `insert(text, offset)`. If `text` contains `(` and the line is 2D, `PENDING = (start, start + len(text))`; on a flat line PENDING is not set and the offset stands. A TEST relation (`=`, `!=`, `<`, `<=`, `>`, `>=`, not `!`) first applies the leave rule. After the menu: `VIEWEND = min(VIEWEND, len(hist)-1)` (Clear history may have emptied it). | |
+| F4, `< >` (95) | Unchanged (needs history; `95` with no history does nothing). | |
+| Any other key or modifier combination (33, 43, 2nd digits, 2nd 91, …) | No entry in any table: nothing changes and no ti_draw call is made. | |
+
+### 2.1 Fraction term capture (42 and picker row 1), in `edins`
+
+Scan left from `CUR` inside the current slot. The term is made of:
+- letters, digits, `.`, `'` and `!`;
+- a bare `^` and its base;
+- a closed bracket group, jumping to its opener and then over a call name before it;
+- a hidden exponent closer, jumping to its `^(` and continuing to the base;
+- a hidden denominator closer (CUR, or the scan, at the `oe` of a stacked fraction):
+  jumping to the fraction's full start `cs`, so `(a)/(b)|` gives `((a)/(b))/(|)` and
+  never splits the fraction.
+
+The scan stops at a slot start or at any of `+ - * / = < > ,` and the 2-character
+relations. Only text left of CUR is captured: `ab|c` → `(ab)/(|)c`.
+
+The group is **reused** (only `/()` is inserted) exactly when the captured term is one
+visible bracket group `( … )` with no name and no other factor before it, i.e. the term
+starts at the group's opener. `2(a+b)|` captures `2(a+b)` and gives `(2(a+b))/(|)`.
+
+The scan reads the fresh map when there is one (stale-map rule, §1.1); otherwise it treats
+`)` as a visible closer, which gives the same text for every row below.
+
+| Before | After |
+|---|---|
+| `x|` | `(x)/(|)` |
+| `2sin(x)|` | `(2sin(x))/(|)` |
+| `a+b|` | `a+(b)/(|)` |
+| `-x|` | `-(x)/(|)` |
+| `(a+b)|` (free group, no name before it) | `(a+b)/(|)` (the group is reused: insert `/()` only) |
+| `x^(2)|` | `(x^(2))/(|)` |
+| `ans()|` | `(ans())/(|)` |
+| `sqrt(x|)` | `sqrt((x)/(|))` |
+| `a+|`, or an empty line | `a+(|)/()`, `(|)/()` |
+
+### 2.2 ENTER (not MODE, not 2nd)
+
+```
+pos = -1
+if LINE and not CLASSIC:
+    pos = empty_map()                    # stage 1: engine-free; the model is fresh (key step 2)
+if pos < 0 and LINE:
+    engine()                             # the first ENTER loads the engine
+    pos = empty_slot()                   # stage 2: today's textual rules + the log-base skip
+if pos >= 0:
+    CUR, STATUS = pos, 'fill in the empty slot'
+elif LINE or hist:
+    job = ('eval', (LINE if CLASSIC else tidy(LINE)) or hist[-1][0])
+```
+
+`empty_map()` (L3) never lays out (the model is already fresh: `key` ran `emodel()` at
+step 2 of its dispatch, and a degraded line must not be laid out again).
+- **2D line (fresh `EDMAP`):** the buffer index of the first `E` node in drawn order, in
+  `EDMAP.EMPTY`. It excludes the empty base of a 2-argument `log`, which is optional and
+  removed by `tidy`. The "trailing operand at the caret" flag of an `E` only affects
+  drawing (§5.4); `empty_map` counts that `E` (`2+|` ENTER → caret stays, message shown).
+- **Flat, degraded or `EFAIL` line (no map):** a textual scan for hidden empties that
+  stage 2 does not know: the first of `^()`, `/()` and `()/(` gives the index just inside
+  the empty pair. Otherwise -1.
+
+`empty_slot()` (stage 2) keeps today's rules with one change: a `,)` hit whose closer ends
+a `log(` call with exactly two top-level arguments is skipped (the empty base is optional),
+and the search continues after it. Without this, `log(8,)` from picker row 1.7 would be
+refused at stage 2.
+
+Before a job (key step 7, after the last `redraw`): `EDMAP = EDL = EKEY = None`,
+`EMODEL = None`, `PENDING = None`, then `D.clear_cache()` (which also empties ICACHE), as
+today.
+
+---
+
+## 3. Template catalog
+
+**Drawn order** is both the ←/→ visiting order and the "first empty slot" order. The
+**engine text** is what `tidy` emits.
+
+| Template | Inserted by → buffer (caret) | 2D rendering (one 10 px font; boxes from `draw.frame/large`) | Slots, drawn order | Engine text |
+|---|---|---|---|---|
+| Fraction | 42, picker 1 → `(T)/(|)` or `(|)/()` | `frame('frac')`: bar at baseline−4, both operands centred, w = max+4, **+3 px trailing gap** | num, den | `a/b`; `(a+1)/(b-1)` |
+| Linear ÷ | 55 → `a/b` | entry: inline text; history: as a fraction | – | as typed |
+| Power | 51, picker 2 → `B^(|)` | `frame('sup')`: exponent bottom at `-(a*9//20)`, x = base.w+1 | exp | `x^2`, `x^(n+1)` |
+| Square | 61 → `B^(2)|` | as power | exp | `x^2` |
+| √ | 2nd 61, picker 3 → `sqrt(|)` | `frame('sqrt')` + 3 px | radicand | `sqrt(u)` |
+| ⁿ√ | 2nd 51, picker 4 → `surd(|,)` | `frame('root')` (index raised at the left) + 3 px | **index, radicand** | `surd(u,n)` |
+| eˣ | 2nd 81, picker 5 → `e^(|)` | power with base `e` | exp | `e^u` / `e^(u)` |
+| `exp(u)` (catalog or typed) | `exp(|)` | `frame('sup')` of leaf `e` and u | u | `exp(u)` |
+| 10ˣ | 2nd 71, picker 6 → `10^(|)` | power | exp | `10^u` |
+| log_b | picker 7 → `log(,)`; PENDING puts the caret on b | text `log`, then b lowered 6 px at x 30, then `(u)` (text parens if one row, else stroked) + 3 px | **b, u** | `log(u,b)`; an empty b gives `log(u)` |
+| \|x\| | picker 8 → `abs(|)` | `frame('abs')` + 3 px | u | `abs(u)` |
+| ∫ | picker 9, catalog → `integrate(|,x)` | `large('integral')`, `d`, x; + 3 px | f, x | `integrate(f,x)` |
+| ∫ₐᵇ | picker 10 → `integrate(,x,|,)` | `large('integral')` with bounds + 3 px | **a, b, f, x** | `integrate(f,x,a,b)` |
+| d/dx | picker 11, catalog → `diff(|,x)` | `frame('frac')` of `d` over `d x`, then f in parens (text parens if one row) + 3 px | **x, f** | `diff(f,x)` |
+| Σ | picker 12, catalog → `sum(,k,|,)` | `large('sum')`; `k=a` below, b above + 3 px | **k, a, b, f** | `sum(f,k,a,b)` |
+| lim | picker 13, catalog → `limit(,x,|)` | `large('limit')`, `x->a` below; the 4-argument form draws dir as a superscript on a; + 3 px | **x, a, (dir), f** | `limit(f,x,a[,dir])` |
+| Call | `sin(|)` … | text: name + `(` + args + `)`, merged into one run when one row high | args in order | as typed |
+| Group | `(|)` | text parens if one row, else `frame('paren')` | interior | as typed |
+
+**Prefill.** In the picker and in `menub.insertion`, a required parameter named exactly `x`
+or `k` **at position 1 or later** is filled with its own name. `insertion(row)` builds the
+text from the required parameter names (split on `,`): an empty string, or `x`/`k`. The
+offset stays `len(prefix)`. Position 0 is never prefilled: every one-argument row
+(`sin(x)`, `sqrt(x)`, `abs(x)`, `exp(x)`, `ln(x)`, …), `log(x,[b])`, `surd(x,n)`,
+`purge(x,...)` and `paramarea(x,y,t,a,b)` name their *first* parameter `x`, and prefilling
+it would give `sin(x)` or a ready-to-run `purge(x)`. Those rows stay as today
+(`sin()`, `surd(,)`, `purge()`, `paramarea(,,,,)`).
+
+| Catalog row | Text before | Text after |
+|---|---|---|
+| `diff(f,x,[n])` | `diff(,)` | `diff(,x)` |
+| `integrate(f,x,[a,b])` | `integrate(,)` | `integrate(,x)` |
+| `limit(f,x,a,[dir])` | `limit(,,)` | `limit(,x,)` |
+| `sum(f,k,a,b)` | `sum(,,,)` | `sum(,k,,)` |
+| `riemann(…)` | | `riemann(,x,,,)` |
+| `arclen(…)` | | `arclen(,x,,)` |
+| `taylor(f,x=a,[n])` | `taylor(,)` | unchanged |
+| `solve(eq,[x])` | `solve()` | unchanged |
+
+`test_calculus_template` (`result[0][result[2]] in ',)'`) still holds. With an action wrap
+(F1 on a non-empty line), `diff(LINE,x)` is complete, so ENTER runs it at once; PENDING then
+finds no empty slot and the offset stands.
+
+A slot whose text is exactly its prefilled default counts as **empty for DEL rule 2a
+only**. It is filled for `empty_map` and for PENDING.
+
+**Every slot box handed to `frame`/`large` is a row box (`D.row(boxes, ids, 0)`), never a
+`'paren'` box.** Otherwise `frame`'s paren stripping (draw.py:174-177) would hide parens the
+user typed.
+
+### 3.1 Trailing gap
+
+`draw.TGAP = 3` px is added to the width of every template box except power, group and call. Its
+purpose: "end of the last slot" and "after the construct" must be distinct caret
+positions. The text prototype showed `integrate(,x,,)` with both at the same pixel.
+
+### 3.2 Picker: `ui.picker()` (L2, CASUX, engine-free)
+
+- **Screen.** It is drawn like `menu.open`: full-screen BG, title `Templates` at (5, 2),
+  rule at 19, rows at `22 + 17*j`, the selected row prefixed `>`, a rule at 188, and the
+  footer `1-7 pick  CLEAR back` at (5, 192) in ACC. It runs its own `TS.wait_key` loop.
+- **Pages.** 7 rows per page (a literal in `picker`, not a new global; `PAGE` is already a
+  menu name). Page 1 holds rows 1–7 and page 2 rows 8–13, each numbered from 1.
+- **Keys.**
+  - ↑/↓ move the selection, wrapping, and change page as needed.
+  - ←/→ flip the page (the selection keeps its number, clamped to the page).
+  - Digit d (read through `PLAIN.get(k)` being a digit; `menu.DIGITS` is not reachable
+    without the engine) picks row `page*7 + d - 1` at once; a digit past the last row of
+    the page is ignored.
+  - ENTER picks the selected row.
+  - CLEAR, F1 or 2nd 42 returns None. Every other key is ignored. 2nd and alpha are not
+    tracked inside the picker.
+- **Result.** `picker()` returns the row index or None and changes no editor state. On
+  return, `key` sets `FULL = True` and applies the row: rows 1–2 through `edins('frac')` /
+  `edins('pow')` (L3, called from `key` L1, never from `picker` or `edkey`, which are both
+  L2), the others through `put` with the PENDING / explicit caret of §3.
+
+Rows, as (label, text, caret):
+
+| Page.row | Label | Text | Caret |
+|---|---|---|---|
+| 1.1 | `n/d  fraction` | FRAC action | §2.1 |
+| 1.2 | `x^n  power` | POW action | in the exponent |
+| 1.3 | `sqrt  square root` | `sqrt()` | 5 |
+| 1.4 | `n-root  nth root` | `surd(,)` | 5 (radicand) |
+| 1.5 | `e^x` | `e^()` | 3 |
+| 1.6 | `10^x` | `10^()` | 4 |
+| 1.7 | `log_b  log base b` | `log(,)` | PENDING (b) |
+| 2.1 | `|x|  absolute value` | `abs()` | 4 |
+| 2.2 | `int  integral` | `integrate(,x)` | PENDING (f) |
+| 2.3 | `int a..b  definite` | `integrate(,x,,)` | PENDING (a) |
+| 2.4 | `d/dx  derivative` | `diff(,x)` | PENDING (f) |
+| 2.5 | `sum  k=a..b` | `sum(,k,,)` | PENDING (a) |
+| 2.6 | `lim  limit` | `limit(,x,)` | PENDING (a) |
+
+---
+
+## 4. Caret and deletion
+
+### 4.1 Stops and slots (2D lines)
+
+`D.mplace` walks the boxes depth-first with an explicit stack. It visits template children
+in drawn order and calls `mmark(i, x, ytop, dep)` for each of these:
+- each slot row's start and end index;
+- each text leaf whose text equals its buffer slice: every interior index at `x + 10*k`;
+- each glyph or alias leaf (`pi`, `theta`, `oo`, `Ans`): only its two ends;
+- each construct: its outer start at its left edge and its outer end at its right edge
+  (after `TGAP`).
+
+`dep` is the slot depth: root 0, each slot one more than its owner. A record is replaced
+only by one from a **strictly deeper** slot. Ties keep the first emission. Indices never
+marked are non-stops: hidden structure, call-name interiors, glyph interiors.
+
+`ORD` lists the stops by the emission sequence of their final record. It is built by
+bucketing a per-index sequence number into a list of length `nseq`, then compacting (no
+`sort`, no `key=`).
+
+Each slot gets a row in `SLOTS`: `(s, e, okind, os, oe, k, nslots, hidden, dep)`, where
+- `okind` ∈ `R` root, `Q` fraction, `W` power, `T` template, `G` group, `C` call;
+- `[os, oe)` is the owner's buffer span. For a power (W) the span starts at the `^`, not
+  at the base: `x^(2)` has `os = 1`, `oe = 5`. The base is not a slot of the power; its
+  start is kept in `CONS` (`cs`, §5.2) for the 51/61 wrap rule;
+- `k` is the slot's buffer index within its owner.
+
+`SL[i]` is the slot id of stop i. A non-stop `CUR` (after a menu offset, a paste or
+PENDING) snaps to the next stop in buffer order.
+
+Prototype stop lists (text design, `t1.py`):
+
+| Buffer | Stops | `ORD` |
+|---|---|---|
+| `x^(2)+1` | 0 1 3 4 5 6 7 | same (4 = end of exponent, top 0; 5 = after the power, baseline) |
+| `(a)/(b)` | 0 1 2 5 6 7 | same |
+| `surd(8,3)` | 0 5 6 7 8 9 | 0 7 8 5 6 9 |
+| `sum(,k,,)` | 0 4 5 6 7 8 9 | 0 5 6 7 8 4 9 |
+| `integrate(,x,,)` | | 0 13 14 10 11 12 15 |
+| `sin(x)` | 0 4 5 6 | same |
+
+**Flat lines** have no map. Every index is a stop except the interior of a `name(` run,
+i.e. positions `start+1 .. index of '('`. `D.mstop(s, i)` (L4) tests this by a local scan.
+The current slot is the interior of the innermost unmatched bracket pair around CUR, else
+the whole line. `X[i] = 10*i`.
+
+### 4.2 ← / → (`edmove`, L3)
+
+- 2D: `CUR = ORD[RK[CUR] ± 1]`, skipping entries whose `(X, Y)` equals the current one.
+  Clamp at the ends.
+- Flat: `CUR ± 1`, then skip non-stops in the same direction.
+
+| Before | Key | After |
+|---|---|---|
+| `x^(2|)+1` | → | `x^(2)|+1` (one press back to the baseline) |
+| `(a|)/(b)` | → | `(a)/(|b)` |
+| `(a)/(b|)` | → | `(a)/(b)|` |
+| `|surd(8,3)` | → | `surd(8,|3)` (index first) |
+| `surd(8,3|)` | → | `surd(|8,3)` |
+| `sum(f,k,1,n|)` | → | `sum(|f,k,1,n)` |
+| `sum(f,k,|1,n)` | ← | `sum(f,k|,1,n)` |
+| `si|n(x)` | – | cannot occur (non-stop) |
+
+### 4.3 DEL (`eddel`, L3), first matching rule
+
+| # | Condition | Action | Examples |
+|---|---|---|---|
+| 1 | `ans()` straddles or ends at CUR (today's `rfind` rule) | delete it whole | `2ans()|` → `2|` |
+| 2a | CUR at a slot start of a Q/W/T whose slots are all empty (prefill counts as empty) | delete the owner span `[os, oe)`. For a power that is `^(…)` only: **the base stays** (§4.1: a power's span starts at `^`) | `sum(,k,|,)` → `|`; `(|)/()` → `|`; `integrate(|,x)` → `|`; `x^(|)` → `x|` |
+| 2b | power, exponent start, non-empty | `CUR = os` (before `^`) | `x^(|2)` → `x|^(2)` |
+| 2c | fraction, denominator start | denominator empty: unwrap the numerator U (the keep-`(U)` test of 2e applies, with the fraction's own neighbours), caret at its end; else go to the numerator end | `(a)/(|)` → `a|`; `(a+b)/(|)` → `a+b|`; `2*(a+b)/(|)` → `2*(a+b)|`; `(a)/(|b)` → `(a|)/(b)` |
+| 2d | fraction, numerator start | denominator empty: unwrap as in 2c, caret at its start; else `CUR = os` | `(|a)/()` → `|a`; `(|a)/(b)` → `|(a)/(b)` |
+| 2e | template or call, first slot in drawn order, all other slots empty (prefill counts) | unwrap the content U. **Keep-`(U)` test:** keep the parens if U has a top-level `+ - = < > ,`, `=>`, `:=` or relation, or a leading sign, **unless** the construct is alone in its slot: the char before its start is the line start, `(` (visible or hidden) or `,`, **and** the char at `oe` is the line end, `)` or `,`. (Any other neighbour, including `*`, `/`, `^`, `-` and `+`, keeps the parens: `a-sqrt(x+1)` must not become `a-x+1`.) | `2sqrt(|x+1)` → `2(|x+1)`; `a-sqrt(|x+1)` → `a-(|x+1)`; `sqrt(|x+1)` → `|x+1`; `sqrt(|x)` → `|x`; `sin(|x)` → `|x`; `sin(|)` → `|` |
+| 2e′ | template or call, first slot in drawn order, some other slot non-empty | act like ← (to the construct's outer start); nothing is deleted | `f(|a,b)` → `|f(a,b)`; `surd(8,|3)` → `|surd(8,3)` |
+| 2f | template or call, any other slot start | act like ← | `f(a,|b)` → `f(a|,b)`; `integrate(f,x,|0,1)` → `integrate(f,x|,0,1)` |
+| 2g | visible group start | remove both brackets if matched; an unmatched opener falls through to rule 5 (deleted alone) | `(|a+b)` → `|a+b` |
+| 3 | the previous stop p and CUR lie in one visible leaf | delete `LINE[p:CUR]` | `x+pi|` → `x+|`; `12|` → `1|` |
+| 4 | CUR just after a construct (template, fraction, power, call, or a **matched** group) | if it is empty (prefill counts): delete it (for a power, `^(…)` only); else step into it (←) | `sqrt()|` → `|`; `sqrt(x)|` → `sqrt(x|)`; `x^(2)|` → `x^(2|)`; `(a+b)|` → `(a+b|)`; `sin(x)|` → `sin(x|)`; `x+1)|` (stray) → rule 5: `x+1|` |
+| 5 | otherwise, `CUR > 0` | delete `LINE[CUR-1]` (never a hidden character: every hidden one sits at a slot start or construct end that an earlier rule takes) | |
+
+Flat lines apply rules 1, 2e/2e′/2g (via a bracket scan around CUR; a call's commas are
+visible, so DEL after one deletes it by rule 5), 4 for a matched `)`, and 5. Hidden
+characters are never deleted one at a time; structure changes only through the rules
+above, so the buffer stays well formed.
+
+**Undecided cases now decided.**
+
+| Before | DEL gives | Rule |
+|---|---|---|
+| `x^(|)` | `x|` | 2a (power span is `^(…)`) |
+| `|x^(2)` (CUR 0) | unchanged | nothing before CUR |
+| `x|^(2)` | `|^(2)` (empty base box shown) | 3 |
+| `(|)/(b)` | `|()/(b)` | 2d (`CUR = os`) |
+| `x^2|` (bare) | `x^|` (empty exponent box) | 3, then `x^|` DEL → `x|` by 2a |
+| `log(|,8)` (u empty, b filled; drawn order b, u) | `log(|,8)` → ← to the end of b: `log(,8|)` | 2f (u is not first in drawn order) |
+| `ans()|` inside `sqrt(ans()|)` | `sqrt(|)` | 1 |
+
+### 4.4 ↑ / ↓ (`edvert`, L3) → bool
+
+Candidates are the stops strictly inside the **innermost** Q, W or T span containing CUR
+(`os < i < oe`). For ↑ they lie above (`Y[i] < Y[CUR] - 2`); for ↓, below
+(`Y[i] > Y[CUR] + 2`). The best candidate minimises `(|ΔY| // 8, |ΔX|, i)`. If there is none,
+the next outer construct is tried; if none is left, the function returns False. It does no
+layout and reads `EDMAP` only. Flat lines (and a stale map) return False.
+
+**Powers.** A power's span `[os, oe)` starts at `^` and holds only the exponent, so the
+candidate rule alone finds nothing below an exponent. Two explicit rules close the gap:
+- ↓ with CUR inside an exponent (`os < CUR < oe` of a W, and no Q/T inside the exponent
+  gives a candidate first) → `CUR = os`, the stop just after the base.
+- ↑ with `CUR == os` of a W (just after the base) → the exponent's start stop.
+
+So ↓ then ↑ returns to the exponent, as §12.5 requires.
+
+| From | ↓ | ↑ |
+|---|---|---|
+| `(a|)/(b)` | `(a)/(b|)` | False → history |
+| `(1+(x|)/(2))/(3)` | `(1+(x)/(2|))/(3)` | – |
+| `x^(2|)` | `x|^(2)` (power rule) | False → history (`test_history_fraction_paste` relies on this) |
+| `x|^(2)` | False | `x^(|2)` (power rule) |
+| integrand of `integrate(f,x,a,b)` | lower bound a | upper bound b |
+| Σ body start, `sum(|f,k,1,n)` | the lower-row stop nearest in X: the end of a, `sum(f,k,1|,n)` (the row `k=a` is centred under Σ, left of the body) | b |
+
+---
+
+## 5. Engine-free layout
+
+### 5.1 Flat check: `D.mflat(s)`, L4
+
+`mflat(s)` returns True iff the line has no 2D construct. It returns False if `s` contains
+any of the following, and True otherwise:
+- `^`;
+- the substring `)/(`;
+- the name `pi`, `theta` or `oo` (a simple substring test is enough: a false hit only costs
+  the 2D path);
+- `ans()`;
+- a TPL name directly followed by `(`.
+
+It is O(n) and allocation-free (`find` and `in`). A flat line is drawn as today's row
+(`LINE[XOFF:XOFF+30]` at (10, top), character caret) and has `EDMAP = None`.
+
+### 5.2 Pipeline: `D.mlayout(s, mode)`, L3
+
+`mode` 1 is a history input: cached in ICACHE, no caret map, `*` drawn as the dot glyph,
+every `/` stacked. `mode` 2 is the editor: never cached, entry stacking rule, returns the
+map.
+
+1. **`D.mlex(s)`, L4.** Returns a flat list of `(kind, start, end)`. Kinds:
+   - `n` number: `[0-9.]` run, plus `E` and an optional sign and digits after a digit.
+   - `a` name: a letter, then letters/digits.
+   - `f` name directly followed by `(`.
+   - `A` `ans()`.
+   - `o` operator: longest of `=> := <= >= != + - * / ^ = < >`.
+   - `(` `)` for `([{` and `)]}`.
+   - `,`.
+   - `!` postfix `!` and `'`.
+   - `?` any other character (drawn as text; space is a juxtaposition separator).
+2. **`D.mparse(s, tk, mode)`, L4.** A shunting-yard over `PREC` with explicit operand and
+   operator stacks. It never raises:
+   - a missing operand becomes an `E` node at that index;
+   - juxtaposition pushes an implicit `*`;
+   - a stray closer becomes a text leaf;
+   - an unclosed group ends at `len(s)`;
+   - a top-level comma list is an unbracketed group.
+
+   It returns `None` past the caps: more than 24 open groups or more than 192 nodes. Nodes
+   are lists `[kind, s, e, kids, aux]`, appended in postorder, so a node's index is greater
+   than its children's. Kinds:
+
+   | Kind | Node |
+   |---|---|
+   | `L` | leaf |
+   | `E` | empty |
+   | `R` | row |
+   | `N` | prefix minus/plus |
+   | `S` | slot |
+   | `Q` | stacked fraction |
+   | `W` | power |
+   | `G` | group |
+   | `C` | call |
+   | `T` | template |
+   | `X` | postfix |
+
+   Construction rules:
+   - `D.mpush` and `D.mshut` (L5) reduce through `D.mreduce` (L6), which builds rows,
+     fractions and powers inline. (`mshut`, not `mclose`: `parse.mclose` already exists and
+     is placed in CASIN; a second `mclose` would only confuse framelint reports and greps.)
+   - A row extends the left row's kid list **in place**, so memory is O(n). The text
+     prototype's first version was O(n²), with a 327 KB peak at 255 characters.
+   - In mode 2, a `/` whose two operands are not both exactly one group becomes an inline
+     row item. In mode 1, every `/` is a `Q`.
+3. **`D.mbox(s, nodes, root, mode)`, L4.** Marks the nodes reachable from the root. Builds
+   boxes in index order (children first, no recursion) with:
+   - the existing `D.row(…, gap=0)`, `D.frame`, `D.large` and `D.leaf` (glyphs, history
+     mode);
+   - the new `D.tleaf(boxes, s)` (L5, always text: `( ) , * <=` …);
+   - inline geometry for `logb`.
+
+   An `E` box is 10×15 with item `('b', 1, -12, 8, 13)`.
+4. **`D.mplace(s, nodes, boxes, root, mode)`, L4.** An iterative walk with a child cursor.
+   - It emits the display list in today's item format plus `'b'`.
+   - It merges consecutive text items with the same top and contiguous x into one
+     `('t', x, top, s[i0:i1])` slice. Each slice is materialised once.
+   - In mode 2 it fills the map through `D.mmark` (L5).
+
+**Result** (mode 2):
+`(line, dl, w, asc, desc, X, Y, RK, ORD, SL, SLOTS, CONS, EMPTY)`.
+- `X`, `Y` are lists of length `len+1` (x and text top; `X = -1` for a non-stop).
+- `CONS` holds `(cs, os, oe, kind)` per construct: `cs` is the full start (the base start
+  for W, the numerator start for Q, `os` otherwise).
+- `EMPTY` holds `E` positions in drawn order, flagged for the trailing-operand-at-caret and
+  log-base cases.
+
+**Result** (mode 1): `(dl, w, asc, desc)`, or `None` past the caps of §5.3 (the caller then
+draws the 1D text). Mode 1 emits no `'b'` items (an `E` in a history input, e.g. from a
+Classic line `*2` that the engine refused, is drawn as a blank 10 px cell).
+
+Nodes and boxes are dropped after the call. Only `EDMAP` and `EDL` are kept.
+
+### 5.3 Caps and degrade to 1D
+
+The line is drawn and edited as a flat line (structure parens visible, linear stops) when
+any of these holds:
+- `CLASSIC`;
+- `LINE == EFAIL`;
+- `len(LINE) > 160`;
+- `mparse` returns None;
+- the laid-out height exceeds 76;
+- `D.mlayout` raises `MemoryError`. `emodel()` catches it, sets `EDMAP = None`, calls
+  `gc.collect()` and sets `ED1D`; `EMODEL` is still set to `(LINE, CLASSIC)`, so only the
+  next text change retries.
+
+History inputs use the same caps (mode 1). `redraw` catches `MemoryError` around each
+history `D.mlayout(e[0], 1)` and draws that input 1D (`e[0][:31]`); a persistent failure
+there costs one exception per full redraw, never a loop through `panic`.
+
+Width beyond 300 px scrolls (§6.3).
+
+Memory (text prototype, tracemalloc on CPython; MicroPython about one third):
+
+| Input | Peak |
+|---|---|
+| 10 characters | 8.5 KB |
+| 33-character definite integral | 10 KB |
+| 95 characters, 8 fractions | 46 KB |
+| at the cap (177 characters, 181 nodes) | 76 KB |
+
+Retained `EDMAP` + `EDL`: about 0.6 KB at 30 characters, at most about 4 KB. Both are freed
+before every job and in `panic`.
+
+### 5.4 Render: `D.mrender(dl, dx, dy, clip, x0, x1, c, boxes)`, L4
+
+Draws, in color `c`, the items whose x-range meets `[x0, x1]` (item left edge ≤ `x1` and
+right edge ≥ `x0`; `x1 = 319` for "everything right of `x0`"). One call draws one kind:
+- `boxes=True`: only `'b'` items, as `D.rect` fills (the caller passes LINE). A box that
+  is the trailing missing operand at the caret (`2+|`) is skipped, so typing linear text
+  never flashes a box.
+- `boxes=False`: every other item: text through `D.text` with `clip`, lines and glyph
+  strokes through `D.clipped_line` (the caller passes INK for the entry, SUB for history
+  inputs).
+
+Splitting by kind is what keeps a full redraw at ≤ 6 `set_color`: all box passes run in the
+LINE batch and all ink passes in the SUB/INK batches (§6.4). It returns nothing. The caret
+is drawn by `epaint`.
+
+---
+
+## 6. Screen geometry and redraw
+
+### 6.1 Rows (320 × 210). `EY = 190 - EH`
+
+| Rows | Contents | At EH = 20 (today) |
+|---|---|---|
+| 0..18 | Status: `RAD`/`DEG` at (5, 2) INK; STATUS at x 45, INK, `room()` columns; chip right-aligned at `315-10*len` in ACC. Rule at y 19 (LINE). | same |
+| 20..EY−21 | History stage (§7). Entries stack upward from `SB = EY - 20`. | 20..149, SB 150 (today's list origin) |
+| EY−19..EY−2 | Hint/footer row: fill `rect(0, EY-19, 320, 18)`, text at (5, EY−17) in SUB; the footer's right part at `315-10*len`. | 151..168, text 153 |
+| EY−1 | Rule (LINE). | 169 |
+| EY..189 | Entry box: fill `rect(0, EY, 320, EH)`; view x 10..309; markers `<` at (0, by−11) and `>` at (310, by−11) in INK, where `by = ytop + asc` is the content baseline (so a one-row line puts them at text top 172, as today). `<` shows when `XOFF`/`EXOFF` > 0; `>` when content remains right of the view. | 170..189 |
+| 190..209 | F-key tabs, unchanged: ACCSOFT `rect(64i, 191, 63, 19)`, labels in ACC at 193. | same |
+
+**Entry height.** For content height h:
+- class = 20 if h ≤ 19, 40 if ≤ 36, 60 if ≤ 56, else 80;
+- `EH = max(EH, class)` while LINE is non-empty;
+- `EH = 20` when LINE is empty.
+
+So there are at most 3 stage repaints per input, and none for linear input. Content top:
+`ytop = EY + (EH - h)//2`, which is 172 for one text row, as today.
+
+**Caret.** `D.line(cx-1, ytop+Y-1, cx-1, ytop+Y+15, INK)` with `cx = 10 + X[CUR] - EXOFF`.
+For a one-row line this is today's `x = 9+10k`, rows 171..187. Flat lines use today's
+formula exactly. `CARETC = 'INK'` is a single constant.
+
+### 6.2 Height classes (text prototype)
+
+| Content | h | EH |
+|---|---|---|
+| text, √, \|x\|, calls | 15–19 | 20 |
+| x², a/b, ⁿ√, log_b | ≤ 36 | 40 |
+| ∫ab, Σ, nested fraction, fraction in an exponent | ≤ 56 | 60 |
+| Σ of a fraction, deeper nesting | ≤ 76 | 80 |
+| taller | – | 1D (§5.3) |
+
+### 6.3 Horizontal scroll
+
+- **Flat/1D:** today's rule (`XOFF` in characters, `CUR - XOFF ≤ 29`).
+- **2D:** with caret pixel `c = 9 + X[CUR] - EXOFF`:
+  - if `c > 304`: `EXOFF = min(w - 290, X[CUR] + 9 - 304 + 60)`;
+  - if `c < 10`: `EXOFF = max(0, X[CUR] - 60)`;
+  - then always `EXOFF = min(EXOFF, max(0, w - 290))`, so deleting text never leaves the
+    content scrolled off a now-short line.
+
+  Each 60 px step repaints the entry once. Otherwise the diff paint applies.
+
+### 6.4 Redraw (`redraw`, L2)
+
+1. **Entry model.** Already fresh: `emodel()` (§6.5) ran just before. `redraw` never calls
+   `D.mlayout` for the entry. Defensively, `redraw` paints the entry flat whenever
+   `EDMAP is None or EDMAP[0] != LINE` (for example a test calling `u.redraw()` right after
+   `panic`), so it can never index a stale map.
+2. **Full or partial.** `full = FULL or VIEW != (theme, MODE, SEL, VIEWEND, DX, len(hist), EH)`.
+   `HERO` is deliberately not in `VIEW`: it only changes the hint row, which `HINTVIEW`
+   covers. (With `HERO` in `VIEW`, the first key after every answer, and every key that
+   empties or un-empties LINE, would cost a full 6-color redraw, contradicting the
+   `test_first_key_after_answer_keeps_stage` and `typing.colors` pins of §10.) In a full
+   redraw the focused answer's `DX` is clamped to `max(0, w - 300)`, as today's hero did.
+3. **Full.** Paint everything in color batches:
+   1. BG: screen.
+   2. ACCSOFT: tabs and the selection band.
+   3. LINE: rules and boxes.
+   4. SUB: history inputs, messages, hint/footer.
+   5. INK: status text, results, entry, caret, markers.
+   6. ACC: chip and F-key labels.
+
+   That is ≤ 6 `set_color`.
+4. **Partial.** Each region repaints only if it changed:
+   - status row when `STATVIEW != (STATUS[:room()], MOD, deg)`;
+   - hint row when `HINTVIEW` changed;
+   - entry when `EKEY != (LINE, CUR, XOFF, EXOFF, EH, EFLAT, theme)`.
+
+   All BG fills come first, then LINE (boxes), SUB (hint), INK, and ACC (chip, only when
+   the status row repaints).
+5. **Entry paint (`epaint(full)`, L3).** Three paths, first match:
+   - **Full entry repaint** — a full redraw, a flat line, or `EFLAT`/`XOFF`/`EXOFF`/`EH`/
+     `theme` changed: `rect(0, EY, 320, EH)`, then the row, or
+     `mrender(…, x0=10, x1=319, LINE, True)` and `mrender(…, INK, False)`, markers, caret.
+   - **Caret only** — LINE (hence the display list) unchanged, only `CUR` moved (←/→,
+     home/end, ↑/↓, `)`/`,` step-overs): erase the old caret with
+     `rect(ocx-1, oy-1, 2, 17)` in BG (`ocx`, `oy` its old column and top), redraw the items
+     that meet columns `ocx-1..ocx` (`mrender(…, x0=ocx-1, x1=ocx, …)`: boxes in LINE, then
+     the rest in INK; a text run is redrawn whole at the same place), then the new caret.
+     Typically 2 colors, 1 fill, 0–2 texts, 1–3 lines, independent of the line length.
+     It does not rely on any font property: whatever ink the strip held is redrawn.
+   - **2D diff** — the text changed: compare the new absolute display list with `EDL`
+     pairwise in list order. `x0` is the minimum of: the left edges of all unequal pairs and
+     of the unmatched tail, the old caret column, and the new caret column. Then:
+     - `rect(x0, EY, 320 - x0, EH)`;
+     - `mrender` every item whose right edge ≥ `x0` (boxes, then ink). An unchanged text
+       run that straddles `x0` is redrawn whole at the same place; the shim records a
+       replace, not an OVERDRAW. (A throwaway shim check during design confirmed this; it
+       is not in the repository. §12.7's pixel-equivalence test is the acceptance check.
+       The shim's font never inks columns 0 and 9 of a cell, but the device font is not
+       measured, so no path depends on that.)
+     - markers, caret;
+   - Every path stores `EDL` and `EKEY`.
+
+     The kill switch `EDIFF = True` exists: when False, the full entry repaint is always
+     used (for both the caret-only and the diff path).
+6. **Nothing changed** (2nd pressed twice, a key with no entry, a redraw with no edit): no
+   ti_draw call.
+
+`status(s)` (CASUI, used by `engine` and `busy` to draw at once) also sets
+`STATVIEW = None`, so the next partial redraw repaints the status row it overwrote.
+
+### 6.5 `emodel()` (L2, CASUX)
+
+Called by `key` (before dispatch when stale, and before every `redraw`), `show` and `boot`.
+It does no drawing.
+1. If `EMODEL != (LINE, CLASSIC)`: set `EMODEL`; `EFLAT = CLASSIC or LINE == EFAIL or
+   len(LINE) > 160 or D.mflat(LINE)`; for a 2D line, `EDMAP = D.mlayout(LINE, 2)` inside
+   `try/except MemoryError` (§5.3); `None` or over-height → `EFLAT = True`, `EDMAP = None`.
+2. Resolve `PENDING` (2D: first `E` of `EMPTY` inside `[a, b)`, the log base included;
+   flat: drop it) and clear it.
+3. Snap `CUR` to a stop (2D: next stop in buffer order; flat: `D.mstop`).
+4. Update `EH` (§6.1), then `XOFF` (flat) or `EXOFF` (2D) (§6.3).
+
+Its deepest chain is `key 1 → emodel 2 → D.mlayout 3 → D.mparse 4 → D.mshut 5 →
+D.mreduce 6`, the same depth as the old `redraw` chain.
+
+---
+
+## 7. History page
+
+### 7.1 Entry layout (full redraw only)
+
+The **focused** entry is `SEL` in MODE, else the newest. At most `PAGEMAX = 5` entries are
+shown, stacked upward from `SB` while `top ≥ 21`. The focused entry is always shown, even
+when it is taller than the stage: its result view height is then cut to what fits
+(`min(92, SB - 21 - input height - 2)`, at least 15) and it is clipped to rows 20..SB.
+
+**One layout per answer.** Every answer is laid out with the same key,
+`D.layout(e[1], 300, 92)`, whatever view height it is shown in. The view height (92 for
+the focused entry if the stage allows, else 60) is applied only at paint time, by calling
+`D.render(box['dl'], dx, clip, dy)` (L4, from `redraw` L2) with a clip built in `redraw`,
+instead of `D.paint` (which reads the cached `vh`). If the cap were part of the cache key,
+the focused entry would need a sixth key next to the five `(…, 60)` keys, and the
+5-entry FIFO answer CACHE (pop the oldest, no refresh on a hit) would then miss on
+**every** lookup of every MODE ↑/↓ redraw. With one key per answer, a page of ≤ 5 answers
+fits the cache (the `test_layout` pin) as long as their total cost stays under 4 KB, as
+today.
+
+| Part | Rule |
+|---|---|
+| Input | `D.mlayout(e[0], 1)`. If it returns None, raises `MemoryError`, or `w > 300` or `h > 36`, use 1D `e[0][:31]` (h 15). Drawn at x 5 through `mrender(…, SUB, False)` in the SUB batch. |
+| Result, `R_ANS` | `D.layout(e[1], 300, 92)` (see above). Rendered right-aligned (`scrollx = min(0, w-300)`) into the view `(10, y, 300, cap)`; the focused entry uses `DX` (clamped to `w - 300`) when `w > 300`, with `<`/`>` at its row centre. |
+| Result, `R_MSG` | SUB text, right-aligned at `310-10*len`; the focused one wraps into ≤ 3 lines of 30. |
+| One row | If `in.w + res.w + 20 ≤ 300` and both heights ≤ 40: baselines aligned, result right edge at 309. |
+| Two rows | Otherwise the input, then the result right-aligned 2 px below. |
+| Spacing | 3 px between entries. |
+| Selection | In MODE, an ACCSOFT `rect(0, top-1, 320, h+2)` behind the selected entry, drawn in the ACCSOFT batch. |
+| Welcome | No history: today's three texts, each drawn only if its row ends above `EY-21`. |
+
+### 7.2 Scrolling
+
+In MODE, `VIEWEND` is the bottom entry. `SEL > VIEWEND` sets `VIEWEND = SEL`. When SEL is
+above the first entry shown, `VIEWEND` is recomputed: starting from SEL, add newer entries
+while the page fits (≤ PAGEMAX steps, heights from the caches). Outside MODE the newest
+entry is at the bottom.
+
+### 7.3 Caches
+
+- `draw.CACHE` (answers) is unchanged: 5 entries, 4 KB.
+- `draw.ICACHE` holds history-input layouts `(text, result, cost)`: ≤ 5 entries,
+  ≤ 3072 B, oldest dropped first, `cost = 24*len(dl) + len(text)`.
+- The editor never uses either cache.
+- `clear_cache()` (CASUI) empties both. It runs before every job and in `panic`.
+
+### 7.4 Footer, recall, paste, ENTRY
+
+**Hint row contents.**
+
+| State | Shows |
+|---|---|
+| MODE | the selected entry's footer |
+| LINE empty and `HERO` | the newest entry's footer |
+| LINE non-empty | `HINT[ALIAS[enclosing()]]` (≤ 31 columns), or nothing |
+
+The footer is today's text, unchanged:
+- left: `('+ C  ' if F_PLUSC) + ('~ ' + approx if exact)`, cut to `29 - len(right)`;
+- right: `label + '  F4'`.
+
+An `R_MSG` entry has no footer (empty hint row), as today's hero showed none.
+`test_decimal_form_hides_approximation_until_exact_returns` therefore holds.
+
+**Recall and paste.**
+
+| Action | Result |
+|---|---|
+| ENTER in MODE | `paste(wrapped(e[1]))`. If CUR is in an empty hidden fraction or exponent slot, the text is pasted bare. Result pastes are not `structure`d. |
+| 2nd ENTER in MODE | paste `structure(e[0])` |
+| F2 recall | inserts `ans()`, `(result)` or a name, unchanged |
+| ENTRY | §2 |
+| CLEAR | leaves MODE |
+
+**`enclosing()`** scans back from CUR with a depth counter, as today. It skips unmatched
+`(` whose name is empty (groups and hidden fraction/exponent parens) and continues outward.
+So inside `integrate((x)/(|),x)` it returns `integrate`. The hint and F5 help follow.
+The name is the letter/digit run before `(` with **leading digits dropped** (`2sin(x|)`
+gives `sin`, not today's `2sin`); a run of digits only (`2(x|)`) counts as unnamed and is
+skipped like a group. In Classic, `enclosing` behaves the same (the change is harmless
+there and keeps one function).
+
+---
+
+## 8. MathPrint / Classic
+
+F3 Setup gains **row index 5**, `Entry: MathPrint` / `Entry: Classic`. It is appended after
+About, so indices 0–4 are unchanged.
+
+`menu.open` setup branch: `selected < 2` toggles as today; `2, 3` confirm; `4` About;
+`5` sets `U.CLASSIC = not U.CLASSIC` on ENTER, digit 6 and ←/→ (like rows 0–1; today's
+code sends every `selected ≥ 4` to About, so the branch must test `== 4` explicitly). The
+row label is `'Entry: ' + ('Classic' if U.CLASSIC else 'MathPrint')`, note
+`'ENTER or arrows toggle'`. Six rows fit `menu.PAGE = 6`. `CLASSIC` is a CASUI ui global, not
+an `R.SET` entry, so the editor can read it before the engine loads and `run` is unchanged;
+it lasts for the session, like the other settings.
+
+The toggle needs no extra code in `key`: the next `emodel()` sees `EMODEL != (LINE,
+CLASSIC)` and rebuilds the model, and `key` already sets `FULL = True` after a menu.
+
+Classic is **today's editor exactly**:
+- today's `PLAIN`/`SECOND` tables, used directly (they are not changed for MathPrint);
+- `insert()`, today's DEL, ±1 arrows, 1D row;
+- no autoclose, no `tidy`, no `structure`, no map, no picker (2nd 42 does nothing);
+- ENTER skips stage 1 (§2.2).
+
+History inputs stay 2D. Classic also serves as:
+- the user's escape hatch;
+- the device-timing fallback;
+- the reference for old expectations.
+
+---
+
+## 9. Placement, levels, packs, budgets
+
+### 9.1 Functions (framelint: callee level > caller level; maximum 6)
+
+| Function | Module | #@L | Pack | Calls (level) |
+|---|---|---|---|---|
+| `key(k)` (changed) | ui | 1 | CASUX | engine 2, emodel 2, edkey 2, picker 2, redraw 2, menu.open 2; tidy/structure/paste/insert/empty_map/empty_slot/enclosing/wrapped/edins 3; leave 4 |
+| `show(job, rec)` (resets EH, XOFF, EXOFF, EDMAP, EDL, EKEY, EMODEL, PENDING, VIEWEND) | ui | 1 | CASUX | emodel 2, redraw 2 |
+| `boot` | ui | 1 | CASUX | emodel 2, redraw 2 |
+| `panic(reason)` (also resets the entry globals, sets `EFAIL = LINE` for reasons 0/3, still draws plain `LINE` at (10, 172)) | ui | 1 | **CASUI** | D primitives only |
+| `emodel()` (§6.5) | ui | 2 | CASUX | D.mlayout 3; D.mflat, D.mstop 4; gc.collect (native) |
+| `edkey(k, mod)` (MathPrint editing keys) | ui | 2 | CASUX | edins, eddel, edmove, edvert, insert 3; leave, put 4 |
+| `picker()` | ui | 2 | CASUX | D.rect/text/line 5, D.color 6, TS.wait_key (native) |
+| `redraw()` (rewritten, §6.4; history plan inline) | ui | 2 | CASUX | D.mlayout, D.layout, D.theme, epaint, enclosing 3; D.render, D.mrender, room 4; D.text/rect/line 5; D.color 6 |
+| `engine`, `busy` | ui | 2 | as today | unchanged |
+| `edins(op)`: `frac`, `pow`, `sq`, `open`, `close`, `comma`, `text` | ui | 3 | CASUX | edslot, edterm, leave, put 4 |
+| `eddel()` | ui | 3 | CASUX | edslot, put 4; D.mstop 4 |
+| `edmove(d, mod)`, `edvert(d)` → bool | ui | 3 | CASUX | D.mstop 4 |
+| `paste(text, bare)` | ui | 3 | CASUX | edslot, put 4 |
+| `tidy(s)`, `structure(s)` | ui | 3 | CASUX | D.mlex, D.mparse 4 |
+| `empty_map()` | ui | 3 | CASUX | – |
+| `empty_slot()` (log-base skip, §2.2) | ui | 3 | CASUX | – |
+| `enclosing()` (skips unnamed groups, drops leading digits) | ui | 3 | CASUX | – |
+| `insert`, `wrapped` (unchanged) | ui | 3 | CASUX | – |
+| `epaint(full)` | ui | 3 | CASUX | D.mrender 4; D.rect/text/line 5 |
+| `status(s)` (also `STATVIEW = None`) | ui | 3 | CASUI | D.rect/text 5 |
+| `edslot(i)` → SLOTS row; `edterm(i)`; `leave(kind)`; `put(line, cur)` → bool | ui | 4 | CASUX | – |
+| `mlayout(s, mode)` | draw | 3 | CASUX | mlex, mparse, mbox, mplace 4 |
+| `clear_cache()` (also ICACHE) | draw | 3 | CASUI | – |
+| `mflat(s)`, `mstop(s, i)`, `mlex(s)` | draw | 4 | CASUX | – |
+| `mparse(s, tk, mode)` | draw | 4 | CASUX | mpush, mshut 5; mreduce 6 |
+| `mbox(s, nodes, root, mode)` | draw | 4 | CASUX | row, frame, large, tleaf 5; leaf 6 |
+| `mplace(s, nodes, boxes, root, mode)` | draw | 4 | CASUX | mmark 5 |
+| `mrender(dl, dx, dy, clip, x0, x1, c, boxes)` | draw | 4 | CASUX | rect, text 5; clipped_line, color 6 |
+| `mpush`, `mshut`, `mmark`, `tleaf` | draw | 5 | CASUX | mreduce 6 (mpush, mshut) |
+| `mreduce(nodes, vals, op)` | draw | 6 | CASUX | – |
+| `menu.open` (setup row 5) | menu | 2 | CASMNU | unchanged calls |
+| `menub.insertion` (prefill at position ≥ 1) | menub | 3 | CASMNU | – |
+
+Checked against framelint: every edge above has callee level > caller level, and no
+function is above 6. Edges that are easy to get wrong: `picker` is called by `key`, not by
+`edkey` (both L2, so `edkey → picker` would be illegal), and `key` (L1 → `edins` L3)
+applies the chosen row so that `picker` stays free of editor state; `emodel` and `redraw`
+are both L2, so `redraw` must never call `emodel` (callers run it first); and `edkey` (L2)
+must not call `emodel` either: `key` refreshes a stale model at dispatch step 2.
+
+**Deepest chains** (7 frames including the casevo body; strict budget 8):
+- `casevo 0 → key 1 → emodel 2 → D.mlayout 3 → D.mparse 4 → D.mshut 5 → D.mreduce 6`
+- `casevo 0 → key 1 → redraw 2 → D.mlayout 3 → D.mparse 4 → D.mshut 5 → D.mreduce 6`
+  (history inputs, mode 1)
+- `key 1 → redraw 2 → epaint 3 → D.mrender 4 → D.text 5 → D.color 6`
+
+**Tables and constants placed in CASUX** (each is bound once to a literal and never
+assigned in a function, which `packs.Plan.constant` requires of a placed name).
+- `ui`: `PLAIN`, `SECOND`, `ALPHA`, `HINT`, `ALIAS` (unchanged, as today), plus the new
+  `TMPL` (picker rows, a tuple of tuples).
+- `draw`: the new `TPL` (dict literal) and `TGAP` (int). No CASUI function reads either;
+  a CASUI function that read a CASUX name would be rejected by the packer ("reads … by
+  name, which may be evicted").
+
+**New globals (CASUI, about 0.3 KB).** Mutable or test-tunable, so they must live in the
+`ui`-kind pack; a view pack may not hold a global that a function assigns
+(`packs.py`: "lives in soft pack … but assigns globals").
+- `ui`: `EXOFF`, `EH`, `EDMAP`, `EDL`, `EKEY`, `EMODEL`, `EFLAT`, `PENDING`, `ED1D`,
+  `EFAIL`, `CLASSIC`, `VIEWEND`, `STATVIEW`, `HINTVIEW`, `CARETC`, `EDIFF`, `PAGEMAX`.
+- `draw`: `ICACHE`, `ICACHE_BYTES`.
+
+CASUX code assigns these only as ui/draw globals (`CASUI.X` after packing), as `key()`
+already does.
+
+### 9.2 `build/manifest.py`
+
+**PACKS.** The CASUX tuple gains, by name:
+- `'ui.emodel'`, `'ui.edkey'`, `'ui.picker'`, `'ui.edins'`, `'ui.eddel'`, `'ui.edmove'`,
+  `'ui.edvert'`, `'ui.paste'`, `'ui.tidy'`, `'ui.structure'`, `'ui.empty_map'`,
+  `'ui.epaint'`, `'ui.edslot'`, `'ui.edterm'`, `'ui.leave'`, `'ui.put'`;
+- `'ui.TMPL'`, `'draw.TPL'`, `'draw.TGAP'`;
+- `'draw.mlayout'`, `'draw.mflat'`, `'draw.mstop'`, `'draw.mlex'`, `'draw.mparse'`,
+  `'draw.mpush'`, `'draw.mshut'`, `'draw.mreduce'`, `'draw.mbox'`, `'draw.tleaf'`,
+  `'draw.mplace'`, `'draw.mmark'`, `'draw.mrender'`.
+
+`status`, `panic` and `clear_cache` stay in CASUI (they are not listed anywhere, so their
+home pack keeps them).
+
+No other pack changes. There is no new module, so `lint.ALIASES`, `RESIDENT`, `UI_SIDE`
+and the allowed imports are unchanged.
+
+**MODULES.** These are estimates; set the final values to about 10 % over the
+`build/release.py` measurement.
+
+| Module | Today (lines / KB) | Estimated after | New budget |
+|---|---|---|---|
+| CVDRAW | 342/350, 10.5/13 KB | ~760 lines | `('draw', 'CVDRAW', 'R', 820, 27)` |
+| CVUI | 414/500, 14.1/16 KB | ~820 lines | `('ui', 'CVUI', 'R', 900, 30)` |
+| CVMENU | 153/200 | +4 (setup row) | fits |
+| CVMENUB | 42/150 | +6 (prefill) | fits |
+
+**Pack bytecode (estimate, 12.5 B per minified line).**
+
+| Pack | Today | After |
+|---|---|---|
+| CASUX | ~11.2 KB | ~21 KB (PACKMAX 60,000) |
+| `room('layout')` reload | ~16.1 KB | ~30 KB |
+| CASUI | ~3.5 KB | ~3.8 KB |
+
+The engine is untouched, and CASUX is shed during family commands as today, so compute
+speed and compute heap are unchanged. The cost is a heavier CASUX reload after heavy
+commands. The gate is native `ui_calculus` at 189,776 (§12.9).
+
+### 9.3 Heap
+
+| Item | Size |
+|---|---|
+| Boot (CASUI + CASUX) | ~+10 KB loaded over today |
+| Typing transient, per 2D key | ~3–5 KB (CPython), ≤ ~25 KB at the cap; freed by the next GC |
+| Flat key | ~0 |
+| Retained while idle: `EDMAP`/`EDL` | ≤ 4 KB |
+| Retained while idle: ICACHE | ≤ 3 KB |
+
+All retained state is cleared before every job.
+
+### 9.4 Code rules
+
+- `tests/support/lint.py` subset: no comprehensions, generator expressions, lambdas,
+  `with`, `key=`, recursion, nested functions or f-strings.
+- Character classes use only `isalpha`/`isdigit`; `isalnum` is banned.
+- `sort()` only on lists of tuples or ints.
+- `bytearray` is allowed.
+- Every loop is bounded by `len(s)`, the node cap or `PAGEMAX`.
+- No stepped slices (`s[::-1]`; the lint rejects any non-unit step), no `reversed()`, no
+  starred arguments or targets, no `format`; walk backwards with `range(n - 1, -1, -1)`.
+- No iteration over a dict or set without sorting it or a `#@unordered-ok` marker (lint):
+  `TPL` is only ever indexed (`name in TPL`, `TPL[name]`), never looped over.
+- `try/except MemoryError` is allowed (today's `ui.engine` uses `except BaseException`);
+  nothing in the editor catches a bare `Exception`, so bugs still reach `panic`.
+
+---
+
+## 10. Per-key cost budget
+
+Counts are ti_draw calls per key when the status and hint rows are unchanged.
+
+| Key class | set_color | fill_rect | draw_text | draw_line | Layout work |
+|---|---|---|---|---|---|
+| Today, any edit key | 4 | 3 | 2 | 1 | – |
+| Typing on a flat line | **≤ 2** | 1 | 1 (+1 per scroll marker `<`/`>`) | 1 | `mflat` scan only |
+| Typing on a 2D line, at the end | ≤ 2 (+1 if a box is right of `x0`) | 1 | runs right of `x0` (typically 1–2) | strokes right of `x0` + 1 | one `mlayout` (host 40–90 µs, text prototype; EVO ~3–7 ms est.) |
+| Template insert (42, 51, picker) | ≤ 3 | 1 | ≤ 3 | ≤ 8 | one `mlayout` |
+| ← → home end ↑ ↓ inside a 2D line (caret-only path, §6.4) | ≤ 2 (+1 if a box meets the old caret strip) | 1 (a 2 px strip) | text runs meeting the old caret strip (0–2) | strokes meeting the strip + 1 caret (typically 1–3) | **none** |
+| ← → home end on a flat line | ≤ 2 | 1 | 1 (+1 per scroll marker) | 1 | **none** |
+| 2nd / alpha | ≤ 3 | 1 (status) | ≤ 3 | 0 | none |
+| No-op key | 0 | 0 | 0 | 0 | none |
+| Hint row change | +1 SUB | +1 | ≤ +1 | | |
+| Status change | +1 ACC if the chip shows | +1 | ≤ +2 | | |
+| EH step, ENTER, menu return, history move | full redraw: ≤ 6 colors | ≤ 6 + bands | | | layouts from the caches |
+
+**Device timing gate.** Host time ×75 is an estimate. `tests/test_mathprint.py` pins a host
+guard: one `mlayout` of a dense 160-character line < 400 µs. The EVO run times keys (§12.9).
+
+**New pins in `tests/test_fastboot.py`**
+
+| Test | Pin |
+|---|---|
+| `test_full_redraw_uses_few_colors` | Full ≤ 6 colors in both themes (kept). The second bare `u.redraw()` now makes **no** ti_draw call (`TD.CALLS == []`). Then `u.key(92)` gives fills `== [('fill_rect', -1, 169, 321, 21)]`, `set_color ≤ 2`, `draw_text == 1`, `draw_line == 1`. |
+| `test_typing_costs_few_colors_per_key` | `typing.colors <= 2*30 + 6*2` (was `4*31 + 6*2`). The first assertion is kept. |
+| New `test_first_key_after_answer_keeps_stage` | After `2/3{enter}`, key `1` makes no `fill_rect` with `y < 150` other than the status row. |
+| New `test_modifier_repaints_status_only` | `u.key(21)`: fills `== [('fill_rect', -1, -1, 321, 20)]`, `set_color ≤ 3`. |
+| New `test_arrows_do_no_layout` | On `1{frac}2{right}+x^3`, keys 24, 26, 25, 34 and 2nd 24 make 0 calls to `D.mlayout`/`D.mparse` (monkeypatched counters). |
+| New `test_caret_move_cost_is_flat` | On `(1)/(2)+(1)/(3)+(1)/(4)+(1)/(5)`, each of 10 ← presses gives `fill_rect == 1` (the 2 px strip), `draw_text ≤ 2`, `set_color ≤ 3`, and no `D.mlayout` call; the frame buffer rows `EY..189` equal those of a forced full entry repaint. |
+| New `test_2d_typing_cost` | After `1{frac}2{right}+1{frac}3{right}+`, each of `4`, `5`, `6` gives `set_color ≤ 3`, `fill_rect == 1`, `draw_text ≤ 3`. |
+| `SCREENS` | Add `1{frac}2{enter}`, `{2nd,frac}{down}{down}{enter}x^2`, `{2nd,frac}{down}` ×8 `{enter}`, the template picker screen, `(1)/(2)+` repeated past the scroll, EH growth to 80 then CLEAR, and a history selection with 2D inputs. All existing invariants must hold: no OFFSCREEN, no OVERDRAW, ASCII ≤ 32 characters, fills ≥ 2×2. |
+
+---
+
+## 11. Compatibility
+
+### 11.1 `tests/support/keyscript.py`
+
+1. `KEYTEXT[42] = ('@frac', '@templates', 'b')`, so `/` is typed with 55.
+2. `KEYTEXT[51] = ('^', '@surd', 'd')`, so text `surd(` is typed with alpha letters plus
+   `(`. It is a plain call until its comma makes it a template, and `surd()` stays `surd()`.
+3. `KEYTEXT[61]` is unchanged: `('^2', 'sqrt(', 'i')`.
+4. `type_keys` handles `^` before the greedy table match (`e^(` and `10^(` are still
+   matched as whole tokens):
+   - `^2` not followed by a digit, `.` or `^` → 61.
+   - Otherwise emit 51, then the operand: an optional `-`/`+`, then one of:
+     - a `( … )` group through its match (the `(` is a no-op in the empty box, the `)`
+       steps out, and no RIGHT is owed);
+     - a number;
+     - a name, or `name( … )`;
+     - `pi`.
+
+     A `^` right after the operand is typed inside, right-associatively.
+   - Then emit one 26 per owed box, if more text follows in the run.
+5. `decode` maps 51 to `^`. It keeps an `owed` count, incremented by a 51 whose next key is
+   not 63. A 26 while `owed > 0` is dropped (and decrements it). `owed` is reset by 105 and
+   by actions. 42 decodes as `{frac}` and 2nd 51 as `{surd}`. The round-trip test
+   `decode(type_keys(s)) == s` stays exact.
+6. New pins in `test_shims`:
+   - `type_keys('x^3+1') == [32, 51, 94, 26, 85, 92]`
+   - `type_keys('1/2') == [92, 55, 93]`
+   - `type_keys('x^2') == [32, 61]` (kept)
+   - `type_keys('e^(x)') == [21, 81, 32, 64]` (kept)
+
+The docstring of `keyscript.py` and DESIGN 16.4 are updated.
+
+**Native streams.** `micro_smoke` builds `ui_calculus` from `keyscript.parse`, so it is
+regenerated automatically. Each `UI_CASES` input types back to the same text:
+- `integrate(1/(2+cos(x)),x,0,2*pi)`: the `/` is inline, nothing is hidden.
+- `arclen(x^(3/2),x,0,4)`: the `(` is a no-op and the `)` exits the box.
+- `polararea(…)`, `paramarea(…)` and the nested integrate are plain text.
+
+Only answers are asserted. The `ui` suite stream `(93,85,94,105,21,22)` is unaffected.
+`check_release.py` scripts use `2+3`, `3*4` and `integrate(x^2,x,0,1)`; the last is now
+typed as `x^(2)`, and `tidy` restores `x^2`.
+
+### 11.2 Exact LINE/CUR assertions
+
+| Test | Status |
+|---|---|
+| `test_ui.test_entry_and_repeat` (`'2+3'`) | holds (`structure` is the identity) |
+| `test_atomic_ans_delete` | holds (DEL rule 1) |
+| `test_empty_slot_never_evaluates` (`diff(,x)`) | holds: stage 1, engine not loaded |
+| `test_history_fraction_paste_is_parenthesized` (`'x^(2/3)'`) | holds: `x^(|)`, ↑ → history (§4.4), bare paste into the empty hidden slot |
+| `test_evo_keys_forms_fraction_and_xroot` | holds: `(1)/(4)` → tidy `'1/4'`; `{2nd,x^n}8,3` → `surd(8,3)` = 2 |
+| `test_help_example_paste` | holds: `diff(` types as `diff(|)` (autoclose), F5 finds `diff`, and the example `diff(x^3,x,2)` is inserted unchanged at CUR, giving `diff(diff(x^3,x,2))`, which contains it. Its bare `^3` follows the bare-power rule (§1.2). |
+| `test_action_wrap_*` (256, `CUR == 255`) | hold: `put` checks the whole line; no empty slot, so PENDING keeps the offset |
+| `test_empty_builtin_or_alias_keeps_editor_and_moves_caret` | holds for all 7: `sqrt()`, `abs()`, `exp()` → stage 1 (`CUR = len(name)+1`); `sin()`, `log()`, `surd()`, `d()` → stage 2 |
+| `test_clear_history_while_selected` | holds (setup row appended last; `VIEWEND` is clamped after the menu, §2) |
+| `test_decimal_form_…` | holds (footer strings, now at row 153) |
+| `test_panic_works_without_ui_or_layout_phase` | holds; **extend** the deletion list with every new CASUX name of §9.2 |
+| `test_panic_never_retries_failing_layout` | holds |
+| `test_fastboot.test_boot_and_editing…` (`'1+2'`) | holds |
+| `test_fastboot.test_keyscript_session_without_enter…` | **changes**: `LINE == 'sin(x'` becomes `'sin(x)'` (autoclose) |
+| `test_fastboot.test_hint_line_works_before_the_engine_loads` | holds (hint row unchanged) |
+| `test_fastboot.test_full_redraw_uses_few_colors`, `test_typing_costs…` | **change** (§10) |
+| `test_shims.test_typing_round_trips…`, `test_keytext_matches_design_table` | hold with the new decode; add the §11.1 pins |
+| `test_layout` | holds: `D.layout` and CACHE are unchanged |
+| `test_menu.test_calculus_template` | holds (`diff(,x)`, offset 5 → `,`) |
+| `test_menu` (new pins) | `insertion` of `sin(x)` → `('sin()', False, 4)`, of `surd(x,n)` → `surd(,)`, of `purge(x,...)` → `purge()`, of `paramarea(x,y,t,a,b)` → `paramarea(,,,,)` (position-0 `x` never prefilled); `diff(f,x,[n])` → `diff(,x)`; `sum(f,k,a,b)` → `sum(,k,,)`. Setup row 5 toggles `U.CLASSIC` on ENTER, `6` and ←/→, and row 4 still opens About. |
+
+### 11.3 Other guarantees
+
+| Area | Guarantee |
+|---|---|
+| `panic` | Stays in CASUI. Draws plain `LINE[max(0,CUR-29):+30]` at (10, 172) with the rule at 169. Touches no CASUX name. Resets `EH = 20`, `XOFF = EXOFF = 0`, `EDMAP = EDL = EKEY = PENDING = EMODEL = None`, `EFLAT = True`, `ED1D = False`, `VIEWEND = -1`, `STATVIEW = HINTVIEW = None`. Sets `EFAIL = LINE` for reasons 0 and 3. Reason 0 also follows an out-of-memory *computation* (LINE still holds the input), so that input is then shown 1D until it is edited: accepted, since the model cannot tell the causes apart and a retry loop is worse. |
+| Cancel | `{clear@1}` during `R.go` is unchanged; the editor holds nothing during a job. |
+| 256 limit | Checked on the buffer, including structure parens, in `put` and `insert`. `tidy` shortens HIST. ENTRY bypasses it as today, and `structure` falls back past 256. |
+| Menus | `menu.open` signature and returns are unchanged. Results go through the existing wrap code and `insert`, then PENDING. |
+| F4, help, recall, settings, history paste, ENTRY, empty-slot check, quit | Same control flow. |
+| Hero view, answer scrolling | The hero is replaced by the focused history entry (newest, or `SEL` in MODE) with a view of up to 92 px. ←/→ (and 2nd ←/→) in MODE or on an empty line still step `DX` by 24; `DX` is clamped to `w - 300` in the full redraw and reset by ↑/↓ and by every edit (`put`/`insert`), as today; `<`/`>` mark more content. |
+| Leading-operator Ans | Unchanged key set and condition (`not LINE and R.ANS is not None and mod == 0`); the `ans()` insert goes through `put`, then the key's own action runs on the new LINE under the stale-map rule. |
+| Boot | No new pack and no new module: CASEVO still imports only CASUI and CASUX before the first screen, and nothing on the boot path (`boot → emodel → redraw`) touches the engine (`LINE` is empty, so `emodel` does no layout). |
+| `busy` / status during a job | `busy` and `engine` draw through `status`, which now also clears `STATVIEW`, so the status row is repainted after the job. |
+
+---
+
+## 12. Test plan
+
+The new file `tests/test_mathprint.py` runs in the source and `--bundled` tiers with
+`--strict-depth`.
+
+1. **Layout units** (engine-free; assert `'run' not in sys.modules`):
+   - stops and `ORD` for every §3 template (§4.1 table);
+   - hidden indices;
+   - the `TGAP` distinctness;
+   - `sin(x)+1` is one `draw_text`;
+   - `mflat` true/false table;
+   - degrade at 161 characters, at 25 nested groups, at h > 76 and under a forced
+     `MemoryError` (each gives 1D with a linear map, and the next key works);
+   - no OVERDRAW/OFFSCREEN for every template alone and nested 3 deep.
+2. **Precedence agreement.** For each corpus input `P.rpn` accepts, the Q/W structure from
+   `mparse(mode 1)` matches the RPN's `/` and `^` operands.
+3. **Editing tables.** Every before/after row in §2, §2.1, §4.2, §4.3 and §4.4 as
+   data-driven `(LINE, CUR, keys) → (LINE, CUR)` through `ui.key`, with no engine.
+4. **Round trips.**
+   - `tidy(structure(s))` and `tidy` of key-typed text give the same `run.go` record:
+     300 random expressions from a small grammar, plus the 52 text-prototype cases and
+     every catalog example.
+   - Adversarial table: power followed by a digit, adjacent fractions, a fraction to a
+     power, nested exponents, `-a/b`, `x^-1`.
+5. **Navigation properties.**
+   - A → walk from 0 visits every stop once and ends at `len`.
+   - → then ← is the identity.
+   - ↓ then ↑ returns to the same slot for a fraction, a power (§4.4 power rules), ⁿ√, ∫ab
+     and Σ.
+6. **Linear-typing invariant.** For 500 random balanced strings over the keyscript
+   alphabet, `KS.run(s)` leaves `LINE == s` (strings with `^` compare after `structure`).
+7. **Diff paint pixel equivalence.** For 200 random key sequences on 2D lines, after each
+   key the entry box framebuffer rows `EY..189` (`TD.pixel`) and the visible texts there
+   equal those of a forced full entry repaint (`EDIFF = False`). The sequences mix text
+   keys (diff path) with ←/→/↑/↓/home/end (caret-only path) and `)`/`,` step-overs.
+8. **Shell and recovery.**
+   - Cost pins (§10).
+   - EH growth costs exactly one full redraw, and none for linear typing.
+   - `VIEWEND` scrolling.
+   - Footer strings.
+   - Same-row width guard.
+   - Classic toggle: old behaviour, same LINE as the 1D editor; toggling with a 2D LINE
+     rebuilds the model at once (`EMODEL`), in both directions.
+   - `HERO` changes (first key after an answer, DEL to an empty line) repaint only the hint
+     row, never the stage.
+   - ENTER on `log(8,)` (picker 1.7 with the base left empty) evaluates `log(8)`; ENTER on
+     a degraded (`EFAIL`/`ED1D`) line with `^()` or `/()` reports the empty slot without a
+     layout.
+   - A history answer with `w > 300` focused in MODE: `DX` clamps; a page of 5 answers
+     makes no `D.layout` call on the second identical full redraw (one cache key per
+     answer, §7.1).
+   - Picker without the engine.
+   - `panic` with every new CASUX name deleted, with and without the engine.
+   - `EFAIL` no-retry.
+   - `EDMAP`, `EDL` and both caches are empty inside `R.go` (assert in a fake family).
+   - A view pack cut short, then 2nd MODE.
+9. **Packaging and native.**
+   - lint and framelint;
+   - `pytest -m "not slow" --strict-depth` in source and bundled;
+   - `build/release.py` (PACKMAX, budgets);
+   - `check_release.py`, `test_release.py` (UI-only boot, depth ≤ 8);
+   - CI: `micro_smoke` `ui` at 173,360 and `ui_calculus` at 189,776 with the regenerated
+     streams, and 64-bit `all`.
+
+   Hardware acceptance means an EVO run that times typing, arrows and a template insert.
+
+When it ships, update DESIGN §16 (16.1, 16.4, 16.5, 16.6, 16.9), `docs/notes/UI.md`
+(stale rows and keys) and `docs/STATUS.md`.
+
+---
+
+## 13. Risks
+
+| Risk | Mitigation |
+|---|---|
+| CASUX ~+10 KB raises reload pressure; `ui_calculus` at 189,776 had under 2 KB spare | Measure first in CI. Phase 3 option: lay answers out with `mparse(mode 1)` and drop `draw.tree/measure` (~−1.7 KB). Picker rows and menu code stay small. |
+| EVO cost of `draw_text`/`draw_line`/`set_color` is unknown | Flat fast path; the diff paint; INK caret. `EDIFF`, `CARETC` and Classic are switches. Time keys on the device. |
+| Diff paint leaves stale pixels | The pixel-equivalence property test (§12.7); full repaint on any geometry change; kill switch. |
+| The display disagrees with the engine (`ti_rewrite` notation such as `sin^2(x)`, `xy`) | It is drawn as typed; the value is the engine's. Precedence-agreement test. |
+| `tidy` or `structure` changes the meaning | One-token rule with neighbour checks; engine-equality round trips (§12.4). |
+| The entry `(..)/(..)` rule flips when typing `(a)/(` with ÷ | Documented: identical text means an identical picture. 42 is the fraction key. |
+| Heap spike on long 2D lines | 160 characters / 192 nodes / h 76 caps; `MemoryError` → 1D; rows built in place; `EFAIL`. |
+| Key-semantics surprise (autoclose, `(` wraps to the slot end, ↑ moves inside a fraction first) | Nspire/FlowCE conventions; worked-example tests; Classic. |
+| keyscript and native streams drift | Streams are generated from keyscript. The typist emits only real keys (26 for leaving an exponent). The round-trip and linear-typing tests (§12.6). |
+
+**Not reproduced:** the Nspire gray temporary paren; Tab cycling (→ follows drawn order and
+ENTER jumps to the first empty slot); selection; matrix, piecewise and system templates;
+the nth-derivative template (`diff(f,x,n)` stays a call).
