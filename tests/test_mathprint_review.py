@@ -26,8 +26,8 @@ def test_classic_menu_templates_have_no_prefill():
     assert s.hist[0][:2] == ['diff(t^2,t)', '2*t']
 
 
-def test_mathprint_menu_templates_keep_the_prefill():
-    assert line(KS.run('{41}{105}')) == ('diff(,x)', 5)
+def test_mathprint_menu_templates_have_empty_boxes():
+    assert line(KS.run('{41}{105}')) == ('diff(,)', 6)  # d/d[]([]): the variable box first
 
 
 # -- ENTER's empty-slot check inside autoclosed brackets ----------------------------------------
@@ -248,8 +248,8 @@ def test_a_failed_history_layout_is_not_retried(monkeypatch):
 
 
 def test_focused_answer_is_not_cut_when_the_entry_grows():
-    tmpl = '{2nd,frac}' + '{down}' * 9 + '{enter}'
-    s = KS.run(tmpl + '0{right}1{right}x{pow}1{frac}2{enter}' + tmpl)
+    tmpl = '{2nd,frac}' + '{down}' * 8 + '{enter}'    # the integral; its d[] box is typed too
+    s = KS.run(tmpl + '0{right}1{right}x{pow}1{frac}2{right}{right}{right}x{enter}' + tmpl)
     u = s.mods['ui']
     assert u.EH >= 40 and s.hist[0][1] == '2/3'
     last = max(j for j in range(len(TD.CALLS)) if TD.CALLS[j] == ('fill_rect', -1, -1, 321, 211))

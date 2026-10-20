@@ -79,6 +79,15 @@ CATALOG = [
     ('sum(f,k,a,b)', [0, 6, 7, 8, 9, 10, 11, 4, 5, 12], ['k', '=', 'a', 'b', 'f'], 'RTTTT'),
     ('limit(f,x,a)', [0, 8, 9, 10, 11, 6, 7, 12], ['lim', 'x', 'a', 'f'], 'RTTT'),
     ('limit(f,x,a,d)', [0, 8, 9, 10, 11, 12, 13, 6, 7, 14], None, 'RTTTT'),
+    # no prefill (0.10): every box empty, the caret's first box first in drawn order
+    ('integrate(,,,)', [0, 12, 13, 10, 11, 14], ['d'], 'RTTTT'),
+    ('diff(,)', [0, 6, 5, 7], ['d', 'd', '(', ')'], 'RTT'),
+    ('diff(,,)', [0, 6, 7, 5, 8], ['d', 'd', '(', ')'], 'RTTT'),
+    ('diff(f,x,2)', [0, 7, 8, 9, 10, 5, 6, 11], ['d', '2', 'd', 'x', '2', '(f', ')'], 'RTTT'),
+    ('limit(,,,)', [0, 7, 8, 9, 6, 10], ['lim'], 'RTTTT'),
+    ('limit(f,x,a,+)', [0, 8, 9, 10, 11, 12, 13, 6, 7, 14], ['lim', 'x', 'a', '+', 'f'],
+     'RTTTT'),
+    ('log(,)', [0, 5, 4, 6], ['log', '(', ')'], 'RTT'),
     ('(a+b)', [0, 1, 2, 3, 4, 5], ['(a+b)'], 'RG'),
     ('1/2+x^(2)', [0, 1, 2, 3, 4, 5, 7, 8, 9], ['1/2+x', '2'], 'RW'),
     ('2+3', [0, 1, 2, 3], ['2+3'], 'R'),
@@ -161,7 +170,12 @@ def test_trailing_gap_separates_slot_end_and_construct_end():
 
 def test_empties_in_drawn_order():
     assert lay('sum(,k,,)')[12] == [(7, 0), (8, 0), (4, 0)]
-    assert lay('integrate(,x,,)')[12] == [(13, 0), (14, 0), (10, 0)]
+    assert lay('integrate(,x,,)')[12] == [(13, 2), (14, 2), (10, 0)]   # both bounds optional
+    assert lay('integrate(,x,0,)')[12] == [(15, 0), (10, 0)]           # half-filled: required
+    assert lay('diff(,x,)')[12] == [(8, 2), (5, 0)]                    # the order
+    assert lay('limit(f,x,a,)')[12] == [(12, 2)]                       # the direction
+    assert lay('limit(f,x,a,+)')[12] == [(13, 7)]                      # a lone sign: not drawn
+    assert lay('limit(f,x,a,2+)')[12] == [(14, 1)]
     assert lay('(|)/()'.replace('|', ''))[12] == [(1, 0), (4, 0)]
     assert lay('log(8,)')[12] == [(6, 2)]            # the optional log base
     assert lay('sqrt(2+)')[12] == [(7, 1)]           # a trailing missing operand

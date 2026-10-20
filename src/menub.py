@@ -24,18 +24,17 @@ def insertion(row):                                           #@L 3
     prefix = row[1]
     if '(' not in prefix:
         return (prefix, False, len(prefix))
+    act = prefix[:-1] in R.MODS['menu'].ACTIONS
+    # MathPrint (MATHPRINT.md 3): a command with a template inserts the picker's text, every
+    # box empty (diff(,), log(,), integrate(,,,), limit(,,,)); else one empty box per required
+    # parameter, never prefilled; apply puts the caret in the first box in drawn order.
+    # Classic (8) keeps the required boxes only: diff(,), log().
+    for j in range(0 if U.CLASSIC else U.TN):
+        t = U.tmpl(j)[1]
+        if t.startswith(prefix):
+            return (t, act, len(prefix))
     required = row[0].split('(', 1)[1].split('[', 1)[0].rstrip(',)').replace(',...', '')
-    # A required x or k after the first parameter is filled with its own name (MATHPRINT.md 3):
-    # diff(,x), sum(,k,,). The first is never: sin(x) stays sin(), purge(x,...) purge().
-    # Classic (MATHPRINT.md 8) keeps the old empty text: diff(,).
-    names = required.split(',')
-    text = prefix
-    for j in range(len(names)):
-        if j:
-            text += ','
-            if not U.CLASSIC and (names[j] == 'x' or names[j] == 'k'):
-                text += names[j]
-    return (text + ')', prefix[:-1] in R.MODS['menu'].ACTIONS, len(prefix))
+    return (prefix + ',' * required.count(',') + ')', act, len(prefix))
 
 
 

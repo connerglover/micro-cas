@@ -99,17 +99,19 @@ def row(sig):
     raise KeyError(sig)
 
 
-def test_insertion_prefills_x_and_k_after_the_first_parameter():
-    # MATHPRINT.md 3 and 11.2: a required x or k at position 1 or later is prefilled; the first
-    # parameter never is, so a one-argument row or purge(x,...) stays empty
+def test_insertion_has_empty_boxes_and_no_prefill():
+    # MATHPRINT.md 3 and 0.10: no parameter is prefilled; a command with a template inserts
+    # the picker's text (all its boxes, optional ones too), any other one box per required one
     R.need('menu')
     mb = R.MODS['menub']
     assert mb.insertion(row('sin(x)')) == ('sin()', False, 4)
     assert mb.insertion(row('purge(x,...)'))[0] == 'purge()'
     assert mb.insertion(row('paramarea(x,y,t,a,b)'))[0] == 'paramarea(,,,,)'
-    assert mb.insertion(row('diff(f,x,[n])'))[0] == 'diff(,x)'
-    assert mb.insertion(row('sum(f,k,a,b)'))[0] == 'sum(,k,,)'
-    assert mb.insertion(row('limit(f,x,a,[dir])'))[0] == 'limit(,x,)'
+    assert mb.insertion(row('diff(f,x,[n])'))[0] == 'diff(,)'
+    assert mb.insertion(row('sum(f,k,a,b)'))[0] == 'sum(,,,)'
+    assert mb.insertion(row('limit(f,x,a,[dir])'))[0] == 'limit(,,,)'
+    assert mb.insertion(row('integrate(f,x,[a,b])'))[0] == 'integrate(,,,)'
+    assert mb.insertion(row('log(x,[b])'))[0] == 'log(,)'
     assert mb.insertion(row('taylor(f,x=a,[n])'))[0] == 'taylor(,)'
     for r in R.need('cat').CAT:
         if r[0].startswith('surd('):

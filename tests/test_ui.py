@@ -46,7 +46,7 @@ def test_evo_keys_forms_fraction_and_xroot():
     a, b = KS.run('1{frac}4{enter}{<>}'), KS.run('1{frac}4{enter}{f4}')
     assert a.mods['run'].HIST == b.mods['run'].HIST and a.mods['run'].HIST[0][0] == '1/4'
     assert a.mods['run'].HIST[0][5][-1] == ('decimal', '0.25')
-    assert KS.run('{2nd,x^n}8,3{enter}').ans == '2'
+    assert KS.run('{2nd,x^n}3,8{enter}').ans == '2'   # the index box first, as drawn
 
 
 def test_forms_recall_and_theme():
@@ -127,8 +127,8 @@ def test_panic_works_without_ui_or_layout_phase(monkeypatch, reason, message):
         for module, names in ((u, ('redraw', 'enclosing', 'wrapped', 'empty_slot', 'tidy',
                                    'emodel', 'edkey', 'picker', 'edins', 'eddel',
                                    'edmove', 'edvert', 'paste', 'empty_map', 'edslot', 'edterm',
-                                   'leave', 'put', 'bmatch', 'spans', 'keep', 'blank', 'insert',
-                                   'epaint', 'TMPL', 'PREFILL', 'PLAIN', 'SECOND', 'ALPHA', 'HINT',
+                                   'leave', 'put', 'tput', 'bmatch', 'spans', 'keep', 'insert',
+                                   'epaint', 'TMPL', 'PLAIN', 'SECOND', 'ALPHA', 'HINT',
                                    'ALIAS', 'kmap', 'hint', 'tmpl', 'TN')),
                               (d, ('layout', 'glyph', 'tree', 'measure', 'place', 'render',
                                    'TPL', 'TGAP', 'MPREC', 'MFNT', 'mlayout', 'mflat', 'mcall', 'mname',

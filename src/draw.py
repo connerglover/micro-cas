@@ -29,7 +29,7 @@ ICACHE_BYTES = 0
 # the trailing gap after a template, and the operator precedences of parse.PREC (draw cannot
 # read the engine), with 8 for a blank or stray character that clings to the next operand.
 TPL = {'sqrt': (1,), 'abs': (1,), 'exp': (1,), 'surd': (2,), 'log': (2,), 'integrate': (2, 4),
-       'diff': (2,), 'sum': (4,), 'limit': (3, 4)}
+       'diff': (2, 3), 'sum': (4,), 'limit': (3, 4)}
 TGAP = 3
 MPREC = {'=>': 1, ':=': 1, '=': 3, '!=': 3, '<': 3, '<=': 3, '>': 3, '>=': 3, '+': 4, '-': 4,
          '*': 5, '/': 5, '^': 7}
@@ -692,11 +692,21 @@ def mshut(s, nodes, vals, ops, pos, how, expect, trail, mode):    #@L 5
         nodes.append(['S', 0, pos, [n], [-1, 0]])
     elif f >= 0:
         nm = s[f:at]
-        if how == 1 and nm in TPL and len(args) in TPL[nm]:
+        m = len(args)
+        if how == 1 and nm in TPL and m in TPL[nm] and not (nm == 'limit' and '=' in s[at:pos]):
             nodes.append(['T', f, end, args, [at, True]])
+            # The optional boxes (flag 2: tidy drops them, ENTER skips them, MATHPRINT.md
+            # 2.2): the base of log_b, the order of d^n/dx^n, the direction of lim (a lone
+            # sign there: its empty operand is not drawn, flag 4), both integral bounds.
+            t = TPL[nm]
             e = nodes[nodes[args[-1]][3][0]]
-            if nm == 'log' and e[0] == 'E':
-                e[4] |= 2               # the optional base of log_b
+            g = nodes[nodes[args[2]][3][0]] if m == 4 and nm == 'integrate' else e
+            if e[0] == 'N' and m == 4 and nm == 'limit' and e[2] - e[1] == 1:
+                e = g = nodes[e[3][1]]
+                e[4] |= 4
+            if e[0] == 'E' and g[0] == 'E' and m == t[-1] and (len(t) > 1 or nm == 'log'):
+                e[4] |= 2
+                g[4] |= 2
         else:                           # 2: a name the engine may cut (ab( is a*b*()
             nodes.append(['C', f, end, args, [at, how == 1,
                                               at - f > 1 and nm not in MFNT and nm not in TPL]])
@@ -851,7 +861,8 @@ def mbox(s, nodes, root, mode):                                #@L 4
             bx[n] = r
             continue
         if k == 'E':
-            boxes.append((CW, ASC, DESC, (), (('b', 1, -11, 8, 13, a, nd[4]),) if mode == 2
+            boxes.append((0 if nd[4] & 4 else CW, ASC, DESC, (),
+                          (('b', 1, -11, 8, 13, a, nd[4]),) if mode == 2 and not nd[4] & 4
                           else (), 'empty', n))
             bx[n] = len(boxes) - 1
             continue
@@ -893,8 +904,12 @@ def mbox(s, nodes, root, mode):                                #@L 4
                 r = large(boxes, 'sum', [sb[0], sb[1], lo, sb[3]], n)
             elif nm == 'limit':
                 p = sb[2]
-                if len(sb) > 3:
-                    p = frame(boxes, 'sup', [sb[2], sb[3]])
+                if len(sb) > 3:             # the direction: + or - over a (a history input's
+                    q = sb[3]               # 1 or -1 too)
+                    t = s[nodes[kids[3]][1]:nodes[kids[3]][2]]
+                    if mode == 1 and (t == '1' or t == '-1'):
+                        q = tleaf(boxes, -1, -1, '+-'[len(t) - 1], -1)
+                    p = frame(boxes, 'sup', [sb[2], q])
                 lo = row(boxes, [sb[1], leaf(boxes, '->'), p], 0)
                 r = large(boxes, 'limit', [sb[0], lo], n)
             else:                               # diff and log: the operand u in parens
@@ -904,9 +919,19 @@ def mbox(s, nodes, root, mode):                                #@L 4
                                     tleaf(boxes, e - 1, e, None, -1)], 0)
                 else:
                     p = frame(boxes, 'paren', [u])
-                if nm == 'diff':
-                    den = row(boxes, [tleaf(boxes, -1, -1, 'd', -1), sb[1]], 0)
-                    fr = frame(boxes, 'frac', [tleaf(boxes, -1, -1, 'd', -1), den])
+                if nm == 'diff':        # d/d[]([]); d^n/d[]^n([]): the order is typed in
+                    num = tleaf(boxes, -1, -1, 'd', -1)     # the denominator and mirrored
+                    x = sb[1]                               # over the d (no stop)
+                    if len(sb) > 2:
+                        q = nodes[kids[2]]
+                        c = boxes[bx[q[3][0]]]  # one leaf or empty box: a copy, else its text
+                        if c[3]:
+                            c = boxes[tleaf(boxes, -1, -1, s[q[1]:q[2]], -1)]
+                        boxes.append(c[:6] + (-1,))
+                        num = frame(boxes, 'sup', [num, len(boxes) - 1])
+                        x = frame(boxes, 'sup', [x, sb[2]])
+                    den = row(boxes, [tleaf(boxes, -1, -1, 'd', -1), x], 0)
+                    fr = frame(boxes, 'frac', [num, den])
                     r = row(boxes, [fr, p], 2, 'row', n)
                 else:                           # log_b: the base lowered 6 px at x 30
                     lb = tleaf(boxes, a, a + 3, None, -1)

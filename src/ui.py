@@ -84,15 +84,14 @@ HINT = (' simplify(e) expand(e) factor(e,[x]) together(e) solve(eq,[x]) diff(f,x
         ' polararea(r,t,a,b) paramarea(x,y,t,a,b) arclen(f,x,a,b) purge(x,...) approx(e) ')
 ALIAS = {'int': 'integrate', 'd': 'diff', 'deriv': 'diff', 'lim': 'limit', 'series': 'taylor',
          'ratnormal': 'together', 'dsolve': 'desolve', 'gradient': 'grad'}
-# The template picker (MATHPRINT.md 3.2): (label, text, caret); caret -1: the first empty slot
-# in drawn order (PENDING). Rows 1 and 2 are the fraction and power keys' actions.
-TMPL = ('n/d  fraction##0;x^n  power##0;sqrt  square root#sqrt()#5;n-root  nth root#surd(,)#5;'
-        'e^x#e^()#3;10^x#10^()#4;log_b  log base b#log(,)#-1;|x|  absolute value#abs()#4;'
-        'int  integral#integrate(,x)#-1;int a..b  definite#integrate(,x,,)#-1;'
-        'd/dx  derivative#diff(,x)#-1;sum  k=a..b#sum(,k,,)#-1;lim  limit#limit(,x,)#-1')
+# The template picker (MATHPRINT.md 3.2): (label, text). As on the Nspire nothing is prefilled
+# and the caret starts in the first box in drawn order (tput); rows 1 and 2 are the fraction and
+# power keys' actions. menub.insertion gives a menu row the first text here that it starts.
+TMPL = ('n/d  fraction#;x^n  power#;sqrt  square root#sqrt();n-root  nth root#surd(,);e^x#e^();'
+        '10^x#10^();log_b  log base b#log(,);|x|  absolute value#abs();'
+        'int  integral#integrate(,,,);d/dx  derivative#diff(,);d^n/dx^n  nth derivative#diff(,,);'
+        'sum  k=a..b#sum(,,,);lim  limit#limit(,,,)')
 TN = 13
-# The prefilled second parameter of these rows (menub.insertion): it counts as empty for DEL.
-PREFILL = {'integrate': 'x', 'diff': 'x', 'limit': 'x', 'riemann': 'x', 'arclen': 'x', 'sum': 'k'}
 
 
 def hint(name):                                                #@L 4
@@ -101,8 +100,8 @@ def hint(name):                                                #@L 4
     return HINT[i + 1:HINT.find(' ', i + 1)] if i >= 0 else ''
 
 
-def tmpl(j):                                                   #@L 3
-    """TMPL row j: [label, text, caret]."""
+def tmpl(j):                                                   #@L 4
+    """TMPL row j: [label, text]."""
     return TMPL.split(';')[j].split('#')
 
 
@@ -183,6 +182,15 @@ def insert(text, offset=None):                                  #@L 3
     return put(LINE[:CUR] + text + LINE[CUR:], CUR + (len(text) if offset is None else offset))
 
 
+def tput(t):                                                   #@L 3
+    """Insert the template text t at the caret, the caret in its first box in drawn order
+    (PENDING; on a flat or degraded line, its first argument)."""
+    global PENDING
+    at = CUR
+    if put(LINE[:at] + t + LINE[at:], at + t.find('(') + 1):
+        PENDING = (at, at + len(t))
+
+
 def put(line, cur):                                            #@L 4
     """Every edit: the new line and caret with a typed key's side effects, unless the line would
     pass 256 characters (then only STATUS says so and False is returned)."""
@@ -208,10 +216,12 @@ def wrapped(text):                                             #@L 3
 def tidy(s, back=0):                                           #@L 3
     """ENTER's text in MathPrint (docs/notes/MATHPRINT.md 1.3): drop the structure parens
     around a fraction operand or exponent that is one number or letter (x^(-1) also), when the
-    neighbours keep the meaning, and the empty base of log(u,). History stays short 1D text.
-    back: recalled text instead (1.4): wrap each stacked-fraction operand and exponent that is
-    not one group in parens, so the recalled input is 2D again. A construct with an operand
-    that ends in a letter right before '(' is left as it is: x(2) is a product unless x is a
+    neighbours keep the meaning, and every empty optional box with its comma (log base, order,
+    direction, both bounds: draw.mshut flags them); a lone + or - direction is 1 or -1. History
+    stays short 1D text. back: recalled text instead (1.4): wrap each stacked-fraction operand
+    and exponent that is not one group in parens, and give an integral its empty bounds and a
+    limit its direction box (+ or -), so the recalled input is 2D again. A construct with an
+    operand that ends in a letter right before '(' is left as it is: x(2) is a product unless x is a
     user function, and wrapping would change which. (The layout already keeps a fraction or
     power over a name the engine may cut, a/bc, inline.) Past 256 characters: s unchanged."""
     r = None
@@ -227,6 +237,16 @@ def tidy(s, back=0):                                           #@L 3
     for nd in nodes:
         k = nd[0]
         if back:
+            if k == 'T':
+                nm = s[nd[1]:nd[4][0]] + str(len(nd[3]))
+                c = nd[2] - 1               # the closer
+                g = nodes[nd[3][-1]]
+                if nm == 'integrate2' or nm == 'limit3':
+                    ins.append((c, ',,' if nm[0] == 'i' else ','))
+                elif nm == 'limit4' and s[g[1]:c] in ('1', '-1'):
+                    ins.append((c - 1, ''))
+                    if s[c - 2] == ',':
+                        ins.append((c, '+'))
             if k != 'Q' and k != 'W':
                 continue
             m = len(ins)
@@ -245,8 +265,12 @@ def tidy(s, back=0):                                           #@L 3
             cands = ((nd[4][0], False), (nd[4][1], False))
         elif k == 'W':
             cands = ((nd[4][1], True),)
-        elif k == 'T' and s[nd[1]:nd[4][0]] == 'log' and nodes[nodes[nd[3][1]][3][0]][0] == 'E':
-            ins.append((nodes[nd[3][0]][2], ''))
+        elif k == 'E' and nd[4] & 2:        # an empty optional box: with the comma before it;
+            a = nd[1]                       # after a lone sign (4): + is 1, - is -1
+            if not nd[4] & 4 or s[a - 1] == '+':
+                ins.append((a - 1, ''))
+            if nd[4] & 4:
+                ins.append((a, '1'))
         for gi, power in cands:
             g = nodes[gi]
             if g[0] != 'G' or not g[4] & 2:
@@ -290,17 +314,25 @@ def tidy(s, back=0):                                           #@L 3
 
 def empty_slot():                                              #@L 3
     """The caret position of an empty argument slot, or -1. Needs the engine (P.FNAMES). In
-    MathPrint the empty base of log(u,) is optional (tidy drops it), so it is skipped."""
+    MathPrint an empty optional box that tidy drops is skipped (MATHPRINT.md 2.2): the last
+    argument of log(u,b), diff(f,x,n) and limit(f,x,a,dir) (a lone + or - there too), and the
+    two bounds of integrate(f,x,a,b) when both are empty: the E nodes D.mshut flags 2, read
+    from the layout's own parse as tidy reads them (so 2log( is log_b too), also on a line
+    that is drawn flat for its length; never on a line a panic ran on (EFAIL)."""
+    ok = []
+    try:
+        r = None if CLASSIC or LINE == EFAIL else D.mparse(LINE, D.mlex(LINE), 1)
+    except MemoryError:                 # then every box counts
+        r = None
+        gc.collect()
+    if r is not None:
+        for nd in r[0]:
+            if nd[0] == 'E' and nd[4] & 2:
+                ok.append(nd[1])
     for token in ('(,', ',,', ',)'):
         i = LINE.find(token)
-        while i >= 0 and token == ',)' and not CLASSIC:
-            o = bmatch(LINE, i + 1, -1)
-            # the call name as the layout reads it (D.mname): 2log( and xlog( are log_b too
-            if o < 3 or D.mname(LINE, o) != o - 3 or LINE[o-3:o] != 'log':
-                break
-            if len(spans(o, i + 1)) != 2:
-                break
-            i = LINE.find(token, i + 2)
+        while i >= 0 and i + 1 in ok:
+            i = LINE.find(token, i + 1)
         if i >= 0:
             return i + 1
     i = LINE.find('()')
@@ -318,7 +350,7 @@ def empty_slot():                                              #@L 3
         i = LINE.find('()', i + 2)
     if not CLASSIC:                         # an operator before an autoclosed closer: sin(2+)
         for i in range(1, len(LINE)):
-            if LINE[i] in ')]}' and LINE[i-1] in '+-*/^=<>':
+            if LINE[i] in ')]}' and LINE[i-1] in '+-*/^=<>' and i not in ok:
                 return i
     if LINE and LINE[-1] in '+-*/^,(=':
         return len(LINE)
@@ -561,14 +593,6 @@ def keep(os, oe, u):                                           #@L 4
     return not (b in '([{,' and a in ')]},')
 
 
-def blank(a, e, k, os):                                        #@L 4
-    """Slot [a, e) counts as empty for DEL: no text, or the prefilled x or k (second parameter)
-    of the call or template that starts at os (MATHPRINT.md 3)."""
-    if a == e:
-        return True
-    return k == 1 and LINE[a:e] == PREFILL.get(LINE[os:LINE.find('(', os)], '')
-
-
 def wrapend(s, c, base):                                       #@L 4
     """(s, c) with the stacked fraction or power that ends at caret c wrapped in parens, so a
     following ^, ! or ' applies to all of it (MATHPRINT.md 2: x^(2)|^ is (x^(2))^); base: the
@@ -593,8 +617,9 @@ def wrapend(s, c, base):                                       #@L 4
 def edins(op, t=''):                                           #@L 3
     """Insert at the caret (MATHPRINT.md 2): 'frac' the fraction template with term capture,
     'pow' x^() and 'sq' x^(2) (a stacked fraction or power that ends at the caret is wrapped
-    first), 'open' a bracket closed at the end of the slot, 'close' a closer, 'comma', and
-    'text' t (a text ending in '(' gets its closer)."""
+    first), 'open' a bracket closed at the end of the slot, 'close' a closer, 'comma' (in a
+    template at its largest form: to the next box in drawn order), and 'text' t (a text
+    ending in '(' gets its closer)."""
     global CUR
     s = LINE
     c = CUR
@@ -661,7 +686,11 @@ def edins(op, t=''):                                           #@L 3
     elif op == 'comma':
         leave(0)
         c = CUR
-        if c < len(s) and s[c] == ',':
+        r = edslot(c)
+        if r[2] == 'T' and r[6] == D.TPL[s[r[3]:s.find('(', r[3])]][-1]:
+            ORD = EDMAP[8]              # a full template: the stop after the slot's end, the
+            CUR = ORD[ORD.index(r[1]) + 1]  # next box in drawn order or after the last one
+        elif c < len(s) and s[c] == ',':
             CUR = c + 1
         else:
             put(s[:c] + ',' + s[c:], c + 1)
@@ -695,7 +724,7 @@ def eddel():                                                   #@L 3
             for q in SLOTS:
                 if q[2] == kind and q[3] == os and q[4] == oe:
                     sib.append(q)
-                    if not blank(q[0], q[1], q[5], os):
+                    if q[0] != q[1]:
                         full = False
             if full and (kind == 'Q' or kind == 'W' or kind == 'T'):
                 put(s[:os] + s[oe:], os)    # an empty construct; a power's base stays
@@ -717,7 +746,7 @@ def eddel():                                                   #@L 3
                 return False
             if (kind == 'T' or kind == 'C') and r[0] == sib[0][0]:
                 for q in sib[1:]:
-                    if not blank(q[0], q[1], q[5], os):
+                    if q[0] != q[1]:
                         CUR = os            # other slots hold text: to the outer start
                         return False
                 u = s[r[0]:r[1]]
@@ -748,7 +777,7 @@ def eddel():                                                   #@L 3
             for q in SLOTS:
                 if q[2] == kind and q[3] == os and q[4] == oe:
                     last = q[1]
-                    if not blank(q[0], q[1], q[5], os):
+                    if q[0] != q[1]:
                         full = False
             if kind == 'Q' or kind == 'W' or kind == 'T' or last == oe - 1:
                 if full:
@@ -765,7 +794,7 @@ def eddel():                                                   #@L 3
                 return False
             sp = spans(o, cl)
             for k in range(1, len(sp)):
-                if not blank(sp[k][0], sp[k][1], k, m):
+                if sp[k][0] != sp[k][1]:
                     CUR = m
                     return False
             u = s[sp[0][0]:sp[0][1]]
@@ -780,7 +809,7 @@ def eddel():                                                   #@L 3
                 m = o
             sp = spans(o, c - 1)
             for k in range(len(sp)):
-                if not blank(sp[k][0], sp[k][1], k, m):
+                if sp[k][0] != sp[k][1]:
                     return True
             put(s[:m] + s[c:], m)
             return False
@@ -893,7 +922,7 @@ def edkey(k, mod):                                             #@L 2
     elif mod == 0 and k == 62:
         edins('comma')
     elif mod == 1 and k == 51:
-        put(LINE[:CUR] + 'surd(,)' + LINE[CUR:], CUR + 5)
+        tput('surd(,)')                     # the index first, as drawn
     else:
         t = kmap(SECOND if mod == 1 else PLAIN, k)
         if t is None:
@@ -1068,9 +1097,8 @@ def redraw():                                                  #@L 2
         if e[2] == R.R_ANS:
             label = e[5][-1][0] if e[5] else 'exact'
             right = label + '  F4'
-            left = (('+ C  ' if e[4] & R.F_PLUSC else '') + (
-                '~ ' + str(e[3]) if e[3] is not None and label == 'exact' else ''))[
-                :29 - len(right)]
+            if e[3] is not None and label == 'exact':
+                left = ('~ ' + str(e[3]))[:29 - len(right)]
     else:
         name = enclosing()
         left = hint(ALIAS.get(name, name))[:31]
@@ -1133,7 +1161,9 @@ def redraw():                                                  #@L 2
                 ih = inp[2] + inp[3]
             b = lines = None
             if f[2] == R.R_ANS:
-                b = D.layout(f[1], VIEWW, HEROH)
+                # an antiderivative's + C is drawn as part of the answer: on its row, spaced
+                # as its operators, scrolled and aligned with it (MATHPRINT.md 7.1)
+                b = D.layout(f[1] + ('+C' if f[4] & R.F_PLUSC else ''), VIEWW, HEROH)
                 rw = b[1]
                 ra = b[2]
                 cap = LISTH
@@ -1402,11 +1432,7 @@ def key(k):                                                    #@L 1
         elif row == 1:
             edins('pow')
         elif row is not None:
-            text, at = tmpl(row)[1], CUR
-            c = int(tmpl(row)[2])
-            if put(LINE[:at] + text + LINE[at:], at + (c if c >= 0 else text.find('(') + 1)) and \
-                    c < 0:
-                PENDING = (at, at + len(text))
+            tput(tmpl(row)[1])
     elif not CLASSIC:
         edkey(k, mod)
     elif k == 23:

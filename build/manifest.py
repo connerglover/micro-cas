@@ -156,7 +156,7 @@ PACKS = (
                'ui.emodel', 'ui.edkey', 'ui.picker', 'ui.edins', 'ui.eddel', 'ui.edmove',
                'ui.edvert', 'ui.epaint', 'ui.paste', 'ui.empty_map', 'ui.edslot', 'ui.edterm', 'ui.leave',
                'ui.wrapend',
-               'ui.put', 'ui.bmatch', 'ui.spans', 'ui.keep', 'ui.blank', 'ui.TMPL', 'ui.PREFILL',
+               'ui.put', 'ui.tput', 'ui.bmatch', 'ui.spans', 'ui.keep', 'ui.TMPL',
                'draw.MFNT', 'draw.mlayout', 'draw.mflat', 'draw.mcall', 'draw.mname', 'draw.mstop', 'draw.mlex',
                'draw.mparse', 'draw.mpush', 'draw.mshut', 'draw.mreduce', 'draw.mbox', 'draw.tleaf',
                'draw.mplace', 'draw.mmark', 'draw.mrender'), 'view'),

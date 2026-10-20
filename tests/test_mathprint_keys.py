@@ -84,7 +84,7 @@ KEYS = [
     ('sin(x|)', [SQ], 'sin(x^(2)|)'),
     ('x^(2)|', [SQ], '(x^(2))^(2)|'),
     ('|', [SECOND, SQ], 'sqrt(|)'),
-    ('|', [SECOND, POW], 'surd(|,)'),
+    ('|', [SECOND, POW], 'surd(,|)'),                  # the index first, as drawn (0.10)
     ('|', [SECOND, 71], '10^(|)'),
     ('|', [SECOND, 81], 'e^(|)'),
     ('|', [71], 'log(|)'),
@@ -116,7 +116,7 @@ KEYS = [
     ('[a|+b]', [SECOND, PLUS], '[a]|+b'),
     ('(x+1|', [RP], '(x+1)|'),
     # comma
-    ('surd(8|,)', [COMMA], 'surd(8,|)'),
+    ('surd(,8|)', [COMMA], 'surd(|,8)'),               # a full template: the next box
     ('integrate(x^(2|),x)', [COMMA], 'integrate(x^(2),|x)'),
     ('sin(x|)', [COMMA], 'sin(x,|)'),
     ('(1)/((2)/(3|))', [COMMA], '(1)/((2)/(3)),|'),
@@ -142,8 +142,8 @@ def test_keys(before, keys, after):
     assert U.R is None
 
 
-def test_surd_comma_steps_to_the_index():
-    assert ed('|', [SECOND, POW, 73, COMMA, 94]) == 'surd(8,3|)'
+def test_surd_comma_steps_from_the_index_to_the_radicand():
+    assert ed('|', [SECOND, POW, 94, COMMA, 73]) == 'surd(8|,3)'
 
 
 def test_clear_empties_then_clears_the_footer():
@@ -269,9 +269,10 @@ def test_walk_visits_every_stop_once_and_back(s):
 DELS = [
     ('2ans()|', '2|'),
     ('2ans(|)', '2|'),
-    ('sum(,k,|,)', '|'),
+    ('sum(,,|,)', '|'),                                 # no prefill: every box empty (0.10)
+    ('sum(,k,|,)', 'sum(,k|,,)'),                       # a typed k is text: like left
     ('(|)/()', '|'),
-    ('integrate(|,x)', '|'),
+    ('integrate(|,)', '|'),
     ('x^(|)', 'x|'),
     ('x^(|2)', 'x|^(2)'),
     ('(a)/(|)', 'a|'),
@@ -309,16 +310,17 @@ DELS = [
     ('log(|,8)', 'log(,8|)'),
     ('sqrt(ans()|)', 'sqrt(|)'),
     # more of the same rules
-    ('integrate(|x^(2),x)', '|x^(2)'),
+    ('integrate(|x^(2),)', '|x^(2)'),
+    ('integrate(|x^(2),x)', '|integrate(x^(2),x)'),     # a typed x is text (0.10)
     ('diff(f,|x)', '|diff(f,x)'),
-    ('diff(|,x)', '|'),
-    ('limit(,x,|)', '|'),
+    ('diff(|,)', '|'),
+    ('limit(,,|,)', '|'),
     ('(x+1)()|', '(x+1)|'),
     ('sin(x)+1|', 'sin(x)+|'),
     ('(1)/(2)+|', '(1)/(2)|'),
     ('xsqrt(|x+1)', 'x(|x+1)'),
     ('(|a+b', '|a+b'),
-    ('riemann(,x,,,)|', '|'),
+    ('riemann(,,,,)|', '|'),
     ('2(|)', '2|'),
 ]
 
@@ -401,18 +403,18 @@ PICKS = [
     ([SECOND, FRAC, 92], '(|)/()'),
     ([SECOND, FRAC, 93], '^(|)'),
     ([SECOND, FRAC, 94], 'sqrt(|)'),
-    ([SECOND, FRAC, 82], 'surd(|,)'),
+    ([SECOND, FRAC, 82], 'surd(,|)'),
     ([SECOND, FRAC, 83], 'e^(|)'),
     ([SECOND, FRAC, 84], '10^(|)'),
     ([SECOND, FRAC, 72], 'log(,|)'),
     ([SECOND, FRAC, RIGHT, 92], 'abs(|)'),
-    ([SECOND, FRAC, RIGHT, 93], 'integrate(|,x)'),
-    ([SECOND, FRAC, RIGHT, 94], 'integrate(,x,|,)'),
-    ([SECOND, FRAC, RIGHT, 82], 'diff(|,x)'),
-    ([SECOND, FRAC, RIGHT, 83], 'sum(,k,|,)'),
-    ([SECOND, FRAC, RIGHT, 84], 'limit(,x,|)'),
+    ([SECOND, FRAC, RIGHT, 93], 'integrate(,,|,)'),
+    ([SECOND, FRAC, RIGHT, 94], 'diff(,|)'),
+    ([SECOND, FRAC, RIGHT, 82], 'diff(,|,)'),
+    ([SECOND, FRAC, RIGHT, 83], 'sum(,|,,)'),
+    ([SECOND, FRAC, RIGHT, 84], 'limit(,|,,)'),
     ([SECOND, FRAC, DOWN, DOWN, ENTER], 'sqrt(|)'),
-    ([SECOND, FRAC, UP, ENTER], 'limit(,x,|)'),
+    ([SECOND, FRAC, UP, ENTER], 'limit(,|,,)'),
     ([SECOND, FRAC] + [DOWN] * 7 + [ENTER], 'abs(|)'),
     ([SECOND, FRAC, RIGHT, LEFT, 92], '(|)/()'),
 ]
@@ -453,7 +455,7 @@ def test_picker_screen_fits():
     assert TD.OFFSCREEN == [] and TD.OVERDRAW == []
 
 
-def test_prefill_in_menub_insertion():
+def test_menub_insertion_has_no_prefill():
     import menub as MB
     import run as R
     U.R = R
@@ -465,11 +467,12 @@ def test_prefill_in_menub_insertion():
     for sig, text, offset in (('sin(x)', 'sin()', 4), ('surd(x,n)', 'surd(,)', 5),
                               ('purge(x,...)', 'purge()', 6),
                               ('paramarea(x,y,t,a,b)', 'paramarea(,,,,)', 10),
-                              ('diff(f,x,[n])', 'diff(,x)', 5), ('sum(f,k,a,b)', 'sum(,k,,)', 4),
-                              ('integrate(f,x,[a,b])', 'integrate(,x)', 10),
-                              ('limit(f,x,a,[dir])', 'limit(,x,)', 6),
-                              ('riemann(f,x,a,b,n,[method])', 'riemann(,x,,,)', 8),
-                              ('arclen(f,x,a,b)', 'arclen(,x,,)', 7),
+                              ('diff(f,x,[n])', 'diff(,)', 5), ('sum(f,k,a,b)', 'sum(,,,)', 4),
+                              ('integrate(f,x,[a,b])', 'integrate(,,,)', 10),
+                              ('limit(f,x,a,[dir])', 'limit(,,,)', 6),
+                              ('log(x,[b])', 'log(,)', 4),
+                              ('riemann(f,x,a,b,n,[method])', 'riemann(,,,,)', 8),
+                              ('arclen(f,x,a,b)', 'arclen(,,,)', 7),
                               ('taylor(f,x=a,[n])', 'taylor(,)', 7),
                               ('solve(eq,[x])', 'solve()', 6)):
         if sig in rows:
@@ -481,7 +484,8 @@ def test_prefill_in_menub_insertion():
 
 def test_enter_stage_one_needs_no_engine():
     for before, pos in (('(1)/(|)', 5), ('diff(,x)|', 5), ('sqrt()|', 5), ('x^()|', 3),
-                        ('x^(2)+|', 6), ('sum(,k,,)|', 7), ('integrate(,x,,)|', 13)):
+                        ('x^(2)+|', 6), ('sum(,k,,)|', 7), ('integrate(,x,,)|', 10),
+                        ('integrate(,x,0,)|', 15)):
         setline(before)
         U.key(ENTER)
         assert U.CUR == pos and U.STATUS == 'fill in the empty slot', before
@@ -563,14 +567,14 @@ def test_up_leaves_the_line_for_history_only_without_a_candidate():
 # -- menus: PENDING and the TEST leave rule ----------------------------------------------------
 
 def test_menu_insertion_puts_the_caret_in_the_first_empty_slot():
-    for script, line, cur in (('{math}{enter}', 'diff(,x)', 5),
-                              ('{math}{down}{enter}', 'integrate(,x)', 10),
-                              ('{math}{down}{down}{enter}', 'limit(,x,)', 9),
-                              ('{2nd,0}su{enter}', 'sum(,k,,)', 7),
+    for script, line, cur in (('{math}{enter}', 'diff(,)', 6),
+                              ('{math}{down}{enter}', 'integrate(,,,)', 12),
+                              ('{math}{down}{down}{enter}', 'limit(,,,)', 7),
+                              ('{2nd,0}su{enter}', 'sum(,,,)', 5),
                               # only closers after the caret: an action wraps the line
-                              ('x^(2{math}{down}{enter}', 'integrate(x^(2),x)', 15),
-                              ('x^(2{left}{math}{down}{enter}', 'x^(integrate(,x)2)', 13),
-                              ('{math}{down}{enter}x{2nd,right}', 'integrate(x,x)', 14),
+                              ('x^(2{math}{down}{enter}', 'integrate(x^(2),,,)', 17),
+                              ('x^(2{left}{math}{down}{enter}', 'x^(integrate(,,,)2)', 15),
+                              ('{math}{down}{enter}x{2nd,right}', 'integrate(,,x,)', 15),
                               ('{2nd,0}sin{enter}', 'sin()', 4)):
         s = KS.run(script)
         u = s.mods['ui']
@@ -847,12 +851,12 @@ HINTS = {'simplify': 'simplify(e)', 'expand': 'expand(e)', 'factor': 'factor(e,[
          'desolve': 'desolve(eq,[y])', 'grad': 'grad(f,[x,y,z])',
          'polararea': 'polararea(r,t,a,b)', 'paramarea': 'paramarea(x,y,t,a,b)',
          'arclen': 'arclen(f,x,a,b)', 'purge': 'purge(x,...)', 'approx': 'approx(e)'}
-TEMPLATES = (('n/d  fraction', '', 0), ('x^n  power', '', 0), ('sqrt  square root', 'sqrt()', 5),
-             ('n-root  nth root', 'surd(,)', 5), ('e^x', 'e^()', 3), ('10^x', '10^()', 4),
-             ('log_b  log base b', 'log(,)', -1), ('|x|  absolute value', 'abs()', 4),
-             ('int  integral', 'integrate(,x)', -1), ('int a..b  definite', 'integrate(,x,,)', -1),
-             ('d/dx  derivative', 'diff(,x)', -1), ('sum  k=a..b', 'sum(,k,,)', -1),
-             ('lim  limit', 'limit(,x,)', -1))
+TEMPLATES = (('n/d  fraction', ''), ('x^n  power', ''), ('sqrt  square root', 'sqrt()'),
+             ('n-root  nth root', 'surd(,)'), ('e^x', 'e^()'), ('10^x', '10^()'),
+             ('log_b  log base b', 'log(,)'), ('|x|  absolute value', 'abs()'),
+             ('int  integral', 'integrate(,,,)'), ('d/dx  derivative', 'diff(,)'),
+             ('d^n/dx^n  nth derivative', 'diff(,,)'), ('sum  k=a..b', 'sum(,,,)'),
+             ('lim  limit', 'limit(,,,)'))
 
 
 def test_string_tables_decode_to_the_key_hint_and_template_tables():
@@ -866,5 +870,5 @@ def test_string_tables_decode_to_the_key_hint_and_template_tables():
     for name in ('', 'sin', 'integ', 'integrat', 'x', 'egrate'):
         assert U.hint(name) == ''
     assert U.TN == len(TEMPLATES)
-    for j, (label, text, caret) in enumerate(TEMPLATES):
-        assert U.tmpl(j) == [label, text, str(caret)]
+    for j, (label, text) in enumerate(TEMPLATES):
+        assert U.tmpl(j) == [label, text]
