@@ -167,7 +167,7 @@ not match the code. Each section is edited to match.
 | Spec said | Code does, and why |
 |---|---|
 | `EKEY = (LINE, CUR, XOFF, EXOFF, EH, EFLAT, theme)` | `EKEY = (LINE, CUR, geometry, caret column, caret top)` with geometry `(flat, XOFF, EXOFF, EH, theme BG, content top, ascent)`. The old caret's place is needed by the strip and diff paths, and a change of content top or ascent (a taller numerator with the same `EH`) moves every item and the markers' baseline, so it takes the full entry repaint (§6.4) |
-| `EDL`: the new absolute display list | The items of `EDMAP[1]` shifted to the screen, with the trailing box at the caret (flag 1, `pos == CUR`) left out and every `'b'` item's `pos`/`flags` set to 0: two lists then compare pairwise by what is drawn. A caret move that would show or hide such a box (onto or off a trailing `E`) takes the diff path, not the caret strip (§6.4) |
+| `EDL`: the new absolute display list | (Shrink review, §0.9: `EDL` is now `EDMAP[1]` itself, compared in layout coordinates, and a trailing box at the old or new caret counts as changed.) The items of `EDMAP[1]` shifted to the screen, with the trailing box at the caret (flag 1, `pos == CUR`) left out and every `'b'` item's `pos`/`flags` set to 0: two lists then compare pairwise by what is drawn. A caret move that would show or hide such a box (onto or off a trailing `E`) takes the diff path, not the caret strip (§6.4) |
 | Caret strip `rect(ocx-1, oy-1, 2, 17)` | `rect(lx, cy-1, 2, 17)`, `lx` the column of the old caret line (`9 + X - EXOFF`) and `cy` its text top: the same two columns. `<` is repainted by the diff path only when `x0 < 10`; `>` whenever it shows (the diff region always reaches it, the caret strip never) |
 | Batch order BG, ACCSOFT, LINE, SUB, INK, ACC | Full: BG, ACCSOFT (tabs, band), LINE (rules, then the entry's boxes), INK (the entry, caret, status, answers), SUB (inputs, messages, hint), ACC (chip, labels, footer label): one `epaint` call paints the entry's two batches back to back, so it stays one L3 call and ≤ 6 colors. Partial: BG fills (status, hint, entry), LINE/INK (entry), INK (status), SUB (hint), ACC (footer label, chip) |
 | Footer: SUB hint row | Left part SUB, the right part (`exact  F4`) ACC, as today's hero drew it. `HINTVIEW = (left, right, EY)` |
@@ -228,12 +228,64 @@ size: CASUX (34.6 KB of bytecode, 41.5 KB of heap) loaded at boot under the engi
 the first ENTER loads, so shedding CASUX for a computation left its hole under the resident
 engine, between long-lived objects, and the next family or printer import found no
 contiguous run (measured: an `arclen` alone needed 171 KB, against 159 KB in v1.0). The last
-statement of the `ui` module (CASUI) now allocates an 80,000-byte `bytearray` when more than
+statement of the `ui` module (CASUI) allocates an 80,000-byte `bytearray` when more than
 144,000 bytes are free (never on the desktop, which has no `gc.mem_free`); CASUX is imported
-above it, and `engine()` drops it just before importing the engine, which then fills the low
-heap (`arclen` alone: 161 KB). A 2D layout that runs out of memory before the engine loads
-drops it too (§5.3). The native harness's "heap boot" figure includes the held block (about
-36 KB free at 173,360 instead of 116 KB); it is free again at the first ENTER or menu.
+above it, and `boot()` (the first CASUX call) drops it at once (shrink review, §0.9; the
+first version held it until `engine()`). The engine, imported later, still fills the low
+heap, because nothing long-lived is allocated there in between: across heaps of 174,000 to
+196,000 bytes, native `ui_calculus` needs the same heap either way (§0.9), and without the
+block it needs about 194 KB. The native harness's "heap boot" figure is now the real free
+heap (it prints `boot block held: 0`); before, it counted the held block as used (about
+36 KB free at 173,360 instead of 116 KB). Before the engine loads, a 2D layout that runs out
+of memory is drawn 1D, with no retry: about 120 KB are free then.
+
+### 0.9 CASUX shrink (2026-10-20)
+
+The user asked for CASUX to be shrunk to win back the result-screen heap MathPrint cost,
+without losing features or speed. Three analyses measured the options natively (pack
+splits, code and build levers, the boot block); this is what was done, all features kept:
+
+| Change | Where |
+|---|---|
+| `PLAIN`/`SECOND`/`ALPHA` as `(key-code bytes, '|'-joined texts)` read by `kmap(T, k)`; `HINT` one string read by `hint(name)`; `TMPL` one string read by `tmpl(j)` (`TN` rows). A dict of short strings costs about three times one string's heap (§2, §3.2, §7.4) | ui (CASUX) |
+| `draw.mname(s, o)` replaces six copies of the call-name scan; `draw.glyph` is the glyph loop of `render` and `mrender`; `tidy(s, 1)` replaces `structure(s)` (one parse prologue and splice loop, §1.4) | draw, ui |
+| The caret map's `RK` slot is `None`: `edmove` ranks a stop with `ORD.index(CUR)` (§4.2) | draw, ui |
+| `EDL` is `EDMAP`'s own display list, drawn at the entry offset; no absolute copy per edit (§6.4) | ui |
+| `draw.layout` returns `(dl, w, asc, h)`; the dead `draw.paint` and the test-only fields went to a test helper | draw |
+| `key`'s menu-choice glue is `menub.apply(choice)` in CASMNU, which is loaded at that moment (§2) | menub |
+| The boot block is released at boot (§0.8) | ui |
+| Tight packs (`build/manifest.py` `TIGHT`: CASUI, CASUX): a local alias of CASUI in functions that name it 3+ times, int constants as literals, `len`/`range`/`min`/`max` bound as pack globals, `mpy-cross -O3` (no line-number tables). CASUX's globals table had been full (73 of 73), so every builtin lookup probed all of it; now 77 of 97 (FASTBOOT.md) | build |
+| The empty page has no title or tagline (user request, §7) | ui |
+
+Native MicroPython v1.12 (cas32, `build/micro_smoke.py`), medians over heaps H−1024 to
+H+1024 in 256-byte steps, normalized to H. "boot": free after boot, excluding any boot block;
+"result": free at the result screen (input and printer packs still cached); "shed": the same
+after the idle soft and aux packs give way (comparable across builds).
+
+| Build | CASUX .mpy | CASUX import heap | `ui` boot / result / shed | `ui_calculus` @189,776 boot / result / shed |
+|---|---|---|---|---|
+| 631ab5c (before MathPrint) | 11,622 | 15,600 | 142,416 / 54,016 / 79,952 | 156,368 / 67,984 / 93,920 |
+| 08ed003 (boot block held) | 34,806 | 41,760 | ~115,500 (35,456 + the 80,016-byte block) / 26,960 / 52,896 | ~129,400 (49,392 + block) / 40,944 / 66,880 |
+| this change | 29,286 | 34,608 | 122,976 / 34,320 / 60,256 | 136,464 / 47,904 / 73,840 |
+
+So about 7.4 KB of the 27 KB that MathPrint cost at the result screen came back (boot +7.5 KB
+against the 08ed003 heap without its block). Native `ui_calculus` across heaps 174,000 to
+196,000 (512-byte steps) passes everywhere from 179,632 (08ed003, block held: from 180,144);
+`ui_edit` from 166,384 (08ed003: from 171,504). `startup` @95,000, `probe` @212,000 (55/55)
+and the 64-bit suites pass.
+
+Speed (native cas32, a 150-character line): `mlayout` 1,268 → 1,085 µs; two edits with
+their paints 2.8 → 2.3 ms; two paints 346 → 255 µs; four arrow keys about 405 → 345 µs.
+
+Not done, with the measured reason: a soft pack for the template picker (−1.2 KB; an archive
+import, seconds on the EVO, when the picker opens); moving the ENTER helpers or Classic keys
+to a lazy pack (an import per ENTER or per key, and `ui_calculus` failed from fragmentation);
+array caret maps (runtime only, 4–10 % slower); drawing answers with the MathPrint layout
+(−2.5 KB, but answers would lose their RPN-based looks). The rest of CASUX runs on every key
+or every result (the editor keys about 10 KB of heap, the editor layout about 10 KB, the answer
+layout about 5 KB), so the remaining gap to v1.0 is the editor itself. Compiling the engine
+packs with `-O3` too would add about 4 KB at the result screen, at the cost of line numbers in
+engine tracebacks; it is left out (engine unchanged).
 
 ---
 
@@ -250,7 +302,7 @@ drops it too (§5.3). The native harness's "heap boot" figure includes the held 
 | `EDMAP` | `None` | Caret map of the last 2D layout of `LINE` (§5.2, "Result"), or `None` for a flat/1D line. |
 | `EMODEL` | `None` | `(LINE, CLASSIC)` for which `emodel()` last built the model. The model is rebuilt only when this differs, so a degraded line (`ED1D`, `EFAIL`) is not laid out again until the text changes, and the F3 Classic toggle rebuilds it. Set to `None` before every job and in `panic`. |
 | `EFLAT` | `True` | The current line is drawn and edited flat/1D (§5.1, §5.3). Set by `emodel()`. |
-| `EDL`, `EKEY` | `None` | Last painted entry: its display list (absolute coordinates, hidden boxes left out) and `(LINE, CUR, geometry, caret column, caret top)`, geometry `(flat, XOFF, EXOFF, EH, theme, content top, ascent)` (§0.6); `XOFF` counts only for a flat line (it is 0 in a 2D key, §0.8). Used by the diff paint. |
+| `EDL`, `EKEY` | `None` | Last painted entry: `EDMAP`'s display list (layout coordinates, drawn at `10 - EXOFF`, content top; the trailing box at the caret is skipped when drawn) and `(LINE, CUR, geometry, caret column, caret top)`, geometry `(flat, XOFF, EXOFF, EH, theme, content top, ascent)` (§0.6); `XOFF` counts only for a flat line (it is 0 in a 2D key, §0.8). Used by the diff paint. |
 | `PENDING` | `None` | `(a, b)`: put the caret in the first empty slot (drawn order) inside `LINE[a:b]`. Resolved in `emodel()` (§6.5). |
 | `ED1D` | `False` | The current line is drawn 1D because the layout is over its caps or raised `MemoryError`. |
 | `EFAIL` | `None` | The `LINE` for which `panic` (reason 0 or 3) ran. While `LINE == EFAIL`, it is drawn 1D, so a failing layout is never retried in a loop. |
@@ -347,8 +399,9 @@ so ENTER degrades instead of panicking (§0.8).
 `run.start` still applies autoclose, Ans, `ti_rewrite` and implicit multiplication. The
 engine is unchanged.
 
-### 1.4 `structure(s)` (recall only), L3
+### 1.4 `structure(s)` (recall only), L3: `tidy(s, 1)`
 
+In code it is `tidy(s, 1)` (§0.9): one parse prologue and splice loop with `tidy`.
 `structure` parses `s` in mode 1. For every stacked fraction operand and every exponent
 that is not exactly one group, it inserts `(` at the operand's start and `)` at its end.
 Insertions are collected as `(pos, ch)` tuples, sorted with a plain `list.sort()`, and
@@ -685,7 +738,8 @@ the whole line; a top-level comma ends it too, as on a 2D line (`ui.edslot`, §0
 
 ### 4.2 ← / → (`edmove`, L3)
 
-- 2D: `CUR = ORD[RK[CUR] ± 1]`, skipping entries whose `(X, Y)` equals the current one.
+- 2D: `CUR = ORD[ORD.index(CUR) ± 1]`, skipping entries whose `(X, Y)` equals the current one
+  (the `RK` table is gone, §0.9; `CUR` is already a stop).
   Clamp at the ends.
 - Flat: `CUR ± 1`, then skip non-stops in the same direction.
 
@@ -853,7 +907,8 @@ map.
    - In mode 2 it fills the map through `D.mmark` (L5).
 
 **Result** (mode 2):
-`(line, dl, w, asc, desc, X, Y, RK, ORD, SL, SLOTS, CONS, EMPTY)`.
+`(line, dl, w, asc, desc, X, Y, RK, ORD, SL, SLOTS, CONS, EMPTY)`; `RK` is `None` since the
+shrink review (§0.9).
 - `X`, `Y` are lists of length `len+1` (x and text top; `X = -1` for a non-stop).
 - `CONS` holds `(cs, os, oe, kind)` per construct: `cs` is the full start (the base start
   for W, the numerator start for Q, `os` otherwise).
@@ -903,8 +958,8 @@ Memory (text prototype, tracemalloc on CPython; MicroPython about one third):
 
 Retained `EDMAP`, measured on native MicroPython 1.12 (32-bit; review, §0.8): 1.5 KB at 23
 characters, 4.3 KB at 72, 7.8 KB at 156 (the text prototype's "about 0.6 KB at 30, at most
-4 KB" understated it); `EDL`, the absolute copy of the display list, adds about a third of
-that. The layout's live peak is about 265 B per character (23 KB for an 87-character
+4 KB" understated it); `EDL`, the absolute copy of the display list, added about a third of
+that until the shrink review (§0.9), which made it a reference to `EDMAP`'s list. The layout's live peak is about 265 B per character (23 KB for an 87-character
 calculus line). Both are freed before every job and in `panic`, and given back first when a
 layout runs out of memory (§5.3).
 
@@ -1124,7 +1179,7 @@ entry is at the bottom.
 |---|---|
 | MODE | the selected entry's footer |
 | LINE empty and `HERO` | the newest entry's footer |
-| LINE non-empty | `HINT[ALIAS[enclosing()]]` (≤ 31 columns), or nothing |
+| LINE non-empty | `hint(ALIAS[enclosing()])` (the `HINT` signature, ≤ 31 columns), or nothing |
 
 The footer is today's text, unchanged:
 - left: `('+ C  ' if F_PLUSC) + ('~ ' + approx if exact)`, cut to `29 - len(right)`;
@@ -1190,7 +1245,7 @@ History inputs stay 2D. Classic also serves as:
 
 | Function | Module | #@L | Pack | Calls (level) |
 |---|---|---|---|---|
-| `key(k)` (changed) | ui | 1 | CASUX | engine 2, emodel 2, edkey 2, picker 2, redraw 2, menu.open 2; tidy/structure/paste/insert/empty_map/empty_slot/enclosing/wrapped/edins 3; leave 4 |
+| `key(k)` (changed) | ui | 1 | CASUX | engine 2, emodel 2, edkey 2, picker 2, redraw 2, menu.open 2; tidy/paste/insert/empty_map/empty_slot/enclosing/wrapped/edins/kmap/tmpl/menub.apply 3; wrapend/put 4 |
 | `show(job, rec)` (resets EH, XOFF, EXOFF, EDMAP, EDL, EKEY, EMODEL, PENDING, VIEWEND) | ui | 1 | CASUX | emodel 2, redraw 2 |
 | `boot` | ui | 1 | CASUX | emodel 2, redraw 2 |
 | `panic(reason)` (also resets the entry globals, sets `EFAIL = LINE` for reasons 0/3, still draws plain `LINE` at (10, 172)) | ui | 1 | **CASUI** | D primitives only |
@@ -1203,7 +1258,9 @@ History inputs stay 2D. Classic also serves as:
 | `eddel()` → True: move left instead | ui | 3 | CASUX | put, keep, blank, spans 4; bmatch, D.mcall 5 |
 | `edmove(d, mod)`, `edvert(d)` → bool | ui | 3 | CASUX | D.mstop 4 |
 | `paste(text, bare)` (`bare`: the unwrapped result, or None) | ui | 3 | CASUX | edslot, put 4 |
-| `tidy(s)`, `structure(s)` | ui | 3 | CASUX | D.mlex, D.mparse 4 |
+| `tidy(s, back=0)` (`back`: recall, formerly `structure(s)`) | ui | 3 | CASUX | D.mlex, D.mparse 4 |
+| `tmpl(j)`, `kmap(t, k)` (string tables, §0.9) | ui | 3 | CASUX | – |
+| `hint(name)` | ui | 4 | CASUX | – |
 | `empty_map()` | ui | 3 | CASUX | – |
 | `empty_slot()` (log-base skip, §2.2) | ui | 3 | CASUX | – |
 | `enclosing()` (skips unnamed groups, drops leading digits) | ui | 3 | CASUX | – |
@@ -1215,8 +1272,10 @@ History inputs stay 2D. Classic also serves as:
 | `bmatch(s, i, d)` (the matching bracket) | ui | 5 | CASUX | – |
 | `mlayout(s, mode)` | draw | 3 | CASUX | mlex, mparse, mbox, mplace 4 |
 | `clear_cache()` (also ICACHE) | draw | 3 | CASUI | – |
-| `mflat(s)`, `mstop(s, i)`, `mlex(s)` | draw | 4 | CASUX | mcall 5 |
-| `mcall(s, i, j)` (§1.2) | draw | 5 | CASUX | – |
+| `mflat(s)`, `mstop(s, i)`, `mlex(s)` | draw | 4 | CASUX | mname, mcall 5 |
+| `mname(s, o)` (the call name before the `(` at o, §0.9) | draw | 5 | CASUX | mcall 6 |
+| `mcall(s, i, j)` (§1.2) | draw | 6 | CASUX | – |
+| `glyph(item, x, y, clip)` (the glyph strokes of `render` and `mrender`) | draw | 5 | CASUX | clipped_line 6 |
 | `mparse(s, tk, mode)` | draw | 4 | CASUX | mpush, mshut 5; mreduce 6 |
 | `mbox(s, nodes, root, mode)` | draw | 4 | CASUX | row, frame, large, tleaf 5; leaf 6 |
 | `mplace(s, nodes, boxes, root, mode)` | draw | 4 | CASUX | mmark 5 |
@@ -1225,6 +1284,7 @@ History inputs stay 2D. Classic also serves as:
 | `mreduce(nodes, vals, op, mode)` | draw | 6 | CASUX | – |
 | `menu.open` (setup row 5) | menu | 2 | CASMNU | unchanged calls |
 | `menub.insertion` (prefill at position ≥ 1) | menub | 3 | CASMNU | – |
+| `menub.apply(choice)` (key's menu-choice glue, §0.9) | menub | 3 | CASMNU | leave, wrapend, put 4 |
 
 Checked against framelint: every edge above has callee level > caller level, and no
 function is above 6. Edges that are easy to get wrong: `picker` is called by `key`, not by
@@ -1241,8 +1301,8 @@ must not call `emodel` either: `key` refreshes a stale model at dispatch step 2.
 
 **Tables and constants placed in CASUX** (each is bound once to a literal and never
 assigned in a function, which `packs.Plan.constant` requires of a placed name).
-- `ui`: `PLAIN`, `SECOND`, `ALPHA`, `HINT`, `ALIAS` (unchanged, as today), plus the new
-  `TMPL` (picker rows, a tuple of tuples) and `PREFILL` (the prefilled second parameter per
+- `ui`: `PLAIN`, `SECOND`, `ALPHA`, `HINT`, `ALIAS`, plus the new `TMPL` (picker rows) and
+  `TN` (since §0.9 the key tables, `HINT` and `TMPL` are strings) and `PREFILL` (the prefilled second parameter per
   name, for DEL's empty test).
 - `draw`: the new `TPL` (dict literal), `TGAP` (int), `MPREC` (dict) and `MFNT` (tuple). No
   CASUI function reads them;
@@ -1254,7 +1314,7 @@ assigned in a function, which `packs.Plan.constant` requires of a placed name).
 (`packs.py`: "lives in soft pack … but assigns globals").
 - `ui`: `EXOFF`, `EH`, `EDMAP`, `EDL`, `EKEY`, `EMODEL`, `EFLAT`, `PENDING`, `ED1D`,
   `EFAIL`, `CLASSIC`, `VIEWEND`, `STATVIEW`, `HINTVIEW`, `CARETC`, `EDIFF`, `PAGEMAX`,
-  and (review, §0.8) `BALLAST`, the boot block.
+  and (review, §0.8) `BALLAST`, the boot block (released by `boot()`).
 - `draw`: `ICACHE`, `ICACHE_BYTES`.
 
 CASUX code assigns these only as ui/draw globals (`CASUI.X` after packing), as `key()`
@@ -1297,9 +1357,9 @@ because the editor came out at about twice the estimated size (§0.7).
 
 | Pack | Before MathPrint | Spec estimate | Measured (milestone D) |
 |---|---|---|---|
-| CASUX | 11,156 B | ~21 KB | **30,929 B** (PACKMAX 60,000: 29,071 B spare) |
-| `room('layout')` reload (`ROOMCOST` 1.4 × bytecode + 512) | 16,130 B | ~30 KB | **43,812 B** |
-| CASUI | 3,540 B | ~3.8 KB | **3,903 B** |
+| CASUX | 11,156 B | ~21 KB | **30,929 B** (PACKMAX 60,000: 29,071 B spare); after the shrink review (§0.9) **27,367 B** |
+| `room('layout')` reload (`ROOMCOST` 1.4 × bytecode + 512) | 16,130 B | ~30 KB | **43,812 B**; after §0.9 **38,825 B** |
+| CASUI | 3,540 B | ~3.8 KB | **3,903 B**; after §0.9 **3,716 B** |
 
 The engine is untouched, and CASUX is shed during family commands as today, so compute
 speed and compute heap are unchanged. The cost is a heavier CASUX reload after heavy
@@ -1309,10 +1369,10 @@ commands. The gate is native `ui_calculus` at 189,776 (§12.9).
 
 | Item | Size |
 |---|---|
-| Boot (CASUI + CASUX) | the boot block (80 KB, §0.8) is held until the engine loads; ~+10 KB estimated; measured +20.1 KB of bytecode (CASUX +19,773 B, CASUI +363 B), so about +28 KB of heap at `ROOMCOST` 1.4 (§9.2, §0.7). Boot still imports only CASUI and CASUX (`tests/test_release.py::test_boot_loads_only_the_ui`) |
+| Boot (CASUI + CASUX) | the boot block (80 KB, §0.8) is released at boot; ~+10 KB estimated; measured at milestone D +20.1 KB of bytecode (CASUX +19,773 B, CASUI +363 B), so about +28 KB of heap at `ROOMCOST` 1.4 (§9.2, §0.7); after the shrink review CASUX costs 34,608 B of heap natively against 15,600 before MathPrint (§0.9). Boot still imports only CASUI and CASUX (`tests/test_release.py::test_boot_loads_only_the_ui`) |
 | Typing transient, per 2D key | ~265 B per character on MicroPython 1.12 (23 KB at 87 characters, ~42 KB at the 160 cap); freed by the next GC. On `MemoryError` the idle engine packs give way once (§5.3) |
 | Flat key | ~0 |
-| Retained while idle: `EDMAP`/`EDL` | measured 1.5 KB at 23 characters, 4.3 KB at 72, 7.8 KB at 156 (+ about a third for `EDL`) |
+| Retained while idle: `EDMAP`/`EDL` | measured 1.5 KB at 23 characters, 4.3 KB at 72, 7.8 KB at 156 (`EDL` is `EDMAP`'s own list since §0.9; it was about a third more) |
 | Retained while idle: ICACHE | ≤ 4 KB, measured (§7.3) |
 
 All retained state is cleared before every job.

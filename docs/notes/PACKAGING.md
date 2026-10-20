@@ -144,7 +144,9 @@ heap remain device checks.
 ### Compiler and ABI
 
 MicroPython v1.12 at `1f371947309c5ea6023b6d9065415697cbc75578` compiles the
-packs with `-mcache-lookup-bc -msmall-int-bits=31`; the required header is
+packs with `-mcache-lookup-bc -msmall-int-bits=31`, and the `TIGHT` packs of
+`build/manifest.py` (the UI packs CASUI and CASUX) also with `-O3`, which drops
+their line-number tables; the required header is
 `4d05031f` (MPY v5.3, 31-bit small ints). The builder rejects another ABI. A
 newer `mpy-cross` is not interchangeable with the EVO compiler. Renaming `.py`
 or `.mpy` files cannot perform the TIVarsLib conversion.
@@ -173,7 +175,9 @@ builds.
 - `launchers`, `transfer_check` and `device_validation`.
 
 AST rewriting changes line layout, so a mapping identifies the containing source
-statement, not an exact line. To map a device traceback line:
+statement, not an exact line. A `TIGHT` pack has no line numbers (`-O3`): its
+traceback frames report line 1, and only their function names locate them. To
+map a device traceback line of another pack:
 
     python build/linemap.py --map dist/release.json CASK1:120
 

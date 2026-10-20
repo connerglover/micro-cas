@@ -128,6 +128,18 @@ shrinking off. Lazy UI aliases (`R = None`,
 then `global R; import run as R` in `ui.engine`) bind the pack at run time, through the UI's
 home pack, so the engine never loads at boot.
 
+Later addition (MathPrint shrink, 2026-10-20): the UI packs are built *tight* (`TIGHT` in
+`build/manifest.py`). A function that names CASUI three or more times reads it through one
+local alias (3 bytes of bytecode less per use, and LOAD_FAST instead of a global lookup);
+ints bound once at module level are emitted as literals; `len`, `range`, `min` and `max` are
+bound as pack globals; and `mpy-cross -O3` drops the line-number tables (tracebacks from those
+packs report line 1). The builtins matter for speed: MicroPython 1.12 grows a module's globals
+table only when it is full, and a builtin lookup first misses the module table, probing up to
+its first empty slot. CASUX's table was full (73 of 73) after MathPrint; with the bindings it
+holds 77 of 97, and native mlayout of a 150-character line fell from 1,268 to 1,085 us.
+`tests/test_release.py` keeps every tight pack's table off full and the view pack's at most
+85% full.
+
 Later addition: a second aux pack, CASBIG, holds `nodeb` (powers too large to fold, DESIGN
 6.1). `node` keeps only cheap tests and reaches it through `__import__`, so a command without a
 giant power never loads it; `nodeb`'s back-reference to `node` (`K = None`, bound by node's

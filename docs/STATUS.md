@@ -13,6 +13,15 @@ them as current.
   177779f; pages still publishes source commit 25b83b0 until main is pushed
   and CI passes. The merge changed no tested source bytes;
   see [v1 delivery](#v1-delivery-published-superseded) below.
+- **MathPrint branch `mathprint` (local, not pushed; 2026-10-20).** The 2D
+  editor ([notes/MATHPRINT.md](notes/MATHPRINT.md)) grew CASUX from 11.6 KB to
+  34.8 KB of bytecode. The shrink review (MATHPRINT.md §0.9) brings it to
+  29.3 KB (native import heap 41.8 KB to 34.6 KB) without dropping a feature:
+  native cas32 `ui` result-screen heap 26,960 to 34,320 B free (54,016 before
+  MathPrint), boot 115.5 KB to 123.0 KB (142.4 KB before), `ui_calculus` passing
+  from 179,632 B, `ui_edit` from 166,384 B; every CI heap passes. Harness
+  evidence only; no EVO run of the MathPrint build yet. The empty page no
+  longer shows the "cas-evo" title and tagline.
 - **Device report on v1, 2026-10-11.** The v1 package (236 archived libraries
   plus two RAM launchers) took **5 min 30 s** on the user's EVO and then failed
   with `TypeError: function takes 1 positional arguments but 3 were given` at
