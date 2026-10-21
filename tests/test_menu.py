@@ -53,7 +53,7 @@ def test_help_example():
 
 def test_catalog_every_command_and_macro():
     cat = R.need('cat').CAT
-    names = [row[0].split('(')[0] for row in cat]
+    names = [row[1].rstrip('(') for row in cat]
     assert set(R.CMDS) | set(R.MACROS) <= set(names)
     assert all(len(row) == 5 and all(row) for row in cat)
 
@@ -93,8 +93,9 @@ def test_about_shows_boot_and_engine_times(monkeypatch):
 
 
 def row(sig):
+    """The catalog row of a command, by its signature's name (sin(x) is the row of sin()."""
     for r in R.need('cat').CAT:
-        if r[0] == sig:
+        if r[1] == sig.split('(')[0] + '(':
             return r
     raise KeyError(sig)
 
@@ -112,10 +113,8 @@ def test_insertion_has_empty_boxes_and_no_prefill():
     assert mb.insertion(row('limit(f,x,a,[dir])'))[0] == 'limit(,,,)'
     assert mb.insertion(row('integrate(f,x,[a,b])'))[0] == 'integrate(,,,)'
     assert mb.insertion(row('log(x,[b])'))[0] == 'log(,)'
-    assert mb.insertion(row('taylor(f,x=a,[n])'))[0] == 'taylor(,)'
-    for r in R.need('cat').CAT:
-        if r[0].startswith('surd('):
-            assert mb.insertion(r)[0] == 'surd(,)'
+    assert mb.insertion(row('taylor(f,x=a,[n])'))[0] == 'taylor(,,)'     # QPL Q4: the order box
+    assert mb.insertion(row('surd(x,n)'))[0] == 'surd(,)'
 
 
 def test_setup_row_toggles_the_editor():

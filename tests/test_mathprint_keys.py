@@ -463,7 +463,7 @@ def test_menub_insertion_has_no_prefill():
     cat = R.need('cat').CAT
     rows = {}
     for row in cat:
-        rows[row[0]] = row
+        rows[row[1].rstrip('(')] = row
     for sig, text, offset in (('sin(x)', 'sin()', 4), ('surd(x,n)', 'surd(,)', 5),
                               ('purge(x,...)', 'purge()', 6),
                               ('paramarea(x,y,t,a,b)', 'paramarea(,,,,)', 10),
@@ -471,12 +471,12 @@ def test_menub_insertion_has_no_prefill():
                               ('integrate(f,x,[a,b])', 'integrate(,,,)', 10),
                               ('limit(f,x,a,[dir])', 'limit(,,,)', 6),
                               ('log(x,[b])', 'log(,)', 4),
-                              ('riemann(f,x,a,b,n,[method])', 'riemann(,,,,)', 8),
+                              ('riemann(f,x,a,b,n,[method])', 'riemann(,,,,,)', 8),
                               ('arclen(f,x,a,b)', 'arclen(,,,)', 7),
-                              ('taylor(f,x=a,[n])', 'taylor(,)', 7),
-                              ('solve(eq,[x])', 'solve()', 6)):
-        if sig in rows:
-            got = MB.insertion(rows[sig])
+                              ('taylor(f,x=a,[n])', 'taylor(,,)', 7),
+                              ('solve(eq,[x])', 'solve(,)', 6)):
+        if sig.split('(')[0] in rows:
+            got = MB.insertion(rows[sig.split('(')[0]])
             assert got[0] == text and got[2] == offset, (sig, got)
 
 
@@ -851,12 +851,11 @@ HINTS = {'simplify': 'simplify(e)', 'expand': 'expand(e)', 'factor': 'factor(e,[
          'desolve': 'desolve(eq,[y])', 'grad': 'grad(f,[x,y,z])',
          'polararea': 'polararea(r,t,a,b)', 'paramarea': 'paramarea(x,y,t,a,b)',
          'arclen': 'arclen(f,x,a,b)', 'purge': 'purge(x,...)', 'approx': 'approx(e)'}
-TEMPLATES = (('n/d  fraction', ''), ('x^n  power', ''), ('sqrt  square root', 'sqrt()'),
-             ('n-root  nth root', 'surd(,)'), ('e^x', 'e^()'), ('10^x', '10^()'),
-             ('log_b  log base b', 'log(,)'), ('|x|  absolute value', 'abs()'),
-             ('int  integral', 'integrate(,,,)'), ('d/dx  derivative', 'diff(,)'),
-             ('d^n/dx^n  nth derivative', 'diff(,,)'), ('sum  k=a..b', 'sum(,,,)'),
-             ('lim  limit', 'limit(,,,)'))
+TEMPLATES = (('Fraction', ''), ('Exponent', ''), ('Square root', 'sqrt()'),
+             ('Nth root', 'surd(,)'), ('e exponent', 'e^()'), ('10 exponent', '10^()'),
+             ('Log base b', 'log(,)'), ('Absolute value', 'abs()'),
+             ('Integral', 'integrate(,,,)'), ('First derivative', 'diff(,)'),
+             ('Nth derivative', 'diff(,,)'), ('Sum', 'sum(,,,)'), ('Limit', 'limit(,,,)'))
 
 
 def test_string_tables_decode_to_the_key_hint_and_template_tables():

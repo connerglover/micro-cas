@@ -29,7 +29,7 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
     helpentry = None
     name = U.ALIAS.get(command, command)
     for row in cat:
-        if row[0].split('(')[0] == name:
+        if row[1].rstrip('(') == name:
             helpentry = row
             break
     while True:

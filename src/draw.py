@@ -31,6 +31,16 @@ ICACHE_BYTES = 0
 TPL = {'sqrt': (1,), 'abs': (1,), 'exp': (1,), 'surd': (2,), 'log': (2,), 'integrate': (2, 4),
        'diff': (2, 3), 'sum': (4,), 'limit': (3, 4)}
 TGAP = 3
+# The argument table (QPL Q4, Q5; MATHPRINT.md 3.3, 7.5): ;name[#count]:<required><boxed><codes>;
+# required: the arguments ENTER needs (an empty box after them is optional: mshut flags it, tidy
+# drops it); boxed: the boxes a menu inserts in MathPrint (Classic: required); codes: one
+# ui.ARGPH phrase per argument (A-Z a-z 0-9), * after the last one repeats it. #count: the form
+# with that many arguments. / and ^ are the fraction and exponent slots.
+ARGS = (';simplify:11C;expand:11D;factor:11EF;solve:12GH;together:11I;partfrac:11JF;diff:22KLM;'
+        'integrate:24NOPQ;limit:34RFST;limit#2:22RU;taylor:23VWX;taylor#4:33VFYX;sum:44Zabc;'
+        'riemann:56dFefgh;desolve:12ij;desolve#3:11ikj;grad:11lm;polararea:44nopq;'
+        'paramarea:55rstbu;arclen:44vFbu;arclen#5:55rstbu;approx:11w;purge:11xy*;log:12Az;'
+        'surd:2201;sqrt:110;exp:112;abs:113;sign:11A;floor:11A;ceil:11A;/:2245;^:112;')
 MPREC = {'=>': 1, ':=': 1, '=': 3, '!=': 3, '<': 3, '<=': 3, '>': 3, '>=': 3, '+': 4, '-': 4,
          '*': 5, '/': 5, '^': 7}
 # parse.FNT: the functions the engine cuts out of a longer name (ysin( is y*sin(, kln( k*ln()
@@ -448,8 +458,10 @@ def glyph(item, x, y, clip):                                   #@L 5
 # the 2D layout's format; a box's ti is the node it draws (or -1), for the caret marks.
 
 def mflat(s):                                                  #@L 4
-    """True when s has no 2D construct (section 5.1), so it is drawn and edited as a 1D row."""
-    if '^' in s or ')/(' in s or 'pi' in s or 'theta' in s or 'oo' in s or 'ans()' in s:
+    """True when s has no 2D construct (section 5.1), so it is drawn and edited as a 1D row. An
+    empty call argument or group is one too (QPL Q4): its box is a slot, f(,), sin() or 2*()."""
+    if '^' in s or ')/(' in s or 'pi' in s or 'theta' in s or 'oo' in s or '()' in s or \
+            '(,' in s or ',,' in s or ',)' in s:
         return False
     i = s.find('(')
     while i >= 0:
@@ -710,6 +722,22 @@ def mshut(s, nodes, vals, ops, pos, how, expect, trail, mode):    #@L 5
         else:                           # 2: a name the engine may cut (ab( is a*b*()
             nodes.append(['C', f, end, args, [at, how == 1,
                                               at - f > 1 and nm not in MFNT and nm not in TPL]])
+            # Empty boxes after a command's required arguments are optional (flag 2, QPL Q4):
+            # only a trailing run of them, so f(a,,b) keeps its meaning, and none past the
+            # command's last argument (log(8,2,)) (ARGS)
+            j = ARGS.find(';' + nm + ':')
+            if j >= 0:
+                j += len(nm) + 2
+                r = int(ARGS[j])
+                q = ARGS.find(';', j) - j - 2
+                if ARGS[j + q + 1] == '*':
+                    q = 99
+                j = m - 1
+                if j >= q:
+                    j = -1
+                while j >= r and nodes[nodes[args[j]][3][0]][0] == 'E':
+                    nodes[nodes[args[j]][3][0]][4] |= 2
+                    j -= 1
     else:
         fl = 0
         if how == 1:

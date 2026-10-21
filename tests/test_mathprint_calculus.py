@@ -142,7 +142,7 @@ def test_picker_page_two_lists_six_rows():
         U.key(FRAC)
     texts = [t.text for t in TD.TEXTS]
     assert '1-6 pick  <> page  CLEAR back' in texts
-    assert ' 4 d^n/dx^n  nth derivative' in texts
+    assert ' 4 Nth derivative' in texts
     assert TD.OFFSCREEN == [] and TD.OVERDRAW == []
 
 
@@ -158,7 +158,7 @@ def test_menu_insertions_in_mathprint():
                        ('{2nd,0}su{enter}', ('sum(,,,)', 5)),
                        ('{2nd,0}sur{enter}', ('surd(,)', 6)),
                        ('{2nd,0}log{enter}', ('log(,)', 5)),
-                       ('{2nd,0}ri{enter}', ('riemann(,,,,)', 8)),
+                       ('{2nd,0}ri{enter}', ('riemann(,,,,,)', 8)),
                        ('{2nd,0}ar{enter}', ('arclen(,,,)', 7))):
         s = KS.run(keys)
         assert line(s) == want, keys
@@ -181,25 +181,25 @@ def test_menub_insertion_has_no_prefill():
     R.need('menu')
     rows = {}
     for row in R.need('cat').CAT:
-        rows[row[0]] = row
+        rows[row[1].rstrip('(')] = row
     want = {'diff(f,x,[n])': ('diff(,)', 5), 'sum(f,k,a,b)': ('sum(,,,)', 4),
             'integrate(f,x,[a,b])': ('integrate(,,,)', 10),
             'limit(f,x,a,[dir])': ('limit(,,,)', 6), 'log(x,[b])': ('log(,)', 4),
             'surd(x,n)': ('surd(,)', 5), 'sqrt(x)': ('sqrt()', 5), 'abs(x)': ('abs()', 4),
             'exp(x)': ('exp()', 4),
-            'riemann(f,x,a,b,n,[method])': ('riemann(,,,,)', 8),
-            'arclen(f,x,a,b)': ('arclen(,,,)', 7), 'taylor(f,x=a,[n])': ('taylor(,)', 7),
+            'riemann(f,x,a,b,n,[method])': ('riemann(,,,,,)', 8),
+            'arclen(f,x,a,b)': ('arclen(,,,)', 7), 'taylor(f,x=a,[n])': ('taylor(,,)', 7),
             'polararea(r,t,a,b)': ('polararea(,,,)', 10),
             'paramarea(x,y,t,a,b)': ('paramarea(,,,,)', 10),
             'purge(x,...)': ('purge()', 6), 'sin(x)': ('sin()', 4)}
     for sig, (text, offset) in want.items():
-        got = MB.insertion(rows[sig])
+        got = MB.insertion(rows[sig.split('(')[0]])
         assert (got[0], got[2]) == (text, offset), sig
     U.CLASSIC = True                                    # Classic: as before MathPrint
-    assert MB.insertion(rows['integrate(f,x,[a,b])'])[0] == 'integrate(,)'
-    assert MB.insertion(rows['diff(f,x,[n])'])[0] == 'diff(,)'
-    assert MB.insertion(rows['limit(f,x,a,[dir])'])[0] == 'limit(,,)'
-    assert MB.insertion(rows['log(x,[b])'])[0] == 'log()'
+    assert MB.insertion(rows['integrate'])[0] == 'integrate(,)'
+    assert MB.insertion(rows['diff'])[0] == 'diff(,)'
+    assert MB.insertion(rows['limit'])[0] == 'limit(,,)'
+    assert MB.insertion(rows['log'])[0] == 'log()'
 
 
 # -- R2: drawn order, the visiting order of the arrows ------------------------------------------
@@ -328,7 +328,7 @@ STAGES = [
     ('log(,8)', 4, 4),
     ('2integrate(x,x,,)+log(8,)', -1, -1),
     ('integrate(x,x,,)+f(,)', 19, 19),
-    ('sin(1,)', -1, 6),                                 # flat: stage 2 finds it
+    ('sin(1,)', 6, 6),                                  # 2D since QPL Q4: the box is a slot
     ('surd(8,)', 7, 7),
 ]
 
@@ -337,7 +337,7 @@ STAGES = [
 def test_optional_boxes_at_enter(text, one, two):
     setline(text + '|')
     U.emodel()
-    assert (U.EDMAP is None) == (text == 'sin(1,)')
+    assert U.EDMAP is not None
     assert U.empty_map() == one
     U.EDMAP = None                                      # stage 2 on the text alone
     assert U.empty_slot() == two

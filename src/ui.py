@@ -84,13 +84,13 @@ HINT = (' simplify(e) expand(e) factor(e,[x]) together(e) solve(eq,[x]) diff(f,x
         ' polararea(r,t,a,b) paramarea(x,y,t,a,b) arclen(f,x,a,b) purge(x,...) approx(e) ')
 ALIAS = {'int': 'integrate', 'd': 'diff', 'deriv': 'diff', 'lim': 'limit', 'series': 'taylor',
          'ratnormal': 'together', 'dsolve': 'desolve', 'gradient': 'grad'}
-# The template picker (MATHPRINT.md 3.2): (label, text). As on the Nspire nothing is prefilled
-# and the caret starts in the first box in drawn order (tput); rows 1 and 2 are the fraction and
-# power keys' actions. menub.insertion gives a menu row the first text here that it starts.
-TMPL = ('n/d  fraction#;x^n  power#;sqrt  square root#sqrt();n-root  nth root#surd(,);e^x#e^();'
-        '10^x#10^();log_b  log base b#log(,);|x|  absolute value#abs();'
-        'int  integral#integrate(,,,);d/dx  derivative#diff(,);d^n/dx^n  nth derivative#diff(,,);'
-        'sum  k=a..b#sum(,,,);lim  limit#limit(,,,)')
+# The template picker (MATHPRINT.md 3.2): (label, text), labelled with the Nspire's template
+# names (QPL Q3). As on the Nspire nothing is prefilled and the caret starts in the first box in
+# drawn order (tput); rows 1 and 2 are the fraction and power keys' actions. menub.insertion
+# gives a menu row the first text here that it starts.
+TMPL = ('Fraction#;Exponent#;Square root#sqrt();Nth root#surd(,);e exponent#e^();'
+        '10 exponent#10^();Log base b#log(,);Absolute value#abs();Integral#integrate(,,,);'
+        'First derivative#diff(,);Nth derivative#diff(,,);Sum#sum(,,,);Limit#limit(,,,)')
 TN = 13
 
 
@@ -318,7 +318,9 @@ def empty_slot():                                              #@L 3
     argument of log(u,b), diff(f,x,n) and limit(f,x,a,dir) (a lone + or - there too), and the
     two bounds of integrate(f,x,a,b) when both are empty: the E nodes D.mshut flags 2, read
     from the layout's own parse as tidy reads them (so 2log( is log_b too), also on a line
-    that is drawn flat for its length; never on a line a panic ran on (EFAIL)."""
+    that is drawn flat for its length; never on a line a panic ran on (EFAIL). So is a trailing
+    empty argument after a command's required ones (draw.ARGS, QPL Q4: solve(x=1,)). An empty
+    call f() is one when f is a command (draw.ARGS) or a function of the engine."""
     ok = []
     try:
         r = None if CLASSIC or LINE == EFAIL else D.mparse(LINE, D.mlex(LINE), 1)
@@ -341,7 +343,7 @@ def empty_slot():                                              #@L 3
         while j and (LINE[j-1].isalpha() or LINE[j-1].isdigit()):
             j -= 1
         name = ALIAS.get(LINE[j:i], LINE[j:i])
-        if hint(name) or name in P.FNAMES:
+        if D.ARGS.find(';' + name + ':') >= 0 or name in P.FNAMES:
             return i + 1
         while j < i and LINE[j].isdigit():
             j += 1

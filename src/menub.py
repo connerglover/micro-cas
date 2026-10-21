@@ -1,10 +1,14 @@
 #@L 2
 # menu helper family. The engine is read from U.R at call time (never imported here).
 import ui as U
+import draw as D
 
 def entries(cat, tab, prefix):                                 #@L 3
+    """The rows of tab whose name or insertion text starts with the find prefix: name matches
+    first, then the others (su: Sum, then surd's Nth Root); the All tab sorted by name."""
     R = U.R
     out = []
+    more = []
     categories = R.MODS['menu'].CATEGORIES[tab]
     for row in cat:
         hit = False
@@ -13,9 +17,17 @@ def entries(cat, tab, prefix):                                 #@L 3
                 hit = True
         if hit and row[0].lower().startswith(prefix):
             out.append(row)
+        elif hit and row[1].startswith(prefix):
+            more.append(row)
     if tab == 4:
-        out.sort()
-    return out
+        for rows in (out, more):
+            keyed = []
+            for row in rows:
+                keyed.append((row[0].lower(), row))
+            keyed.sort()
+            for j in range(len(keyed)):
+                rows[j] = keyed[j][1]
+    return out + more
 
 
 
@@ -26,15 +38,19 @@ def insertion(row):                                           #@L 3
         return (prefix, False, len(prefix))
     act = prefix[:-1] in R.MODS['menu'].ACTIONS
     # MathPrint (MATHPRINT.md 3): a command with a template inserts the picker's text, every
-    # box empty (diff(,), log(,), integrate(,,,), limit(,,,)); else one empty box per required
-    # parameter, never prefilled; apply puts the caret in the first box in drawn order.
-    # Classic (8) keeps the required boxes only: diff(,), log().
+    # box empty (diff(,), log(,), integrate(,,,), limit(,,,)); any other one its boxed count
+    # from draw.ARGS (the required arguments and the optional ones worth filling, QPL Q4:
+    # solve(,), taylor(,,), riemann(,,,,,)), never prefilled; apply puts the caret in the
+    # first box in drawn order. Classic (8) keeps the required boxes only: diff(,), log().
     for j in range(0 if U.CLASSIC else U.TN):
         t = U.tmpl(j)[1]
         if t.startswith(prefix):
             return (t, act, len(prefix))
-    required = row[0].split('(', 1)[1].split('[', 1)[0].rstrip(',)').replace(',...', '')
-    return (prefix + ',' * required.count(',') + ')', act, len(prefix))
+    n = 1
+    i = D.ARGS.find(';' + prefix[:-1] + ':')
+    if i >= 0:
+        n = int(D.ARGS[i + len(prefix) + (1 if U.CLASSIC else 2)])
+    return (prefix + ',' * (n - 1) + ')', act, len(prefix))
 
 
 
