@@ -57,8 +57,9 @@ For a manual transfer, remove an earlier cas-evo first; see
 
 The browser installer removes an earlier version for you. It reads each file
 with an earlier cas-evo name back from the calculator and compares the decoded
-module or source text with the recorded v1 release (`legacy-v1.json` on the
-installer site), including the source companions that the v1 installer moved to
+module or source text with the recorded earlier releases (the `legacy-*.json`
+files on the installer site: v1, the first pack release and the MathPrint test
+builds), including the source companions that the v1 installer moved to
 archive. Only exact matches are deleted, or replaced by a new file with the same
 name. A file that differs or cannot be read is kept and listed. If such a file
 would be overwritten, or would hide a new library in Python, the installer

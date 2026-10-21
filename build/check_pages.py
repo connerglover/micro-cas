@@ -7,13 +7,16 @@ from pathlib import Path
 
 MAX_FILE_BYTES = 25 * 1024 * 1024
 MAX_FILES = 20000
+# The records of earlier releases the installer recognizes (build/legacy_manifest.mjs RELEASES).
+LEGACY = ('legacy-v1.json', 'legacy-packs-v1.json', 'legacy-mathprint-da7f036.json',
+          'legacy-mathprint-1b94211.json')
 REQUIRED = (
     'index.html', 'app.js', 'installer.js', 'transport.js', 'isolation.js',
     'styles.css', 'sw.js', '_headers', 'package.json', 'package-meta.json',
     'cas-evo-calculator.zip', 'licenses.html', 'webtilp-source.zip',
-    'installer-source.zip', 'legacy-v1.json', 'vendor/COPYING', 'vendor/TIVarsLib-LICENSE',
+    'installer-source.zip', 'vendor/COPYING', 'vendor/TIVarsLib-LICENSE',
     'vendor/assets.lock.json', 'fonts/OFL.txt',
-)
+) + LEGACY
 
 
 def check(directory):
@@ -46,9 +49,12 @@ def check(directory):
     metadata = json.loads((directory / 'package-meta.json').read_text('ascii'))
     if hashlib.sha256(manifest).hexdigest() != metadata['sha256']:
         raise ValueError('calculator manifest checksum mismatch')
-    legacy = (directory / 'legacy-v1.json').read_bytes()
-    if hashlib.sha256(legacy).hexdigest() != metadata.get('legacySha256'):
-        raise ValueError('legacy manifest checksum mismatch')
+    recorded = metadata.get('legacy') or {}
+    if sorted(recorded) != sorted(LEGACY):
+        raise ValueError('legacy manifest list mismatch')
+    for name in LEGACY:
+        if hashlib.sha256((directory / name).read_bytes()).hexdigest() != recorded[name]:
+            raise ValueError('legacy manifest checksum mismatch: ' + name)
     lock = json.loads((directory / 'vendor/assets.lock.json').read_text('ascii'))
     for name, digest in lock.items():
         if hashlib.sha256((directory / 'vendor' / name).read_bytes()).hexdigest() != digest:

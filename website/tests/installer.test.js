@@ -3,12 +3,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { Installer, validatePackage, validateLegacy, installationOrder, checkInstalled, sha256, decode } from '../installer.js';
+import { Installer, LEGACY, validatePackage, validateLegacy, installationOrder, checkInstalled, sha256, decode } from '../installer.js';
 import { WebTilpTransport, describePythonObject } from '../transport.js';
-import { buildLegacyManifest, formatManifest, V1 } from '../../build/legacy_manifest.mjs';
+import { buildLegacyManifest, formatManifest, readZip, RELEASES, V1, PACKS_V1 } from '../../build/legacy_manifest.mjs';
 import createConverter from '../vendor/TIVarsLib.js';
 
 const LEGACY_PATH = fileURLToPath(new URL('../legacy-v1.json', import.meta.url));
+const ROOT = fileURLToPath(new URL('../..', import.meta.url));
+const path = relative => fileURLToPath(new URL('../../' + relative, import.meta.url));
+const record = name => JSON.parse(fs.readFileSync(fileURLToPath(new URL('../' + name, import.meta.url)), 'utf8'));
 const text = value => new TextEncoder().encode(value);
 const digest = value => sha256(text(value));
 let converterPromise;
@@ -461,27 +464,28 @@ test('the legacy v1 record lists every v1 object with its calculator type and co
   assert.equal(formatManifest(legacy), raw);
 });
 
-// The published v1 package, from CAS_EVO_V1_PACKAGE or the pinned pages commit.
-function v1Package() {
-  if (process.env.CAS_EVO_V1_PACKAGE) return fs.readFileSync(process.env.CAS_EVO_V1_PACKAGE);
+// A published package from its pinned pages commit (or the CAS_EVO_V1_PACKAGE file for v1).
+function pagesPackage(release) {
+  if (release === V1 && process.env.CAS_EVO_V1_PACKAGE) return fs.readFileSync(process.env.CAS_EVO_V1_PACKAGE);
   try {
-    return execFileSync('git', ['show', `${V1.pagesCommit}:${V1.path}`],
-      { cwd: fileURLToPath(new URL('../..', import.meta.url)), maxBuffer: 16 << 20, stdio: ['ignore', 'pipe', 'ignore'] });
+    return execFileSync('git', ['show', `${release.pagesCommit}:${release.path}`],
+      { cwd: ROOT, maxBuffer: 16 << 20, stdio: ['ignore', 'pipe', 'ignore'] });
   } catch { return null; }
 }
+const v1Package = () => pagesPackage(V1);
 const V1_MISSING = 'published v1 package unavailable; set CAS_EVO_V1_PACKAGE or fetch the pages history';
 
 test('the legacy v1 record is reproducible from the published v1 package', async t => {
   const bytes = v1Package();
   if (!bytes) return t.skip(V1_MISSING);
-  const manifest = await buildLegacyManifest(bytes, await converter());
+  const { manifest } = await buildLegacyManifest(bytes, await converter());
   assert.equal(formatManifest(manifest), fs.readFileSync(LEGACY_PATH, 'utf8'));
   // The installer recognizes every v1 object by its decoded content, and nothing else.
   const pkg = JSON.parse(Buffer.from(bytes).toString('utf8'));
   const legacy = validateLegacy(manifest);
   for (const file of pkg.files.slice(0, 12)) {
     const object = await describePythonObject(await converter(), decode(file.data));
-    const entry = legacy.get(file.module);
+    const [entry] = legacy.get(file.module);
     assert.equal(object.sha256, entry.sha256);
     assert.equal(object.compiled, entry.type === 18);
   }
@@ -528,4 +532,44 @@ test('a calculator holding the complete v1 install is reduced to the new packs',
   assert.ok(!removed.includes('CVUI') && !removed.includes('CASEVO') && !removed.includes('CVTEST'));
   assert.deepEqual(result.preserved.map(p => [p.name, p.type, p.reason]), [['CVF00007', 15, 'different']]);
   assert.deepEqual(vars.map(v => `${v.name}/${v.type}`).sort(), ['CASEVO/15', 'CVENG/18', 'CVF00007/15', 'CVTEST/15', 'CVUI/18', 'NOTES/15']);
+});
+
+test('every recorded earlier release is served and validates, one record per file', async () => {
+  assert.deepEqual(LEGACY, RELEASES.map(r => r.output.replace('website/', '')));
+  const records = LEGACY.map(record);
+  const modules = validateLegacy(records);
+  assert.deepEqual(records.map(r => r.release), ['v1', 'packs-v1', 'mathprint-da7f036', 'mathprint-1b94211']);
+  for (const [r, release] of records.map((r, i) => [r, RELEASES[i]])) {
+    assert.deepEqual(r.package, { ...release.package, totalBytes: r.package.totalBytes });
+    assert.equal(r.files.length, release.package.files);
+    assert.equal(formatManifest(r), fs.readFileSync(path(release.output), 'utf8'));
+  }
+  // CASEVO and CVTEST are in every release; each pack-era record has the 21 packs and both launchers.
+  assert.equal(modules.get('CASEVO').length, 4);
+  assert.equal(modules.get('CVTEST').length, 4);
+  for (const r of records.slice(1)) {
+    assert.deepEqual(r.files.filter(f => f.type === 15).map(f => f.module), ['CASEVO', 'CVTEST']);
+    assert.ok(r.files.filter(f => f.type === 18).every(f => /^CAS[A-Z0-9]{1,5}$/.test(f.module) && f.location === 'archive'));
+  }
+  // Within one record a module appears once.
+  assert.throws(() => validateLegacy([records[1], { ...records[2], files: [...records[2].files, records[2].files[0]] }]), /record of earlier/);
+  assert.throws(() => validateLegacy([]), /record of earlier/);
+});
+test('the packs-v1 record is reproducible from the published packs-v1 package', async t => {
+  const bytes = pagesPackage(PACKS_V1);
+  if (!bytes) return t.skip('published packs-v1 package unavailable; fetch the pages history');
+  const { manifest, record: release } = await buildLegacyManifest(bytes, await converter());
+  assert.equal(release.release, 'packs-v1');
+  assert.equal(formatManifest(manifest), fs.readFileSync(path('website/legacy-packs-v1.json'), 'utf8'));
+});
+
+test('the MathPrint test-build records are reproducible from the delivered calculator ZIPs', async t => {
+  for (const release of RELEASES.filter(r => r.package.zip)) {
+    const file = path('dist/' + release.package.zip);
+    if (!fs.existsSync(file)) { t.diagnostic(`${release.package.zip} not in dist; skipped`); continue; }
+    const bytes = fs.readFileSync(file);
+    assert.ok(readZip(bytes)['archive.json']);
+    const { manifest } = await buildLegacyManifest(bytes, await converter());
+    assert.equal(formatManifest(manifest), fs.readFileSync(path(release.output), 'utf8'));
+  }
 });

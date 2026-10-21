@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "release": "mathprint-da7f036",
+  "package": {"zip":"cas-evo-mathprint-da7f036.zip","sourceCommit":"da7f036ed6bf4aa9d514139145734c170c46fdaa","sha256":"c20a9c064fc09d7d1a40a70d92b74969f3f968905aa89a3d40485947a5fe4574","files":23,"totalBytes":212601},
+  "digest": "sha256 of the TIVarsLib-decoded python.bodyHex bytes (type 18, archive) or UTF-8 python.code (type 15, RAM)",
+  "sourceDigest": "sha256 of the source text the object was built from (archive.json sourceSha256)",
+  "files": [
+    {"module":"CASALG","type":18,"location":"archive","sha256":"e7d60a11d446ff22d563f71fbb7440c9ba6cb08e7df36c10c03843113fccf74a","sourceSha256":"51c55829970fb7f107b6ee3a7a0ab6b7f36a0429e2c15e4ab15786e48fbe5415"},
+    {"module":"CASAX","type":18,"location":"archive","sha256":"10bb01e961d0f0fc7f65380e5bb0b9e0db26279ed4783f09309a066b8b400248","sourceSha256":"4936858d61ddd4e85292f8f52dcd64219489333b49ef9b58e811ee950463ed14"},
+    {"module":"CASBIG","type":18,"location":"archive","sha256":"6a96e2ae76fc0eadc7a8382c14aa4f5f35a879a6248f58fcd9c55c2e20056ac7","sourceSha256":"576dedcb5f556191462aaf89c6fd362f75793faae8022a081fa3642c37894a18"},
+    {"module":"CASDEF","type":18,"location":"archive","sha256":"6c413df65e1a994f36665c017413d0c32c247581089afd59abca67d79211d96a","sourceSha256":"6334fd346974aa6ee8d63204674a276bd8962e7e0fb2380b36d759ef22408bcb"},
+    {"module":"CASEVO","type":15,"location":"ram","sha256":"195f1ec3d891f92017ef8fab9b3d8a5b768c35dca3fd9ecf104b672f6ad622d1","sourceSha256":"195f1ec3d891f92017ef8fab9b3d8a5b768c35dca3fd9ecf104b672f6ad622d1"},
+    {"module":"CASFAC","type":18,"location":"archive","sha256":"34fb4e7e5f1b04b988939737ece673db6865678a648cf5ee1cec0e5621330f2f","sourceSha256":"2a820010fdb62ffb4d66d46fb669c638ba05226702cf99dc1a6df20dcec6e12d"},
+    {"module":"CASIN","type":18,"location":"archive","sha256":"761206f7913ffa3200d43d28abc614aeb830864724210af7eb0b3a5f57d6b18d","sourceSha256":"a056c0e2c459309eaf5fe095576ae504727a423a17cb156fab31ff6af83e57b1"},
+    {"module":"CASIN2","type":18,"location":"archive","sha256":"73c85122a3323ceed7a4cd8bc876ac4c59bf3431ae4269d1285a8c3f198ca9f0","sourceSha256":"7cdd13e70b11f9da01687c8952f05bdc058ff9f628bf23423cb49494dc747635"},
+    {"module":"CASIN2B","type":18,"location":"archive","sha256":"cc769a0e1f96d7d5daa098c3a7edaf89ca233a703fadc2e3fc59e254ac08c46d","sourceSha256":"6978bef36fdd8bf601c0565b6927a952ae0c6ab7e85cd651bdcba6c51dbafdec"},
+    {"module":"CASIN3","type":18,"location":"archive","sha256":"acb3fc0d45f9e5abcda712ee3d3170c16628339fc0e99d9745dfcfdcf1f5b2e9","sourceSha256":"6d5ab46ba55877c370a30f1abe2857dbbe57e44861702428b6acd5d005f2e394"},
+    {"module":"CASIN3B","type":18,"location":"archive","sha256":"ac28449794c97706744874ee9668abb257e102706cb1238045aad631aec10ac2","sourceSha256":"e1263c7ea8a38466bed6e693f11a050aa4dd9655ec283b77845aa004a5e712be"},
+    {"module":"CASINT","type":18,"location":"archive","sha256":"ec1f9e9dea16cc5bd183c63a108ddde8b734f6b5f377c16eed87969e5f286082","sourceSha256":"ac3bdd5d5b90af2f6b5e654bd2ccef9ebc508e149d46350b88a82781c2e00ccd"},
+    {"module":"CASK1","type":18,"location":"archive","sha256":"da48a2b069a3b7fdefdb84ca308210701597601f3ba523a1a9cdbe01b62cf730","sourceSha256":"4cd6e1e87a27f0c51486e59412e0ffc40109638a450cf9a29def8415dd015ca3"},
+    {"module":"CASK2","type":18,"location":"archive","sha256":"608d36928ed93139183946bd8e4c00764927222c6ea479bd032b6a30e12dcdc6","sourceSha256":"120165ca6eb9aed20c6e60ef81b5121947a1f72d7733bafd5c85d6ff06b0694b"},
+    {"module":"CASLIM","type":18,"location":"archive","sha256":"c5f4a3e217caf087cedd973fa258799aeff3a10b2fe1564ef2e9f5ecc2cee3ab","sourceSha256":"2c67c32dc98c463e9b1c0d2824de3cc83e3dec9340fb29488bb617371623e74a"},
+    {"module":"CASMNU","type":18,"location":"archive","sha256":"8555d3c5d7f0bf6121f3ca4d8e00df9bf86a707e612f080fa4889cedd72f8dff","sourceSha256":"bed859c8964ccf9528aa91b550383eaa1281443346c8b4e7b9aacdd693feb487"},
+    {"module":"CASODE","type":18,"location":"archive","sha256":"4fd2414316a8898141ac00ebccaa5167c8bcae6e5a501b5bc00276e20a26eadc","sourceSha256":"9ec9c54dd20d8d41f668b9e9663d82c1a8bce64b74d4d0588e633d80942d9cf3"},
+    {"module":"CASPR","type":18,"location":"archive","sha256":"a310bf0c2907bb466553d3a02c876968a5b464fa8bc8b57353946d45b163da54","sourceSha256":"4671fe9ab847234a9189c9b20a0dde9149a7b16d7741b33faf8cb29d146effbd"},
+    {"module":"CASSOL","type":18,"location":"archive","sha256":"3a0f83ff70ba033fc801391a3a082e2c6ca8dadecf03a97451f91236470da01e","sourceSha256":"61908a03570a0a09d092be5e978122763bf11c163ddc723f5d7af7acbf43ce04"},
+    {"module":"CASSUM","type":18,"location":"archive","sha256":"2ec20fb592a6be44dec4d7e2d6eb555663bece38f223d7d30c5e4e3450db5f04","sourceSha256":"87c8af62c80bf2a29d6fec4560c82f2e61b7028265386f283ba45a14d3cf5835"},
+    {"module":"CASUI","type":18,"location":"archive","sha256":"d6f2b1ce41dfcca931c081cfa006da4c94b8497af88a3cac47f70dcc5a5ed046","sourceSha256":"339f9701bdf7ab611f5227b382483dd5131e74987a64c78aaba0ed8bdd0b30d5"},
+    {"module":"CASUX","type":18,"location":"archive","sha256":"949981d57dc69242010eb683773170cf606635d5b1cf30341ca06ee0c0c70f5b","sourceSha256":"0169d2c0a319fb512c408d04e136746b5b6db6b53bc573484bd443f70fcfec89"},
+    {"module":"CVTEST","type":15,"location":"ram","sha256":"dfb98dfcaabef9bd917aab90151db5a1d34b5bcebe29442e4c0f5a112c2f7f24","sourceSha256":"dfb98dfcaabef9bd917aab90151db5a1d34b5bcebe29442e4c0f5a112c2f7f24"}
+  ]
+}

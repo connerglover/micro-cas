@@ -2,21 +2,24 @@
 export const ARCHIVE = 3;
 export const PYTHON_TYPES = new Set([15, 18]);
 export const LAUNCHERS = ['CASEVO', 'CVTEST'];
+// The records of earlier releases served beside the package (build/legacy_manifest.mjs).
+export const LEGACY = ['legacy-v1.json', 'legacy-packs-v1.json', 'legacy-mathprint-da7f036.json',
+  'legacy-mathprint-1b94211.json'];
 const NAME = /^[A-Z][A-Z0-9]{0,7}$/;
 const HASH = /^[a-f0-9]{64}$/;
 export const decode = text => Uint8Array.from(atob(text), c => c.charCodeAt(0));
 export const hex = bytes => [...bytes].map(n => n.toString(16).padStart(2, '0')).join('');
 export const sha256 = async bytes => hex(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)));
 
-export async function validatePackage(pkg) {
+export async function validatePackage(pkg, launchers = LAUNCHERS) {
   if (pkg?.schema !== 2 || pkg.runtimeCompilation !== false || !Array.isArray(pkg.files) || !pkg.files.length || pkg.files.length > 1024) {
     throw new Error('This installer has an invalid package. Reload the page to get a fresh copy.');
   }
   const names = new Set();
   let total = 0;
   for (const file of pkg.files) {
-    // Any valid device name may be a library; only the two launchers go to RAM.
-    const launcher = LAUNCHERS.includes(file?.module);
+    // Any valid device name may be a library; only the launchers go to RAM.
+    const launcher = launchers.includes(file?.module);
     const extension = launcher ? '.8xpy2' : '.8mp2';
     if (!NAME.test(file?.module) || file.name !== file.module + extension
         || names.has(file.module) || typeof file.data !== 'string'
@@ -33,26 +36,34 @@ export async function validatePackage(pkg) {
     names.add(file.module);
     total += data.length;
   }
-  if (!LAUNCHERS.every(name => names.has(name)) || total !== pkg.totalBytes || total > 3500000) {
+  if (!launchers.every(name => names.has(name)) || total !== pkg.totalBytes || total > 3500000) {
     throw new Error('The calculator package is incomplete or too large. Nothing was sent.');
   }
   return pkg;
 }
 
-// The record of an earlier release: what each of its calculator objects contains.
+// The records of earlier releases: what each of their calculator objects contains.
 // sha256 is the decoded module body (compiled) or source text (launchers);
 // sourceSha256 is the source companion the earlier installer recognized.
-export function validateLegacy(manifest) {
+// One manifest or a list of them; the result maps each module to its records.
+export function validateLegacy(manifests) {
   const invalid = () => new Error('This installer has an invalid record of earlier cas-evo files. Reload the page to get a fresh copy.');
-  if (manifest?.schema !== 1 || typeof manifest.release !== 'string' || !Array.isArray(manifest.files)
-      || !manifest.files.length || manifest.files.length > 1024) throw invalid();
+  const list = Array.isArray(manifests) ? manifests : [manifests];
+  if (!list.length || list.length > 16) throw invalid();
   const modules = new Map();
-  for (const entry of manifest.files) {
-    const compiled = entry?.type === 18;
-    if (!NAME.test(entry?.module) || modules.has(entry.module) || !PYTHON_TYPES.has(entry.type)
-        || entry.location !== (compiled ? 'archive' : 'ram') || !HASH.test(entry.sha256)
-        || (entry.sourceSha256 !== undefined && !HASH.test(entry.sourceSha256))) throw invalid();
-    modules.set(entry.module, entry);
+  for (const manifest of list) {
+    if (manifest?.schema !== 1 || typeof manifest.release !== 'string' || !Array.isArray(manifest.files)
+        || !manifest.files.length || manifest.files.length > 1024) throw invalid();
+    const seen = new Set();
+    for (const entry of manifest.files) {
+      const compiled = entry?.type === 18;
+      if (!NAME.test(entry?.module) || seen.has(entry.module) || !PYTHON_TYPES.has(entry.type)
+          || entry.location !== (compiled ? 'archive' : 'ram') || !HASH.test(entry.sha256)
+          || (entry.sourceSha256 !== undefined && !HASH.test(entry.sourceSha256))) throw invalid();
+      seen.add(entry.module);
+      if (!modules.has(entry.module)) modules.set(entry.module, []);
+      modules.get(entry.module).push(entry);
+    }
   }
   return modules;
 }
@@ -90,7 +101,7 @@ export function requiredSpace(files, listing, moduleType = 18) {
 }
 
 // Content fingerprints that prove a calculator object came from cas-evo:
-// the current package, the earlier release, or a source companion either recorded.
+// the current package, an earlier release, or a source companion either recorded.
 export function knownObjects(pkg, digests, legacy) {
   const known = new Map();
   const add = (name, compiled, digest, origin) => {
@@ -102,9 +113,11 @@ export function knownObjects(pkg, digests, legacy) {
     add(file.module, file.destination === 'archive', digests.get(file.module), 'current');
     add(file.module, false, file.sourceSha256, 'current source');
   }
-  for (const entry of legacy.values()) {
-    add(entry.module, entry.type === 18, entry.sha256, 'earlier');
-    add(entry.module, false, entry.sourceSha256, 'earlier source');
+  for (const entries of legacy.values()) {
+    for (const entry of entries) {
+      add(entry.module, entry.type === 18, entry.sha256, 'earlier');
+      add(entry.module, false, entry.sourceSha256, 'earlier source');
+    }
   }
   return known;
 }

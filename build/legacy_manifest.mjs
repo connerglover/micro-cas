@@ -1,34 +1,101 @@
-// Record what each object of the published v1 release contains on the calculator.
+// Record what each object of an earlier cas-evo release contains on the calculator.
 //
 //   git show 2849055909cabe6137bcdda0ada89b579628da11:public/package.json > v1-package.json
-//   node build/legacy_manifest.mjs v1-package.json [website/legacy-v1.json] [--archive archive.json] [--check]
+//   node build/legacy_manifest.mjs v1-package.json [output] [--archive archive.json] [--check]
+//   git show b6cb2e1aee5899e7731f62ac94ff447e4ad4a804:public/package.json > packs-v1-package.json
+//   node build/legacy_manifest.mjs packs-v1-package.json [--check]
+//   node build/legacy_manifest.mjs dist/cas-evo-mathprint-1b94211.zip [--check]
 //
-// Every v1 transfer object is decoded with the pinned TIVarsLib through the same
-// function the browser installer applies to objects read back from an EVO.
-// --archive cross-checks the per-file hashes recorded by build/archive.py;
-// --check compares with the committed manifest instead of writing it.
+// The input is a published installer package (package.json) or a delivered calculator ZIP;
+// RELEASES names each recorded one by its sha256, and its default output file. Every transfer
+// object is decoded with the pinned TIVarsLib through the same function the browser installer
+// applies to objects read back from an EVO. --archive cross-checks the per-file hashes recorded
+// by build/archive.py; --check compares with the committed manifest instead of writing it.
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import createConverter from '../website/vendor/TIVarsLib.js';
 import { decode, validatePackage, validateLegacy } from '../website/installer.js';
 import { describePythonObject } from '../website/transport.js';
 
-export const V1 = {
-  release: 'v1',
-  pagesCommit: '2849055909cabe6137bcdda0ada89b579628da11',
-  sourceCommit: '25b83b0eb8cf4a90b9ba0ee0c734cae55b47247b',
-  path: 'public/package.json',
-  sha256: '930f71aceda6c1cccd2de5a08bdf0ed6d19bc17936aa35018142b4bee2ba3901',
-  files: 238,
+// Earlier releases whose objects the installer may remove or replace. Every one had the two
+// launchers CASEVO and CVTEST; package is the header written into its record.
+export const RELEASES = [
+  { release: 'v1', output: 'website/legacy-v1.json', launchers: ['CASEVO', 'CVTEST'],
+    package: { pagesCommit: '2849055909cabe6137bcdda0ada89b579628da11',
+      sourceCommit: '25b83b0eb8cf4a90b9ba0ee0c734cae55b47247b', path: 'public/package.json',
+      sha256: '930f71aceda6c1cccd2de5a08bdf0ed6d19bc17936aa35018142b4bee2ba3901', files: 238 } },
+  { release: 'packs-v1', output: 'website/legacy-packs-v1.json', launchers: ['CASEVO', 'CVTEST'],
+    package: { pagesCommit: 'b6cb2e1aee5899e7731f62ac94ff447e4ad4a804',
+      sourceCommit: '702bc53964bc5af3f67c452ca5aa8504272b4c06', path: 'public/package.json',
+      sha256: '714debeec00fdc786750948e0a7bffc76080f0ca361df6895060d0eb1faef18b', files: 23 } },
+  // MathPrint test builds delivered as calculator ZIPs (branch mathprint).
+  { release: 'mathprint-da7f036', output: 'website/legacy-mathprint-da7f036.json', launchers: ['CASEVO', 'CVTEST'],
+    package: { zip: 'cas-evo-mathprint-da7f036.zip', sourceCommit: 'da7f036ed6bf4aa9d514139145734c170c46fdaa',
+      sha256: 'c20a9c064fc09d7d1a40a70d92b74969f3f968905aa89a3d40485947a5fe4574', files: 23 } },
+  { release: 'mathprint-1b94211', output: 'website/legacy-mathprint-1b94211.json', launchers: ['CASEVO', 'CVTEST'],
+    package: { zip: 'cas-evo-mathprint-1b94211.zip', sourceCommit: '1b942116b81e94c985ff3a91e69e7be622bc97ed',
+      sha256: '42ff38657cd2bf91bbef1900fc89004046574faef6dfdcef113ed4b5a67b73ad', files: 23 } },
+];
+const V1R = RELEASES[0];
+export const V1 = { release: V1R.release, ...V1R.package };
+export const PACKS_V1 = { release: 'packs-v1', ...RELEASES[1].package };
+
+const SOURCE_DIGEST = {
+  v1: 'sha256 of an earlier source companion (type 15) that the v1 installer recognized by name',
+  other: 'sha256 of the source text the object was built from (archive.json sourceSha256)',
 };
+
+// The members of a ZIP file: {name: bytes} (stored or deflated, no ZIP64).
+export function readZip(bytes) {
+  const buf = Buffer.from(bytes);
+  let end = buf.length - 22;
+  while (end >= 0 && buf.readUInt32LE(end) !== 0x06054b50) end--;
+  if (end < 0) throw new Error('not a ZIP file');
+  const count = buf.readUInt16LE(end + 10);
+  let at = buf.readUInt32LE(end + 16);
+  const members = {};
+  for (let i = 0; i < count; i++) {
+    if (buf.readUInt32LE(at) !== 0x02014b50) throw new Error('bad ZIP directory');
+    const method = buf.readUInt16LE(at + 10), size = buf.readUInt32LE(at + 20);
+    const nameLength = buf.readUInt16LE(at + 28), extra = buf.readUInt16LE(at + 30), comment = buf.readUInt16LE(at + 32);
+    const local = buf.readUInt32LE(at + 42);
+    const name = buf.subarray(at + 46, at + 46 + nameLength).toString('utf8');
+    if (buf.readUInt32LE(local) !== 0x04034b50) throw new Error('bad ZIP member ' + name);
+    const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
+    const raw = buf.subarray(start, start + size);
+    if (method !== 0 && method !== 8) throw new Error('unsupported ZIP method for ' + name);
+    members[name] = method === 8 ? zlib.inflateRawSync(raw) : Buffer.from(raw);
+    at += 46 + nameLength + extra + comment;
+  }
+  return members;
+}
+
+// A calculator ZIP as an installer package: its archive.json with each object's bytes.
+function zipPackage(bytes) {
+  const members = readZip(bytes);
+  const pkg = JSON.parse(members['archive.json'].toString('utf8'));
+  pkg.files = pkg.files.map(file => {
+    const data = members[file.name];
+    if (!data || crypto.createHash('sha256').update(data).digest('hex') !== file.sha256) {
+      throw new Error(`${file.name} is missing or changed in the ZIP`);
+    }
+    return { ...file, data: data.toString('base64') };
+  });
+  return pkg;
+}
 
 export async function buildLegacyManifest(bytes, converter) {
   const digest = crypto.createHash('sha256').update(bytes).digest('hex');
-  if (digest !== V1.sha256) throw new Error(`not the published v1 package: sha256 ${digest}`);
-  const pkg = await validatePackage(JSON.parse(Buffer.from(bytes).toString('utf8')));
-  if (pkg.version !== V1.release || pkg.files.length !== V1.files) throw new Error('unexpected v1 package shape');
+  const record = RELEASES.find(r => r.package.sha256 === digest);
+  if (!record) throw new Error(`not a recorded cas-evo release package: sha256 ${digest}`);
+  const raw = record.package.zip ? zipPackage(bytes) : JSON.parse(Buffer.from(bytes).toString('utf8'));
+  const pkg = await validatePackage(raw, record.launchers);
+  if (pkg.files.length !== record.package.files || pkg.version !== (record.release === 'v1' ? 'v1' : 'packs-v1')) {
+    throw new Error(`unexpected ${record.release} package shape`);
+  }
   const files = [];
   for (const file of [...pkg.files].sort((a, b) => a.module < b.module ? -1 : a.module > b.module ? 1 : 0)) {
     const compiled = file.destination === 'archive';
@@ -41,15 +108,14 @@ export async function buildLegacyManifest(bytes, converter) {
   }
   const manifest = {
     schema: 1,
-    release: V1.release,
-    package: { pagesCommit: V1.pagesCommit, sourceCommit: V1.sourceCommit, path: V1.path,
-      sha256: V1.sha256, files: pkg.files.length, totalBytes: pkg.totalBytes },
+    release: record.release,
+    package: { ...record.package, totalBytes: pkg.totalBytes },
     digest: 'sha256 of the TIVarsLib-decoded python.bodyHex bytes (type 18, archive) or UTF-8 python.code (type 15, RAM)',
-    sourceDigest: 'sha256 of an earlier source companion (type 15) that the v1 installer recognized by name',
+    sourceDigest: SOURCE_DIGEST[record.release] || SOURCE_DIGEST.other,
     files,
   };
   validateLegacy(manifest);
-  return manifest;
+  return { manifest, record };
 }
 
 // One object per line keeps reviews and diffs readable.
@@ -59,7 +125,7 @@ export function formatManifest(manifest) {
   return `{\n${lines.join('\n')}\n  "files": [\n${files.map(file => '    ' + JSON.stringify(file)).join(',\n')}\n  ]\n}\n`;
 }
 
-// The object hashes must agree with a local v1 rebuild. Source-companion hashes
+// The object hashes must agree with a local rebuild. Source-companion hashes
 // are reported only: the published package stays authoritative for them.
 function crossCheck(manifest, archive) {
   const records = new Map(archive.files.map(file => [file.module, file]));
@@ -83,18 +149,19 @@ async function main(argv) {
     else if (!flags.has(argv[i])) positional.push(argv[i]);
   }
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-  const [input, output = path.join(root, 'website/legacy-v1.json')] = positional;
-  if (!input) throw new Error('usage: node build/legacy_manifest.mjs v1-package.json [output] [--archive archive.json] [--check]');
+  const [input, chosen] = positional;
+  if (!input) throw new Error('usage: node build/legacy_manifest.mjs package.json|calculator.zip [output] [--archive archive.json] [--check]');
   const converter = await createConverter();
-  const manifest = await buildLegacyManifest(fs.readFileSync(input), converter);
+  const { manifest, record } = await buildLegacyManifest(fs.readFileSync(input), converter);
+  const output = chosen || path.join(root, record.output);
   if (archivePath) crossCheck(manifest, JSON.parse(fs.readFileSync(archivePath, 'utf8')));
   const text = formatManifest(manifest);
   if (flags.has('--check')) {
-    if (fs.readFileSync(output, 'utf8') !== text) throw new Error(`${output} differs from the v1 package`);
-    console.log(`${output} matches the v1 package (${manifest.files.length} objects)`);
+    if (fs.readFileSync(output, 'utf8') !== text) throw new Error(`${output} differs from the ${record.release} package`);
+    console.log(`${output} matches the ${record.release} package (${manifest.files.length} objects)`);
   } else {
     fs.writeFileSync(output, text);
-    console.log(`Legacy v1 manifest: ${manifest.files.length} objects -> ${output}`);
+    console.log(`Legacy ${record.release} manifest: ${manifest.files.length} objects -> ${output}`);
   }
 }
 

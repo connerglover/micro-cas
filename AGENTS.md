@@ -148,7 +148,7 @@ The build has distinct stages:
 Ordinary archived `.py` files are not substitutes for compiled libraries.
 Renaming `.py`/`.mpy` files does not convert their format. Preserve the recorded
 hashes the installer uses to recognize earlier files (`archive.json` source
-hashes, `website/legacy-v1.json`) and never mix files from different releases.
+hashes, `website/legacy-*.json`) and never mix files from different releases.
 Avoid rebuilding an output directory while another test or server depends on its
 current bytes.
 
@@ -225,7 +225,9 @@ Artifact-dependent skips before packaging do not establish artifact acceptance.
 - Validate all transfer-object hashes before device access. Install compiled
   libraries to Archive before RAM launchers, then verify their types/locations.
   Delete or replace an earlier cas-evo file only when its decoded contents match
-  a recorded release (`website/legacy-v1.json`) or the current package. Keep and
+  a recorded release (`website/legacy-*.json`, built by `build/legacy_manifest.mjs`
+  from the published v1 and packs-v1 packages and the delivered MathPrint test
+  ZIPs) or the current package. Keep and
   list modified or unreadable files, and leave unrelated calculator content alone.
 - Serialize native transport calls. Stop waits for an active transfer to finish.
   A timed-out Asyncify/WASM instance is retired rather than reused; JavaScript

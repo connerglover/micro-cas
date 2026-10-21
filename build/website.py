@@ -7,6 +7,7 @@ import shutil
 import zipfile
 
 import archive_zip
+from check_pages import LEGACY
 import vendor_sources
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,19 +26,22 @@ def build(package, output):
             raise ValueError('pinned runtime asset changed: ' + name)
     output.mkdir(parents=True, exist_ok=True)
     for name in ['index.html', 'styles.css', 'app.js', 'installer.js', 'transport.js',
-                 'isolation.js', 'sw.js', 'licenses.html', '_headers', 'legacy-v1.json']:
+                 'isolation.js', 'sw.js', 'licenses.html', '_headers'] + list(LEGACY):
         shutil.copyfile(ROOT / 'website' / name, output / name)
-    # The record of earlier-release objects that the installer may remove.
-    legacy = (ROOT / 'website/legacy-v1.json').read_bytes()
-    if json.loads(legacy).get('schema') != 1:
-        raise ValueError('unexpected legacy manifest schema')
+    # The records of earlier-release objects that the installer may remove or replace.
+    legacy = {}
+    for name in LEGACY:
+        blob = (ROOT / 'website' / name).read_bytes()
+        if json.loads(blob).get('schema') != 1:
+            raise ValueError('unexpected legacy manifest schema: ' + name)
+        legacy[name] = hashlib.sha256(blob).hexdigest()
     for name in ['vendor', 'fonts']:
         shutil.copytree(ROOT / 'website' / name, output / name, dirs_exist_ok=True)
     encoded = (json.dumps(data, separators=(',', ':')) + '\n').encode('ascii')
     (output / 'package.json').write_bytes(encoded)
     (output / 'package-meta.json').write_text(json.dumps(dict(
         sha256=hashlib.sha256(encoded).hexdigest(), count=len(files), totalBytes=data['totalBytes'],
-        legacySha256=hashlib.sha256(legacy).hexdigest()
+        legacy=legacy
     )) + '\n', 'ascii')
     archive_zip.build(package.parent, output / 'cas-evo-calculator.zip')
     shutil.copyfile(vendor_sources.build(), output / 'webtilp-source.zip')
