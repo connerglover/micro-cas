@@ -262,7 +262,7 @@ def test_rewrite_imports_rejects(line, frag):
 def test_manifest_is_consistent_with_the_design_and_the_lint_map():
     man = bundle.load_manifest()
     assert bundle.check_manifest(man) == []
-    assert man.ENTRY == ('casevo', 'CASEVO')
+    assert man.ENTRY == ('casevo', 'CAS')
     rows = dict((r[0], r) for r in man.MODULES)
     # every module of the lint/framelint map (DESIGN 4.1) has a row, and the reverse
     for mod in lint.ALIASES:
@@ -333,7 +333,8 @@ def _with_row(src, row):
 
 @pytest.mark.parametrize('changes,frag', [
     ({'ENTRY': ('casevo', 'casevo')}, 'bad device name'),
-    ({'ENTRY': ('casevo', 'CASEVOLONG')}, 'bad device name'),
+    ({'ENTRY': ('casevo', 'CASLONGER')}, 'bad device name'),
+    ({'ENTRY': ('casevo', 'CASUI')}, 'name of a pack'),
     ({'MODULES': _with_row('node', ('node', 'CVALG', 'R', 520, 12))}, 'duplicate device name'),
     ({'MODULES': _with_row('node', ('node', 'NODE', 'R', 520, 12))}, 'CV plus'),
     ({'MODULES': _with_row('node', ('node', 'CVNODE', 'L', 150, 4))}, 'resident'),
@@ -592,7 +593,7 @@ def test_bundle_sample_tree_end_to_end(tmp_path):
     assert res.errors == [], res.errors
     dev = os.path.join(dist, 'device')
     names = sorted(os.listdir(dev))
-    assert names == ['CASEVO.py', 'CVALG.py', 'CVNODE.py', 'CVPOLY.py', 'CVPOLYB.py',
+    assert names == ['CAS.py', 'CVALG.py', 'CVNODE.py', 'CVPOLY.py', 'CVPOLYB.py',
                      'CVPOLYC.py', 'CVRUN.py']
     with open(os.path.join(dev, 'CVNODE.py'), encoding='ascii', newline='') as fh:
         node = fh.read()
@@ -632,14 +633,14 @@ def test_bundle_sample_tree_end_to_end(tmp_path):
     assert cost['poly'] == int(lines['CVPOLY'] * man.MPYB * man.FACTOR)
     with open(os.path.join(dev, 'CVPOLYB.py'), encoding='ascii') as fh:
         assert fh.read().startswith('import CVRUN as R\n')
-    with open(os.path.join(dev, 'CASEVO.py'), encoding='ascii') as fh:
+    with open(os.path.join(dev, 'CAS.py'), encoding='ascii') as fh:
         assert fh.read().splitlines()[:3] == ['import CVNODE as K', 'import CVALG as A',
                                               'import CVRUN as R']
     # the bundle runs, lazy family and all, and gives the desktop's answer (with the
     # device PEAKB, which the bundler wrote)
     want = _run(src, 'casevo')
     assert want == 'ok [2, 4, 6] 6 1 6 1.5 3\n'
-    got = _run(dev, 'CASEVO')
+    got = _run(dev, 'CAS')
     assert got == want.replace(' 6 1 ', ' 6 %d ' % man.PEAKB)
     # every output file compiles and passes the subset lint (markers honoured)
     for n in names:
@@ -653,7 +654,7 @@ def test_bundle_sample_tree_end_to_end(tmp_path):
     assert levels['CVPOLYB'] == {'pdouble': 4}
     with open(os.path.join(dist, 'sizes.txt'), encoding='ascii') as fh:
         sizes = fh.read()
-    for n in ('CVNODE', 'CVRUN', 'CVPOLYB', 'CASEVO', 'mpy-cross'):
+    for n in ('CVNODE', 'CVRUN', 'CVPOLYB', 'CAS', 'mpy-cross'):
         assert n in sizes
     with open(os.path.join(dist, 'linemap.json'), encoding='ascii') as fh:
         lm = json.load(fh)
@@ -693,7 +694,7 @@ def test_bundle_line_map_points_at_the_source(tmp_path):
     assert linemap.main(['--map', os.path.join(dist, 'linemap.json'), 'CVNODE:8'], out) == 0
     assert 'node.py:17' in out.getvalue()
     tb = ('Traceback (most recent call last):\n'
-          '  File "CASEVO.py", line 4, in <module>\n'
+          '  File "CAS.py", line 4, in <module>\n'
           '  File "CVNODE", line 8, in mk\n'
           'ZeroDivisionError: divide by zero\n')
     t = linemap.translate(tb, table)

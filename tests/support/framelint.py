@@ -59,7 +59,7 @@ MAXLEVEL = 7
 GEN_LEVEL = 2
 IMPORT_OK = (('run', 'need'), ('run', 'go'), ('run', 'room'), ('ui', 'engine'))
 ROOT_GEN_OK = (('run', 'go'),)
-ENTRY = ('casevo', 'CASEVO')
+ENTRY = ('casevo', 'CAS')
 
 # Runtime keys (need, MODS, DEPS, STRATS) -> src module, where they differ (DESIGN 4.3, 15.1).
 # A literal DEV = {...} table in run.py, when present, overrides these.

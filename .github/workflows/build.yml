@@ -49,7 +49,7 @@ jobs:
 
       - name: Enforce TI Connect Evo per-program transfer limits
         # Only the two launchers are transferred as source; packs ship compiled.
-        run: python build/transfer.py dist/CASEVO.py dist/CVTEST.py
+        run: python build/transfer.py dist/CAS.py dist/CVTEST.py
 
       - name: Run bundled acceptance tests
         run: python -m pytest -q -m 'not slow' --strict-depth --bundled
@@ -71,7 +71,7 @@ jobs:
 
       - name: Prepare downloadable files
         run: |
-          test -s dist/CASEVO.py
+          test -s dist/CAS.py
           test -s dist/CVTEST.py
           test -s dist/release.json
           test -s dist/SHA256SUMS

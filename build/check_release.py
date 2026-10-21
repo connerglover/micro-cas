@@ -60,7 +60,7 @@ class _ReleaseDepth(evodepth.DepthChecker):
 class Release:
     def __init__(self, dist=ROOT / 'dist', total=None):
         self.dist = Path(dist).resolve()
-        self.path = self.dist / 'CASEVO.py'
+        self.path = self.dist / 'CAS.py'
         self.source = self.path.read_text('ascii')
         self.meta = json.loads((self.dist / 'release.json').read_text('ascii'))
         self.total = total               # None: the heap never runs short
@@ -70,7 +70,7 @@ class Release:
         # Native stand-ins: no Python callback frame enters the depth model.
         self.gc = SimpleNamespace(mem_free=self.memory, collect={}.clear)
         self.builtins = dict(vars(builtins), __import__=self._import)
-        self.globals = {'__name__': 'CASEVO', '__builtins__': self.builtins}
+        self.globals = {'__name__': 'CAS', '__builtins__': self.builtins}
         self.imports, self.loads, self.seen = [], [], set()
         self.observer = None
         self.fail = None                 # pack name -> exception to raise inside its body
@@ -198,7 +198,7 @@ class Release:
             assert getattr(norm, self.final('normb', 'SIMPBUG'), 0) in (0, None)
 
     def run(self, script):
-        """The real CASEVO launcher against the desktop shims and a key script."""
+        """The real CAS launcher against the desktop shims and a key script."""
         TS.reset()
         TD.reset()
         TS.load(keyscript.parse(script) if isinstance(script, str) else list(script))

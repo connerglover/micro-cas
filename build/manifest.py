@@ -13,8 +13,9 @@ The numbers are provisional. The M0.5 memory gate sets FACTOR, PEAKB, LAZYMAX an
 (DESIGN 18.7); T1.15 re-measures them on the real T1 bundle.
 """
 
-# The entry program (DESIGN 0.6): a program runs as ``from CASEVO import *``.
-ENTRY = ('casevo', 'CASEVO')
+# The entry program (DESIGN 0.6): the RAM launcher CAS (src/casevo.py), which the user runs
+# from the Python app; a program runs as ``from CAS import *``. No pack may share its name.
+ENTRY = ('casevo', 'CAS')
 ENTRY_BUDGET = (30, 1)          # max lines, KB (DESIGN 4.1)
 
 # One row per device module. A lazy logical module longer than LAZYMAX lines is written as

@@ -14,8 +14,8 @@
     return {name, sourceBytes: data.length, status, convertedBytes: file.contents.length};
   }
   const rows = [];
-  for (const [name, limit] of [['A.py', 65516], ['CASEVO.py', 65511],
-                              ['CVTEST.py', 65511], ['ABCDEFGH.py', 65509]]) {
+  for (const [name, limit] of [['A.py', 65516], ['CAS.py', 65514],
+                              ['ABCDEFGH.py', 65509]]) {
     for (const extra of [0, 1]) {
       const n = limit + extra;
       for (const shape of ['one line', 'short lines']) {
@@ -29,7 +29,7 @@
       }
     }
   }
-  const actual = typeof casSource === 'string' ? convert(casSource, 'CASEVO.py') : null;
+  const actual = typeof casSource === 'string' ? convert(casSource, 'CAS.py') : null;
   const files = typeof casFiles === 'undefined' ? [] : casFiles.map(([name, source]) => {
     const row = convert(source, name);
     if (row.status !== TIConnect.transferStatuses.XFR_SUCCESS) throw new Error(JSON.stringify(row));

@@ -74,7 +74,8 @@ def wait_key():
             u = sys.modules.get('CASUI')
             b = getattr(u, BLOCK, None) if u is not None else None
             print('boot block held: %d' % (len(b) if b is not None else 0))
-        print('packs loaded: ' + ' '.join(sorted(m for m in sys.modules if m.startswith('CAS'))))
+        print('packs loaded: ' + ' '.join(sorted(m for m in sys.modules
+                                                  if m.startswith('CAS') and m != 'CAS')))
         r = getattr(sys.modules.get('CASUI'), ENGINE, None) if POS == 4 else None
         if r is not None:
             # What is left once the idle input/printer/aux packs (a cache that room() keeps
@@ -97,10 +98,10 @@ import ti_draw as G
 gc.collect()
 print('Native MicroPython smoke; not an EVO emulator')
 print('heap initial: %d' % gc.mem_free())
-import CASEVO
+import CAS
 assert TS.POS == len(TS.KEYS), 'key replay did not finish'
 assert G.ERROR is None, G.ERROR
-R = CASEVO.R
+R = CAS.R
 assert getattr(R, {ans}) == '5', ('wrong answer', getattr(R, {ans}))
 assert len(getattr(R, {hist})) == 1, 'expected one evaluated input'
 assert getattr(R, {hist})[0][2] == 'ans', getattr(R, {hist})[0]
@@ -131,15 +132,15 @@ def calculus_ui(names):
     return '''import ti_system as TS
 import ti_draw as G
 TS.KEYS={keys}
-import CASEVO
+import CAS
 assert TS.POS==len(TS.KEYS), 'key replay did not finish'
 assert G.ERROR is None,G.ERROR
-history=getattr(CASEVO.R,{hist})
+history=getattr(CAS.R,{hist})
 expected={expected}
 assert len(history)==len(expected),history
 for row,want in zip(history,expected):
  assert row[2]=='ans' and row[1]==want,row
-assert getattr(CASEVO.R,{ans})=='5'
+assert getattr(CAS.R,{ans})=='5'
 print('UI CALCULUS PASS: 7 commands; normal quit')
 '''.format(keys=repr(keys), hist=repr(names.get('HIST', 'HIST')),
            ans=repr(names.get('ANS', 'ANS')), expected=repr(tuple(value for _, value in UI_CASES)))
@@ -180,14 +181,14 @@ def wait():
         STATES.append((len(getattr(u,{line})),getattr(u,{flat})))
     return _wait()
 TS.wait_key=wait
-import CASEVO
+import CAS
 assert TS.POS==len(TS.KEYS), 'key replay did not finish'
 assert G.ERROR is None,G.ERROR
 assert len(STATES)==len(WATCH),STATES
 for n,flat in STATES:
  assert n>=70 and not flat,('a long 2D line went 1D',STATES)
 assert max(n for n,flat in STATES)>=120,STATES
-assert getattr(CASEVO.R,{ans})=='5' and len(getattr(CASEVO.R,{hist}))==1
+assert getattr(CAS.R,{ans})=='5' and len(getattr(CAS.R,{hist}))==1
 print('UI EDIT PASS: %d long 2D lines stay 2D; normal quit' % len(STATES))
 '''.format(keys=repr(tuple(keys)), watch=repr(tuple(watch)),
            line=repr(names.get('LINE', 'LINE')), flat=repr(names.get('ED1D', 'ED1D')),
@@ -235,7 +236,7 @@ def prepare(dist, output, archive=None):
     dist, output = Path(dist).resolve(), Path(output).resolve()
     if output == dist:
         raise ValueError('smoke output must differ from the release directory')
-    paths = [dist / name for name in ('CASEVO.py', 'CVTEST.py', 'release.json')]
+    paths = [dist / name for name in ('CAS.py', 'CVTEST.py', 'release.json')]
     for path in paths:
         if not path.is_file():
             raise FileNotFoundError(str(path) + '; run python build/release.py first')

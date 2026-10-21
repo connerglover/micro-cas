@@ -139,6 +139,8 @@ def check_manifest(man):
     else:
         if not DEVNAME.match(E[1]):
             errs.append('bad device name %r for the entry (want [A-Z][A-Z0-9]{0,7})' % E[1])
+        if E[1] in [row[0] for row in getattr(man, 'PACKS', ())]:
+            errs.append('the entry %r has the name of a pack' % E[1])
         srcs[E[0]] = 'ENTRY'
         devs[E[1]] = E[0]
     eb = getattr(man, 'ENTRY_BUDGET', (1, 1))

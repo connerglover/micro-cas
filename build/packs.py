@@ -47,7 +47,8 @@ Rewriting:
 - run.py's ``DEV`` table maps every runtime key to its pack.
 
 Anything this compiler cannot prove raises PackError instead of producing a subtly wrong pack.
-``clients`` are entry programs (CASEVO, CVTEST): rewritten with the same mapping, not packed.
+``clients`` are entry programs (the launcher ``man.ENTRY``; the developer probe CVTEST):
+rewritten with the same mapping, not packed.
 This is a desktop build helper; nothing here runs on the calculator.
 """
 import ast
@@ -205,6 +206,8 @@ class Plan(object):
                 raise PackError('pack %s: unknown kind %r' % (pack, kind))
             if pack in self.kind:
                 raise PackError('pack %s is listed twice' % pack)
+            if pack == getattr(man, 'ENTRY', ('', ''))[1]:
+                raise PackError('pack %s has the name of the entry program' % pack)
             self.kind[pack] = kind
             homes, placed = [], []
             for item in members:
@@ -224,7 +227,7 @@ class Plan(object):
                     homes.append(d)
             self.order.append((pack, kind, tuple(homes), tuple(placed)))
         for d in sources:
-            if d not in self.owner and d != 'CASEVO':
+            if d not in self.owner and d != getattr(man, 'ENTRY', ('', ''))[1]:
                 raise PackError('%s is in no pack' % d)
         # Soft and view packs are never held: code reaches them through __import__ only. A view
         # pack (UI code) may run while run.need loads a family, so only a computation unloads it.

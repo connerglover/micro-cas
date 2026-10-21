@@ -5,7 +5,7 @@ build/packs.py merges them into packs (build/manifest.py PACKS); build/shrink.py
 identifiers. The run module receives the loader tables it needs on the calculator: the pack of
 every runtime key, the soft/view/aux packs, and heap estimates measured from compiled sizes.
 
-Outputs in DIST: the pack sources (CAS*.py), the RAM launchers CASEVO.py and CVTEST.py,
+Outputs in DIST: the pack sources (CAS*.py), the RAM launchers CAS.py and CVTEST.py,
 release.json (names, packs, levels and a source line map), SHA256SUMS, INSTALL.md and the
 build input cas-evo-packs.zip for build/archive.py. Nothing here runs on the calculator.
 """
@@ -37,7 +37,7 @@ PROBE_PREFIX = "import gc\nprint('CVTEST startup heap',gc.mem_free())\n"
 
 def invalidate(dist):
     """Discard only known generated release outputs; never leave a stale download."""
-    names = {'CASEVO.py', 'CVTEST.py', PACKAGE, 'cas-evo-v1.zip', 'cas-evo-development.zip',
+    names = {'CAS.py', 'CASEVO.py', 'CVTEST.py', PACKAGE, 'cas-evo-v1.zip', 'cas-evo-development.zip',
              'release.json', 'SHA256SUMS', 'INSTALL.md', 'transfer-check.json'}
     previous = dist / 'release.json'
     if previous.is_file():
@@ -52,10 +52,10 @@ def invalidate(dist):
             path.unlink()
 
 
-def _shrunk(pack_sources, clients, seeds=None):
-    """Minify and shrink every pack, the CASEVO client and (as an extra source) CVTEST."""
+def _shrunk(pack_sources, clients, entry, seeds=None):
+    """Minify and shrink every pack, the entry client and (as an extra source) CVTEST."""
     sources = dict((name, bundle.minify(text).text) for name, text in pack_sources.items())
-    sources['CASEVO'] = bundle.minify(clients['CASEVO']).text
+    sources[entry] = bundle.minify(clients[entry]).text
     probe = bundle.minify(clients['CVTEST']).text
     out, mapping = shrink.shrink_sources(sources, reserved=RESERVED, reuse=True,
                                          local_names=True, extra_sources=(probe,), seeds=seeds)
@@ -117,7 +117,8 @@ def prepare(dist, man=None):
     if result.errors:
         raise ValueError('\n'.join(result.errors))
     device = dict((p.stem, p.read_text('ascii')) for p in (dist / 'device').glob('*.py'))
-    clients = {'CASEVO': device.pop('CASEVO'),
+    entry = man.ENTRY[1]
+    clients = {entry: device.pop(entry),
                'CVTEST': (ROOT / 'probe/CVTEST.py').read_text('ascii')}
     pack_sources, client_sources, meta = packs.merge(device, man, clients)
     runpack = meta['owner']['CVRUN']
@@ -127,8 +128,8 @@ def prepare(dist, man=None):
     sizer = bundle.mpy_sizer()
     if sizer is None:
         raise ValueError('the release needs mpy-cross to measure pack sizes')
-    shrunk, mapping, probe = _shrunk(pack_sources, client_sources, seeds)
-    sizes = _sizes(dict((k, v) for k, v in shrunk.items() if k != 'CASEVO'), sizer, man)
+    shrunk, mapping, probe = _shrunk(pack_sources, client_sources, entry, seeds)
+    sizes = _sizes(dict((k, v) for k, v in shrunk.items() if k != entry), sizer, man)
     rows = man.rows()
     family = {}
     for key in man.PARTS:
@@ -140,14 +141,14 @@ def prepare(dist, man=None):
                 for phase, pack in sorted(man.ROOMS.items()))
     pack_sources[runpack] = packs.loader_tables(pack_sources[runpack], {
         'COST': cost, 'ROOM': room, 'SHEDAT': man.SHEDAT})
-    shrunk, mapping, probe = _shrunk(pack_sources, client_sources, seeds)
-    final = dict((k, v) for k, v in shrunk.items() if k != 'CASEVO')
+    shrunk, mapping, probe = _shrunk(pack_sources, client_sources, entry, seeds)
+    final = dict((k, v) for k, v in shrunk.items() if k != entry)
     sizes = _sizes(final, sizer, man)
     for pack, size in sizes.items():
         if size > man.PACKMAX:
             raise ValueError('%s compiles to %d bytes, over PACKMAX %d' % (pack, size, man.PACKMAX))
     files = dict((name + '.py', text) for name, text in final.items())
-    files['CASEVO.py'] = shrunk['CASEVO']
+    files[entry + '.py'] = shrunk[entry]
     files['CVTEST.py'] = PROBE_PREFIX + probe
     for name, text in files.items():
         text.encode('ascii')
@@ -155,11 +156,11 @@ def prepare(dist, man=None):
     meta.update({
         'format': 'packs-v1',
         'names': mapping,
-        'modules': dict((r[0], r[1]) for r in man.MODULES if r[1] in meta['owner'] or r[1] == 'CASEVO'),
+        'modules': dict((r[0], r[1]) for r in man.MODULES if r[1] in meta['owner']),
         'levels': _levels(man, meta, mapping, dist),
         'linemap': _linemap(final, meta, dist),
         'cost': cost, 'room': room, 'mpy_estimate': sizes,
-        'launchers': ['CASEVO.py', 'CVTEST.py'],
+        'launchers': [entry + '.py', 'CVTEST.py'],
     })
     return files, meta
 
@@ -213,7 +214,7 @@ def build(dist=ROOT / 'dist'):
             summary.write('- Download `cas-evo-calculator.zip` or use `cas-evo-web-installer`; '
                           'this intermediate source build is not installed directly.\n')
             summary.write('- Physical calculator validation pending. See `INSTALL.md`.\n')
-    return dist / 'CASEVO.py'
+    return dist / (man.ENTRY[1] + '.py')
 
 
 if __name__ == '__main__':

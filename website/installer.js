@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 export const ARCHIVE = 3;
 export const PYTHON_TYPES = new Set([15, 18]);
-export const LAUNCHERS = ['CASEVO', 'CVTEST'];
+export const LAUNCHERS = ['CAS', 'CVTEST'];
 // The records of earlier releases served beside the package (build/legacy_manifest.mjs).
 export const LEGACY = ['legacy-v1.json', 'legacy-packs-v1.json', 'legacy-mathprint-da7f036.json',
   'legacy-mathprint-1b94211.json'];
@@ -71,7 +71,7 @@ export function validateLegacy(manifests) {
 export function installationOrder(files) {
   // Entrypoints arrive last, after all their dependencies.
   return [...files].sort((a, b) => {
-    const rank = name => name === 'CASEVO' ? 2 : name === 'CVTEST' ? 1 : 0;
+    const rank = name => name === 'CAS' ? 2 : name === 'CVTEST' ? 1 : 0;
     return rank(a.module) - rank(b.module) || a.name.localeCompare(b.name, 'en');
   });
 }

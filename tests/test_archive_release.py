@@ -81,5 +81,5 @@ def test_archive_holds_only_packs_and_launchers():
             assert data[:4] == b'M\x05\x03\x1f' and len(data) <= 60000, info['name']
             assert info['destination'] == 'archive'
         else:
-            assert info['module'] in ('CASEVO', 'CVTEST') and info['destination'] == 'ram'
+            assert info['module'] in ('CAS', 'CVTEST') and info['destination'] == 'ram'
     assert len(manifest['files']) < 40

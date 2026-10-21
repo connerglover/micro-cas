@@ -17,7 +17,7 @@ sys.path.insert(0, str(HERE))
 import bundle
 
 COMPILER_REVISION = '1f371947309c5ea6023b6d9065415697cbc75578'
-LAUNCHERS = {'CASEVO.py', 'CVTEST.py'}
+LAUNCHERS = {'CAS.py', 'CVTEST.py'}
 HEADER = b'M\x05\x03\x1f'
 
 

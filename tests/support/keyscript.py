@@ -464,7 +464,7 @@ def run(script=(), program=None, fresh=True, latch_clear=False, words=True):
         snaps.append((label, TD.screen_text(), len(TD.CALLS)))
 
     TS.MARK_HOOK[0] = hook
-    g = {'__name__': 'CASEVO', '__builtins__': builtins}
+    g = {'__name__': 'CAS', '__builtins__': builtins}
     ended = None
     mods = {}
     try:

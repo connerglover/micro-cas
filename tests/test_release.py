@@ -22,7 +22,7 @@ SPEC = importlib.util.spec_from_file_location('check_release', ROOT / 'build/che
 
 def load_release_module():
     meta = ROOT / 'dist/release.json'
-    if not (ROOT / 'dist/CASEVO.py').is_file() or not meta.is_file():
+    if not (ROOT / 'dist/CAS.py').is_file() or not meta.is_file():
         pytest.skip('packaged artifact absent; run python build/release.py')
     if json.loads(meta.read_text('ascii')).get('format') != 'packs-v1':
         pytest.skip('dist holds an older release format; run python build/release.py')
