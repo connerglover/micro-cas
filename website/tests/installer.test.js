@@ -18,7 +18,7 @@ let converterPromise;
 const converter = () => converterPromise ||= createConverter();
 
 // The fake calculator stores fingerprints: `${origin}:${module}` stands for content.
-async function fixture(modules = [['CAS', 'ram'], ['CVNODE', 'archive'], ['CVTEST', 'ram']]) {
+async function fixture(modules = [['CAS', 'ram'], ['CVNODE', 'archive']]) {
   const files = [];
   for (const [module, destination] of modules) {
     const data = text(`new:${module}`);
@@ -116,12 +116,14 @@ test('a package object that does not decode as its named module is rejected befo
 });
 
 test('the new package shape: arbitrary pack names, launchers required, everything else archive bytecode', async () => {
-  const pkg = await fixture([['CAS', 'ram'], ['CVTEST', 'ram'], ['CVUI', 'archive'], ['ENGINE1', 'archive'], ['Q', 'archive']]);
-  delete pkg.files[2].sourceSha256;
+  const pkg = await fixture([['CAS', 'ram'], ['CVUI', 'archive'], ['ENGINE1', 'archive'], ['Q', 'archive']]);
+  delete pkg.files[1].sourceSha256;
   await validatePackage(pkg);
-  for (const mutation of [p => p.files.splice(1, 1), p => p.files[2].kind = 'source', p => p.files[3].module = 'engine1',
-    p => p.files[3].module = 'TOOLONGNAME', p => { p.files[2].bytes = 70000; }]) {
-    const broken = await fixture([['CAS', 'ram'], ['CVTEST', 'ram'], ['CVUI', 'archive'], ['ENGINE1', 'archive']]);
+  // The launcher is required; CVTEST (developer only since QPL Q1) is no RAM launcher any more.
+  for (const mutation of [p => p.files.splice(0, 1), p => p.files[1].kind = 'source', p => p.files[2].module = 'engine1',
+    p => p.files[2].module = 'TOOLONGNAME', p => { p.files[1].bytes = 70000; },
+    p => Object.assign(p.files[1], { module: 'CVTEST', name: 'CVTEST.8xpy2', destination: 'ram', kind: 'source' })]) {
+    const broken = await fixture([['CAS', 'ram'], ['CVUI', 'archive'], ['ENGINE1', 'archive']]);
     mutation(broken);
     await assert.rejects(validatePackage(broken));
   }
@@ -130,8 +132,8 @@ test('the new package shape: arbitrary pack names, launchers required, everythin
 test('libraries install first, launchers last, and every destination is verified', async () => {
   const pkg = await fixture(), transport = fakeTransport(), events = [];
   const result = await new Installer(transport, e => events.push(e)).install(pkg, await legacyFixture());
-  assert.deepEqual(transport.sent.map(f => f.module), ['CVNODE', 'CVTEST', 'CAS']);
-  assert.equal(result.completed, 3);
+  assert.deepEqual(transport.sent.map(f => f.module), ['CVNODE', 'CAS']);
+  assert.equal(result.completed, 2);
   assert.deepEqual(result.removed, []);
   assert.equal(events.at(-1).phase, 'complete');
   assert.deepEqual(checkInstalled(pkg.files, await transport.list()), []);
@@ -187,17 +189,16 @@ test('unrelated files are never read or removed', async () => {
 });
 
 test('same-name objects are replaced only when they match the earlier release or the new package', async () => {
-  for (const [name, type, attr, origin] of [['CVNODE', 18, 3, 'v1'], ['CVNODE', 18, 3, 'new'], ['CVTEST', 15, 0, 'v1'],
-    ['CVTEST', 15, 0, 'v0'], ['CAS', 15, 0, 'new']]) {
+  for (const [name, type, attr, origin] of [['CVNODE', 18, 3, 'v1'], ['CVNODE', 18, 3, 'new'], ['CAS', 15, 0, 'new']]) {
     const pkg = await fixture(), transport = fakeTransport();
     transport.vars.push(await object(name, type, attr, origin));
     const result = await new Installer(transport).install(pkg, await legacyFixture());
-    assert.equal(result.completed, 3, `${name} from ${origin}`);
+    assert.equal(result.completed, 2, `${name} from ${origin}`);
     assert.deepEqual(transport.inspected, [name]);
     assert.deepEqual(transport.removed, []);
   }
   // A RAM program the user called CAS is not overwritten either.
-  for (const [name, type, attr] of [['CVNODE', 18, 3], ['CAS', 15, 0], ['CVTEST', 15, 3]]) {
+  for (const [name, type, attr] of [['CVNODE', 18, 3], ['CAS', 15, 0], ['CAS', 15, 3]]) {
     const pkg = await fixture(), transport = fakeTransport();
     const foreign = await object(name, type, attr, 'user');
     transport.vars.push(foreign, await object('CVOLD', 18, 3, 'v1'));
@@ -265,7 +266,7 @@ test('archive space freed by removals counts only after the calculator confirms 
   const tight = fakeTransport({ flash: required - 500 });
   tight.vars.push(await object('CVOLD', 18, 3, 'v1', { size: 1000 }));
   await new Installer(tight).install(pkg, await legacyFixture());
-  assert.equal(tight.sent.length, 3);
+  assert.equal(tight.sent.length, 2);
   // The calculator still reports the old free space after removal: nothing is sent.
   const stale = fakeTransport({ flash: required - 500, reclaim: false });
   stale.vars.push(await object('CVOLD', 18, 3, 'v1', { size: 1000 }));
@@ -348,8 +349,8 @@ test('transport passes archive=1 for bytecode and RAM=0 for source', async () =>
   t.connected = true; t.handle = 7;
   t.module = { FS: { writeFile() {}, unlink() {} }, ccall(name, type, argTypes, args) { calls.push({ name, args }); return 0; } };
   for (const file of installationOrder(pkg.files)) await t.send(file);
-  assert.deepEqual(calls.map(c => c.args[3]), [1, 0, 0]);
-  assert.deepEqual(installationOrder(pkg.files).map(f => f.module), ['CVNODE', 'CVTEST', 'CAS']);
+  assert.deepEqual(calls.map(c => c.args[3]), [1, 0]);
+  assert.deepEqual(installationOrder(pkg.files).map(f => f.module), ['CVNODE', 'CAS']);
   assert.ok(calls.every(c => c.name === 'send_file_custom' && c.args[4] === 0));
 });
 
@@ -357,7 +358,8 @@ test('the shipped package passes all checks', async t => {
   const path = process.env.CAS_EVO_PACKAGE || 'dist/archive-transfer/package.json';
   if (!fs.existsSync(path)) return t.skip('build archive transfer package first');
   const pkg = await validatePackage(JSON.parse(fs.readFileSync(path, 'utf8')));
-  assert.equal(pkg.files.filter(f => f.destination === 'ram').map(f => f.module).sort().join(), 'CAS,CVTEST');
+  assert.equal(pkg.files.filter(f => f.destination === 'ram').map(f => f.module).sort().join(), 'CAS');
+  assert.ok(!pkg.files.some(f => ['CVTEST', 'CASEVO'].includes(f.module)));
   assert.ok(pkg.files.every(f => f.destination === 'ram' || (f.kind === 'bytecode' && f.name.endsWith('.8mp2'))));
   const known = await converter();
   for (const file of pkg.files) {
@@ -500,7 +502,7 @@ test('a calculator holding the complete v1 install is reduced to the new packs',
   const known = await converter();
   // A new release: two launchers and two packs, one reusing the v1 name CVUI.
   const files = [];
-  for (const [module, compiled, payload] of [['CAS', false, 'import cvui\n'], ['CVTEST', false, 'import cvui\nprint(1)\n'],
+  for (const [module, compiled, payload] of [['CAS', false, 'import cvui\n'],
     ['CVUI', true, Uint8Array.from([0x4d, 5, 3, 0x1f, 9, 9])], ['CVENG', true, Uint8Array.from([0x4d, 5, 3, 0x1f, 7])]]) {
     const data = await evoObject(module, compiled, payload);
     files.push({ module, name: module + (compiled ? '.8mp2' : '.8xpy2'), kind: compiled ? 'bytecode' : 'source',
@@ -529,11 +531,11 @@ test('a calculator holding the complete v1 install is reduced to the new packs',
       vars.push({ name: file.module, type, attr: file.destination === 'ram' ? 0 : 3, size: file.bytes, folder: '', data: decode(file.data) });
     } };
   const result = await new Installer(transport).install(pkg, JSON.parse(fs.readFileSync(LEGACY_PATH, 'utf8')));
-  assert.equal(result.completed, 4);
-  assert.equal(removed.length, 236);
-  assert.ok(!removed.includes('CVUI') && removed.includes('CASEVO') && !removed.includes('CVTEST'));
+  assert.equal(result.completed, 3);
+  assert.equal(removed.length, 237);
+  assert.ok(!removed.includes('CVUI') && removed.includes('CASEVO') && removed.includes('CVTEST'));
   assert.deepEqual(result.preserved.map(p => [p.name, p.type, p.reason]), [['CVF00007', 15, 'different']]);
-  assert.deepEqual(vars.map(v => `${v.name}/${v.type}`).sort(), ['CAS/15', 'CVENG/18', 'CVF00007/15', 'CVTEST/15', 'CVUI/18', 'NOTES/15']);
+  assert.deepEqual(vars.map(v => `${v.name}/${v.type}`).sort(), ['CAS/15', 'CVENG/18', 'CVF00007/15', 'CVUI/18', 'NOTES/15']);
 });
 
 test('every recorded earlier release is served and validates, one record per file', async () => {
@@ -576,14 +578,15 @@ test('the MathPrint test-build records are reproducible from the delivered calcu
   }
 });
 
-test('an earlier CASEVO launcher is removed on an exact match and kept when modified', async () => {
-  for (const [origin, removed] of [['v1', ['CASEVO']], ['edited', []]]) {
+test('an earlier CASEVO or CVTEST is removed on an exact match and kept when modified', async () => {
+  for (const [name, origin, removed] of [['CASEVO', 'v1', ['CASEVO']], ['CASEVO', 'edited', []],
+    ['CVTEST', 'v1', ['CVTEST']], ['CVTEST', 'edited', []], ['CVTEST', 'v0', ['CVTEST']]]) {
     const pkg = await fixture(), transport = fakeTransport();
-    transport.vars.push(await object('CASEVO', 15, 0, origin));
+    transport.vars.push(await object(name, 15, origin === 'v0' ? 3 : 0, origin));
     const result = await new Installer(transport).install(pkg, await legacyFixture());
-    assert.equal(result.completed, 3);
+    assert.equal(result.completed, 2);
     assert.deepEqual(transport.removed, removed);
-    assert.deepEqual(result.preserved.map(p => p.name), removed.length ? [] : ['CASEVO']);
+    assert.deepEqual(result.preserved.map(p => p.name), removed.length ? [] : [name]);
     assert.ok(transport.vars.some(v => v.name === 'CAS' && v.type === 15 && v.attr === 0));
   }
 });
@@ -595,4 +598,58 @@ test('validatePackage requires the launcher it is given', async () => {
   const old = await fixture([['CASEVO', 'ram'], ['CVNODE', 'archive'], ['CVTEST', 'ram']]);
   await validatePackage(old, ['CASEVO', 'CVTEST']);
   await assert.rejects(validatePackage(old), /invalid or repeated|incomplete/);
+});
+
+test('a calculator holding the published packs-v1 install is upgraded without a blocker', async t => {
+  const bytes = pagesPackage(PACKS_V1);
+  if (!bytes) return t.skip('published packs-v1 package unavailable; fetch the pages history');
+  const old = JSON.parse(Buffer.from(bytes).toString('utf8'));
+  const known = await converter();
+  // The next release: the launcher CAS, every pack name again (new contents for two of them,
+  // the others unchanged), and no CVTEST or CASEVO.
+  const files = [];
+  for (const file of old.files.filter(f => f.destination === 'archive')) {
+    if (file.module === 'CASUI' || file.module === 'CASUX') {
+      const data = await evoObject(file.module, true, Uint8Array.from([0x4d, 5, 3, 0x1f, file.module.length]));
+      files.push({ ...file, bytes: data.length, sha256: await sha256(data), data: Buffer.from(data).toString('base64') });
+    } else files.push(file);
+  }
+  const launcher = await evoObject('CAS', false, 'import CASUI\n');
+  files.push({ module: 'CAS', name: 'CAS.8xpy2', kind: 'source', destination: 'ram', bytes: launcher.length,
+    sha256: await sha256(launcher), data: Buffer.from(launcher).toString('base64') });
+  const pkg = { schema: 2, version: 'packs-v1', runtimeCompilation: false, files, totalBytes: files.reduce((s, f) => s + f.bytes, 0) };
+  const vars = old.files.map(file => ({ name: file.module, type: file.destination === 'ram' ? 15 : 18,
+    attr: file.destination === 'ram' ? 0 : 3, size: file.bytes, folder: '', data: decode(file.data) }));
+  vars.push({ name: 'NOTES', type: 15, attr: 0, size: 40, folder: '', data: await evoObject('NOTES', false, 'x=1\n') });
+  let flash = 1000000;
+  const removed = [], sent = [];
+  const transport = { moduleType: 18, connected: true,
+    describe: data => describePythonObject(known, data),
+    async list() { return { vars: vars.map(({ data, ...entry }) => ({ ...entry })), memory: { ok: true, flash_free: flash, ram_free: 100000 } }; },
+    inspect: entry => describePythonObject(known, vars.find(v => v.name === entry.name && v.type === entry.type).data),
+    async remove(entry) {
+      const index = vars.findIndex(v => v.name === entry.name && v.type === entry.type);
+      flash += vars[index].size;
+      removed.push(vars.splice(index, 1)[0].name);
+    },
+    async send(file) {
+      sent.push(file.module);
+      const type = file.destination === 'ram' ? 15 : 18;
+      const index = vars.findIndex(v => v.name === file.module && v.type === type);
+      if (index >= 0) vars.splice(index, 1);
+      vars.push({ name: file.module, type, attr: file.destination === 'ram' ? 0 : 3, size: file.bytes, folder: '', data: decode(file.data) });
+    } };
+  const result = await new Installer(transport).install(pkg, LEGACY.map(record));
+  assert.equal(result.stopped, false);
+  assert.deepEqual(removed.sort(), ['CASEVO', 'CVTEST']);
+  assert.deepEqual(result.preserved, []);
+  assert.equal(sent.length, 22);
+  assert.equal(sent.at(-1), 'CAS');
+  assert.deepEqual(vars.filter(v => v.type === 15).map(v => v.name).sort(), ['CAS', 'NOTES']);
+  // Without the packs-v1 record the same calculator is blocked: its packs are unconfirmed.
+  const fresh = old.files.map(file => ({ name: file.module, type: file.destination === 'ram' ? 15 : 18,
+    attr: file.destination === 'ram' ? 0 : 3, size: file.bytes, folder: '', data: decode(file.data) }));
+  vars.length = 0; vars.push(...fresh); sent.length = 0;
+  await assert.rejects(new Installer(transport).install(pkg, record('legacy-v1.json')), /could not be confirmed/);
+  assert.deepEqual(sent, []);
 });

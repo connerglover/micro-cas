@@ -157,7 +157,7 @@ $('primary').addEventListener('click', async () => {
       $('device-name').textContent = device.model === 49 ? 'TI-84 EVO-T connected' : 'TI-84 EVO connected';
       $('archive-free').textContent = device.listing.memory?.ok ? `${bytes(device.listing.memory.flash_free)} free in archive` : '';
       $('status-text').textContent = 'Connected. Ready to install.';
-      $('action-note').textContent = 'Libraries go to archive; CASEVO and CVTEST go to RAM. Earlier cas-evo files are removed or replaced only after an exact content check.';
+      $('action-note').textContent = 'Libraries go to archive; CAS goes to RAM. Earlier cas-evo files are removed or replaced only after an exact content check.';
       stage(1);
     } else {
       installed = false;

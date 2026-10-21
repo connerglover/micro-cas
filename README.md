@@ -7,9 +7,9 @@ too large to compute stay exact powers (`3^(2^20)` gives `3^1048576`). Includes
 a calculator editor, history, stored variables/functions and 2D answers.
 
 The calculator build (format `packs-v1`) contains **21 compiled library packs
-for Archive and two small launchers for RAM**, preserving the full feature set:
-23 EVO transfer objects, whose sizes `archive.json` in the ZIP records. CASEVO
-imports two packs before its first screen and loads the engine on the first
+for Archive and one small launcher, `CAS`, for RAM**, preserving the full
+feature set: 22 EVO transfer objects, whose sizes `archive.json` in the ZIP
+records. CAS imports two packs before its first screen and loads the engine on the first
 ENTER. This replaces the v1 package of 236 libraries, which took 5.5 minutes to
 start on the EVO and then stopped at a `ti_graphics.setColor` call; see
 [FASTBOOT.md](docs/notes/FASTBOOT.md).
@@ -25,15 +25,17 @@ For automatic placement, download **cas-evo-web-installer** from that run,
 extract it, and run `python serve_installer.py --directory website`. Open
 `http://127.0.0.1:4173` in desktop Chrome or Edge, connect the EVO, and choose
 **Install cas-evo**. It checks the package, removes earlier cas-evo files only
-when their contents exactly match the recorded v1 release, sends the complete
+when their contents exactly match a recorded earlier release (v1, the first
+pack release with its `CASEVO` and `CVTEST` launchers, and the MathPrint test
+builds), sends the complete
 package, and verifies every destination. It uses pinned
 [WebTILP](https://github.com/adriweb/tilibs) locally; no account or upload is needed.
 
-For manual transfer, send every `.8mp2` file to **Archive** and the two `.8xpy2`
-launchers (`CASEVO`, `CVTEST`) to **RAM** using WebTILP. Remove the files of an
-earlier v1 install first; [INSTALL.md](docs/INSTALL.md#remove-an-earlier-version)
-lists them. Open Python and run **CASEVO**. `CVTEST` runs the optional
-55-command diagnostic. Keep filenames unchanged. See
+For manual transfer, send every `.8mp2` file to **Archive** and the `.8xpy2`
+launcher `CAS` to **RAM** using WebTILP. Remove the files of an earlier install
+first (an earlier pack release left `CASEVO` and `CVTEST` in RAM);
+[INSTALL.md](docs/INSTALL.md#remove-an-earlier-version) lists them. Open Python
+and run **CAS**. Keep filenames unchanged. See
 [INSTALL.md](docs/INSTALL.md) for controls and acceptance examples.
 
 Physical calculator execution of `packs-v1` is still pending. On 32-bit
@@ -41,8 +43,9 @@ MicroPython v1.12, which is not an EVO emulator, the compiled packs start on a
 95,000-byte heap and pass a typical session at 173,360 bytes. The heaviest
 definite integrals need more: they pass at 189,776 bytes, the free heap the EVO
 probe measured at program start plus the test harness's own use. The 55
-diagnostics in one long session pass at 204,000 bytes and up; at 189,776 the
-heap fragments and 53 pass. About 500 KB of total user RAM is not the Python heap.
+diagnostics of the developer probe `CVTEST` (built to `dist/dev/` for CI, not
+shipped) pass in one long session at 204,000 bytes and up; at 189,776 the heap
+fragments and 53 pass. About 500 KB of total user RAM is not the Python heap.
 
 ## Build locally
 
@@ -61,7 +64,7 @@ python tests/support/lint.py src
 python tests/support/framelint.py
 python -m pytest -q -m "not slow" --strict-depth
 python build/release.py
-python build/transfer.py dist/CASEVO.py dist/CVTEST.py
+python build/transfer.py dist/CAS.py dist/dev/CVTEST.py
 python -m pytest -q -m "not slow" --strict-depth --bundled
 python build/check_release.py
 python build/archive.py --mpy-cross /path/to/pinned-v1.12/mpy-cross

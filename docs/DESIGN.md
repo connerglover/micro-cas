@@ -81,7 +81,7 @@ otherwise.
    - Node slots are preallocated at boot for `NMAX = 768` nodes (12 KB); each live node adds a
      tuple of about 32 B [E].
    - Every search runs in a releasable region.
-6. **Device names.** The entry program is `CASEVO`. Modules are `CV` plus up to 6 letters.
+6. **Device names.** The entry program is `CAS` (it was `CASEVO` until the QPL changes). Modules are `CV` plus up to 6 letters.
 
 ---
 
@@ -185,7 +185,7 @@ The full detail is in `device-python.md`. This summary lists what drives the des
 | No `math.gcd/isqrt/log10`, `int.bit_length`, `functools`, `itertools`, `re`, `fractions`, `cmath`, `decimal` | V/A | We write our own: gcd loops, Newton isqrt, complex helpers, a decimal formatter. |
 | About 185 KB free at program start (PROBE3: 185,296 B); 173 KB after a probe imported `ti_plotlib`, `ti_graphics`, `ti_image` and more, which cas-evo does not import. Bytecode, compile transients, qstrs and data all share this heap. | V | Resident code about 58 KB. Lazy families, eviction, regions, node caps (§18). |
 | The GC is non-moving and mark-sweep | A | Allocate long-lived buffers early. No large dict growth (the intern table is our own). |
-| Module names are `[A-Z][A-Z0-9]{0,7}`, in a flat namespace. User modules can import each other. A program runs as `from NAME import *`. | V | `CASEVO` plus `CVxxxxxx`. No `__main__` guard. The entry body is depth 0. |
+| Module names are `[A-Z][A-Z0-9]{0,7}`, in a flat namespace. User modules can import each other. A program runs as `from NAME import *`. | V | `CAS` plus `CVxxxxxx`. No `__main__` guard. The entry body is depth 0. |
 | A 20k-iteration loop takes 0.066 s (about 3.3 µs per simple iteration) | V | Step budgets on every search. Numeric pre-checks before exact work. |
 | Keys arrive as TI-BASIC `getKey` codes; 2nd (21) and alpha (31) are separate presses | V | The UI keeps its own modifier state (§16.4). |
 | `ti_system.escape()` returns True once after [clear] was pressed | D (CE) | Probe it on the EVO (PROBE6); the fallback is `get_key() == 45` |
@@ -237,7 +237,7 @@ written as parts (§4.3).
 
 | src | device | class | alias | role | lines | KB | tier |
 |---|---|---|---|---|---|---|---|
-| `casevo.py` | `CASEVO` | entry | – | Imports resident modules leaf-first. Runs the event loop at module level. | 30 | 1 | UI |
+| `casevo.py` | `CAS` | entry | – | Imports resident modules leaf-first. Runs the event loop at module level. | 30 | 1 | UI |
 | `node.py` | `CVNODE` | R | `K` | Intern table, regions, number kernels, constructors (`add_`, `mul_`, `fn_`, `rel_`, `neg_`, `absn`), radicals, special values, the ∞ folding table, exceptions, `ESC` poll hook | 520 | 11 | T1 |
 | `nodeb.py` | `CVNODEB` | R | `KB` | Powers too large to fold (§6.1): the fold rule, `huge`, `nval`, the sum, ln and kernel rules. Imported by `node`; on the calculator an aux pack (`CASBIG`) loaded on first use | 320 | 8 | T1 |
 | `parse.py` | `CVPARSE` | R | `P` | Lexer, TI rewrite, name cutter, implicit `*`, token-level macro/variable expansion, shunting-yard, `inst`, `g_eval` | 420 | 9 | T1 |
@@ -3403,7 +3403,7 @@ smaller level (§17.3).
 
 | L | layer | evaluation path | UI path | may call |
 |---|---|---|---|---|
-| 0 | entry | `CASEVO` body: imports and the event loop | the same | L1 |
+| 0 | entry | `CAS` body: imports and the event loop | the same | L1 |
 | 1 | runner / dispatch | `R.go` (runner and trampoline) | `U.key`, `U.show`, `U.boot`, `U.panic` | >= L2 |
 | 2 | orchestration | all `g_*` generators; `R.start` (returns `(code, ctx)`, never a generator), `PR.record`, `msg_rec`, `evict_all` | `U.busy`; menu screens (`M.*`, which call L3 drawing directly); editor helpers; `D.layout`, `D.draw_entry` | >= L3 |
 | 3 | algorithms | `diff` fold, `subst`, `expand`, `normal`, `series_fold`, factor and solve loops, `RU.match`, `RU.rset`, `RU.guard_ok`, quadrature, `nev`, `P.tokens`, `PR.text`, `R.need`, `R.drop` | `D.measure`, `D.place`, `D.render` | >= L4 |
@@ -3677,7 +3677,7 @@ CPython: an LRU victim that is live is skipped, and the next one is evicted [M].
   2. if nothing frees code: eviction is off. Lazy families load at most once per session and stay;
      lazy modules are merged into fewer, larger family modules; the T3 cut decision (§18.8 step 7)
      moves forward to T1.15, and T2 families may be trimmed. When memory runs out, the message
-     asks the user to restart `CASEVO`.
+     asks the user to restart `CAS`.
 
 ### 18.6 MemoryError protocol (in `R.go`, L1)
 
@@ -3767,7 +3767,7 @@ replaces the factors with measurements of the real code. Go/no-go notes for T2 a
 ### 19.1 Manifest (`build/manifest.py`)
 
 ```python
-ENTRY = ('casevo', 'CASEVO')
+ENTRY = ('casevo', 'CAS')
 MODULES = (
     # src      device     class  max lines  KB budget
     ('node',   'CVNODE',  'R',   520,       12),
@@ -3813,8 +3813,9 @@ and writes them, with `FAMILY`, `PARTS` and the `DEV` map, into `run.py`'s table
 ### 19.3 Device install and debugging
 
 - Copy `dist/device/*.py` to the calculator with TI's transfer tool [A: the EVO transfer path is
-  unverified]. Run `CASEVO` from the Python app.
-- Probes (`probe/*.py`) and `CVTEST` are transferred separately.
+  unverified]. Run `CAS` from the Python app.
+- Probes (`probe/*.py`) are transferred separately. `CVTEST` is a developer probe: the release
+  builds it to `dist/dev/CVTEST.py` for the native CI suites, and it does not ship.
 - A device error reports a file and a line. `python build/linemap.py CVNODE 123` prints the source
   location.
 

@@ -18,7 +18,7 @@ def build(directory, output):
     files, seen = {}, set()
     for item in manifest['files']:
         name, module = item['name'], item['module']
-        launcher = module in ('CAS', 'CVTEST')
+        launcher = module == 'CAS'
         extension = '.8xpy2' if launcher else '.8mp2'
         if (not re.fullmatch(r'[A-Z][A-Z0-9]{0,7}', module) or name != module + extension
                 or module in seen or item['destination'] != ('ram' if launcher else 'archive')):
@@ -32,7 +32,7 @@ def build(directory, output):
             raise ValueError('missing EVO CBOR metadata header: ' + name)
         files[name] = data
         seen.add(module)
-    if not {'CAS', 'CVTEST'} <= seen or sum(map(len, files.values())) != manifest['totalBytes']:
+    if 'CAS' not in seen or sum(map(len, files.values())) != manifest['totalBytes']:
         raise ValueError('incomplete calculator package')
     if sum(map(len, files.values())) > 3500000:
         raise ValueError('calculator storage budget exceeded')

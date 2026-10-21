@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 export const ARCHIVE = 3;
 export const PYTHON_TYPES = new Set([15, 18]);
-export const LAUNCHERS = ['CAS', 'CVTEST'];
+export const LAUNCHERS = ['CAS'];
 // The records of earlier releases served beside the package (build/legacy_manifest.mjs).
 export const LEGACY = ['legacy-v1.json', 'legacy-packs-v1.json', 'legacy-mathprint-da7f036.json',
   'legacy-mathprint-1b94211.json'];
@@ -69,9 +69,9 @@ export function validateLegacy(manifests) {
 }
 
 export function installationOrder(files) {
-  // Entrypoints arrive last, after all their dependencies.
+  // The launcher arrives last, after all its dependencies.
   return [...files].sort((a, b) => {
-    const rank = name => name === 'CAS' ? 2 : name === 'CVTEST' ? 1 : 0;
+    const rank = name => name === 'CAS' ? 1 : 0;
     return rank(a.module) - rank(b.module) || a.name.localeCompare(b.name, 'en');
   });
 }
@@ -281,7 +281,7 @@ export class Installer {
         .reduce((sum, file) => sum + file.bytes + 64, 4096);
       if (!Number.isFinite(afterCleanup.memory.ram_free)
           || afterCleanup.memory.ram_free === 0xffffffff || afterCleanup.memory.ram_free < ramNeeded) {
-        throw new Error(`The launchers need about ${Math.ceil(ramNeeded / 1024)} KB free in RAM. Free some RAM on the calculator, then retry.`);
+        throw new Error(`The launcher needs about ${Math.ceil(ramNeeded / 1024)} KB free in RAM. Free some RAM on the calculator, then retry.`);
       }
       for (const file of installationOrder(pkg.files)) {
         if (this.stopRequested) return stopped();

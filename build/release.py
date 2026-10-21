@@ -1,13 +1,16 @@
-"""Reproducible EVO release: a few cached library packs plus two RAM launchers.
+"""Reproducible EVO release: a few cached library packs plus one RAM launcher.
 
 docs/notes/FASTBOOT.md explains the design. build/bundle.py turns src/ into device modules;
 build/packs.py merges them into packs (build/manifest.py PACKS); build/shrink.py shortens
 identifiers. The run module receives the loader tables it needs on the calculator: the pack of
 every runtime key, the soft/view/aux packs, and heap estimates measured from compiled sizes.
 
-Outputs in DIST: the pack sources (CAS*.py), the RAM launchers CAS.py and CVTEST.py,
-release.json (names, packs, levels and a source line map), SHA256SUMS, INSTALL.md and the
-build input cas-evo-packs.zip for build/archive.py. Nothing here runs on the calculator.
+Outputs in DIST: the pack sources (CAS*.py), the RAM launcher CAS.py, release.json (names,
+packs, levels and a source line map), SHA256SUMS, INSTALL.md and the build input
+cas-evo-packs.zip for build/archive.py. The diagnostic probe CVTEST (probe/CVTEST.py, shrunk
+with the same mapping) goes to DIST/dev/CVTEST.py for the native CI checks only: it is not a
+release file and never ships (release.json records it under devtools). Nothing here runs on
+the calculator.
 """
 import argparse
 import ast
@@ -33,12 +36,14 @@ import transfer
 RESERVED = ('MODS', 'need', 'DEV')
 PACKAGE = 'cas-evo-packs.zip'
 PROBE_PREFIX = "import gc\nprint('CVTEST startup heap',gc.mem_free())\n"
+DEVPROBE = 'dev/CVTEST.py'          # developer/CI only; not in files, launchers or any ZIP
 
 
 def invalidate(dist):
     """Discard only known generated release outputs; never leave a stale download."""
-    names = {'CAS.py', 'CASEVO.py', 'CVTEST.py', PACKAGE, 'cas-evo-v1.zip', 'cas-evo-development.zip',
-             'release.json', 'SHA256SUMS', 'INSTALL.md', 'transfer-check.json'}
+    names = {'CAS.py', 'CASEVO.py', 'CVTEST.py', DEVPROBE, PACKAGE, 'cas-evo-v1.zip',
+             'cas-evo-development.zip', 'release.json', 'SHA256SUMS', 'INSTALL.md',
+             'transfer-check.json'}
     previous = dist / 'release.json'
     if previous.is_file():
         meta = json.loads(previous.read_text('ascii'))
@@ -149,7 +154,7 @@ def prepare(dist, man=None):
             raise ValueError('%s compiles to %d bytes, over PACKMAX %d' % (pack, size, man.PACKMAX))
     files = dict((name + '.py', text) for name, text in final.items())
     files[entry + '.py'] = shrunk[entry]
-    files['CVTEST.py'] = PROBE_PREFIX + probe
+    files[DEVPROBE] = PROBE_PREFIX + probe
     for name, text in files.items():
         text.encode('ascii')
         ast.parse(text, filename=name, feature_version=(3, 4))
@@ -160,7 +165,7 @@ def prepare(dist, man=None):
         'levels': _levels(man, meta, mapping, dist),
         'linemap': _linemap(final, meta, dist),
         'cost': cost, 'room': room, 'mpy_estimate': sizes,
-        'launchers': [entry + '.py', 'CVTEST.py'],
+        'launchers': [entry + '.py'],
     })
     return files, meta
 
@@ -172,19 +177,26 @@ def build(dist=ROOT / 'dist'):
     man = bundle.load_manifest()
     files, meta = prepare(dist, man)
     data = dict((name, text.encode('ascii')) for name, text in sorted(files.items()))
+    dev = dict((name, data.pop(name)) for name in list(data) if name.startswith('dev/'))
     launchers = dict((name, data[name]) for name in meta['launchers'])
-    checks = dict((name, transfer.inspect_source(blob, name)) for name, blob in launchers.items())
+    # The probe still fits the converter (a developer may send it); it is not a launcher.
+    checked = dict(launchers, **dict((name.split('/')[-1], blob) for name, blob in dev.items()))
+    checks = dict((name, transfer.inspect_source(blob, name)) for name, blob in checked.items())
     meta['transfer_check'] = {'converter_version': transfer.CONVERTER_VERSION,
         'fits_converter_limit': all(c['fits_converter_limit'] for c in checks.values()),
         'files': checks, 'physical_transfer_verified': False}
     (dist / 'transfer-check.json').write_text(
         json.dumps(meta['transfer_check'], indent=2) + '\n', 'ascii', newline='\n')
-    transfer.require_transferable(launchers)
+    transfer.require_transferable(checked)
     meta['files'] = dict((name, {'bytes': len(blob), 'sha256': hashlib.sha256(blob).hexdigest()})
                          for name, blob in sorted(data.items()))
     meta['total_source_bytes'] = sum(len(blob) for blob in data.values())
+    meta['devtools'] = dict((name.split('/')[-1], {'path': name, 'bytes': len(blob),
+                                                   'sha256': hashlib.sha256(blob).hexdigest()})
+                            for name, blob in sorted(dev.items()))
     meta['device_validation'] = 'pending physical EVO run; total user RAM is not the Python heap'
-    for name, blob in data.items():
+    for name, blob in list(data.items()) + list(dev.items()):
+        (dist / name).parent.mkdir(parents=True, exist_ok=True)
         (dist / name).write_bytes(blob)
     (dist / 'release.json').write_text(json.dumps(meta, indent=1, sort_keys=True) + '\n',
                                        'ascii', newline='\n')
@@ -204,12 +216,13 @@ def build(dist=ROOT / 'dist'):
     kinds = meta['kinds']
     print('Packs: %s' % ', '.join('%s (%s, ~%d B)' % (p, kinds[p], meta['mpy_estimate'][p])
                                   for p in sorted(meta['mpy_estimate'])))
-    print('Launchers: %s; every launcher passes the TI Connect Evo converter size gate.'
-          % ', '.join('%s %d B' % (n, len(launchers[n])) for n in sorted(launchers)))
+    print('Launcher: %s; passes the TI Connect Evo converter size gate. Developer probe %s '
+          '(not shipped): %d B.' % (', '.join('%s %d B' % (n, len(launchers[n])) for n in sorted(launchers)),
+                                    DEVPROBE, sum(len(b) for b in dev.values())))
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8', newline='\n') as summary:
             summary.write('## Pack build\n\n')
-            summary.write('- %d packs and 2 launchers; packs compile to %d bytes (mpy-cross '
+            summary.write('- %d packs and 1 launcher; packs compile to %d bytes (mpy-cross '
                           'estimate).\n' % (len(meta['mpy_estimate']), sum(meta['mpy_estimate'].values())))
             summary.write('- Download `cas-evo-calculator.zip` or use `cas-evo-web-installer`; '
                           'this intermediate source build is not installed directly.\n')

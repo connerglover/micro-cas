@@ -81,5 +81,8 @@ def test_archive_holds_only_packs_and_launchers():
             assert data[:4] == b'M\x05\x03\x1f' and len(data) <= 60000, info['name']
             assert info['destination'] == 'archive'
         else:
-            assert info['module'] in ('CAS', 'CVTEST') and info['destination'] == 'ram'
-    assert len(manifest['files']) < 40
+            assert info['module'] == 'CAS' and info['destination'] == 'ram'
+    # One launcher; the developer probe CVTEST never ships (QPL Q1).
+    assert [f['module'] for f in manifest['files'] if f['destination'] == 'ram'] == ['CAS']
+    assert not any(f['module'] in ('CVTEST', 'CASEVO') for f in manifest['files'])
+    assert len(manifest['files']) == 22

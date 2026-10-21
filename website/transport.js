@@ -170,7 +170,7 @@ export class WebTilpTransport {
     const path = `/${file.name}`;
     this.module.FS.writeFile(path, data);
     try {
-      // Compiled companions go to archive; only CASEVO/CVTEST source goes to RAM.
+      // Compiled companions go to archive; only the CAS launcher source goes to RAM.
       this.check(await this.call('send_file_custom', 'number',
         ['number', 'string', 'string', 'number', 'number'],
         [this.handle, path, '', file.destination === 'archive' ? 1 : 0, 0]), `Sending ${file.name}`);

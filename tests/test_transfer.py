@@ -32,7 +32,7 @@ def test_storage_budget_does_not_override_program_limit():
         transfer.require_transferable({'CAS.py': b'x' * 262679})
 
 
-def test_both_app_and_optional_probe_must_fit():
+def test_both_launcher_and_developer_probe_must_fit():
     with pytest.raises(ValueError, match='CVTEST.py'):
         transfer.require_transferable({'CAS.py': b'print(5)\n',
                                        'CVTEST.py': b'x' * 267644})
@@ -81,12 +81,14 @@ def test_release_gate_runs_before_artifact_write(tmp_path, monkeypatch, stale):
     finally:
         sys.path.pop(0)
     monkeypatch.setattr(release, 'prepare', lambda path, man=None:
-                        ({'CAS.py': 'pass\n', 'CVTEST.py': '#' + 'x' * 70000,
+                        ({'CAS.py': 'pass\n', 'dev/CVTEST.py': '#' + 'x' * 70000,
                           'CASK1.py': 'pass\n'},
-                         {'names': {}, 'launchers': ['CAS.py', 'CVTEST.py']}))
+                         {'names': {}, 'launchers': ['CAS.py']}))
     if stale:
-        for name in ('CAS.py', 'CVTEST.py', 'cas-evo-v1.zip', 'cas-evo-development.zip',
-                     'cas-evo-packs.zip', 'SHA256SUMS', 'INSTALL.md', 'CVOLD.py'):
+        (tmp_path / 'dev').mkdir()
+        for name in ('CAS.py', 'CASEVO.py', 'CVTEST.py', 'dev/CVTEST.py', 'cas-evo-v1.zip',
+                     'cas-evo-development.zip', 'cas-evo-packs.zip', 'SHA256SUMS', 'INSTALL.md',
+                     'CVOLD.py'):
             (tmp_path / name).write_text('old')
         (tmp_path / 'release.json').write_text('{"files":{"CVOLD.py":{}}}')
     with pytest.raises(ValueError, match='Not transferable'):
@@ -94,6 +96,8 @@ def test_release_gate_runs_before_artifact_write(tmp_path, monkeypatch, stale):
     assert (tmp_path / 'transfer-check.json').exists()
     assert not (tmp_path / 'CAS.py').exists()
     assert not (tmp_path / 'CVTEST.py').exists()
+    assert not (tmp_path / 'CASEVO.py').exists()
+    assert not (tmp_path / 'dev/CVTEST.py').exists()
     assert not (tmp_path / 'cas-evo-v1.zip').exists()
     assert not (tmp_path / 'cas-evo-packs.zip').exists()
     assert not (tmp_path / 'CASK1.py').exists()

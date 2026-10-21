@@ -117,11 +117,12 @@ Desktop build scripts can use the modern Python version pinned in CI.
 The user download is **`dist/cas-evo-calculator.zip`** (CI artifact
 `cas-evo-v1`). Its format is **packs-v1**
 ([docs/notes/FASTBOOT.md](docs/notes/FASTBOOT.md)): **21 compiled `.8mp2`
-packs for Archive** and the **CASEVO/CVTEST `.8xpy2` launchers for RAM**, 23
-files. `build/manifest.py` `PACKS` defines each pack and its kind (ui, core,
+packs for Archive** and the **`CAS.8xpy2` launcher for RAM**, 22 files. The
+user runs CAS from the Python app (source `src/casevo.py`; `manifest.ENTRY`
+names it, and no pack may share its name). `build/manifest.py` `PACKS` defines each pack and its kind (ui, core,
 family, soft, view, aux); `PACKMAX` caps a pack's bytecode at 60,000 bytes. Read
 `archive.json` for current sizes and update public instructions when the package
-changes. CASEVO must reach its first
+changes. CAS must reach its first
 screen importing only the ui and view packs (CASUI, CASUX); each archive import
 cost seconds on the EVO.
 
@@ -131,13 +132,16 @@ The build has distinct stages:
    `dist/device`), `packs.merge` (`build/packs.py`: modules into packs, function
    placement, renames, lazy aliases) and `build/shrink.py` (identifier
    shortening). It writes the loader tables into the run pack, checks pack sizes
-   with mpy-cross, and outputs the pack sources, launchers, `release.json`,
+   with mpy-cross, and outputs the pack sources, the launcher, `release.json`,
    `SHA256SUMS`, `INSTALL.md` and the intermediate `dist/cas-evo-packs.zip`.
+   It also writes the developer diagnostic probe `dist/dev/CVTEST.py` (shrunk
+   with the same mapping, recorded under `release.json` `devtools`) for the
+   native CI checks; it never ships to the calculator.
    That ZIP is build input, not the calculator download. The packer raises
    instead of emitting a pack it cannot prove correct; do not bypass it.
 2. `build/archive.py` compiles the packs with the pinned MicroPython v1.12
    `mpy-cross` and validates the **MPY v5.3 / 31-bit-small-int ABI**, header
-   `4d05031f`, and `PACKMAX`. The launchers stay source. The exact revision and
+   `4d05031f`, and `PACKMAX`. The launcher stays source. The exact revision and
    native build flags live in the workflow and compiler script. A newer
    `mpy-cross` is not interchangeable with the EVO compiler. The calculator
    never compiles engine source.
@@ -166,7 +170,7 @@ python tests/support/lint.py src
 python tests/support/framelint.py
 python -m pytest -q -m "not slow" --strict-depth
 python build/release.py
-python build/transfer.py dist/CASEVO.py dist/CVTEST.py
+python build/transfer.py dist/CAS.py dist/dev/CVTEST.py
 python -m pytest -q -m "not slow" --strict-depth --bundled
 ```
 
@@ -195,7 +199,8 @@ free at program start plus the 4,480 bytes the harness uses; `ui_calculus` also
 runs 4,096 bytes below it, because native heap layout varies with the run's path
 and a pass at exactly the nominal heap can be luck. `ui_edit` types long 2D lines
 after a result. The 64-bit run uses the default `all` suite (UI, UI calculus, UI
-edit and the 55 diagnostics). FASTBOOT.md
+edit and the 55 diagnostics of the developer probe `dist/dev/CVTEST.py`, which
+the `startup` and `probe` suites also run). FASTBOOT.md
 records why packs need more heap than v1 for the heaviest definite integrals.
 
 Use targeted tests during iteration, then the checks appropriate to the final
@@ -214,7 +219,8 @@ failure disappear.
 
 The normal acceptance command excludes the `slow` marker. Run relevant slow
 oracle cases for changed algorithms and report the distinction. CVTEST's 55
-calculator diagnostics are a separate suite, not those excluded slow tests.
+diagnostics (a CI-only native suite, no longer shipped) are a separate suite,
+not those excluded slow tests.
 Artifact-dependent skips before packaging do not establish artifact acceptance.
 
 ## Browser installer and asset integrity
@@ -223,7 +229,7 @@ Artifact-dependent skips before packaging do not establish artifact acceptance.
   user's browser with explicit device permission; no account, backend upload or
   telemetry is required for installation. Desktop Chrome/Edge are the target.
 - Validate all transfer-object hashes before device access. Install compiled
-  libraries to Archive before RAM launchers, then verify their types/locations.
+  libraries to Archive before the RAM launcher, then verify their types/locations.
   Delete or replace an earlier cas-evo file only when its decoded contents match
   a recorded release (`website/legacy-*.json`, built by `build/legacy_manifest.mjs`
   from the published v1 and packs-v1 packages and the delivered MathPrint test

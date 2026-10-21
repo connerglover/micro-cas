@@ -419,11 +419,10 @@
       "shippingRasterAssets": []
     },
     "storageTruth": {
-      "compiledLibraries": 236,
+      "compiledLibraries": 21,
       "compiledDestination": "archive",
       "sourceLaunchers": [
-        "CASEVO",
-        "CVTEST"
+        "CAS"
       ],
       "launcherDestination": "ram",
       "totalFiles": 238,
@@ -489,7 +488,7 @@
       "kind": "input",
       "refersTo": "input-search",
       "description": "Labeled search inside the expanded package manifest.",
-      "html": "<div class=\"ds-manifest-toolbar\"><label for=\"ds-file-search\">Find a file</label><input id=\"ds-file-search\" class=\"ds-search\" type=\"search\" placeholder=\"For example, CASEVO\" autocomplete=\"off\" spellcheck=\"false\"></div>",
+      "html": "<div class=\"ds-manifest-toolbar\"><label for=\"ds-file-search\">Find a file</label><input id=\"ds-file-search\" class=\"ds-search\" type=\"search\" placeholder=\"For example, CASUI\" autocomplete=\"off\" spellcheck=\"false\"></div>",
       "css": ".ds-manifest-toolbar{display:flex;align-items:center;gap:12px;padding:4px 26px 12px;font-size:12px}.ds-manifest-toolbar label{white-space:nowrap}.ds-manifest-toolbar{font-family:var(--font,\"Public Sans\",sans-serif);font-size:15px;line-height:1.55;font-size:12px}.ds-search{font:inherit;min-width:0;flex:1;border:1px solid #a4b0c2;padding:8px 10px;border-radius:4px;color:var(--ink,#202a3b);background:#fff;font-size:12px;caret-color:var(--blue,#2144ad)}.ds-search::placeholder{color:var(--muted,#586579)}.ds-search:focus-visible{outline:3px solid var(--blue,#2144ad);outline-offset:4px}@media(max-width:700px){.ds-manifest-toolbar{padding-left:20px;padding-right:20px}}",
       "sourcePaths": [
         "website/index.html",
@@ -564,7 +563,7 @@
       "kind": "custom",
       "refersTo": "stage-current",
       "description": "Numbered task sequence with current and completed state treatments.",
-      "html": "<ol class=\"ds-stages\" aria-label=\"Installation stages\"><li class=\"ds-current\" aria-current=\"step\"><span class=\"ds-stage-number\">1</span><div><h2>Connect your EVO</h2><p>Use a USB data cable. Close TI Connect and other calculator tabs first.</p></div></li><li><span class=\"ds-stage-number\">2</span><div><h2>Install the complete package</h2><p>Every file goes to its correct location. Keep your calculator connected.</p></div></li><li><span class=\"ds-stage-number\">3</span><div><h2>Open CASEVO</h2><p>On your calculator, open Python, select CASEVO, and run it.</p></div></li></ol>",
+      "html": "<ol class=\"ds-stages\" aria-label=\"Installation stages\"><li class=\"ds-current\" aria-current=\"step\"><span class=\"ds-stage-number\">1</span><div><h2>Connect your EVO</h2><p>Use a USB data cable. Close TI Connect and other calculator tabs first.</p></div></li><li><span class=\"ds-stage-number\">2</span><div><h2>Install the complete package</h2><p>Every file goes to its correct location. Keep your calculator connected.</p></div></li><li><span class=\"ds-stage-number\">3</span><div><h2>Open CAS</h2><p>On your calculator, open Python, select CAS, and run it.</p></div></li></ol>",
       "css": ".ds-stages{list-style:none;margin:40px 0 30px;padding:0}.ds-stages li{display:flex;gap:17px;position:relative;padding-bottom:26px}.ds-stages li:last-child{padding-bottom:0}.ds-stages li:not(:last-child)::after{content:\"\";position:absolute;left:14px;top:35px;bottom:5px;width:1px;background:var(--line,#d4dbe5)}.ds-stage-number{flex-shrink:0;width:29px;height:29px;border:1px solid #b5bfce;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--muted,#586579);margin-top:1px}.ds-stages .ds-current .ds-stage-number{background:var(--blue,#2144ad);color:#fff;border-color:var(--blue,#2144ad)}.ds-stages .ds-done .ds-stage-number{background:var(--green-pale,#e4f1e9);color:var(--green,#21644d);border-color:#a1c5b1}.ds-stages h2{margin:0 0 5px;font-size:15px;font-weight:600}.ds-stages p{font-size:13px;line-height:1.6;color:var(--muted,#586579);max-width:36ch}.ds-stages{font-family:var(--font,\"Public Sans\",sans-serif);font-size:15px;line-height:1.55;color:var(--ink,#202a3b)}.ds-stages p{margin:0}@media(max-width:700px){.ds-stages{margin-top:30px}.ds-stages li{padding-bottom:20px}.ds-stages li:last-child{padding-bottom:0}.ds-stages p{max-width:40ch}}",
       "sourcePaths": [
         "website/index.html",

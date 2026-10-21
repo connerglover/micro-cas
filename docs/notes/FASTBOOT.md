@@ -65,7 +65,7 @@ and fail heavy commands, so the memory manager has to evict at pack granularity.
 
 ## Architecture
 
-1. **UI first.** `CASEVO` imports only the UI pack and draws immediately. The
+1. **UI first.** `CAS` (called `CASEVO` until the QPL changes) imports only the UI pack and draws immediately. The
    engine loads when it is first needed (first ENTER, or a menu that needs it),
    with a status line showing what is loading and how long it took.
 2. **Graphics through `ti_draw`** with the semantics CalcPlex documents from the
@@ -103,7 +103,9 @@ and fail heavy commands, so the memory manager has to evict at pack granularity.
 
 ## Local package (packs-v1)
 
-Twenty-one packs and two launchers replace 236 libraries and two launchers. The archive holds
+Twenty-one packs and two launchers replaced 236 libraries and two launchers; since the QPL
+changes one launcher, CAS, ships and the diagnostic CVTEST is a developer build only (22 files).
+At the 2026-10-12 review the archive held
 191,697 bytes (compiled packs plus the 6,045 bytes of launcher source); the largest pack,
 CASK1, compiles to 22,121 bytes with the pinned v1.12 compiler. These are the
 2026-10-12 reviewed bytes; publication remains pending (see STATUS.md).
@@ -207,7 +209,7 @@ definite integrals need roughly 15-40 KB more, and long sessions end in a fragme
 185,296 bytes free at program start; the 173,360 figure was taken after the probe imported
 ti_plotlib, ti_graphics, ti_image and more, which this program does not import. 189,776 is
 185,296 plus the 4,480 bytes the harness itself uses. Physical EVO runs decide which model
-holds: CASEVO shows its boot and engine load times, and CVTEST prints its startup heap.
+holds: CAS shows its boot and engine load times and, under F3 About, the free heap.
 
 ### Final review (2026-10-12)
 
@@ -276,4 +278,4 @@ recovery below the measured device heap.
 
 - The cost of one archive import (fixed, or growing with the number of files). If imports
   are cheap, families can be split further for memory; if not, the current split is right.
-- Free heap at CASEVO start, and whether the heaviest definite integrals pass in practice.
+- Free heap at CAS start, and whether the heaviest definite integrals pass in practice.

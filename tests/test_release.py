@@ -10,6 +10,7 @@ import hashlib
 import importlib.util
 import json
 import types
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -428,8 +429,19 @@ def test_package_integrity_and_line_map(booted):
         assert len(content) == info['bytes']
         assert hashlib.sha256(content).hexdigest() == info['sha256']
         ast.parse(content.decode('ascii'), feature_version=(3, 4))
+    assert meta['launchers'] == ['CAS.py']
     for name in meta['launchers']:
         assert meta['files'][name]['bytes'] < 65509
+    # The diagnostic probe is a developer/CI tool beside the release: never a release file,
+    # a launcher or a member of the packs ZIP, SHA256SUMS or INSTALL (QPL Q1).
+    probe = meta['devtools']['CVTEST.py']
+    assert probe['path'] == 'dev/CVTEST.py' and 'CVTEST.py' not in meta['files']
+    data = (booted.dist / probe['path']).read_bytes()
+    assert len(data) == probe['bytes'] and hashlib.sha256(data).hexdigest() == probe['sha256']
+    assert not (booted.dist / 'CVTEST.py').exists() and not (booted.dist / 'CASEVO.py').exists()
+    with zipfile.ZipFile(booted.dist / 'cas-evo-packs.zip') as package:
+        assert not any('CVTEST' in n or 'CASEVO' in n or n.startswith('dev/') for n in package.namelist())
+    assert 'CVTEST' not in (booted.dist / 'SHA256SUMS').read_text('ascii')
     kinds = set(meta['kinds'].values())
     assert {'ui', 'core', 'family', 'soft', 'view'} <= kinds
     for pack, size in meta['mpy_estimate'].items():

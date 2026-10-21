@@ -48,8 +48,9 @@ jobs:
         run: python build/release.py
 
       - name: Enforce TI Connect Evo per-program transfer limits
-        # Only the two launchers are transferred as source; packs ship compiled.
-        run: python build/transfer.py dist/CAS.py dist/CVTEST.py
+        # Only the launcher is transferred as source; packs ship compiled. The developer
+        # probe dist/dev/CVTEST.py (CI only, never shipped) is held to the same limit.
+        run: python build/transfer.py dist/CAS.py dist/dev/CVTEST.py
 
       - name: Run bundled acceptance tests
         run: python -m pytest -q -m 'not slow' --strict-depth --bundled
@@ -72,7 +73,7 @@ jobs:
       - name: Prepare downloadable files
         run: |
           test -s dist/CAS.py
-          test -s dist/CVTEST.py
+          test -s dist/dev/CVTEST.py
           test -s dist/release.json
           test -s dist/SHA256SUMS
 
@@ -114,7 +115,7 @@ jobs:
         # run's path, so the gate keeps 4096 bytes of margin (docs/notes/MATHPRINT.md 0.8).
         run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 185680 --suite ui_calculus
 
-      - name: Run the 55-case diagnostic stress session on a 212000-byte 32-bit heap
+      - name: Run the 55-case diagnostic stress session (developer CVTEST) on a 212000-byte 32-bit heap
         run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 212000 --suite probe
 
       - name: Check actual EVO bytecode on a 500000-byte 64-bit heap

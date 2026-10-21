@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#edf0f4">
-  <meta name="description" content="Install cas-evo on your TI-84 EVO over USB. Compiled libraries in archive, tiny launchers in RAM.">
+  <meta name="description" content="Install cas-evo on your TI-84 EVO over USB. Compiled libraries in archive, a tiny launcher in RAM.">
   <title>Install cas-evo · TI-84 EVO</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232144ad'/%3E%3Cpath d='M23 9H11l7 7-7 7h12' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
   <link rel="preload" href="fonts/public-sans.ttf" as="font" type="font/ttf" crossorigin>
@@ -26,11 +26,11 @@
     <div class="workspace">
       <section class="setup" aria-labelledby="title">
         <h1 id="title">Your calculator.<br>A little more capable.</h1>
-        <p class="intro">Install cas-evo on your TI-84 EVO.<br>Compiled libraries in archive. Tiny launchers in RAM.</p>
+        <p class="intro">Install cas-evo on your TI-84 EVO.<br>Compiled libraries in archive. A tiny launcher in RAM.</p>
         <ol class="stages" aria-label="Installation stages">
           <li id="stage-connect" class="current" aria-current="step"><span class="stage-number">1</span><div><h2>Connect your EVO</h2><p>Use a USB data cable. Close TI Connect and other calculator tabs first.</p></div></li>
           <li id="stage-install"><span class="stage-number">2</span><div><h2>Install the complete package</h2><p>Earlier cas-evo files are checked first. Every new file goes to its correct location. Keep your calculator connected.</p></div></li>
-          <li id="stage-open"><span class="stage-number">3</span><div><h2>Open CASEVO</h2><p>On your calculator, open Python, select CASEVO, and run it.</p></div></li>
+          <li id="stage-open"><span class="stage-number">3</span><div><h2>Open CAS</h2><p>On your calculator, open Python, select CAS, and run it.</p></div></li>
         </ol>
         <div id="notice" class="notice" role="alert" hidden></div>
         <noscript><p class="notice">JavaScript is needed to connect your calculator. You can still download the ZIP above.</p></noscript>
@@ -40,7 +40,7 @@
           <button id="disconnect" class="text-button" hidden>Disconnect</button>
         </div>
         <p id="action-note" class="action-note">Chrome or Edge on a computer. No extra software.</p>
-        <div id="launch-note" class="launch-note" hidden><strong>Ready on your calculator.</strong><p>Open <b>Python → CASEVO → Run</b>. For a diagnostic check, run CVTEST in a fresh Python session.</p></div>
+        <div id="launch-note" class="launch-note" hidden><strong>Ready on your calculator.</strong><p>Open <b>Python → CAS → Run</b>.</p></div>
       </section>
 
       <section class="package" aria-labelledby="package-title">
@@ -54,17 +54,17 @@
           <div class="map-caption"><span id="current-file">Each square is one file.</span><span id="integrity" class="integrity">Checking SHA-256</span></div>
         </div>
         <div class="device-line"><span class="connection-dot" id="connection-dot" aria-hidden="true"></span><span id="device-name">No calculator connected</span><span id="archive-free" class="numeric"></span></div>
-        <details class="manifest"><summary>View package files <span id="manifest-count"></span></summary><div class="manifest-toolbar"><label for="file-search">Find a file</label><input id="file-search" type="search" placeholder="For example, CASEVO" autocomplete="off" spellcheck="false"></div><div class="file-list-wrap" tabindex="0" aria-label="Scrollable package file list"><table><thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">Location</th><th scope="col">Status</th></tr></thead><tbody id="file-list"></tbody></table><p id="no-files" hidden>No matching files.</p></div></details>
+        <details class="manifest"><summary>View package files <span id="manifest-count"></span></summary><div class="manifest-toolbar"><label for="file-search">Find a file</label><input id="file-search" type="search" placeholder="For example, CASUI" autocomplete="off" spellcheck="false"></div><div class="file-list-wrap" tabindex="0" aria-label="Scrollable package file list"><table><thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">Location</th><th scope="col">Status</th></tr></thead><tbody id="file-list"></tbody></table><p id="no-files" hidden>No matching files.</p></div></details>
         <p class="package-footnote">Earlier cas-evo files are removed or replaced only when their contents match a recorded release. Other files are left alone.</p>
       </section>
     </div>
 
     <section class="help" id="help" aria-labelledby="help-title">
-      <div><h2 id="help-title">A smoother way in.</h2><p>The installer selects every file and its location. Only the two launchers need to appear in your Python program list.</p><a href="cas-evo-calculator.zip" download>Prefer a manual install? Download the ZIP.</a></div>
+      <div><h2 id="help-title">A smoother way in.</h2><p>The installer selects every file and its location. Only the launcher CAS needs to appear in your Python program list.</p><a href="cas-evo-calculator.zip" download>Prefer a manual install? Download the ZIP.</a></div>
       <div class="questions">
-        <details><summary>Why use two storage locations?</summary><p>CASEVO and CVTEST are small source launchers, so they go to RAM and appear in Python. The libraries are compiled EVO modules (.8mp2), stored in archive and imported as needed. This avoids compiling the engine on the calculator. Imported code still needs working memory; archive is not extra RAM. Ordinary archived .py files are not a substitute.</p></details>
+        <details><summary>Why use two storage locations?</summary><p>CAS is a small source launcher, so it goes to RAM and appears in Python. The libraries are compiled EVO modules (.8mp2), stored in archive and imported as needed. This avoids compiling the engine on the calculator. Imported code still needs working memory; archive is not extra RAM. Ordinary archived .py files are not a substitute.</p></details>
         <details><summary>My calculator isn’t in the list.</summary><p>Turn it on and use a USB cable that supports data. Close TI Connect and other calculator tabs. In Chrome or Edge, select the TI-84 EVO serial port when prompted. This installer supports the EVO and EVO-T, not the TI-84 Plus CE.</p></details>
-        <details><summary>A transfer stopped. What now?</summary><p>Keep any files that arrived. Reconnect, then install again: earlier files are checked again and the same cas-evo filenames are replaced. If you stopped the transfer yourself, choose Install again. If the connection timed out, reload this page first. Wait for archive verification before running CASEVO.</p></details>
+        <details><summary>A transfer stopped. What now?</summary><p>Keep any files that arrived. Reconnect, then install again: earlier files are checked again and the same cas-evo filenames are replaced. If you stopped the transfer yourself, choose Install again. If the connection timed out, reload this page first. Wait for archive verification before running CAS.</p></details>
         <details><summary>What happens to an earlier cas-evo?</summary><p>The new version uses far fewer files. Before sending it, the installer reads back each calculator file that has the name of an earlier cas-evo file and compares its contents with the recorded release. Exact matches are deleted or replaced. A file that differs is kept, listed for you, and never overwritten; if it would block the new version, nothing is changed until you remove it. Your other programs stay untouched.</p></details>
       </div>
     </section>

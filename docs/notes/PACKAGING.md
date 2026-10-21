@@ -3,7 +3,7 @@
 The user authorized multiple files after TI Connect Evo rejected the oversized
 single-file build. The measured converter limit for a source program is source
 bytes plus 18 plus the module-name length, at most 65,535; it now applies only to
-the two RAM launchers. See the converter evidence under `docs/reference/`.
+the RAM launcher CAS (65,514 source bytes) and the developer probe CVTEST. See the converter evidence under `docs/reference/`.
 Calculator storage and Python heap are separate budgets.
 
 The current format is **packs-v1**. [FASTBOOT.md](FASTBOOT.md) records why it
@@ -59,7 +59,8 @@ the pack on demand.
   `global R` and `import run as R` (as in `ui.engine`) binds the pack at run time,
   through the UI's home pack, so the engine never loads at boot.
 - run.py's `DEV` table maps every runtime key to its pack.
-- Entry programs (CASEVO, CVTEST) are rewritten with the same mapping, not packed.
+- Entry programs (the launcher CAS, and the developer probe CVTEST as an extra source) are
+  rewritten with the same mapping, not packed.
 
 The packer raises `PackError` instead of emitting a pack it cannot prove
 correct: dynamic dispatch to a renamed or placed name, module code that would
@@ -90,7 +91,7 @@ handles.
 
 ## Loading and memory
 
-- `CASEVO` imports `ti_system` and the UI. `ui.boot` draws the first screen with
+- `CAS` imports `ti_system` and the UI. `ui.boot` draws the first screen with
   no engine loaded: two archive imports (CASUI, CASUX).
 - `ui.engine()` imports the core packs on the first ENTER, or from a menu that
   needs them, records the load time and returns the run module to the entry loop
@@ -130,15 +131,17 @@ heap remain device checks.
    `dist/device`; `packs.merge` builds the packs; `build/shrink.py` shortens
    identifiers. The release sizes every pack with mpy-cross, writes the loader
    tables, checks `PACKMAX`, and writes the pack sources (`CAS*.py`),
-   `CASEVO.py`, `CVTEST.py`, `release.json`, `SHA256SUMS`, `INSTALL.md` and the
-   build input `dist/cas-evo-packs.zip`.
+   the launcher `CAS.py`, `release.json`, `SHA256SUMS`, `INSTALL.md` and the
+   build input `dist/cas-evo-packs.zip`. The developer probe goes to
+   `dist/dev/CVTEST.py` (recorded under `release.json` `devtools`): the native
+   `startup` and `probe` suites run it, and no package contains it.
 2. `build/check_release.py` (with `tests/test_release.py`) runs the packed
    release in CPython with strict EVO depth checks and MicroPython's import
    rules, so eviction, soft packs and failed imports run their calculator paths.
-3. `build/archive.py` compiles the packs; the launchers stay source.
+3. `build/archive.py` compiles the packs; the launcher stays source.
 4. `build/package_archive.mjs` converts every object with pinned TIVarsLib into
    the EVO container and reads it back to verify name, type and payload bytes.
-5. `build/archive_zip.py` writes `cas-evo-calculator.zip`: the 23 EVO objects,
+5. `build/archive_zip.py` writes `cas-evo-calculator.zip`: the 22 EVO objects,
    `archive.json`, `INSTALL.md` and `SHA256SUMS`.
 
 ### Compiler and ABI
@@ -153,7 +156,7 @@ or `.mpy` files cannot perform the TIVarsLib conversion.
 
 ## Reproducibility and debugging
 
-The builder enforces ASCII, Python 3.4 syntax, the launchers' converter limit,
+The builder enforces ASCII, Python 3.4 syntax, the launcher's converter limit,
 `PACKMAX`, combined object storage and compilation of every file with
 `mpy-cross`. It invalidates only recognized previous outputs before building and
 writes deterministic ZIPs (fixed timestamps and attributes) only after the
@@ -162,7 +165,8 @@ builds.
 
 `release.json` (`format: packs-v1`) records:
 
-- `files`: bytes and SHA-256 of every pack source and launcher;
+- `files`: bytes and SHA-256 of every pack source and the launcher;
+- `devtools`: path, bytes and SHA-256 of the developer probe `dev/CVTEST.py` (not a release file);
 - `names`: the identifier shrink mapping;
 - `packs` and `kinds`: each pack's kind, home modules and placed functions;
 - `owner` (device module -> home pack), `place` (`MODULE.function` -> pack) and

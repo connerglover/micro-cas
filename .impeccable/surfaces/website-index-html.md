@@ -9,7 +9,7 @@ related_targets: ["website/styles.css","website/app.js"]
 
 Scope: website/index.html. Mode: Operate.
 Task: connect an EVO, inspect storage, install compiled libraries to archive and launchers to RAM,
-then launch CASEVO. The standing instruction to work autonomously and ask no
+then launch CAS. The standing instruction to work autonomously and ask no
 questions takes precedence over the skill's interview and approval rounds.
 This session uses direct implementation with a browser-reviewed contract;
 no standing build-path preference is inferred for future work.
@@ -30,8 +30,8 @@ restrained sage completion; Public Sans text, monospaced filenames, crisp rules,
 square list rows and solid buttons. Daytime desk use makes light surfaces legible.
 
 STORY: see what will install, connect, confirm storage, follow each file,
-then open CASEVO. Destinations are automatic: compiled libraries in archive,
-two source launchers in RAM. No destination toggle is offered.
+then open CAS. Destinations are automatic: compiled libraries in archive,
+one source launcher, CAS, in RAM. No destination toggle is offered.
 
 FIRST VIEWPORT: a compact brand/header above an asymmetric two-column workspace.
 The left column contains the heading, three installation stages and the main

@@ -21,6 +21,11 @@ Binary search with controlled ASCII sources found these exact boundaries:
 | CASEVO.py | 65,511 bytes | 65,512 bytes |
 | CVTEST.py | 65,511 bytes | 65,512 bytes |
 | ABCDEFGH.py | 65,509 bytes | 65,510 bytes |
+| CAS.py (the launcher since the QPL changes) | 65,514 bytes | 65,515 bytes |
+
+The CAS.py row follows from the formula below; it has not yet been run in the
+converter with `build/transfer_probe.js` (which now checks it), so it is
+derived, not measured.
 
 Both a single long comment and many short lines give the same boundaries.
 The original file's 253,723-character archive line is therefore not the cause
@@ -43,9 +48,9 @@ run is in transfer-checks.json alongside this note; no TI library is vendored.
 
 The release's fast offline gate uses the observed ASCII-source boundary:
 
-    python build/transfer.py dist/CASEVO.py dist/CVTEST.py
+    python build/transfer.py dist/CAS.py dist/dev/CVTEST.py
 
-For the rejected build it exits 1 and reports:
+For the rejected single-file build (then named CASEVO.py) it exited 1 and reported:
 
     CASEVO.py: 262679 / 65511 source bytes: REJECTED
     CVTEST.py: 267644 / 65511 source bytes: REJECTED

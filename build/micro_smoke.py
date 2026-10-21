@@ -236,11 +236,20 @@ def prepare(dist, output, archive=None):
     dist, output = Path(dist).resolve(), Path(output).resolve()
     if output == dist:
         raise ValueError('smoke output must differ from the release directory')
-    paths = [dist / name for name in ('CAS.py', 'CVTEST.py', 'release.json')]
+    paths = [dist / name for name in ('CAS.py', 'release.json')]
     for path in paths:
         if not path.is_file():
             raise FileNotFoundError(str(path) + '; run python build/release.py first')
-    meta = json.loads(paths[2].read_text('ascii'))
+    meta = json.loads(paths[1].read_text('ascii'))
+    # The developer probe CVTEST (startup and probe suites): built beside the release, shrunk
+    # with its mapping, never shipped; release.json records its hash under devtools.
+    probe = meta.get('devtools', {}).get('CVTEST.py')
+    if probe is None or 'CVTEST.py' in meta['files']:
+        raise ValueError('release.json has no developer probe, or ships it')
+    probe_path = dist / probe['path']
+    data = probe_path.read_bytes() if probe_path.is_file() else b''
+    if len(data) != probe['bytes'] or hashlib.sha256(data).hexdigest() != probe['sha256']:
+        raise ValueError('developer probe missing or changed: ' + str(probe_path))
     names = meta['names']
     scripts = {
         'ti_draw.py': GRAPHICS,
@@ -279,6 +288,7 @@ def prepare(dist, output, archive=None):
             alternate = output / (info['module'] + ('.py' if name.endswith('.mpy') else '.mpy'))
             if alternate.is_file():
                 alternate.unlink()
+    files['CVTEST.py'] = probe_path
     for name, path in files.items():
         target = output / path.name
         shutil.copyfile(path, target)

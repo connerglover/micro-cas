@@ -1564,7 +1564,7 @@ typed as `x^(2)`, and `tidy` restores `x^2`.
 | F4, help, recall, settings, history paste, ENTRY, empty-slot check, quit | Same control flow. |
 | Hero view, answer scrolling | The hero is replaced by the focused history entry (newest, or `SEL` in MODE) with a view of up to 92 px. ←/→ (and 2nd ←/→) in MODE or on an empty line still step `DX` by 24; `DX` is clamped to `w - 300` in the full redraw and reset by ↑/↓ and by every edit (`put`/`insert`), as today; `<`/`>` mark more content. |
 | Leading-operator Ans | Unchanged key set (less 95, which has no text: §0.5) and condition (`not LINE and R.ANS is not None and mod == 0`); the `ans()` insert goes through `put`, then the key's own action runs on the new LINE under the stale-map rule. |
-| Boot | No new pack and no new module: CASEVO still imports only CASUI and CASUX before the first screen, and nothing on the boot path (`boot → emodel → redraw`) touches the engine (`LINE` is empty, so `emodel` does no layout). |
+| Boot | No new pack and no new module: CAS (then CASEVO) still imports only CASUI and CASUX before the first screen, and nothing on the boot path (`boot → emodel → redraw`) touches the engine (`LINE` is empty, so `emodel` does no layout). |
 | `busy` / status during a job | `busy` and `engine` draw through `status`, which now also clears `STATVIEW`, so the status row is repainted after the job. |
 
 ---

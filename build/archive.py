@@ -1,4 +1,4 @@
-"""Compile the library packs for EVO archive; keep the two source launchers for RAM.
+"""Compile the library packs for EVO archive; keep the source launcher CAS for RAM.
 
 Requires MicroPython v1.12 mpy-cross, not the v1.29 sizing compiler.
 The EVO ABI is MPY v5, feature flags 3, with 31-bit small integers.
@@ -17,7 +17,7 @@ sys.path.insert(0, str(HERE))
 import bundle
 
 COMPILER_REVISION = '1f371947309c5ea6023b6d9065415697cbc75578'
-LAUNCHERS = {'CAS.py', 'CVTEST.py'}
+LAUNCHERS = {'CAS.py'}
 HEADER = b'M\x05\x03\x1f'
 
 
