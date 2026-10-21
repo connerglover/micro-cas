@@ -86,7 +86,7 @@ ARGPH = ('Argument|Angle|Expr. to simplify|Expr. to expand|Expr. or integer|Vari
          'Equation or system|Unknown(s), e.g. x|Expr. to combine|Rational expr.|'
          'f to differentiate|With respect to|Order (optional: empty = 1)|Integrand|'
          'Integration var.|Lower bound (opt; empty=indef)|Upper bound (opt; empty=indef)|'
-         'f to take limit of|Value it approaches|Side + or - (opt; empty=both)|Point, e.g. x=0|'
+         'f to take limit of|Value it approaches|Side + or - (opt; empty=both)|Variable or x=a|'
          'f to expand|Center, e.g. x=0|Order (optional: empty = 5)|Center point|Term to add|'
          'Index variable|Start value|End value, oo ok|f to approximate|Left end|Right end|'
          'Number of strips|left/mid/trap (opt: right)|ODE or [ODE,y(0)=..]|Function, e.g. y|'
@@ -160,17 +160,18 @@ def status(s):                                                 #@L 3
     D.text(s[:n], 45, 2, D.COLORS['ACC'])
 
 
-def argpos():                                                  #@L 3
+def argpos(outer=False):                                       #@L 3
     """(command, argument index, argument count) of the slot at the caret, for the hint row
     and help (QPL Q5, MATHPRINT.md 7.5): '/' for a fraction slot, '^' for an exponent, a call's
     name through ALIAS; a group or list slot gives the slot it sits in (a group after ^ is an
-    exponent: Classic). edslot reads the fresh caret map of a 2D line (no layout), else scans
-    the flat line. None outside any call."""
+    exponent: Classic). outer (help): a fraction or exponent slot gives the slot it sits in too.
+    edslot reads the fresh caret map of a 2D line (no layout), else scans the flat line. None
+    outside any call."""
     r = edslot(CUR)
     for k in range(24):
-        if r[2] != 'G':
+        if r[2] != 'G' and not (outer and r[2] in 'QW'):
             break
-        if r[3] and LINE[r[3] - 1] == '^':
+        if not outer and r[3] and LINE[r[3] - 1] == '^':
             return ('^', 0, 1)
         r = edslot(r[3])
     k = r[2]
@@ -181,6 +182,8 @@ def argpos():                                                  #@L 3
     if k == 'R' or k == 'G':
         return None
     nm = LINE[r[3]:LINE.find('(', r[3])]
+    if r[3] and LINE[r[3] - 1] == 'a' and nm in ('sec', 'csc', 'cot'):
+        nm = 'a' + nm                   # the layout reads asec( as a*sec( (D.MFNT); the engine not
     return (ALIAS.get(nm, nm), r[5], r[6])
 
 
@@ -201,7 +204,7 @@ def arghelp(nm, j, n):                                         #@L 4
             c = t[-2]
         else:
             return ''
-    elif nm in D.MFNT:                  # a function of one argument
+    elif nm in D.MFNT or nm in ('asec', 'acsc', 'acot'):        # a function of one argument
         r = 1
         c = 'B' if (' ' + nm + ' ') in ' sin cos tan sec csc cot ' else 'A'
     else:
@@ -1459,7 +1462,7 @@ def key(k):                                                    #@L 1
             kind = 'all'
         engine()
         FULL = True
-        k = argpos()
+        k = argpos(True)
         choice = R.need('menu').open(kind, LINE, CUR, k[0] if k is not None else '')
         if not R.HIST:
             MODE, SEL = 0, -1

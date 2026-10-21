@@ -32,8 +32,8 @@ them as current.
   catalog, find, help and the template picker use the Nspire's command names.
   Q4: every empty argument of a plain call is a box. Q5: the hint row explains
   the argument at the caret and whether it is required (MATHPRINT.md §0.11).
-  CASUX 29,736 → 31,328 B, CASUI 3,777 → 3,794 B, CASMNU 9,039 → 9,068 B;
-  native cas32 `ui` boot heap 122,576 → 120,848 B and result 34,000 → 32,256 B
+  CASUX 29,736 → 31,480 B, CASUI 3,777 → 3,794 B, CASMNU 9,039 → 9,068 B;
+  native cas32 `ui` boot heap 122,576 → 120,560 B and result 34,000 → 32,064 B
   free; every CI heap passes (startup, ui, ui_edit, ui_calculus at 189,776 and
   185,680, the 55-case probe at 212,000, cas64). Harness evidence only.
 - **Device report on v1, 2026-10-11.** The v1 package (236 archived libraries

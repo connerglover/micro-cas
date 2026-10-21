@@ -724,10 +724,13 @@ def mshut(s, nodes, vals, ops, pos, how, expect, trail, mode):    #@L 5
                                               at - f > 1 and nm not in MFNT and nm not in TPL]])
             # Empty boxes after a command's required arguments are optional (flag 2, QPL Q4):
             # only a trailing run of them, so f(a,,b) keeps its meaning, and none past the
-            # command's last argument (log(8,2,)) (ARGS)
-            j = ARGS.find(';' + nm + ':')
+            # command's last argument (log(8,2,)) (ARGS; the form with m arguments first:
+            # taylor(f,x,0,), desolve(eq,x,))
+            j = ARGS.find(';' + nm + '#' + str(m) + ':')
+            if j < 0:
+                j = ARGS.find(';' + nm + ':')
             if j >= 0:
-                j += len(nm) + 2
+                j = ARGS.find(':', j) + 1
                 r = int(ARGS[j])
                 q = ARGS.find(';', j) - j - 2
                 if ARGS[j + q + 1] == '*':

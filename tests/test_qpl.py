@@ -202,6 +202,8 @@ def test_filling_the_last_box_keeps_the_text_in_place(monkeypatch):
     ('solve(x=1,)', 'solve(x=1)'), ('taylor(f,x=0,)', 'taylor(f,x=0)'),
     ('f(a,,b)', 'f(a,,b)'), ('purge(x,,)', 'purge(x)'), ('riemann(f,x,0,1,4,)', 'riemann(f,x,0,1,4)'),
     ('desolve(y\'=y,)', 'desolve(y\'=y)'), ('factor(x^2-1,)', 'factor(x^2-1)'),
+    ('taylor(f,x,0,)', 'taylor(f,x,0)'), ("desolve(y'=y,x,)", "desolve(y'=y,x)"),
+    ("desolve(y'=y,,)", "desolve(y'=y)"), ('arclen(a,b,t,0,)', 'arclen(a,b,t,0,)'),
     ('solve(,x)', 'solve(,x)'), ('sum(k,k,1,)', 'sum(k,k,1,)'), ('sin()', 'sin()')])
 def test_optional_trailing_arguments_are_dropped(before, after):
     assert U.tidy(before) == after
@@ -250,6 +252,8 @@ def test_enter_needs_the_required_boxes_and_drops_the_optional_ones():
     assert u.STATUS == 'fill in the empty slot' and u.CUR == 6 and not s.hist
     s = KS.run('{f1}{down}{down}{down}{enter}x^2=4{enter}')
     assert [tuple(e[:2]) for e in s.hist] == [('solve(x^2=4)', 'x=-2,x=2')]
+    s = KS.run('taylor(sin(x),x,0,){enter}')               # the 4-argument form's order
+    assert [e[0] for e in s.hist] == ['taylor(sin(x),x,0)']
     s = KS.run('{f1}{enter}{enter}')                                   # Simplify, empty
     assert s.mods['ui'].STATUS == 'fill in the empty slot' and not s.hist
     s = KS.run('{2nd,0}sin{enter}{enter}')
@@ -280,7 +284,7 @@ def test_classic_stays_1d():
     ('diff', 2, 3, 'Order (optional: empty = 1)'),
     ('integrate', 2, 4, 'Lower bound (opt; empty=indef)'),
     ('limit', 3, 4, 'Side + or - (opt; empty=both)'),
-    ('limit', 1, 2, 'Point, e.g. x=0 (required)'),
+    ('limit', 1, 2, 'Variable or x=a (required)'),
     ('taylor', 1, 3, 'Center, e.g. x=0 (required)'),
     ('taylor', 1, 4, 'Variable (required)'),
     ('taylor', 3, 4, 'Order (optional: empty = 5)'),
@@ -336,7 +340,7 @@ def test_every_argument_text_fits_the_hint_row():
     ('diff(x^(3),x,|)', 'Order (optional: empty = 1)'),
     ('sum(k,k,1,|)', 'End value, oo ok (required)'),
     ('limit(x,x,0,|)', 'Side + or - (opt; empty=both)'),
-    ('limit(sin(x)/x,x=0|)', 'Point, e.g. x=0 (required)'),
+    ('limit(sin(x)/x,x=0|)', 'Variable or x=a (required)'),
     ('log(8,|)', 'Base (optional: empty = 10)'),
     ('surd(8,|)', 'Root index (required)'),
     ('sqrt(|)', 'Radicand (required)'),
@@ -348,6 +352,8 @@ def test_every_argument_text_fits_the_hint_row():
     ('taylor(f,x,|0,5)', 'Center point (required)'),
     ('int(x|)', 'Integrand (required)'),                        # an alias
     ('2sin(|)', 'Angle (required)'),
+    ('asec(|)', 'Argument (required)'), ('acot(2|)', 'Argument (required)'),   # not a*sec
+    ('solve(acsc(|),x)', 'Argument (required)'), ('sec(|)', 'Angle (required)'),
     ('1+|2', ''), ('|', ''), ('f(x|)', ''), ('sin(x)+|', '')])
 def test_hint_for_the_slot_at_the_caret(before, text):
     setline(before)
@@ -392,3 +398,18 @@ def test_the_hint_row_repaints_only_when_the_slot_changes(monkeypatch):
     for k in (RIGHT, RIGHT, RIGHT, LEFT):
         U.key(k)
     assert calls == [('simplify', 0, 1)]                      # looked up once per slot change
+
+
+@pytest.mark.parametrize('before, command', [
+    ('solve((1)/(|),x)', 'solve'), ('diff(x^(|),x)', 'diff'), ('solve(e^(|),x)', 'solve'),
+    ('sin((|)/(2))', 'sin'), ('solve([(1)/(|)],x)', 'solve'), ('solve(sqrt(|),x)', 'sqrt'),
+    ('(1)/(|)', ''), ('x^(|)', ''), ('solve(x|,)', 'solve')])
+def test_help_names_the_command_around_a_fraction_or_exponent(engine, monkeypatch, before,
+                                                               command):
+    """F5 opens the help of the call around the caret, as before the hint row changed: a
+    fraction, exponent or group slot inside a call is part of that call's argument."""
+    setline(before)
+    seen = []
+    monkeypatch.setattr(engine.need('menu'), 'open', lambda *a: seen.append(a[3]))
+    U.key(15)
+    assert seen == [command]

@@ -333,12 +333,12 @@ launcher is `CAS`) are packaging (PACKAGING.md, INSTALL.md). Q3-Q5 change the ed
 |---|---|
 | Q3 Nspire names | `catalog.CAT` row[0] is the command's name as the TI-Nspire CX II CAS menus show it (`Simplify`, `Factor`, `Solve`, `Derivative`, `Integral`, `Limit`, `Taylor Polynomial`, `Common Denominator` for together, `Convert to Decimal` for approx, `Delete Variable` for purge, `sin^-1` for asin, ...; table below). The inserted text (row[1]) and engine syntax are unchanged. ALPHA find matches the name **or** the command text (name matches first: `su` lists Sum, then surd's Nth Root; `diff` and `deri` find Derivative); the All tab sorts by name; F5 help finds its row by row[1] and shows the name, the explanation and the example (the per-argument help is now the hint row). The template picker shows the Nspire template names (Fraction, Exponent, Square root, Nth root, e exponent, 10 exponent, Log base b, Absolute value, Integral, First derivative, Nth derivative, Sum, Limit). |
 | Q4 boxes for every argument | `D.mflat` also returns False for a line with an empty call argument or group (`(,` `,,` `,)` `()`), so such a line is laid out 2D and each empty argument is an `E` box: a slot the caret visits, with the call's name, commas and parens still drawn as text. When the last box is filled the line is flat again (same text position and height, so nothing jumps). `menub.insertion` takes the box count from `draw.ARGS` (table below); `D.mshut` flags a trailing run of empty boxes after a command's required arguments (and not past its last one) as optional (flag 2), so `tidy` drops them with their commas (`solve(x=1,)` → `solve(x=1)`) and ENTER skips them, while an empty required box stops ENTER with `fill in the empty slot` (stage 1 engine-free from the map, stage 2 `empty_slot` from the same flags). Classic stays 1D and inserts the required boxes only. |
-| Q5 argument help | The hint row (`ui.HINT`, `hint()` and `enclosing()` are gone) shows the argument the caret is in: `argpos()` (L3) gives (command, argument index, argument count) from `edslot` (the fresh caret map of a 2D line, else the flat scan), a group or list slot giving the slot it sits in, `/` for a fraction slot and `^` for an exponent; `arghelp()` (L4) gives the phrase (`ui.ARGPH`, chosen by `draw.ARGS`) plus `(required)` or `(optional)`, unless the phrase carries its own note (`Order (optional: empty = 1)`). Every text fits 31 columns. A function of one argument without an entry (sin, ln, tanh, ...) gets `Angle` (the six trigonometric functions) or `Argument`; a user function or the root slot shows nothing. The row is repainted only when its text changes (`HINTVIEW`) and `arghelp` runs only when the slot changes (`HKEY`, `HTEXT`), so a caret move inside one slot costs what it did. |
+| Q5 argument help | The hint row (`ui.HINT`, `hint()` and `enclosing()` are gone) shows the argument the caret is in: `argpos()` (L3) gives (command, argument index, argument count) from `edslot` (the fresh caret map of a 2D line, else the flat scan), a group or list slot giving the slot it sits in, `/` for a fraction slot and `^` for an exponent; `arghelp()` (L4) gives the phrase (`ui.ARGPH`, chosen by `draw.ARGS`) plus `(required)` or `(optional)`, unless the phrase carries its own note (`Order (optional: empty = 1)`). Every text fits 31 columns. A function of one argument without an entry (sin, ln, tanh, ...) gets `Angle` (the six trigonometric functions) or `Argument`; a user function or the root slot shows nothing. F5 help uses `argpos(True)`, which also steps out of a fraction or exponent slot, so help inside `solve((1)/(|),x)` is Solve's, as `enclosing()` gave. The row is repainted only when its text changes (`HINTVIEW`) and `arghelp` runs only when the slot changes (`HKEY`, `HTEXT`), so a caret move inside one slot costs what it did. |
 
 `draw.ARGS` is one string, `;name[#count]:<required><boxed><codes>;` with one `ARGPH` phrase
 letter per argument (A-Z a-z 0-9; `*` repeats the last), and `#count` a form chosen by the
 call's argument count (`taylor#4` for taylor(f,x,a,n), `arclen#5` for the parametric arc,
-`desolve#3`, `limit#2` for limit(f,x=a)). Boxes inserted, decided per command (Classic: the
+`desolve#3`, `limit#2` for limit(f,x=a)). `mshut` reads the required count of the same form, so the optional order of `taylor(f,x,0,)` and the optional arguments of `desolve(eq,x,)` are dropped too. Boxes inserted, decided per command (Classic: the
 required count):
 
 | Command | Name | Arguments (R required, O optional) | MathPrint insert |
@@ -358,11 +358,11 @@ required count):
 The C-node optional flag adds a few string finds per call node in `mshut`; the 2D path now
 also runs on lines with an empty argument, which costs at most a template line's layout
 (§10) and only until the box is filled. Heap (native cas32, `ui` suite): CASUX 29,736 →
-31,328 B of bytecode, boot heap 122,576 → 120,848 B free and the result screen 34,000 →
-32,256 B (-1.7 KB: the phrase table and argument table about 1.3 KB, `argpos`/`arghelp`
+31,480 B of bytecode, boot heap 122,576 → 120,560 B free and the result screen 34,000 →
+32,064 B (-1.9 KB, with the review fixes: the phrase table and argument table about 1.3 KB, `argpos`/`arghelp`
 about 0.6 KB, less `HINT`, `hint` and `enclosing`); CASMNU 9,039 → 9,068 B; every CI heap
-still passes. Known: `D.mcall` reads `asec(` as `a*sec(` (MFNT mirrors parse.FNT), so its
-hint says `Angle`; the engine itself evaluates asec.
+still passes. `D.mcall` reads `asec(` as `a*sec(` (MFNT mirrors parse.FNT; the engine reads
+asec); `argpos` names it asec (likewise acsc, acot), so its hint is `Argument`, not `Angle`.
 
 ---
 
