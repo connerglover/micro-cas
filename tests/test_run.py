@@ -395,7 +395,8 @@ def test_loader_tables_match_the_manifest():
 
 
 def test_registry_shape(monkeypatch):
-    import ui as U                  # the hint signatures are UI data (docs/notes/FASTBOOT.md)
+    import ui as U                  # the argument table is UI data (docs/notes/FASTBOOT.md)
+    import draw as D
     monkeypatch.setattr(P, 'SESS', R)
     flags = P.F_NOAUTO | P.F_ALWAYSAUTO | P.F_SOLN
     for name in sorted(R.CMDS):
@@ -408,12 +409,12 @@ def test_registry_shape(monkeypatch):
             for f in R.CLOSURE[R.FAMILY.get(fam, fam)]:
                 parts.extend(R.PARTS.get(f, (f,)))
             assert 'rules' in parts, name
-        assert name in U.HINT
+        assert D.ARGS.find(';' + name + ':') >= 0, name   # its boxes and argument help
     for a in R.ALIAS:
         assert R.ALIAS[a] in R.CMDS
     assert U.ALIAS == R.ALIAS       # the UI's copy for the hint line before the engine loads
     for m in R.MACROS:
-        assert m in U.HINT
+        assert D.ARGS.find(';' + m + ':') >= 0, m
     assert 'approx' not in R.CMDS and 'evalf' not in R.ALIAS   # g_eval builtins (T1.5)
     assert R.CMDS['solve'][4] & P.F_SOLN and R.CMDS['diff'][4] & P.F_ALWAYSAUTO
 

@@ -100,7 +100,7 @@ F2 contains Ans, the latest ten successful results, stored variables, and stored
 functions. F3 toggles RAD/DEG and Paper/Night immediately. Clearing history or
 definitions requires local confirmation; CLEAR cancels that confirmation. About
 shows the version, available heap, and loaded runtime families. F5 shows the
-enclosing command's signature, explanation, and example, or a shortcut summary.
+enclosing command's name, explanation, and example, or a shortcut summary.
 ENTER inserts a command example at the caret.
 
 F4 calls `R.go(('form', index))`, operating on the original answer parsed inertly.

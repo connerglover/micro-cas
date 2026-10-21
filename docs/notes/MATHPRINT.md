@@ -248,7 +248,7 @@ splits, code and build levers, the boot block); this is what was done, all featu
 
 | Change | Where |
 |---|---|
-| `PLAIN`/`SECOND`/`ALPHA` as `(key-code bytes, '|'-joined texts)` read by `kmap(T, k)`; `HINT` one string read by `hint(name)`; `TMPL` one string read by `tmpl(j)` (`TN` rows). A dict of short strings costs about three times one string's heap (§2, §3.2, §7.4) | ui (CASUX) |
+| `PLAIN`/`SECOND`/`ALPHA` as `(key-code bytes, '|'-joined texts)` read by `kmap(T, k)`; `HINT` one string read by `hint(name)` (since §0.11 `draw.ARGS` and `ui.ARGPH`, read by `arghelp`); `TMPL` one string read by `tmpl(j)` (`TN` rows). A dict of short strings costs about three times one string's heap (§2, §3.2, §7.4) | ui (CASUX) |
 | `draw.mname(s, o)` replaces six copies of the call-name scan; `draw.glyph` is the glyph loop of `render` and `mrender`; `tidy(s, 1)` replaces `structure(s)` (one parse prologue and splice loop, §1.4) | draw, ui |
 | The caret map's `RK` slot is `None`: `edmove` ranks a stop with `ORD.index(CUR)` (§4.2) | draw, ui |
 | `EDL` is `EDMAP`'s own display list, drawn at the entry offset; no absolute copy per edit (§6.4) | ui |
@@ -323,6 +323,46 @@ drawing, the optional flags, the recall rules and C9, against −0.5 KB for the 
 machinery and the picker's caret fields). The per-key cost is unchanged: the new work is a
 few comparisons per template node in `mshut`/`mbox`, `ORD.index` on a comma, and one mode-1
 parse in ENTER's stage 2 (once per ENTER, only when stage 1 found no empty box).
+
+### 0.11 QPL changes: names, argument boxes, argument help (2026-10-21)
+
+The user asked for five quality-of-life changes; Q1 (CVTEST no longer ships) and Q2 (the
+launcher is `CAS`) are packaging (PACKAGING.md, INSTALL.md). Q3-Q5 change the editor:
+
+| Request | Implementation |
+|---|---|
+| Q3 Nspire names | `catalog.CAT` row[0] is the command's name as the TI-Nspire CX II CAS menus show it (`Simplify`, `Factor`, `Solve`, `Derivative`, `Integral`, `Limit`, `Taylor Polynomial`, `Common Denominator` for together, `Convert to Decimal` for approx, `Delete Variable` for purge, `sin^-1` for asin, ...; table below). The inserted text (row[1]) and engine syntax are unchanged. ALPHA find matches the name **or** the command text (name matches first: `su` lists Sum, then surd's Nth Root; `diff` and `deri` find Derivative); the All tab sorts by name; F5 help finds its row by row[1] and shows the name, the explanation and the example (the per-argument help is now the hint row). The template picker shows the Nspire template names (Fraction, Exponent, Square root, Nth root, e exponent, 10 exponent, Log base b, Absolute value, Integral, First derivative, Nth derivative, Sum, Limit). |
+| Q4 boxes for every argument | `D.mflat` also returns False for a line with an empty call argument or group (`(,` `,,` `,)` `()`), so such a line is laid out 2D and each empty argument is an `E` box: a slot the caret visits, with the call's name, commas and parens still drawn as text. When the last box is filled the line is flat again (same text position and height, so nothing jumps). `menub.insertion` takes the box count from `draw.ARGS` (table below); `D.mshut` flags a trailing run of empty boxes after a command's required arguments (and not past its last one) as optional (flag 2), so `tidy` drops them with their commas (`solve(x=1,)` → `solve(x=1)`) and ENTER skips them, while an empty required box stops ENTER with `fill in the empty slot` (stage 1 engine-free from the map, stage 2 `empty_slot` from the same flags). Classic stays 1D and inserts the required boxes only. |
+| Q5 argument help | The hint row (`ui.HINT`, `hint()` and `enclosing()` are gone) shows the argument the caret is in: `argpos()` (L3) gives (command, argument index, argument count) from `edslot` (the fresh caret map of a 2D line, else the flat scan), a group or list slot giving the slot it sits in, `/` for a fraction slot and `^` for an exponent; `arghelp()` (L4) gives the phrase (`ui.ARGPH`, chosen by `draw.ARGS`) plus `(required)` or `(optional)`, unless the phrase carries its own note (`Order (optional: empty = 1)`). Every text fits 31 columns. A function of one argument without an entry (sin, ln, tanh, ...) gets `Angle` (the six trigonometric functions) or `Argument`; a user function or the root slot shows nothing. The row is repainted only when its text changes (`HINTVIEW`) and `arghelp` runs only when the slot changes (`HKEY`, `HTEXT`), so a caret move inside one slot costs what it did. |
+
+`draw.ARGS` is one string, `;name[#count]:<required><boxed><codes>;` with one `ARGPH` phrase
+letter per argument (A-Z a-z 0-9; `*` repeats the last), and `#count` a form chosen by the
+call's argument count (`taylor#4` for taylor(f,x,a,n), `arclen#5` for the parametric arc,
+`desolve#3`, `limit#2` for limit(f,x=a)). Boxes inserted, decided per command (Classic: the
+required count):
+
+| Command | Name | Arguments (R required, O optional) | MathPrint insert |
+|---|---|---|---|
+| simplify, expand, together, approx | Simplify, Expand, Common Denominator, Convert to Decimal | R | `simplify()` |
+| factor, partfrac | Factor, Partial Fractions | R, O variable (no box: rarely needed) | `factor()` |
+| solve | Solve | R, O unknowns (boxed: the Nspire asks for them) | `solve(,)` |
+| taylor | Taylor Polynomial | R f, R x=a, O order | `taylor(,,)` |
+| riemann | Riemann Sum | R ×5, O method | `riemann(,,,,,)` |
+| desolve | Differential Equation Solver | R, O function | `desolve(,)` |
+| grad | Gradient | R, O variable list (no box: found from f) | `grad()` |
+| polararea, paramarea, arclen | Polar Area, Parametric Area, Arc Length | R ×4, ×5, ×4 (a 5th argument makes arclen parametric) | `polararea(,,,)` ... |
+| purge | Delete Variable | R, O more names | `purge()` |
+| sin ... atanh, ln, sign, floor, ceil | sin ... tanh^-1, ln, Sign, Floor, Ceiling | R | `sin()` |
+| templates | Derivative, Integral, Limit, Sum, Logarithm, Nth Root, Square Root, e^x, Absolute Value | as §3 | as §3 |
+
+The C-node optional flag adds a few string finds per call node in `mshut`; the 2D path now
+also runs on lines with an empty argument, which costs at most a template line's layout
+(§10) and only until the box is filled. Heap (native cas32, `ui` suite): CASUX 29,736 →
+31,328 B of bytecode, boot heap 122,576 → 120,848 B free and the result screen 34,000 →
+32,256 B (-1.7 KB: the phrase table and argument table about 1.3 KB, `argpos`/`arghelp`
+about 0.6 KB, less `HINT`, `hint` and `enclosing`); CASMNU 9,039 → 9,068 B; every CI heap
+still passes. Known: `D.mcall` reads `asec(` as `a*sec(` (MFNT mirrors parse.FNT), so its
+hint says `Angle`; the engine itself evaluates asec.
 
 ---
 
@@ -541,7 +581,7 @@ MathPrint tables.
 | ENTER (105) | MODE: paste the result (§7.4). Otherwise (§2.2): two-stage empty-slot check, then the job. | |
 | 2nd ENTER | MODE: paste `structure(e[0])`. Otherwise ENTRY recall: `ENTRYPOS` as today; `LINE = structure(hist[-1-ENTRYPOS][0])`, `CUR = len(LINE)`, `LASTENTRY = LINE`. No 256 check, as today. | |
 | **2nd 42** (new) | MathPrint: `row = picker()` (§3.2), then `key` applies the row (rows 1–2 through `edins`, the others through `put` + PENDING). Classic: nothing, as today. | |
-| F1, math (41), 2nd math (TEST), vars (44), F2, F3, mode (22), F5, 2nd 0 | `R.need('menu').open(kind, LINE, CUR, enclosing())`, unchanged. The result goes through today's wrap/limit code (an action wraps the whole line when the caret is at its end; in MathPrint also when only closers `) ] }` follow it, since autoclosed and hidden closers sit after a caret that looks like it is at the end: `sin(x|)` + simplify → `simplify(sin(x))`, §0.8), then `insert(text, offset)`. If `text` contains `(` and the line is 2D, `PENDING = (start, start + len(text))`; on a flat line PENDING is not set and the offset stands. A TEST relation (`=`, `!=`, `<`, `<=`, `>`, `>=`, not `!`) first applies the leave rule. After the menu: `VIEWEND = min(VIEWEND, len(hist)-1)` (Clear history may have emptied it). | |
+| F1, math (41), 2nd math (TEST), vars (44), F2, F3, mode (22), F5, 2nd 0 | `R.need('menu').open(kind, LINE, CUR, command)`, the command of `argpos()` (§0.11; was `enclosing()`). The result goes through today's wrap/limit code (an action wraps the whole line when the caret is at its end; in MathPrint also when only closers `) ] }` follow it, since autoclosed and hidden closers sit after a caret that looks like it is at the end: `sin(x|)` + simplify → `simplify(sin(x))`, §0.8), then `insert(text, offset)`. If `text` contains `(` and the line is 2D, `PENDING = (start, start + len(text))`; on a flat line PENDING is not set and the offset stands. A TEST relation (`=`, `!=`, `<`, `<=`, `>`, `>=`, not `!`) first applies the leave rule. After the menu: `VIEWEND = min(VIEWEND, len(hist)-1)` (Clear history may have emptied it). | |
 | F4, `< >` (95) | Unchanged (needs history; `95` with no history does nothing). | |
 | Any other key or modifier combination (33, 43, 2nd digits, 2nd 91, …) | No entry in any table: nothing changes and no ti_draw call is made. | |
 
@@ -664,7 +704,9 @@ the first box in drawn order (PENDING). In MathPrint `menub.insertion(row)` retu
 picker text that starts with the catalog prefix, if any (`diff(` → `diff(,)`, `log(` →
 `log(,)`, `surd(` → `surd(,)`, `integrate(` → `integrate(,,,)`, `sum(` → `sum(,,,)`,
 `limit(` → `limit(,,,)`), else one empty box per required parameter; the offset stays
-`len(prefix)` and PENDING overrides it. Classic (§8) keeps the old texts.
+`len(prefix)` and PENDING overrides it. Classic (§8) keeps the old texts. Since §0.11 the
+count of a plain call's boxes comes from `draw.ARGS` (required plus the optional ones worth
+filling), and the rows below show the newer counts.
 
 | Catalog row | MathPrint | Classic |
 |---|---|---|
@@ -673,8 +715,8 @@ picker text that starts with the catalog prefix, if any (`diff(` → `diff(,)`, 
 | `limit(f,x,a,[dir])` | `limit(,,,)` | `limit(,,)` |
 | `log(x,[b])` | `log(,)` | `log()` |
 | `sum(f,k,a,b)`, `surd(x,n)` | `sum(,,,)`, `surd(,)` | the same |
-| `riemann(…)`, `arclen(…)`, `polararea(…)`, `paramarea(…)` | `riemann(,,,,)`, `arclen(,,,)`, `polararea(,,,)`, `paramarea(,,,,)` (no 2D form: a plain call) | the same |
-| `taylor(f,x=a,[n])`, `solve(eq,[x])`, `sin(x)`, … | `taylor(,)`, `solve()`, `sin()` (required boxes only; `,` adds an optional one) | the same |
+| `riemann(…)`, `arclen(…)`, `polararea(…)`, `paramarea(…)` | `riemann(,,,,,)`, `arclen(,,,)`, `polararea(,,,)`, `paramarea(,,,,)` (a plain call; each empty argument a box, §0.11) | `riemann(,,,,)`, the others the same |
+| `taylor(f,x=a,[n])`, `solve(eq,[x])`, `sin(x)`, … | `taylor(,,)`, `solve(,)`, `sin()` (§0.11; `,` adds a further optional box) | `taylor(,)`, `solve()`, `sin()` |
 
 An action's wrap of the line (F1 on a non-empty line) gives `diff(LINE,)`,
 `integrate(LINE,,,)`, `limit(LINE,,,)` with the caret in the first empty box in drawn order;
@@ -720,23 +762,24 @@ positions. The text prototype showed `integrate(,x,,)` with both at the same pix
   L2), the others through `tput(text)` (L3): the text at the caret, the caret in its first
   box in drawn order (PENDING; on a flat or degraded line, its first argument).
 
-Rows, as `label#text` (`tmpl(j)` → `[label, text]`; §0.10 dropped the caret field):
+Rows, as `label#text` (`tmpl(j)` → `[label, text]`; §0.10 dropped the caret field; §0.11
+labels them with the Nspire's template names):
 
 | Page.row | Label | Text | First caret |
 |---|---|---|---|
-| 1.1 | `n/d  fraction` | FRAC action | §2.1 |
-| 1.2 | `x^n  power` | POW action | in the exponent |
-| 1.3 | `sqrt  square root` | `sqrt()` | radicand |
-| 1.4 | `n-root  nth root` | `surd(,)` | index (drawn first) |
-| 1.5 | `e^x` | `e^()` | exponent |
-| 1.6 | `10^x` | `10^()` | exponent |
-| 1.7 | `log_b  log base b` | `log(,)` | base (optional) |
-| 2.1 | `|x|  absolute value` | `abs()` | operand |
-| 2.2 | `int  integral` | `integrate(,,,)` | lower bound |
-| 2.3 | `d/dx  derivative` | `diff(,)` | variable box |
-| 2.4 | `d^n/dx^n  nth derivative` | `diff(,,)` | variable box |
-| 2.5 | `sum  k=a..b` | `sum(,,,)` | index variable |
-| 2.6 | `lim  limit` | `limit(,,,)` | variable |
+| 1.1 | `Fraction` | FRAC action | §2.1 |
+| 1.2 | `Exponent` | POW action | in the exponent |
+| 1.3 | `Square root` | `sqrt()` | radicand |
+| 1.4 | `Nth root` | `surd(,)` | index (drawn first) |
+| 1.5 | `e exponent` | `e^()` | exponent |
+| 1.6 | `10 exponent` | `10^()` | exponent |
+| 1.7 | `Log base b` | `log(,)` | base (optional) |
+| 2.1 | `Absolute value` | `abs()` | operand |
+| 2.2 | `Integral` | `integrate(,,,)` | lower bound |
+| 2.3 | `First derivative` | `diff(,)` | variable box |
+| 2.4 | `Nth derivative` | `diff(,,)` | variable box |
+| 2.5 | `Sum` | `sum(,,,)` | index variable |
+| 2.6 | `Limit` | `limit(,,,)` | variable |
 
 ---
 
@@ -880,6 +923,7 @@ any of the following, and True otherwise:
 - the name `pi`, `theta` or `oo` (a simple substring test is enough: a false hit only costs
   the 2D path);
 - `ans()`;
+- an empty call argument or group: `(,`, `,,`, `,)` or `()` (§0.11);
 - a TPL name directly followed by `(`, after `D.mcall` cut off letters before it
   (`xsqrt(4)` is not flat; `sqrt2(` is).
 
@@ -1233,7 +1277,7 @@ entry is at the bottom.
 |---|---|
 | MODE | the selected entry's footer |
 | LINE empty and `HERO` | the newest entry's footer |
-| LINE non-empty | `hint(ALIAS[enclosing()])` (the `HINT` signature, ≤ 31 columns), or nothing |
+| LINE non-empty | the help of the argument at the caret (§0.11: `arghelp(*argpos())`, ≤ 31 columns), or nothing |
 
 The footer is today's text without the `+ C`, which is drawn on the answer's row (§7.1, §0.10):
 - left: `'~ ' + approx` if exact, cut to `29 - len(right)`;
@@ -1252,7 +1296,7 @@ An `R_MSG` entry has no footer (empty hint row), as today's hero showed none.
 | ENTRY | §2 |
 | CLEAR | leaves MODE |
 
-**`enclosing()`** scans back from CUR with a depth counter, as today. It skips unmatched
+**`enclosing()`** (replaced by `argpos()` in §0.11, which reads `edslot`) scanned back from CUR with a depth counter. It skips unmatched
 `(` whose name is empty (groups and hidden fraction/exponent parens) and continues outward.
 So inside `integrate((x)/(|),x)` it returns `integrate`. The hint and F5 help follow.
 The name is the letter/digit run before `(` with **leading digits dropped** (`2sin(x|)`
@@ -1299,7 +1343,7 @@ History inputs stay 2D. Classic also serves as:
 
 | Function | Module | #@L | Pack | Calls (level) |
 |---|---|---|---|---|
-| `key(k)` (changed) | ui | 1 | CASUX | engine 2, emodel 2, edkey 2, picker 2, redraw 2, menu.open 2; tidy/paste/insert/empty_map/empty_slot/enclosing/wrapped/edins/kmap/tput/menub.apply 3; wrapend/put/tmpl 4 |
+| `key(k)` (changed) | ui | 1 | CASUX | engine 2, emodel 2, edkey 2, picker 2, redraw 2, menu.open 2; tidy/paste/insert/empty_map/empty_slot/argpos/wrapped/edins/kmap/tput/menub.apply 3; wrapend/put/tmpl 4 |
 | `show(job, rec)` (resets EH, XOFF, EXOFF, EDMAP, EDL, EKEY, EMODEL, PENDING, VIEWEND) | ui | 1 | CASUX | emodel 2, redraw 2 |
 | `boot` | ui | 1 | CASUX | emodel 2, redraw 2 |
 | `panic(reason)` (also resets the entry globals, sets `EFAIL = LINE` for reasons 0/3, still draws plain `LINE` at (10, 172)) | ui | 1 | **CASUI** | D primitives only |
@@ -1307,7 +1351,7 @@ History inputs stay 2D. Classic also serves as:
 | `edkey(k, mod)` (MathPrint editing keys) | ui | 2 | CASUX | edins, eddel, edmove, edvert, insert, tput 3; leave, put 4 |
 | `tput(t)`: a template text at the caret, the caret in its first box (PENDING, §0.10) | ui | 3 | CASUX | put 4 |
 | `picker()` | ui | 2 | CASUX | D.rect/text/line 5, D.color 6, TS.wait_key (native) |
-| `redraw()` (rewritten, §6.4; history plan inline) | ui | 2 | CASUX | D.mlayout, D.layout, D.theme, epaint, enclosing 3; D.render, D.mrender, room 4; D.text/rect/line 5; D.color 6 |
+| `redraw()` (rewritten, §6.4; history plan inline) | ui | 2 | CASUX | D.mlayout, D.layout, D.theme, epaint, argpos 3; D.render, D.mrender, room, arghelp 4; D.text/rect/line 5; D.color 6 |
 | `engine`, `busy` | ui | 2 | as today | unchanged |
 | `edins(op, t='')`: `frac`, `pow`, `sq`, `open`, `close`, `comma`, `text` | ui | 3 | CASUX | edslot, edterm, leave, put 4; bmatch 5 |
 | `eddel()` → True: move left instead | ui | 3 | CASUX | put, keep, spans 4; bmatch, D.mcall 5 |
@@ -1316,10 +1360,10 @@ History inputs stay 2D. Classic also serves as:
 | `tidy(s, back=0)` (`back`: recall, formerly `structure(s)`) | ui | 3 | CASUX | D.mlex, D.mparse 4 |
 | `kmap(t, k)` (string tables, §0.9) | ui | 3 | CASUX | – |
 | `tmpl(j)` (L4 since §0.10: `menub.insertion`, L3, reads the picker texts) | ui | 4 | CASUX | – |
-| `hint(name)` | ui | 4 | CASUX | – |
+| `arghelp(nm, j, n)` (§0.11; was `hint(name)`) | ui | 4 | CASUX | – |
 | `empty_map()` | ui | 3 | CASUX | – |
 | `empty_slot()` (optional boxes from `D.mparse`'s flags, §2.2) | ui | 3 | CASUX | D.mlex, D.mparse 4 |
-| `enclosing()` (skips unnamed groups, drops leading digits) | ui | 3 | CASUX | – |
+| `argpos()` (§0.11; was `enclosing()`) | ui | 3 | CASUX | edslot 4 |
 | `insert`, `wrapped` (unchanged) | ui | 3 | CASUX | – |
 | `epaint(full)` | ui | 3 | CASUX | D.mrender 4; D.rect/text/line 5 |
 | `status(s)` (also `STATVIEW = None`) | ui | 3 | CASUI | D.rect/text 5 |
@@ -1357,8 +1401,9 @@ must not call `emodel` either: `key` refreshes a stale model at dispatch step 2.
 
 **Tables and constants placed in CASUX** (each is bound once to a literal and never
 assigned in a function, which `packs.Plan.constant` requires of a placed name).
-- `ui`: `PLAIN`, `SECOND`, `ALPHA`, `HINT`, `ALIAS`, plus the new `TMPL` (picker rows) and
-  `TN` (since §0.9 the key tables, `HINT` and `TMPL` are strings; §0.10 deleted `PREFILL`).
+- `ui`: `PLAIN`, `SECOND`, `ALPHA`, `ARGPH` (was `HINT`, §0.11), `ALIAS`, plus the new `TMPL`
+  (picker rows) and `TN` (since §0.9 the key tables and `TMPL` are strings; §0.10 deleted
+  `PREFILL`); `draw.ARGS` (§0.11) beside `draw.TPL`.
 - `draw`: the new `TPL` (dict literal), `TGAP` (int), `MPREC` (dict) and `MFNT` (tuple). No
   CASUI function reads them;
   a CASUI function that read a CASUX name would be rejected by the packer ("reads … by

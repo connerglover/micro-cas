@@ -1,6 +1,7 @@
-"""The QPL changes Q3-Q4 (docs/notes/MATHPRINT.md 0.11): Nspire-style command names in the menus,
-the catalog, the template picker and help; an empty box for each empty argument of a plain call
-in the MathPrint entry line."""
+"""The QPL changes Q3-Q5 (docs/notes/MATHPRINT.md 3.3, 3.4, 7.5): Nspire-style command names in
+the menus, the catalog, the template picker and help; an empty box for each empty argument of a
+plain call in the MathPrint entry line; and the hint row's explanation of the argument (slot)
+the caret is in, with whether it is required."""
 import pytest
 
 import draw as D
@@ -18,7 +19,7 @@ STATE = (('LINE', ''), ('CUR', 0), ('XOFF', 0), ('MOD', 0), ('MODE', 0), ('SEL',
          ('EDMAP', None), ('EMODEL', None), ('EFLAT', True), ('PENDING', None),
          ('ED1D', False), ('EFAIL', None), ('CLASSIC', False), ('VIEWEND', -1),
          ('EDL', None), ('EKEY', None), ('STATVIEW', None), ('HINTVIEW', None),
-         ('EDIFF', True), ('CARETC', 'INK'), ('PAGEMAX', 5))
+         ('EDIFF', True), ('CARETC', 'INK'), ('PAGEMAX', 5), ('HKEY', None), ('HTEXT', ''))
 
 
 @pytest.fixture(autouse=True)
@@ -45,6 +46,12 @@ def setline(before):
 
 def shown():
     return U.LINE[:U.CUR] + '|' + U.LINE[U.CUR:]
+
+
+def hint():
+    """The hint row's text for the caret (what redraw shows), engine-free."""
+    k = U.argpos()
+    return U.arghelp(k[0], k[1], k[2]) if k is not None else ''
 
 
 @pytest.fixture
@@ -260,3 +267,128 @@ def test_classic_stays_1d():
     U.CLASSIC = True
     setline('solve(|,)')
     assert U.EFLAT and U.EDMAP is None
+
+
+# -- Q5: the argument help in the hint row ---------------------------------------------------------
+
+@pytest.mark.parametrize('name, j, n, text', [
+    ('simplify', 0, 1, 'Expr. to simplify (required)'),
+    ('solve', 0, 2, 'Equation or system (required)'),
+    ('solve', 1, 2, 'Unknown(s), e.g. x (optional)'),
+    ('factor', 1, 2, 'Variable (optional)'),
+    ('diff', 1, 2, 'With respect to (required)'),
+    ('diff', 2, 3, 'Order (optional: empty = 1)'),
+    ('integrate', 2, 4, 'Lower bound (opt; empty=indef)'),
+    ('limit', 3, 4, 'Side + or - (opt; empty=both)'),
+    ('limit', 1, 2, 'Point, e.g. x=0 (required)'),
+    ('taylor', 1, 3, 'Center, e.g. x=0 (required)'),
+    ('taylor', 1, 4, 'Variable (required)'),
+    ('taylor', 3, 4, 'Order (optional: empty = 5)'),
+    ('sum', 3, 4, 'End value, oo ok (required)'),
+    ('riemann', 5, 6, 'left/mid/trap (opt: right)'),
+    ('desolve', 1, 2, 'Function, e.g. y (optional)'),
+    ('desolve', 1, 3, 'Independent var. (optional)'),
+    ('arclen', 1, 4, 'Variable (required)'),
+    ('arclen', 1, 5, 'y(t) (required)'),
+    ('purge', 0, 1, 'Variable to delete (required)'),
+    ('purge', 3, 4, 'More variables (optional)'),
+    ('log', 1, 2, 'Base (optional: empty = 10)'),
+    ('surd', 1, 2, 'Root index (required)'),
+    ('sin', 0, 1, 'Angle (required)'),
+    ('ln', 0, 1, 'Argument (required)'),
+    ('tanh', 0, 1, 'Argument (required)'),
+    ('floor', 0, 1, 'Argument (required)'),
+    ('/', 0, 2, 'Numerator (required)'),
+    ('/', 1, 2, 'Denominator (required)'),
+    ('^', 0, 1, 'Exponent (required)'),
+    ('exp', 0, 1, 'Exponent (required)'),
+    ('f', 0, 1, ''),
+    ('simplify', 1, 2, '')])
+def test_argument_help(name, j, n, text):
+    assert U.arghelp(name, j, n) == text
+
+
+def test_every_argument_text_fits_the_hint_row():
+    S = D.ARGS
+    seen = 0
+    for entry in S.strip(';').split(';'):
+        name, spec = entry.split(':')
+        n = int(name.split('#')[1]) if '#' in name else len(spec) - 2
+        for j in range(len(spec.replace('*', '')) - 2 + spec.count('*')):
+            t = U.arghelp(name.split('#')[0], j, n if '#' in name else max(n, j + 1))
+            assert t and len(t) <= 31 and all(32 <= ord(c) < 127 for c in t), (entry, j, t)
+            seen += 1
+    assert seen > 70
+    assert U.ARGPH.endswith('|') and U.ARGPH.count('|') <= 62
+
+
+@pytest.mark.parametrize('before, text', [
+    ('simplify(|)', 'Expr. to simplify (required)'),
+    ('solve(x=1,|)', 'Unknown(s), e.g. x (optional)'),          # 2D: the box's slot row
+    ('solve(x|=1,x)', 'Equation or system (required)'),         # flat: the back-scan
+    ('solve(x=1,x|)', 'Unknown(s), e.g. x (optional)'),
+    ('(1)/(|)', 'Denominator (required)'),
+    ('(|)/(2)', 'Numerator (required)'),
+    ('x^(|)', 'Exponent (required)'),
+    ('e^(2|)', 'Exponent (required)'),
+    ('integrate(x,x,|,)', 'Lower bound (opt; empty=indef)'),
+    ('integrate(x^(2),|)', 'Integration var. (required)'),
+    ('diff(x^(3),x,|)', 'Order (optional: empty = 1)'),
+    ('sum(k,k,1,|)', 'End value, oo ok (required)'),
+    ('limit(x,x,0,|)', 'Side + or - (opt; empty=both)'),
+    ('limit(sin(x)/x,x=0|)', 'Point, e.g. x=0 (required)'),
+    ('log(8,|)', 'Base (optional: empty = 10)'),
+    ('surd(8,|)', 'Root index (required)'),
+    ('sqrt(|)', 'Radicand (required)'),
+    ('solve([x+y=1,|],)', 'Equation or system (required)'),     # a list in a call (2D)
+    ('solve([x+y=1,x|],x)', 'Equation or system (required)'),   # (flat)
+    ('solve((x|),x)', 'Equation or system (required)'),
+    ('arclen(a,|,t,0,1)', 'y(t) (required)'),                   # the 5-argument form
+    ('arclen(a,|,0,1)', 'Variable (required)'),
+    ('taylor(f,x,|0,5)', 'Center point (required)'),
+    ('int(x|)', 'Integrand (required)'),                        # an alias
+    ('2sin(|)', 'Angle (required)'),
+    ('1+|2', ''), ('|', ''), ('f(x|)', ''), ('sin(x)+|', '')])
+def test_hint_for_the_slot_at_the_caret(before, text):
+    setline(before)
+    assert hint() == text
+
+
+def test_classic_hint_uses_the_back_scan():
+    U.CLASSIC = True
+    for before, text in (('x^(2+|)', 'Exponent (required)'), ('solve(x=1,|)',
+                                                               'Unknown(s), e.g. x (optional)'),
+                         ('diff(x,|)', 'With respect to (required)')):
+        setline(before)
+        assert hint() == text, before
+
+
+def test_hint_row_on_screen_before_the_engine_loads():
+    s = KS.run('int(x')
+    assert 'run' not in s.mods
+    assert 'Integrand (required)' in s.screen
+    s = KS.run('{2nd,frac}{down}{down}{down}{down}{down}{down}{down}{down}{enter}{snap:lower}')
+    assert 'Lower bound (opt; empty=indef)' in s.snap('lower')
+    assert 'run' not in s.mods
+
+
+def test_the_hint_row_repaints_only_when_the_slot_changes(monkeypatch):
+    monkeypatch.setattr(U, 'FULL', True)
+    setline('simplify(abc|)')
+    U.redraw()
+    ey = 190 - U.EH
+    row = ('fill_rect', -1, ey - 20, 321, 19)
+    for k in (LEFT, LEFT, LEFT):
+        TD.reset()
+        U.key(k)
+        assert row not in TD.CALLS, TD.CALLS                 # the same slot: no hint paint
+    assert shown() == 'simplify(|abc)'
+    TD.reset()
+    U.key(LEFT)                                               # out of the call: the row clears
+    assert row in TD.CALLS and hint() == ''
+    calls = []
+    real = U.arghelp
+    monkeypatch.setattr(U, 'arghelp', lambda *a: calls.append(a) or real(*a))
+    for k in (RIGHT, RIGHT, RIGHT, LEFT):
+        U.key(k)
+    assert calls == [('simplify', 0, 1)]                      # looked up once per slot change

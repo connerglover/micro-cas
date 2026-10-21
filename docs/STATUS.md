@@ -1,6 +1,6 @@
 # Delivery status and evidence
 
-Last reviewed: 2026-10-12. Repository: connerglover/cas-evo (private).
+Last reviewed: 2026-10-21. Repository: connerglover/cas-evo (private).
 Use [AGENTS.md](../AGENTS.md) for operating instructions. This file records a
 dated snapshot; verify remote heads, build results and hosting before reporting
 them as current.
@@ -22,6 +22,20 @@ them as current.
   from 179,632 B, `ui_edit` from 166,384 B; every CI heap passes. Harness
   evidence only; no EVO run of the MathPrint build yet. The empty page no
   longer shows the "cas-evo" title and tagline.
+- **QPL changes on `mathprint` (local, not pushed; 2026-10-21).** Q1: the
+  diagnostic CVTEST no longer ships (it took 5.5 KB of calculator RAM); the
+  package is 21 packs plus one launcher, 22 files, and CVTEST is built to
+  `dist/dev/` for the native CI suites only. Q2: the launcher is `CAS` (was
+  CASEVO). The installer now records packs-v1 and the two delivered MathPrint
+  test ZIPs (`website/legacy-*.json`), so it upgrades their packs and removes
+  their CASEVO/CVTEST on an exact match instead of stopping. Q3: menus,
+  catalog, find, help and the template picker use the Nspire's command names.
+  Q4: every empty argument of a plain call is a box. Q5: the hint row explains
+  the argument at the caret and whether it is required (MATHPRINT.md §0.11).
+  CASUX 29,736 → 31,328 B, CASUI 3,777 → 3,794 B, CASMNU 9,039 → 9,068 B;
+  native cas32 `ui` boot heap 122,576 → 120,848 B and result 34,000 → 32,256 B
+  free; every CI heap passes (startup, ui, ui_edit, ui_calculus at 189,776 and
+  185,680, the 55-case probe at 212,000, cas64). Harness evidence only.
 - **Device report on v1, 2026-10-11.** The v1 package (236 archived libraries
   plus two RAM launchers) took **5 min 30 s** on the user's EVO and then failed
   with `TypeError: function takes 1 positional arguments but 3 were given` at
@@ -157,16 +171,16 @@ EVO runs can show whether these cases fit on the calculator.
    and publication runs pass. Record the run, the calculator ZIP SHA-256 and
    the pages commit here. The requested local merge is complete.
 2. On the physical EVO:
-   - Install through the web installer, which removes exact-match v1 files and
+   - Install through the web installer, which removes exact-match files of a
+     recorded earlier release (v1, packs-v1, the MathPrint test builds) and
      lists any it keeps. Record the installer's summary.
-   - Run CASEVO. Note the boot time in the status line (`ready` and seconds).
+   - Run CAS. Note the boot time in the status line (`ready` and seconds).
      Type `2+3` and press ENTER: the status line shows `Loading engine...`, then
      the answer `5` with `engine` and the engine load time. Then try a definite
      integral such as `integrate(1/(2+cos(x)),x,0,2*pi)` (expected
      `2*sqrt(3)*pi/3`) and note whether it answers or reports Out of memory.
-   - Run CVTEST in a fresh Python session. Report its first line
-     (`CVTEST startup heap N`) and the final `CVTEST: N/55 PASS` line, with the
-     numbers of any failing cases.
+   - Open F3 > About and report the free heap (the diagnostic CVTEST no longer
+     ships; its 55 cases run in CI on native MicroPython).
    - Record the OS version and, for any failure, the complete traceback.
      `python build/linemap.py --map dist/release.json --tb FILE`, run on a build
      of the same commit, maps pack lines to source. A native host check is not
@@ -176,7 +190,7 @@ EVO runs can show whether these cases fit on the calculator.
    WASM initialization. Repository visibility remains private.
 
 The device numbers decide the next memory work: the cost of one archive import
-(fixed, or growing with the number of files) and the free heap at CASEVO start.
+(fixed, or growing with the number of files) and the free heap at CAS start.
 Do not reopen finished feature milestones without a new defect or request.
 Address device feedback while preserving the complete v1 feature set.
 

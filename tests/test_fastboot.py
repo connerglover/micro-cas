@@ -87,9 +87,9 @@ def test_keyscript_session_without_enter_never_loads_the_engine():
 def test_hint_line_works_before_the_engine_loads():
     s = KS.run('int(x')
     assert 'run' not in s.mods
-    assert 'integrate(f,x,[a,b])' in s.screen
+    assert 'Integrand (required)' in s.screen             # the argument help (QPL Q5)
     import ui as U
-    assert all(len(h) <= 31 for h in U.HINT.split())      # the hint line has 31 columns
+    assert all(len(h) <= 31 for h in U.ARGPH.split('|'))  # the hint line has 31 columns
 
 
 # -- (b) the first ENTER loads the engine; later commands reuse it -----------------------------
@@ -261,9 +261,12 @@ def test_caret_move_cost_is_flat(monkeypatch):
     for j in range(10):
         del TD.CALLS[:]          # keep the framebuffer
         TD.COUNTS.clear()
+        hv = u.HINTVIEW
         u.key(24)
-        assert TD.COUNTS['fill_rect'] == 1, TD.CALLS
-        assert TD.COUNTS.get('draw_text', 0) <= 2 and TD.COUNTS['set_color'] <= 3, TD.CALLS
+        more = int(u.HINTVIEW != hv)    # the hint row, only when the slot's help changes
+        assert TD.COUNTS['fill_rect'] == 1 + more, TD.CALLS
+        assert TD.COUNTS.get('draw_text', 0) <= 2 + more, TD.CALLS
+        assert TD.COUNTS['set_color'] <= 3 + 2 * more, TD.CALLS
         rows = [list(TD.FB[y]) for y in range(ey, 190)]
         u.EDIFF, u.EKEY = False, None
         u.redraw()
@@ -313,7 +316,7 @@ def test_entry_loop_recovers_before_the_engine(monkeypatch):
     real = TD.draw_text
 
     def flaky(x, y, s):
-        if s.startswith('integrate('):
+        if s.startswith('Integrand'):
             raise MemoryError('the hint line')
         real(x, y, s)
 

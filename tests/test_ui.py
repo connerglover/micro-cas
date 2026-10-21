@@ -124,14 +124,14 @@ def test_panic_works_without_ui_or_layout_phase(monkeypatch, reason, message):
     u, d = s.mods['ui'], s.mods['draw']
     before = (u.LINE, u.CUR, s.ans, tuple(s.hist[0]))
     with monkeypatch.context() as patch:
-        for module, names in ((u, ('redraw', 'enclosing', 'wrapped', 'empty_slot', 'tidy',
+        for module, names in ((u, ('redraw', 'argpos', 'arghelp', 'wrapped', 'empty_slot', 'tidy',
                                    'emodel', 'edkey', 'picker', 'edins', 'eddel',
                                    'edmove', 'edvert', 'paste', 'empty_map', 'edslot', 'edterm',
                                    'leave', 'put', 'tput', 'bmatch', 'spans', 'keep', 'insert',
-                                   'epaint', 'TMPL', 'PLAIN', 'SECOND', 'ALPHA', 'HINT',
-                                   'ALIAS', 'kmap', 'hint', 'tmpl', 'TN')),
+                                   'epaint', 'TMPL', 'PLAIN', 'SECOND', 'ALPHA', 'ARGPH',
+                                   'ALIAS', 'kmap', 'tmpl', 'TN')),
                               (d, ('layout', 'glyph', 'tree', 'measure', 'place', 'render',
-                                   'TPL', 'TGAP', 'MPREC', 'MFNT', 'mlayout', 'mflat', 'mcall', 'mname',
+                                   'TPL', 'TGAP', 'MPREC', 'ARGS', 'MFNT', 'mlayout', 'mflat', 'mcall', 'mname',
                                    'mstop', 'mlex', 'mparse', 'mpush', 'mshut', 'mreduce',
                                    'mbox', 'tleaf', 'mplace', 'mmark', 'mrender'))):
             for name in names:

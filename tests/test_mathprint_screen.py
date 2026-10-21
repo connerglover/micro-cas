@@ -208,9 +208,12 @@ def test_caret_move_cost_is_flat(editor, monkeypatch):
     for j in range(10):
         del TD.CALLS[:]          # keep the framebuffer
         TD.COUNTS.clear()
+        hv = U.HINTVIEW
         U.key(LEFT)
-        assert count('fill_rect') == 1, TD.CALLS
-        assert count('draw_text') <= 2 and count('set_color') <= 3, TD.CALLS
+        # the hint row repaints (one fill, one text) only when the slot's help changes (QPL Q5)
+        more = int(U.HINTVIEW != hv)
+        assert count('fill_rect') == 1 + more, TD.CALLS
+        assert count('draw_text') <= 2 + more and count('set_color') <= 3 + 2 * more, TD.CALLS
         pixels, texts = entry_pixels(), entry_texts()
         repaint_entry()
         assert entry_pixels() == pixels and entry_texts() == texts

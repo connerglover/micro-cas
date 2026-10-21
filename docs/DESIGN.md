@@ -3132,11 +3132,12 @@ CAT = (
 
 ### 15.4 Help line and F5 help
 
-- **Help line** (resident `HINT`). While the caret is inside a call to a known command, the line
-  above the edit line shows its signature. This is FlowCE's help line, cut to the signature to stay
-  resident and small.
-- **F5** loads CVCAT and shows the full entry for the command around the caret: signature, help,
-  example. ENTER on the help screen pastes the example. With no command at the caret, F5 shows the
+- **Help line** (`ui.ARGPH` and `draw.ARGS`, in the UI view pack). Since the QPL changes it
+  explains the argument the caret is in and whether it is required ("Expr. to simplify
+  (required)", "Base (optional: empty = 10)"), for every command and 2D slot; it was the
+  command's signature (MATHPRINT.md §0.11).
+- **F5** loads CVCAT and shows the full entry for the command around the caret: its name (as the
+  Nspire's menus show it), help, example. ENTER on the help screen pastes the example. With no command at the caret, F5 shows the
   key summary page (FlowCE *Shortcuts*).
 
 ---
@@ -3293,8 +3294,8 @@ confirms the rest.
   3. **Otherwise** returns `('eval', LINE)`. The history stores the line with autoclose applied.
 - **ENTRY** (2nd ENTER) recalls earlier inputs, one further back per press, while the line still
   equals the last recall.
-- **Help line.** A backward scan from the caret with a paren-depth counter finds the enclosing call
-  name. `R.HINT` gives its signature.
+- **Help line.** `ui.argpos` finds the slot at the caret (the 2D caret map, or a backward scan
+  with a paren-depth counter) and `ui.arghelp` its argument help (MATHPRINT.md §0.11).
 
 ### 16.6 History, hero and navigation
 

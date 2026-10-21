@@ -50,6 +50,8 @@ CLASSIC = False     # F3 setup: Entry Classic, today's 1D editor
 VIEWEND = -1        # the bottom history entry shown in MODE
 STATVIEW = None     # what the status row last showed (repainted only when it changes)
 HINTVIEW = None     # what the hint row last showed
+HKEY = None         # the hint row's slot (argpos) and its text (arghelp), found once per slot
+HTEXT = ''
 CARETC = 'INK'      # the caret's color slot
 EDIFF = True        # False: every entry change repaints the whole entry box (no diff paint)
 PAGEMAX = 5         # history entries shown at most
@@ -76,12 +78,22 @@ SECOND = (b' 34567=>?@AGKQUgh',
          't|surd(|asin(|acos(|atan(|pi|sqrt(|E|{|}|e|10^(|[|e^(|]|i|ans()')
 ALPHA = (b' )*+34567=>?@AGHIJKQRSTU[\\]^fg',
          "theta|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z|theta| |'")
-# The hint line's signatures (UI data, available before the engine loads; each fits the 31
-# columns). ALIAS repeats run.ALIAS (tests/test_run.py keeps the two equal).
-HINT = (' simplify(e) expand(e) factor(e,[x]) together(e) solve(eq,[x]) diff(f,x,[n])'
-        ' integrate(f,x,[a,b]) limit(f,x,a,[dir]) taylor(f,x=a,[n]) partfrac(e,[x])'
-        ' sum(f,k,a,b) riemann(f,x,a,b,n,[method]) desolve(eq,[y]) grad(f,[x,y,z])'
-        ' polararea(r,t,a,b) paramarea(x,y,t,a,b) arclen(f,x,a,b) purge(x,...) approx(e) ')
+# The hint row's argument phrases (QPL Q5, MATHPRINT.md 7.5; UI data, available before the
+# engine loads): draw.ARGS names one per argument by its letter (A the first); arghelp adds
+# (required) or (optional) unless the phrase says (opt...) itself; each text fits 31 columns.
+# ALIAS repeats run.ALIAS (tests/test_run.py keeps the two equal).
+ARGPH = ('Argument|Angle|Expr. to simplify|Expr. to expand|Expr. or integer|Variable|'
+         'Equation or system|Unknown(s), e.g. x|Expr. to combine|Rational expr.|'
+         'f to differentiate|With respect to|Order (optional: empty = 1)|Integrand|'
+         'Integration var.|Lower bound (opt; empty=indef)|Upper bound (opt; empty=indef)|'
+         'f to take limit of|Value it approaches|Side + or - (opt; empty=both)|Point, e.g. x=0|'
+         'f to expand|Center, e.g. x=0|Order (optional: empty = 5)|Center point|Term to add|'
+         'Index variable|Start value|End value, oo ok|f to approximate|Left end|Right end|'
+         'Number of strips|left/mid/trap (opt: right)|ODE or [ODE,y(0)=..]|Function, e.g. y|'
+         'Independent var.|Function|Vars, e.g. [x,y,z]|Radius r(t)|Angle variable|Start angle|'
+         'End angle|x(t)|y(t)|Parameter t|End value|Curve f(x)|Expr. to evaluate|'
+         'Variable to delete|More variables|Base (optional: empty = 10)|Radicand|Root index|'
+         'Exponent|Expression|Numerator|Denominator|')
 ALIAS = {'int': 'integrate', 'd': 'diff', 'deriv': 'diff', 'lim': 'limit', 'series': 'taylor',
          'ratnormal': 'together', 'dsolve': 'desolve', 'gradient': 'grad'}
 # The template picker (MATHPRINT.md 3.2): (label, text), labelled with the Nspire's template
@@ -92,12 +104,6 @@ TMPL = ('Fraction#;Exponent#;Square root#sqrt();Nth root#surd(,);e exponent#e^()
         '10 exponent#10^();Log base b#log(,);Absolute value#abs();Integral#integrate(,,,);'
         'First derivative#diff(,);Nth derivative#diff(,,);Sum#sum(,,,);Limit#limit(,,,)')
 TN = 13
-
-
-def hint(name):                                                #@L 4
-    """The hint-row signature of the command name (HINT), or ''."""
-    i = HINT.find(' ' + name + '(')
-    return HINT[i + 1:HINT.find(' ', i + 1)] if i >= 0 else ''
 
 
 def tmpl(j):                                                   #@L 4
@@ -154,27 +160,61 @@ def status(s):                                                 #@L 3
     D.text(s[:n], 45, 2, D.COLORS['ACC'])
 
 
-def enclosing():                                               #@L 3
-    """The name of the call around the caret (hint row, help): the letters and digits before
-    the innermost '(' that has one, leading digits dropped (2sin( is sin). A '(' without a name
-    (a group, a hidden fraction or exponent paren) is skipped (MATHPRINT.md 7.4)."""
-    depth = 0
-    for i in range(CUR - 1, -1, -1):
-        c = LINE[i]
-        if c == ')':
-            depth += 1
-        elif c == '(':
-            if depth:
-                depth -= 1
-            else:
-                j = i
-                while j and (LINE[j-1].isalpha() or LINE[j-1].isdigit()):
-                    j -= 1
-                while j < i and LINE[j].isdigit():
-                    j += 1
-                if j < i:
-                    return LINE[j:i]
-    return ''
+def argpos():                                                  #@L 3
+    """(command, argument index, argument count) of the slot at the caret, for the hint row
+    and help (QPL Q5, MATHPRINT.md 7.5): '/' for a fraction slot, '^' for an exponent, a call's
+    name through ALIAS; a group or list slot gives the slot it sits in (a group after ^ is an
+    exponent: Classic). edslot reads the fresh caret map of a 2D line (no layout), else scans
+    the flat line. None outside any call."""
+    r = edslot(CUR)
+    for k in range(24):
+        if r[2] != 'G':
+            break
+        if r[3] and LINE[r[3] - 1] == '^':
+            return ('^', 0, 1)
+        r = edslot(r[3])
+    k = r[2]
+    if k == 'Q':
+        return ('/', r[5], 2)
+    if k == 'W':
+        return ('^', 0, 1)
+    if k == 'R' or k == 'G':
+        return None
+    nm = LINE[r[3]:LINE.find('(', r[3])]
+    return (ALIAS.get(nm, nm), r[5], r[6])
+
+
+def arghelp(nm, j, n):                                         #@L 4
+    """The hint row's text for argument j of n of nm (draw.ARGS, ARGPH; QPL Q5): its phrase and
+    (required) or (optional); '' for a name without help (a user function)."""
+    S = D.ARGS
+    i = S.find(';' + nm + '#' + str(n) + ':')
+    if i < 0:
+        i = S.find(';' + nm + ':')
+    if i >= 0:
+        i = S.find(':', i) + 1
+        r = int(S[i])
+        t = S[i + 2:S.find(';', i)]
+        if j < len(t) and t[j] != '*':
+            c = t[j]
+        elif t[-1] == '*':
+            c = t[-2]
+        else:
+            return ''
+    elif nm in D.MFNT:                  # a function of one argument
+        r = 1
+        c = 'B' if (' ' + nm + ' ') in ' sin cos tan sec csc cot ' else 'A'
+    else:
+        return ''
+    k = ord(c)
+    k = k + 4 if k < 58 else k - 65 if k < 91 else k - 71       # 0-9 after A-Z a-z
+    i = 0
+    for q in range(k):
+        i = ARGPH.find('|', i) + 1
+    t = ARGPH[i:ARGPH.find('|', i)]
+    if '(opt' in t:
+        return t
+    return t + (' (required)' if j < r else ' (optional)')
 
 
 def insert(text, offset=None):                                  #@L 3
@@ -1081,7 +1121,7 @@ def redraw():                                                  #@L 2
     ink, gray, accent. Otherwise only the rows whose contents changed: the status row
     (STATVIEW), the hint row (HINTVIEW) and the entry (epaint); nothing at all when nothing
     changed. emodel() ran before: redraw never lays out the entry."""
-    global XOFF, DX, FULL, VIEW, VIEWEND, STATVIEW, HINTVIEW
+    global XOFF, DX, FULL, VIEW, VIEWEND, STATVIEW, HINTVIEW, HKEY, HTEXT
     theme = R.SET['theme'] if R is not None else 0
     hist = R.HIST if R is not None else []
     n = len(hist)
@@ -1101,9 +1141,12 @@ def redraw():                                                  #@L 2
             right = label + '  F4'
             if e[3] is not None and label == 'exact':
                 left = ('~ ' + str(e[3]))[:29 - len(right)]
-    else:
-        name = enclosing()
-        left = hint(ALIAS.get(name, name))[:31]
+    else:                                           # the argument help (QPL Q5)
+        k = argpos()
+        if k != HKEY:
+            HKEY = k
+            HTEXT = arghelp(k[0], k[1], k[2])[:31] if k is not None else ''
+        left = HTEXT
     deg = R is not None and R.SET['deg']
     sv = (STATUS[:room()], MOD, deg)
     hv = (left, right, ey)
@@ -1416,7 +1459,8 @@ def key(k):                                                    #@L 1
             kind = 'all'
         engine()
         FULL = True
-        choice = R.need('menu').open(kind, LINE, CUR, enclosing())
+        k = argpos()
+        choice = R.need('menu').open(kind, LINE, CUR, k[0] if k is not None else '')
         if not R.HIST:
             MODE, SEL = 0, -1
         elif SEL >= len(R.HIST):

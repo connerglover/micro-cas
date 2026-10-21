@@ -147,10 +147,10 @@ PACKS = (
     # computation runs (run.go), since menus load families from inside key(). busy, status,
     # panic and the drawing primitives stay in CASUI for use during and after a computation.
     ('CASUX', ('ui.key', 'ui.show', 'ui.redraw', 'ui.boot', 'ui.engine', 'ui.insert',
-               'ui.enclosing', 'draw.ARGS', 'ui.empty_slot', 'ui.wrapped', 'draw.leaf', 'draw.row',
+               'ui.argpos', 'ui.arghelp', 'ui.ARGPH', 'draw.ARGS', 'ui.empty_slot', 'ui.wrapped', 'draw.leaf', 'draw.row',
                'draw.frame', 'draw.large', 'draw.tree', 'draw.measure', 'draw.place',
                'draw.layout', 'draw.render', 'draw.glyph', 'ui.PLAIN', 'ui.SECOND', 'ui.ALPHA', 'ui.kmap',
-               'ui.HINT', 'ui.ALIAS', 'ui.hint', 'ui.tmpl', 'ui.TN',
+               'ui.ALIAS', 'ui.tmpl', 'ui.TN',
                # MathPrint (docs/notes/MATHPRINT.md 9.2): the engine-free editor layout
                'ui.tidy', 'draw.TPL', 'draw.TGAP', 'draw.MPREC',
                # the MathPrint editor keys (milestone B)

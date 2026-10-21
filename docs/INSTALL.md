@@ -168,6 +168,15 @@ still returns `5`.
 | 2nd x^n | nth root template, index box first (Classic entry: `surd(`; `surd(8,3)` is `2`) |
 | 2nd MODE | Quit to Python |
 
+Menus and the catalog list commands by the names the TI-Nspire CX II CAS uses
+(Simplify, Solve, Derivative, Integral, Taylor Polynomial, Convert to Decimal,
+...); ALPHA find matches the name or the command itself (`diff` finds
+Derivative). A command arrives with an empty box for each argument (Classic
+entry: the required ones, as text), and the row above the edit line explains
+the box the caret is in and whether it is required, for example `Expr. to
+simplify (required)` or `Order (optional: empty = 1)`. Optional boxes may stay
+empty; ENTER moves to an empty required box and shows `fill in the empty slot`.
+
 Starting with `+`, `-`, `*`, `/`, a power key, or STO uses the previous answer.
 Use the separate **(-)** key to begin a negative number. **2nd (-)** inserts
 `ans()`; **2nd .** inserts `i`; **ALPHA .** inserts the prime in `y'`. **2nd ÷**

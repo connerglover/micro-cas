@@ -843,14 +843,18 @@ KEYS_ALPHA = {32: 'theta', 41: 'a', 42: 'b', 43: 'c', 51: 'd', 52: 'e', 53: 'f',
               55: 'h', 61: 'i', 62: 'j', 63: 'k', 64: 'l', 65: 'm', 71: 'n', 72: 'o',
               73: 'p', 74: 'q', 75: 'r', 81: 's', 82: 't', 83: 'u', 84: 'v', 85: 'w',
               91: 'x', 92: 'y', 93: 'z', 94: 'theta', 102: ' ', 103: "'"}
-HINTS = {'simplify': 'simplify(e)', 'expand': 'expand(e)', 'factor': 'factor(e,[x])',
-         'together': 'together(e)', 'solve': 'solve(eq,[x])', 'diff': 'diff(f,x,[n])',
-         'integrate': 'integrate(f,x,[a,b])', 'limit': 'limit(f,x,a,[dir])',
-         'taylor': 'taylor(f,x=a,[n])', 'partfrac': 'partfrac(e,[x])',
-         'sum': 'sum(f,k,a,b)', 'riemann': 'riemann(f,x,a,b,n,[method])',
-         'desolve': 'desolve(eq,[y])', 'grad': 'grad(f,[x,y,z])',
-         'polararea': 'polararea(r,t,a,b)', 'paramarea': 'paramarea(x,y,t,a,b)',
-         'arclen': 'arclen(f,x,a,b)', 'purge': 'purge(x,...)', 'approx': 'approx(e)'}
+# draw.ARGS with ui.ARGPH (QPL Q5): (required, boxed, the texts of the arguments) per command
+HINTS = {'simplify': (1, 1, ('Expr. to simplify (required)',)),
+         'solve': (1, 2, ('Equation or system (required)', 'Unknown(s), e.g. x (optional)')),
+         'diff': (2, 2, ('f to differentiate (required)', 'With respect to (required)',
+                         'Order (optional: empty = 1)')),
+         'integrate': (2, 4, ('Integrand (required)', 'Integration var. (required)',
+                              'Lower bound (opt; empty=indef)', 'Upper bound (opt; empty=indef)')),
+         'riemann': (5, 6, ('f to approximate (required)', 'Variable (required)',
+                            'Left end (required)', 'Right end (required)',
+                            'Number of strips (required)', 'left/mid/trap (opt: right)')),
+         'purge': (1, 1, ('Variable to delete (required)', 'More variables (optional)',
+                          'More variables (optional)'))}
 TEMPLATES = (('Fraction', ''), ('Exponent', ''), ('Square root', 'sqrt()'),
              ('Nth root', 'surd(,)'), ('e exponent', 'e^()'), ('10 exponent', '10^()'),
              ('Log base b', 'log(,)'), ('Absolute value', 'abs()'),
@@ -863,11 +867,13 @@ def test_string_tables_decode_to_the_key_hint_and_template_tables():
         assert len(table[0]) == len(table[1].split('|')) == len(want)
         for k in range(256):
             assert U.kmap(table, k) == want.get(k), k
-    for name, sig in HINTS.items():
-        assert U.hint(name) == sig
-    assert len(U.HINT.split()) == len(HINTS)
-    for name in ('', 'sin', 'integ', 'integrat', 'x', 'egrate'):
-        assert U.hint(name) == ''
+    for name, (req, boxed, texts) in HINTS.items():
+        i = D.ARGS.find(';' + name + ':') + len(name) + 2
+        assert D.ARGS[i:i + 2] == '%d%d' % (req, boxed), name
+        for j, text in enumerate(texts):
+            assert U.arghelp(name, j, len(texts)) == text, (name, j)
+    for name in ('', 'integ', 'integrat', 'x', 'egrate', 'f'):
+        assert U.arghelp(name, 0, 1) == ''
     assert U.TN == len(TEMPLATES)
     for j, (label, text) in enumerate(TEMPLATES):
         assert U.tmpl(j) == [label, text]

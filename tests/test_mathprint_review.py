@@ -166,11 +166,19 @@ import ti_draw as TD                    # noqa: E402
 
 
 def _key_cost(u, k):
+    """(full-width fills, texts, lines) of key k on the entry; the hint row (its fill and text),
+    repainted only when the argument help changes (QPL Q5), is left out."""
     del TD.CALLS[:]                     # keep the framebuffer
     TD.COUNTS.clear()
+    hv = u.HINTVIEW
     u.key(k)
-    full = [c for c in TD.CALLS if c[0] == 'fill_rect' and c[1] == -1]
-    return full, TD.COUNTS.get('draw_text', 0), TD.COUNTS.get('draw_line', 0)
+    ey = 190 - u.EH
+    hint = [c for c in TD.CALLS if c == ('fill_rect', -1, ey - 20, 321, 19) or
+            c[0] == 'draw_text' and c[1:3] == (5, ey)]
+    assert not hint or u.HINTVIEW != hv, TD.CALLS
+    full = [c for c in TD.CALLS if c[0] == 'fill_rect' and c[1] == -1 and c not in hint]
+    texts = len([c for c in TD.CALLS if c[0] == 'draw_text' and c not in hint])
+    return full, texts, TD.COUNTS.get('draw_line', 0)
 
 
 def test_caret_moves_past_index_29_of_a_2d_line_are_strips():
