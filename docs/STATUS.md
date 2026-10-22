@@ -94,12 +94,19 @@ them as current.
   earlier entries` sit at rows 21..35 in SUB; an entry with older ones above stays below row
   38, so the band is reserved only while entries are hidden (MATHPRINT.md §7.1). Full redraws
   only; `tests/test_history_more.py` (6: long/short history, tall entries, scroll mode at
-  newest and oldest, CLEAR until it fits, no draws while typing). Lint, framelint, the
-  not-slow suite with `--strict-depth -n 4` (4,348 passed), `release.py`, `archive.py`
-  (188,953 B; CASUX 30,884 → 31,011 B), `tests/test_archive_release.py` (86) and cas32
-  startup/ui/ui_edit/ui_calculus (189,776 and 185,680) pass. README rewritten (short,
-  screenshot in `.github/assets/`). Not rerun after it: the bundled tier, the probe and cas64
-  native suites, `package_archive.mjs`/`archive_zip.py`.
+  newest and oldest, CLEAR until it fits, no draws while typing). README rewritten (short,
+  screenshot in `.github/assets/`).
+  Final acceptance at 00abb82: lint, framelint, the not-slow suite in source and bundled tiers
+  with `--strict-depth -n 4` (4,349 passed each), `release.py`, `transfer.py`,
+  `check_release.py` (strict depth 8/8), `archive.py` (22 files, 188,953 B; CASUX 30,884 →
+  31,011 B, CASUI 3,486 → 3,508 B), `tests/test_archive_release.py` (86), cas32 startup
+  95,000 (21,840 B free, unchanged), `ui` 173,360 (result 38,208 → 38,000 B), `ui_edit`
+  173,360 (35,248 → 35,040 B), `ui_calculus` 189,776 (52,496 → 52,288 B) and 185,680
+  (48,464 → 48,256 B), probe 212,000 (55/55, 63,376 B final) and cas64 500,000 (all suites,
+  55/55), `package_archive.mjs` (22 objects, 191,261 B), `archive_zip.py` (136,902 B zipped,
+  copied to `cas-evo-v1.0.1.zip`, SHA-256
+  `785dc3283453dd93b1654f6be72c4a9cd450639cbff4e7867b476185251cb46a`), `SHA256SUMS` and the
+  Node installer tests (31).
   **Pending:** an EVO run of v1.0.1, and the user's merge and `v1.0.1` tag to deliver it
   (INSTALL.md ships in the ZIP).
 - **Hardware acceptance (user report, 2026-10-22).** The user ran the MathPrint
