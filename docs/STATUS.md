@@ -44,8 +44,11 @@ them as current.
   203,965 B; native heaps unchanged). Not checked on hardware: whether a CLEAR pressed to
   cancel a computation also reaches `wait_key` afterwards. If it did, cancelling an F5 started
   in the history would also delete the selected entry.
-  `package_archive.mjs`, `archive_zip.py`, the Node installer tests and the website build
-  were not rerun. **Pending:** an EVO run of
+  Final acceptance at dbd2458 reran the whole chain: both not-slow tiers (4,315 passed),
+  the archive tests (86), every native heap above (cas32 result heap before shedding: `ui`
+  33,456 B, `ui_edit` 30,496 B, `ui_calculus` at 189,776 47,744 B), `package_archive.mjs`
+  (22 transfer objects), `archive_zip.py` (142,596 B zipped, copied to
+  `cas-evo-v1.0.1.zip`), `SHA256SUMS` and the Node installer tests (31). **Pending:** an EVO run of
   v1.0.1, and the user's merge and `v1.0.1` tag to deliver it (INSTALL.md ships in the ZIP).
 - **Hardware acceptance (user report, 2026-10-22).** The user ran the MathPrint
   test builds on their TI-84 EVO and reported that they work (the latest build
