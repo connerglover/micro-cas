@@ -41,7 +41,7 @@ def g_form(code, ctx):                                          #@L 2
             candidate = P.approx(f)
         if candidate is not None:
             text = PR.text(candidate, ctx)
-            if sorted(text) not in seen and (name != 'simplified' or len(text) < len(original)):
+            if text and sorted(text) not in seen and (name != 'simplified' or len(text) < len(original)):
                 R.FORMNAME = name
                 yield K.keep(mark, candidate)
                 return

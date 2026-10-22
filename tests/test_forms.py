@@ -37,3 +37,12 @@ def test_forms_do_not_append_history():
     for _ in range(8):
         assert R.go(('form', 0))[0] == 'ans'
     assert len(R.HIST) == 1
+
+
+@pytest.mark.parametrize('text', ['(x+1)^150', 'factor((x-2^8193)^2)'])
+def test_form_too_long_to_print_is_skipped(text):
+    original = C.answer(text)                    # expanded/factored forms exceed MAXTEXT
+    for _ in range(5):
+        r = R.go(('form', 0))
+        assert r[0] == 'ans', r
+    assert R.HIST[0][5][0] == ('exact', original) and len(R.HIST) == 1
