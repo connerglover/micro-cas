@@ -20,17 +20,24 @@ them as current.
   calculator shows was re-read for the current UI (§0.15): `Press math` on the empty page,
   capitalized status texts and engine messages, help tips that match the F-key row (quit is
   2nd MODE), `Order (empty: 1)`-style argument help, shorter catalog explanations. Version
-  1.0.1 (`build/manifest.py`, About, INSTALL.md, `release.json`/`archive.json`).
+  1.0.1 (`build/manifest.py`, About, INSTALL.md, `release.json`/`archive.json`). The code
+  was minimized with the same methods and results (UI: shared state read once, menu keys
+  through `ui.kmap`; core: one-character token table, merged comma and sign rules; families:
+  repeated pure calls and dead branches removed, the test-only `polyb.bezout` and
+  `polyc.mrel` dropped), and the line/KB budgets of the touched modules lowered.
   **Host and native evidence** (not hardware): lint, framelint, the not-slow suite with
-  `--strict-depth -n 6` in source and bundled tiers (4,317 passed each), `build/release.py`,
-  `build/transfer.py`, `build/archive.py` with the pinned v1.12 `mpy-cross`,
-  `tests/test_archive_release.py` (86 passed), and every native heap of `build.yml` on
-  cas32/cas64 (startup 95,000; ui and ui_edit 173,360; ui_calculus 189,776 and 185,680;
-  probe 212,000 at 55/55; cas64 500,000 at 55/55). Compiled CASUX 31,218 → 31,287 B, CASUI
-  3,490 B (unchanged), CASMNU 8,732 → 8,685 B, archive 206,030 → 206,096 B; native cas32
-  result heap after shedding `ui` 58,208 → 58,176 B, `ui_edit` 55,376 → 55,232 B,
-  `ui_calculus` (185,680) 68,464 → 68,432 B. `package_archive.mjs`, `archive_zip.py`, the
-  Node installer tests and the website build were not rerun. **Pending:** an EVO run of
+  `--strict-depth -n 6` in source and bundled tiers (4,313 passed; four bezout/mrel unit
+  tests went with them), the slow suite of the touched engine modules (65 passed),
+  `build/release.py`, `build/archive.py` with the pinned v1.12 `mpy-cross`,
+  `tests/test_archive_release.py`, and every native heap of `build.yml` on cas32/cas64
+  (startup 95,000; ui and ui_edit 173,360; ui_calculus 189,776 and 185,680; probe 212,000
+  at 55/55; cas64 500,000 at 55/55). Compiled v1.0.0 → v1.0.1: CASUX 31,218 → 30,884 B,
+  CASUI 3,490 → 3,486 B, CASMNU 8,732 → 8,511 B, CASALG 19,817 → 19,076 B, CASPR 12,173 →
+  11,925 B, archive 206,030 → 203,960 B; native cas32 result heap after shedding `ui`
+  58,976 B, `ui_edit` 56,016 B, `ui_calculus` (185,680) 69,232 B; T1-T3 corpus CPU time
+  unchanged (19.65 s v1.0.0, 19.39 s v1.0.1, three interleaved rounds).
+  `package_archive.mjs`, `archive_zip.py`, the Node installer tests and the website build
+  were not rerun. **Pending:** an EVO run of
   v1.0.1, and the user's merge and `v1.0.1` tag to deliver it (INSTALL.md ships in the ZIP).
 - **Hardware acceptance (user report, 2026-10-22).** The user ran the MathPrint
   test builds on their TI-84 EVO and reported that they work (the latest build
