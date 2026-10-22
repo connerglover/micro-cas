@@ -101,3 +101,15 @@ def test_typing_never_repaints_the_indicator():
     full = KS.run(FLAT6 + '{snap:a}')
     assert len(shown(full)) == 1
     clean(s)
+
+
+def test_full_redraws_after_menus_forms_and_scrolls_keep_it():
+    # a closed menu, a cancelled calculation, F5 and a wide answer's DX scroll all repaint
+    # the page in full; the indicator comes back with it and the band stays free
+    for tail in ('{math}{clear}', '{vars}{clear}',
+                 'integrate(sin(x)^9*cos(x)^7,x){enter}{clear@1}', '{f5}',
+                 'expand((x+1)^9){enter}{right}{right}', '{frac}{frac}{frac}1{clear}'):
+        s = KS.run(FLAT6 + tail)
+        assert len(shown(s)) == 1, tail
+        assert band_free(s), tail
+        clean(s)
