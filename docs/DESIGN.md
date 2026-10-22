@@ -134,7 +134,7 @@ These were settled with the user. Do not reopen them.
 | T3 | Improper integrals (divergence reported); series sums; Riemann sums; ODEs (separable, 1st-order linear, 2nd-order constant-coefficient homogeneous plus common right-hand sides, with initial conditions); gradients; multiple integrals; polar and parametric areas. |
 | graphing | None in v1. |
 | input | 1D line editor (FlowCE style: implicit multiplication, Ans, a leading operator applies to the last answer). Architected so that a 2D editor can be toggled in later. |
-| output | 2D textbook rendering, with a 10-significant-digit decimal line under exact numeric answers. Scientific notation when \|x\| >= 1e10 or \|x\| < 1e-4. F4 cycles the forms simplified / one fraction / factored / expanded / decimal. |
+| output | 2D textbook rendering, with a 10-significant-digit decimal line under exact numeric answers. Scientific notation when \|x\| >= 1e10 or \|x\| < 1e-4. F5 (and < >) cycles the forms simplified / one fraction / factored / expanded / decimal. |
 | menus | The F1 command menu pastes the command and shows a one-line example/help hint (a lite FlowCE catalog). Command names follow giac, plus short aliases (`int`, `d`, `lim`, ...). |
 | conventions | `log` is base 10 and `ln` is natural. Radians by default, with a degree mode. Exact trig at special angles. `+C` on antiderivatives. Polynomials in descending powers. `i` is the imaginary unit. |
 | failure | A failed indefinite integral is shown unevaluated. A failed definite integral falls back to a numeric value labelled ≈. Limits behave the same way. |
@@ -263,7 +263,7 @@ written as parts (§4.3).
 | `defint.py` | `CVDEF` | L | `DI` | Definite and improper integrals, tanh-sinh, Gauss-Legendre, multiple integrals | 300 (2 parts) | 7 | T2/T3 |
 | `sums.py` | `CVSUM` | L | `SU` | Finite and infinite sums, convergence tests, Riemann sums | 300 (2 parts) | 7 | T3 |
 | `ode.py` | `CVODE` | L | `OD` | ODE classifier and solvers, initial conditions | 320 (3 parts) | 7 | T3 |
-| `menu.py` | `CVMENU` | U | `M` | F1 menu, TEST picker, vars, F3 settings, F5 help screens | 250 (2 parts) | 6 | UI |
+| `menu.py` | `CVMENU` | U | `M` | F-key menus (catalog tabs), TEST picker, vars, setup, help screens | 250 (2 parts) | 6 | UI |
 | `catalog.py` | `CVCAT` | U | `CA` | Catalog entries and help text (data) | data | 7 | UI |
 
 Resident total: about 2,650 lines, about 58 KB [E].
@@ -325,8 +325,8 @@ the compile peak at the size of one part, because each part compiles on its own.
 | CVDEF (300) | `defint`: singularities, F, jumps, symmetry; `defintb`: quadrature, improper pieces, multiple integrals | one |
 | CVSUM (300) | `sums`: finite and symbolic sums, Riemann; `sumsb`: infinite-series tests, known-series table, numeric | one |
 | CVODE (320) | `ode`: classifier, 1st-order linear, separable, Bernoulli; `odeb`: 2nd order with constant coefficients; `odec`: initial conditions, implicit answers | one |
-| CVMENU (250) | `menu`: F1 menu, TEST picker; `menub`: vars, F3 setup, F5 help | two (UI) |
-| CVCAT (data, about 7 KB) | `catalog`: the Algebra and Trig entries; `catalogb`: Calculus and More. A data module has a compile peak too: at least one parse node per literal. | two (UI); the All tab and F5 load both |
+| CVMENU (250) | `menu`: catalog menu, TEST picker; `menub`: vars, setup, help | two (UI) |
+| CVCAT (data, about 7 KB) | `catalog`: the Algebra and Trig entries; `catalogb`: Calculus and More. A data module has a compile peak too: at least one parse node per literal. | two (UI); the All tab and help load both |
 
 ---
 
@@ -2958,7 +2958,8 @@ scroll offset `dx` and the clip rectangle. Colors come from the palette (§16.8)
 
 ## 14. Answer forms (F4, CVFORM)
 
-FlowCE fmt §6 is the reference.
+FlowCE fmt §6 is the reference. The forms key is F5 (and < >) since the F-key row of
+MATHPRINT.md 0.13; this section calls it F4, its key until then.
 
 **Orders.** These are data in CVFORM; the original answer is position 0, labelled `exact`.
 
@@ -3574,7 +3575,7 @@ per phase or per strategy (§18.5), so the table gives the largest phase.
 | definite / improper integral | DEF + the solve phase (44), then the integrate phase (54), then the limit phase (48), with phase eviction (§18.5) | 54 | **no** (−14) |
 | `sum` | SUM LIM SER DIFF + NORM set | 48 | **no** (−8) |
 | `desolve` | ODE + the integrate phase (54), then the solve phase (44) | 54 | **no** (−14) |
-| F1 menu, F5 help | MENU CAT | 13 | yes (evicted on close when low) |
+| menus and help | MENU CAT | 13 | yes (evicted on close when low) |
 
 The rows marked "no" use the mitigation ladder (§18.8). The figures are estimates with about ±50%
 error, and the line targets themselves may be 1.5-2× low (§4.1). **The M0.5 gate replaces the

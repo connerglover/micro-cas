@@ -349,7 +349,7 @@ def test_provisional_model_reproduces_the_design_ledger():
     # DESIGN 18.2 "yes" rows fit; its "no" rows do not, except limit, which the per-line
     # model puts just inside (38.9 of 40.1 KB; the design rounds each module up to whole KB)
     for label in ('simplify, expand', 'factor', 'solve', 'diff, grad', 'taylor',
-                  'integrate S0-S2', 'F1 menu, F5 help'):
+                  'integrate S0-S2', 'menus and help'):
         assert rows[label][2], label
     for label in ('integrate S3-S8', 'definite (integrate phase)', 'sum',
                   'desolve (integrate phase)'):

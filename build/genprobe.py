@@ -620,7 +620,7 @@ ROWS = (
     ('definite (integrate phase)', NORMSET + INTSET + ('defint',)),
     ('sum', NORMSET + ('sums', 'limit', 'series', 'diff')),
     ('desolve (integrate phase)', NORMSET + INTSET + ('ode',)),
-    ('F1 menu, F5 help', ('menu', 'catalog')),
+    ('menus and help', ('menu', 'catalog')),
 )
 
 SHAPES = ('tup2', 'tup3', 'tup4', 'tup5', 'tup7', 'tup9', 'list3', 'dict2', 'inst2', 'float',

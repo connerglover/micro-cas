@@ -216,3 +216,22 @@ def test_up_scrolls_the_history_and_clear_or_down_leaves():
 def test_f2_no_longer_enters_the_history():
     s = KS.run('1+1{enter}{f2}{snap:menu}{clear}')
     assert title(s.snap('menu')) == 'Calculus' and ui(s).MODE == 0
+
+
+# -- review: the partial repaint leaves the screen a full redraw would draw -------------------------
+
+@pytest.mark.parametrize('keys, extra', [
+    ('', (21,)), ('', (21, 21)), ('1+1{enter}', (21,)), ('1+1{enter}', (21, 31)),
+    ('1+1{enter}{up}', (21,)), ('1+1{enter}{up}', (21, 25)), ('{2nd,f1}{clear}', (21,)),
+    ('{2nd,f2}{clear}', (21, 21)), ('x', (21, 24)), ('{alpha}{alpha}', (21, 21)),
+    ('1+1{enter}', (21, 45))])
+def test_partial_tab_repaint_matches_a_full_redraw(keys, extra):
+    s = KS.run(keys)
+    u = ui(s)
+    for k in extra:
+        u.key(k)
+    fb, texts = [r[:] for r in TD.FB], sorted(TD.texts())
+    assert row(texts) == (SECOND if u.MOD == 1 else PLAIN) and TD.OVERDRAW == []
+    u.FULL = True
+    u.redraw()
+    assert TD.FB == fb and sorted(TD.texts()) == texts

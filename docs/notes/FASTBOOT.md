@@ -209,7 +209,8 @@ definite integrals need roughly 15-40 KB more, and long sessions end in a fragme
 185,296 bytes free at program start; the 173,360 figure was taken after the probe imported
 ti_plotlib, ti_graphics, ti_image and more, which this program does not import. 189,776 is
 185,296 plus the 4,480 bytes the harness itself uses. Physical EVO runs decide which model
-holds: CAS shows its boot and engine load times and, under F3 About, the free heap.
+holds: CAS shows its boot and engine load times and, under Setup > About (F3 until
+MATHPRINT.md 0.13), the free heap.
 
 ### Final review (2026-10-12)
 
