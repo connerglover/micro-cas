@@ -20,13 +20,12 @@ def g_form(code, ctx):                                          #@L 2
     order = ('decimal',) + ORDER[:-1] if e[3] is not None and not K.V[f] else ORDER
     cache = e[5] or [('exact', original)]
     current = 'exact'
+    seen = []
     for name, text in cache:
         if text == e[1]:
             current = name
-    start = order.index(current) + 1 if current in order else 0
-    seen = []
-    for name, text in cache:
         seen.append(sorted(text))
+    start = order.index(current) + 1 if current in order else 0
     for name in order[start:]:
         mark = K.NN
         candidate = None

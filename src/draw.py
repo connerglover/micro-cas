@@ -98,7 +98,7 @@ def text(s, x, top, c=None, clip=SCREEN):                       #@L 5
     Characters outside the clip columns are dropped; nothing is drawn unless the rows fit."""
     if c is not None:
         color(c)
-    if not s or top < clip[1] or top + ASC + DESC - 1 > clip[3]:
+    if not s or top < clip[1] or top + (ASC + DESC - 1) > clip[3]:
         return
     if x < clip[0]:
         k = (clip[0] - x + CW - 1) // CW
@@ -398,11 +398,12 @@ def layout(s, width=300, height=92):                            #@L 3
     """The display list of an answer text in a width x height view (cached). A text that does
     not parse, or nests too deeply, is laid out as one plain line."""
     global CACHE_BYTES
+    cache = CACHE
     key = (s,width,height)
-    for j in range(len(CACHE)):
-        if CACHE[j][0]==key:            # least recently used goes first (MATHPRINT.md 7.3)
-            cached = CACHE.pop(j)
-            CACHE.append(cached)
+    for j in range(len(cache)):
+        if cache[j][0]==key:            # least recently used goes first (MATHPRINT.md 7.3)
+            cached = cache.pop(j)
+            cache.append(cached)
             return cached[1]
     try:
         code = P.rpn(P.lex(s))
@@ -417,9 +418,9 @@ def layout(s, width=300, height=92):                            #@L 3
     result = (dl,w,a,a+d)
     cost = len(dl)*24+len(s)
     if cost<=4096:
-        while CACHE and (len(CACHE)>=6 or CACHE_BYTES+cost>4096):
-            CACHE_BYTES-=CACHE.pop(0)[2]
-        CACHE.append((key,result,cost))
+        while cache and (len(cache)>=6 or CACHE_BYTES+cost>4096):
+            CACHE_BYTES-=cache.pop(0)[2]
+        cache.append((key,result,cost))
         CACHE_BYTES+=cost
     return result
 
@@ -877,12 +878,9 @@ def mbox(s, nodes, root, mode):                                #@L 4
         e = nd[2]
         if k == 'L':
             if nd[4] & 1 or mode == 1 and nd[4] & 2 and s[a:e] in GLYPHS:
-                r = leaf(boxes, s[a:e], n)
+                bx[n] = leaf(boxes, s[a:e], n)
             else:
-                boxes.append((CW * (e - a), ASC, DESC, (), (('s', 0, -ASC, None, a, e),), 'text',
-                              n))
-                r = len(boxes) - 1
-            bx[n] = r
+                bx[n] = tleaf(boxes, a, e, None, n)
             continue
         if k == 'E':
             boxes.append((0 if nd[4] & 4 else CW, ASC, DESC, (),
@@ -1143,11 +1141,12 @@ def mlayout(s, mode):                                          #@L 3
     None past the caps of section 5.3: 160 characters, 24 open groups, 192 nodes, 76 px high.
     Display-list coordinates are relative to the content's top-left corner."""
     global ICACHE_BYTES
+    cache = ICACHE
     if mode == 1:
-        for j in range(len(ICACHE)):
-            if ICACHE[j][0] == s:       # least recently used goes first (section 7.3)
-                c = ICACHE.pop(j)
-                ICACHE.append(c)
+        for j in range(len(cache)):
+            if cache[j][0] == s:        # least recently used goes first (section 7.3)
+                c = cache.pop(j)
+                cache.append(c)
                 return c[1]
     res = None
     if len(s) <= 160:
@@ -1170,9 +1169,9 @@ def mlayout(s, mode):                                          #@L 3
         # display-list item and 4 B per character of text (section 9.3)
         cost = 128 + 32 * (len(res[0]) if res is not None else 0) + 4 * len(s)
         if cost <= 4096:
-            while ICACHE and (len(ICACHE) >= 6 or ICACHE_BYTES + cost > 4096):
-                ICACHE_BYTES -= ICACHE.pop(0)[2]
-            ICACHE.append((s, res, cost))
+            while cache and (len(cache) >= 6 or ICACHE_BYTES + cost > 4096):
+                ICACHE_BYTES -= cache.pop(0)[2]
+            cache.append((s, res, cost))
             ICACHE_BYTES += cost
     return res
 

@@ -366,9 +366,10 @@ def empty_slot():                                              #@L 3
     that is drawn flat for its length; never on a line a panic ran on (EFAIL). So is a trailing
     empty argument after a command's required ones (draw.ARGS, QPL Q4: solve(x=1,)). An empty
     call f() is one when f is a command (draw.ARGS) or a function of the engine."""
+    s = LINE
     ok = []
     try:
-        r = None if LINE == EFAIL else D.mparse(LINE, D.mlex(LINE), 1)
+        r = None if s == EFAIL else D.mparse(s, D.mlex(s), 1)
     except MemoryError:                 # then every box counts
         r = None
         gc.collect()
@@ -377,29 +378,29 @@ def empty_slot():                                              #@L 3
             if nd[0] == 'E' and nd[4] & 2:
                 ok.append(nd[1])
     for token in ('(,', ',,', ',)'):
-        i = LINE.find(token)
+        i = s.find(token)
         while i >= 0 and i + 1 in ok:
-            i = LINE.find(token, i + 1)
+            i = s.find(token, i + 1)
         if i >= 0:
             return i + 1
-    i = LINE.find('()')
+    i = s.find('()')
     while i >= 0:
         j = i
-        while j and (LINE[j-1].isalpha() or LINE[j-1].isdigit()):
+        while j and (s[j-1].isalpha() or s[j-1].isdigit()):
             j -= 1
-        name = ALIAS.get(LINE[j:i], LINE[j:i])
+        name = ALIAS.get(s[j:i], s[j:i])
         if D.ARGS.find(';' + name + ':') >= 0 or name in P.FNAMES:
             return i + 1
-        while j < i and LINE[j].isdigit():
+        while j < i and s[j].isdigit():
             j += 1
         if j == i:
             return i + 1                    # an empty group: 2*()
-        i = LINE.find('()', i + 2)
-    for i in range(1, len(LINE)):           # an operator before an autoclosed closer: sin(2+)
-        if LINE[i] in ')]}' and LINE[i-1] in '+-*/^=<>' and i not in ok:
+        i = s.find('()', i + 2)
+    for i in range(1, len(s)):           # an operator before an autoclosed closer: sin(2+)
+        if s[i] in ')]}' and s[i-1] in '+-*/^=<>' and i not in ok:
             return i
-    if LINE and LINE[-1] in '+-*/^,(=':
-        return len(LINE)
+    if s and s[-1] in '+-*/^,(=':
+        return len(s)
     return -1
 
 
@@ -437,40 +438,43 @@ def emodel():                                                  #@L 2
         if not EFLAT:
             try:
                 EDMAP = D.mlayout(s, 2)
-            except MemoryError:
-                EDMAP = None
-                ED1D = 2                # key() frees the idle engine packs and tries again
+            except MemoryError:         # EDMAP stays None; key() frees the idle engine packs
+                ED1D = 2                # and tries again
                 gc.collect()
             if EDMAP is None:
                 EFLAT = True
                 ED1D = ED1D or True
     M = EDMAP
+    c = CUR
     if PENDING is not None:
         if M is not None:
             for e in M[12]:
                 if PENDING[0] <= e[0] < PENDING[1]:
-                    CUR = e[0]
+                    c = e[0]
                     break
         PENDING = None
-    CUR = max(0, min(CUR, n))
+    c = max(0, min(c, n))
     if M is None:
-        while CUR < n and not D.mstop(s, CUR):
-            CUR += 1
+        while c < n and not D.mstop(s, c):
+            c += 1
+        CUR = c
         EXOFF = 0
         if not n:
             EH = 20
         return
     X = M[5]
-    while CUR < n and X[CUR] < 0:
-        CUR += 1
+    while c < n and X[c] < 0:
+        c += 1
+    CUR = c
     h = M[3] + M[4]
     EH = max(EH, 20 if h <= 19 else 40 if h <= 36 else 60 if h <= 56 else 80)
-    x = X[CUR]
-    if 9 + x - EXOFF > 304:
-        EXOFF = x + 9 - 304 + 60
-    elif 9 + x - EXOFF < 10:
-        EXOFF = max(0, x - 60)
-    EXOFF = min(EXOFF, max(0, M[2] - 230))    # keeps the 60 px look-ahead at the end
+    x = X[c]
+    o = EXOFF
+    if 9 + x - o > 304:
+        o = x + 9 - 304 + 60
+    elif 9 + x - o < 10:
+        o = max(0, x - 60)
+    EXOFF = min(o, max(0, M[2] - 230))      # keeps the 60 px look-ahead at the end
 
 
 def bmatch(s, i, d):                                           #@L 5
@@ -559,9 +563,7 @@ def edslot(i):                                                 #@L 4
     if o < 0:
         return (a, e, 'R', 0, n, k, ns, False, 0)
     m = D.mname(s, o)
-    if m >= 0:
-        return (a, e, 'C', m, oe, k, ns, False, 1)
-    return (a, e, 'G', o, oe, k, ns, False, 1)
+    return (a, e, 'C' if m >= 0 else 'G', m if m >= 0 else o, oe, k, ns, False, 1)
 
 
 def edterm(i):                                                 #@L 4
@@ -606,17 +608,18 @@ def leave(grp):                                                #@L 4
     slot, move it to the end of that fraction or power. grp (+ and -): only out of a slot that
     holds exactly one visible group."""
     global CUR
+    s = LINE
+    c = CUR
     M = EDMAP
-    if M is None or M[0] != LINE:
+    if M is None or M[0] != s:
         return
-    while M[9][CUR] >= 0:
-        r = M[10][M[9][CUR]]
-        if CUR != r[1] or not (r[2] == 'Q' and r[5] == 1 or r[2] == 'W' and r[7]):
+    while M[9][c] >= 0:
+        r = M[10][M[9][c]]
+        if c != r[1] or not (r[2] == 'Q' and r[5] == 1 or r[2] == 'W' and r[7]):
             return
-        if grp and not (r[1] > r[0] and LINE[r[0]] in '([{' and
-                        bmatch(LINE, r[0], 1) == r[1] - 1):
+        if grp and not (r[1] > r[0] and s[r[0]] in '([{' and bmatch(s, r[0], 1) == r[1] - 1):
             return
-        CUR = r[4]
+        CUR = c = r[4]
 
 
 def keep(os, oe, u):                                           #@L 4
@@ -689,10 +692,8 @@ def edins(op, t=''):                                           #@L 3
             put(s[:p] + mid + s[c:], cur)
     elif op == 'pow' or op == 'sq':
         s, c = wrapend(s, c, 1)
-        if op == 'pow':
-            put(s[:c] + '^()' + s[c:], c + 2)
-        else:
-            put(s[:c] + '^(2)' + s[c:], c + 4)
+        p = op == 'pow'                     # the caret in the empty exponent, or after x^(2)
+        put(s[:c] + ('^()' if p else '^(2)') + s[c:], c + (2 if p else 4))
     elif op == 'open':
         r = edslot(c)
         if r[2] == 'W' and r[7] and r[0] == c and r[1] == c:
@@ -740,10 +741,8 @@ def edins(op, t=''):                                           #@L 3
             CUR = c + 1
         else:
             put(s[:c] + ',' + s[c:], c + 1)
-    elif t[-1] == '(':
-        put(s[:c] + t + ')' + s[c:], c + len(t))
     else:
-        put(s[:c] + t + s[c:], c + len(t))
+        put(s[:c] + t + (')' if t[-1] == '(' else '') + s[c:], c + len(t))
 
 
 def eddel():                                                   #@L 3
@@ -867,25 +866,26 @@ def edmove(d, mod):                                            #@L 3
     """Left/right (d = -1/1; MATHPRINT.md 4.2): the previous or next stop in drawn order (2D) or
     in the line (flat), with no layout; 2nd: home or end."""
     global CUR
-    n = len(LINE)
+    s = LINE
+    n = len(s)
     if mod == 1:
         CUR = 0 if d < 0 else n
         return
     M = EDMAP
-    if M is not None and M[0] == LINE:
+    c = CUR
+    if M is not None and M[0] == s:
         X, Y, ORD = M[5], M[6], M[8]
-        while CUR < n and X[CUR] < 0:
-            CUR += 1
-        x = X[CUR]
-        y = Y[CUR]
-        r = ORD.index(CUR) + d
+        while c < n and X[c] < 0:
+            c += 1
+        x = X[c]
+        y = Y[c]
+        r = ORD.index(c) + d
         while 0 <= r < len(ORD) and X[ORD[r]] == x and Y[ORD[r]] == y:
             r += d
-        if 0 <= r < len(ORD):
-            CUR = ORD[r]
+        CUR = ORD[r] if 0 <= r < len(ORD) else c
         return
-    c = CUR + d
-    while 0 < c < n and not D.mstop(LINE, c):
+    c += d
+    while 0 < c < n and not D.mstop(s, c):
         c += d
     CUR = max(0, min(n, c))
 
@@ -896,19 +896,20 @@ def edvert(d):                                                 #@L 3
     to just after its base, and back up. False when there is none (or the line is flat)."""
     global CUR
     M = EDMAP
-    if M is None or M[0] != LINE or M[5][CUR] < 0:
+    c = CUR
+    if M is None or M[0] != LINE or M[5][c] < 0:
         return False
     X, Y = M[5], M[6]
-    x = X[CUR]
-    y = Y[CUR]
+    x = X[c]
+    y = Y[c]
     if d < 0:
         for r in M[10]:
-            if r[2] == 'W' and r[3] == CUR:
+            if r[2] == 'W' and r[3] == c:
                 CUR = r[0]
                 return True
     out = []
     for q in M[11]:
-        if q[1] < CUR < q[2] and (q[3] == 'Q' or q[3] == 'W' or q[3] == 'T'):
+        if q[1] < c < q[2] and (q[3] == 'Q' or q[3] == 'W' or q[3] == 'T'):
             out.append((q[2] - q[1], q[1], q[2], q[3]))
     out.sort()
     for q in out:
@@ -930,11 +931,12 @@ def edvert(d):                                                 #@L 3
 def paste(text, bare):                                         #@L 3
     """A history paste at the caret (MATHPRINT.md 7.4): text, or bare (when given) inside an
     empty hidden fraction or exponent slot, whose parens already group it."""
+    c = CUR
     if bare is not None:
-        r = edslot(CUR)
-        if r[0] == CUR and r[1] == CUR and (r[2] == 'Q' or r[2] == 'W' and r[7]):
+        r = edslot(c)
+        if r[0] == c and r[1] == c and (r[2] == 'Q' or r[2] == 'W' and r[7]):
             text = bare
-    put(LINE[:CUR] + text + LINE[CUR:], CUR + len(text))
+    put(LINE[:c] + text + LINE[c:], c + len(text))
 
 
 def edkey(k, mod):                                             #@L 2
@@ -946,7 +948,7 @@ def edkey(k, mod):                                             #@L 2
             edmove(-1, 0)
         return
     if k == 24 or k == 26:
-        edmove(-1 if k == 24 else 1, mod)
+        edmove(k - 25, mod)
         return
     if k == 25:
         if not LINE or mod == 1 or not edvert(-1):
@@ -1025,52 +1027,53 @@ def epaint(full):                                              #@L 3
     the painted display list in EDL (EDMAP's own, in layout coordinates: drawn at
     10 - EXOFF, top; no copy) and (LINE, CUR, geometry, caret column, caret top) in EKEY."""
     global EDL, EKEY
+    s, c, eh, xo, exo = LINE, CUR, EH, XOFF, EXOFF
     C = D.COLORS
-    ey = 190 - EH
+    ey = 190 - eh
     M = EDMAP
-    if EFLAT or M is None or M[0] != LINE:
+    if EFLAT or M is None or M[0] != s:
         M = None
         h = 15
         asc = 11
     else:
         h = M[3] + M[4]
         asc = M[3]
-    top = ey + (EH - h) // 2
-    geo = (M is None, XOFF if M is None else 0, EXOFF, EH, C['BG'], top, asc)
+    top = ey + (eh - h) // 2
+    geo = (M is None, xo if M is None else 0, exo, eh, C['BG'], top, asc)
     old = EKEY
     box = False
     if M is None:
-        cx = 9 + 10 * (CUR - XOFF)
+        cx = 9 + 10 * (c - xo)
         cy = top
     else:
-        cx = 9 + M[5][CUR] - EXOFF
-        cy = top + M[6][CUR]
+        cx = 9 + M[5][c] - exo
+        cy = top + M[6][c]
         for e in M[12]:
-            if e[0] == CUR and not e[1] & 1:
+            if e[0] == c and not e[1] & 1:
                 box = True              # the caret in the middle of the box (5.4)
                 cx += 5
-    if not full and old is not None and old[0] == LINE and old[1] == CUR and old[2] == geo:
+    if not full and old is not None and old[0] == s and old[1] == c and old[2] == geo:
         return
-    EKEY = (LINE, CUR, geo, cx, cy)
+    EKEY = (s, c, geo, cx, cy)
     path = 0
     if not full and EDIFF and M is not None and old is not None and old[2] == geo and \
             EDL is not None:
         path = 2
-        if old[0] == LINE:
+        if old[0] == s:
             path = 1
             for e in M[12]:             # the trailing box at the caret shows or hides: diff
-                if e[1] & 1 and (e[0] == CUR or e[0] == old[1]):
+                if e[1] & 1 and (e[0] == c or e[0] == old[1]):
                     path = 2
     was = EDL
     dl = EDL = None if M is None else M[1]
-    dx = 10 - EXOFF
+    dx = 10 - exo
     clip = (10, ey, 309, 189)
     ink = C['INK']
     x0 = 0
     if path == 1:
         x0 = old[3]
         D.rect(x0, old[4] - 1, 2, 17, C['BG'])
-        D.mrender(dl, dx, top, clip, x0, x0 + 1, C['SUB'], True, CUR)
+        D.mrender(dl, dx, top, clip, x0, x0 + 1, C['SUB'], True, c)
         D.mrender(dl, dx, top, clip, x0, x0 + 1, ink, False)
     elif path == 2:
         x0 = min(cx, old[3]) - dx       # in display-list coordinates (the geometry is the same)
@@ -1080,42 +1083,40 @@ def epaint(full):                                              #@L 3
             b = dl[j] if j < len(dl) else None
             for it in (a, b):           # a trailing box shown or hidden at either caret: changed
                 if it is not None and (a != b or it[0] == 'b' and it[6] & 1 and
-                                       (it[5] == CUR or it[5] == old[1])):
+                                       (it[5] == c or it[5] == old[1])):
                     x = it[1]
                     if it[0] == 'l' and it[3] < x:
                         x = it[3]
                     if x < x0:
                         x0 = x
         x0 = max(0, x0 + dx)
-        D.rect(x0, ey, 320 - x0, EH, C['BG'])
-        D.mrender(dl, dx, top, clip, x0, 319, C['SUB'], True, CUR)
+        D.rect(x0, ey, 320 - x0, eh, C['BG'])
+        D.mrender(dl, dx, top, clip, x0, 319, C['SUB'], True, c)
         D.mrender(dl, dx, top, clip, x0, 319, ink, False)
     else:
         if not full:
-            D.rect(0, ey, 320, EH, C['BG'])
+            D.rect(0, ey, 320, eh, C['BG'])
         if M is None:
-            D.text(LINE[XOFF:XOFF + 30], 10, top, ink)
+            D.text(s[xo:xo + 30], 10, top, ink)
         else:
             if not full:                # a full redraw draws the boxes in its SUB batch
-                D.mrender(dl, dx, top, clip, 0, 319, C['SUB'], True, CUR)
+                D.mrender(dl, dx, top, clip, 0, 319, C['SUB'], True, c)
             D.mrender(dl, dx, top, clip, 0, 319, ink, False)
     if M is None:
-        less = XOFF > 0
-        more = len(LINE) > XOFF + 30
+        less = xo > 0
+        more = len(s) > xo + 30
     else:
-        less = EXOFF > 0
-        more = M[2] - EXOFF > 300
+        less = exo > 0
+        more = M[2] - exo > 300
     by = top + asc - 11
     if less and path != 1 and x0 < 10:
         D.text('<', 0, by, ink)
     if more and path != 1:
         D.text('>', 310, by, ink)
-    if M is None:                       # a flat line: today's caret
-        D.line(cx, cy - 1, cx, cy + 15, C[CARETC])
-    elif box:                           # inside an empty slot's box, clear of its outline
-        D.line(cx, cy + 1, cx, cy + 11, C[CARETC])
-    else:                               # the text cell: 1 px clear of a fraction bar
-        D.line(cx, cy, cx, cy + 14, C[CARETC])
+    # the caret: a flat line's; inside an empty slot's box, clear of its outline; else the text
+    # cell, 1 px clear of a fraction bar
+    a, b = (-1, 15) if M is None else (1, 11) if box else (0, 14)
+    D.line(cx, cy + a, cx, cy + b, C[CARETC])
 
 
 def redraw():                                                  #@L 2
@@ -1126,6 +1127,7 @@ def redraw():                                                  #@L 2
     (STATVIEW), the hint row (HINTVIEW) and the entry (epaint); nothing at all when nothing
     changed. emodel() ran before: redraw never lays out the entry."""
     global XOFF, DX, FULL, VIEW, VIEWEND, STATVIEW, HINTVIEW, HKEY, HTEXT, TABVIEW
+    mode, sel = MODE, SEL
     hist = R.HIST if R is not None else []
     n = len(hist)
     C = D.COLORS
@@ -1134,13 +1136,13 @@ def redraw():                                                  #@L 2
     XOFF = max(0, min(XOFF, CUR))
     if CUR - XOFF > 29:
         XOFF = CUR - 29
-    fi = (SEL if MODE else n - 1) if n else -1
+    fi = (sel if mode else n - 1) if n else -1
     left = lab = ''
     col = 0
-    if n and (MODE or not LINE and HERO):           # the focused answer: form label, decimal
+    if n and (mode or not LINE and HERO):           # the focused answer: form label, decimal
         e = hist[fi]
         if e[2] == R.R_ANS:
-            col = SELC if MODE else 0
+            col = SELC if mode else 0
             lab = e[5][-1][0] if e[5] else 'exact'
             if e[3] is not None and lab == 'exact':
                 left = ('~ ' + str(e[3]))[:31]
@@ -1162,7 +1164,7 @@ def redraw():                                                  #@L 2
     span = VIEW[7] if VIEW is not None else DX
     if DX > span:                   # the focused answer's overflow at the last full redraw:
         DX = span                   # <-/-> past it is a no-op key, not a full redraw
-    if not FULL and VIEW == (MODE, SEL, col, VIEWEND, DX, n, EH, span):
+    if not FULL and VIEW == (mode, sel, col, VIEWEND, DX, n, EH, span):
         st = sv != STATVIEW
         ht = hv != HINTVIEW
         if fk != TABVIEW:               # one fill over the labels; the gaps stay background
@@ -1196,8 +1198,8 @@ def redraw():                                                  #@L 2
     span = 0
     d = -1
     start = n - 1
-    if MODE:
-        start = VIEWEND if SEL <= VIEWEND < n else SEL
+    if mode:
+        start = VIEWEND if sel <= VIEWEND < n else sel
     for ps in range(3 if n else 0):
         plan = []
         y = sb
@@ -1265,12 +1267,12 @@ def redraw():                                                  #@L 2
         if d > 0:
             start = plan[-1]
             d = -1
-        elif MODE and plan[-1][2] > SEL:
-            start = SEL
+        elif mode and plan[-1][2] > sel:
+            start = sel
             d = 1
         else:
             break
-    if MODE and plan:
+    if mode and plan:
         VIEWEND = plan[0][2]
     DX = min(DX, span)
     D.rect(0, 0, 320, 210, C['BG'])
@@ -1278,7 +1280,7 @@ def redraw():                                                  #@L 2
     for i in range(5):
         D.rect(64*i, 191, 63, 19)
     for p in plan:                      # the band behind the selected cell (7.2)
-        if MODE and p[2] == SEL:
+        if mode and p[2] == sel:
             if col:
                 x = 305 - p[8] if p[8] <= VIEWW else 0
                 y = p[0] + p[7]
@@ -1325,7 +1327,7 @@ def redraw():                                                  #@L 2
     D.color(C['ACC'])
     D.text(chip, 315 - 10*len(chip), 2)
     tabs(fk)
-    VIEW = (MODE, SEL, col, VIEWEND, DX, n, EH, span)
+    VIEW = (mode, sel, col, VIEWEND, DX, n, EH, span)
     FULL = False
     STATVIEW = sv
     HINTVIEW = hv
@@ -1406,15 +1408,13 @@ def key(k):                                                    #@L 1
     global EXOFF
     global PENDING, VIEWEND, EDMAP, EDL, EKEY, EMODEL, ED1D
     job = None
-    if k == 21 or k == 31:
-        if k == 21:
-            MOD = 4 if MOD == 3 else 3 if MOD == 4 else 0 if MOD == 1 else 1
-        else:
-            MOD = 3 if MOD in (1, 2) else 0 if MOD >= 3 else 2
+    if k == 21 or k == 31:              # 2nd and alpha: the next modifier (CHIPS), by key
+        MOD = ((1, 0, 1, 4, 3) if k == 21 else (2, 3, 3, 0, 0))[MOD]
         emodel()
         redraw()
         return None
-    if EMODEL != LINE:
+    s = LINE
+    if EMODEL != s:
         emodel()
     mod = MOD
     if MOD < 3:
@@ -1422,7 +1422,7 @@ def key(k):                                                    #@L 1
     hist = R.HIST if R is not None else []
     al = kmap(ALPHA, k) if mod >= 2 else None
     if al is not None:
-        line, at = LINE, CUR
+        line, at = s, CUR
         if k == 103:
             line, at = wrapend(line, at, 0)     # the prime, like !: (x^(2))'
         t = al.upper() if mod == 4 else al
@@ -1439,7 +1439,7 @@ def key(k):                                                    #@L 1
             ENTRYPOS, LASTENTRY, DX = -1, '', 0
             if not hist:
                 MODE, SEL = 0, -1
-        elif LINE:
+        elif s:
             LINE, CUR, XOFF, EXOFF, PENDING = '', 0, 0, 0, None
         else:
             HERO = False
@@ -1449,8 +1449,8 @@ def key(k):                                                    #@L 1
         SELC, DX = 1, 0
     elif k == 24 and MODE and not DX:   # a wide output scrolls back first
         SELC = 0
-    elif k in (24, 26) and (MODE or not LINE):
-        DX = max(0, DX + (-24 if k == 24 else 24))
+    elif k in (24, 26) and (MODE or not s):
+        DX = max(0, DX + 24 * (k - 25))
     elif k in (25, 34) and MODE:
         d = (-5 if mod == 1 else -1) if k == 25 else (5 if mod == 1 else 1)
         SEL = max(0, SEL+d)
@@ -1466,21 +1466,21 @@ def key(k):                                                    #@L 1
                 paste(tidy(e[0], 1), None)
         elif mod == 1:
             if hist:
-                ENTRYPOS = min(ENTRYPOS+1, len(hist)-1) if LINE == LASTENTRY else 0
+                ENTRYPOS = min(ENTRYPOS+1, len(hist)-1) if s == LASTENTRY else 0
                 LINE = tidy(hist[-1-ENTRYPOS][0], 1)
                 CUR = len(LINE)
                 LASTENTRY = LINE
         else:
             pos = -1
-            if LINE:
+            if s:
                 pos = empty_map()       # engine-free: the model is fresh
-            if pos < 0 and LINE:
-                engine()                # the first ENTER loads the engine
-                pos = empty_slot()
+                if pos < 0:
+                    engine()            # the first ENTER loads the engine
+                    pos = empty_slot()
             if pos >= 0:
                 CUR, STATUS = pos, 'Fill in the empty box'
-            elif LINE or hist:
-                job = ('eval', (LINE if LINE == EFAIL else tidy(LINE)) or
+            elif s or hist:
+                job = ('eval', (s if s == EFAIL else tidy(s)) or
                        hist[-1][0])     # a failed line is not parsed again (EFAIL)
     elif k == 95 or k == 15 and mod != 1:  # F5 and < >: the answer's forms (nothing without)
         if hist:
@@ -1512,7 +1512,7 @@ def key(k):                                                    #@L 1
         engine()
         FULL = True
         k = argpos(True)
-        choice = R.need('menu').open(kind, LINE, CUR, k[0] if k is not None else '')
+        choice = R.need('menu').open(kind, s, CUR, k[0] if k is not None else '')
         if not R.HIST:
             MODE, SEL = 0, -1
         elif SEL >= len(R.HIST):
