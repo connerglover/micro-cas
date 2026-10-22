@@ -1429,8 +1429,15 @@ def key(k):                                                    #@L 1
     elif k == 22 and mod == 1:
         return QUIT
     elif k == 45:
-        if MODE:
-            MODE = 0
+        if MODE:                        # deletes the selected entry (0.14): Ans and variables
+            del hist[SEL]               # stay; the older one is selected; the history length
+            if VIEWEND > SEL:           # in VIEW repaints everything
+                VIEWEND -= 1
+            SEL = max(0, SEL - 1)
+            VIEWEND = min(VIEWEND, len(hist) - 1)
+            ENTRYPOS, LASTENTRY, DX = -1, '', 0
+            if not hist:
+                MODE, SEL = 0, -1
         elif LINE:
             LINE, CUR, XOFF, EXOFF, PENDING = '', 0, 0, 0, None
         else:

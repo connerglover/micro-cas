@@ -409,7 +409,7 @@ one differ (§0.12's "F2 is history scroll", §2's dispatch rows), this one wins
   the menu and the All tab. math (41) opens `TAB`; 2nd math stays TEST, vars Vars, mode
   Setup, 2nd 0 the All tab. `menu.open` takes a tab index for `kind` as well as a name.
 - **The history** scrolls with ↑ from the entry only; CLEAR, or ↓ past the newest entry,
-  leaves it (F2 entered and left it in §0.12; the `hist` tab is gone).
+  leaves it (CLEAR deletes the entry since §0.14; F2 entered and left it in §0.12; the `hist` tab is gone).
 - **Help (2nd F5)** shows the key summary with no command at the caret; its tips now read
   `F1-F4 menu tabs, F5 forms` and `2nd F1 all F2 tmpl F3 test`, `2nd F4 setup F5 help MODE quit`.
 - **Packs.** `ui.tabs` and `ui.FKEYS` live in CASUX (manifest); `TAB` and `TABVIEW` are CASUI
@@ -424,6 +424,24 @@ one differ (§0.12's "F2 is history scroll", §2's dispatch rows), this one wins
   row's relabelling and repaint cost, alpha modes keeping the plain row. Tests that pinned
   the old keys use the new ones (F4 forms → F5, F3 setup → mode, F5 help → 2nd F5, F2
   history → ↑, math's Calculus tab → F2).
+
+### 0.14 v1.0.1: CLEAR deletes a history entry (2026-10-22)
+
+User request after the v1.0.0 hardware run. Where this section and §0.13 differ (CLEAR left
+the history), this one wins.
+
+- **CLEAR in the history** (`MODE`) deletes `R.HIST[SEL]`, the input and its answer
+  together, whichever cell is selected. `SEL` moves to the older entry (`SEL - 1`), or stays
+  0, now the newer one, when the oldest went; `SELC` is kept. `VIEWEND` follows the shift
+  and is clamped. The 2nd ENTER recall restarts from the newest entry (`ENTRYPOS = -1`,
+  `LASTENTRY = ''`); `DX` resets. When the history is empty, `MODE, SEL = 0, -1`.
+- **Unchanged:** Ans (`R.ANS`), variables and functions; the other entries' forms (`e[5]`
+  travels with its entry). The layout caches are keyed by text, not index, so nothing is
+  dropped there; the deleted entry's layouts age out. The history length is part of `VIEW`,
+  so the next redraw is a full one. CLEAR still clears the line outside the history and
+  still cancels a computation (the runner polls `escape()`; `ui.key` never runs then).
+- **Tests.** `tests/test_history_scroll.py`: middle, input cell, oldest, last entry (back to
+  the entry), Ans and variables kept, 2nd ENTER restart, a page with forms.
 
 ---
 
@@ -635,7 +653,7 @@ MathPrint tables.
 | ↑ (25) | MODE: as today (2nd ↑ moves 5; the column stays). Empty LINE: enter history (as today, if any). 2nd ↑ with a non-empty LINE: enter history directly, as today. Otherwise `edvert(-1)` (§4.4). If that returns False and history exists: `MODE, SEL, SELC = 1, len(hist)-1, 1` (the newest answer). | `x^(|)` ↑ → history |
 | ↓ (34) | MODE: as today (2nd ↓ moves 5; past the newest leaves MODE). Otherwise `edvert(+1)` (2nd ↓ too); nothing if False. | `(a|)/(b)` ↓ → `(a)/(b|)` |
 | DEL (23) | §4.3 | |
-| CLEAR (45), with or without 2nd | Unchanged order: leave MODE; else empty LINE (`CUR = XOFF = EXOFF = 0`, `PENDING = None`; `emodel` then sets `EH = 20`); else `HERO = False`. Always `STATUS = ''` and `TS.escape()`. `ENTRYPOS`/`LASTENTRY` are untouched, as today. | |
+| CLEAR (45), with or without 2nd | Unchanged order: in MODE delete the selected entry (§0.14), leaving MODE when none is left; else empty LINE (`CUR = XOFF = EXOFF = 0`, `PENDING = None`; `emodel` then sets `EH = 20`); else `HERO = False`. Always `STATUS = ''` and `TS.escape()`. `ENTRYPOS`/`LASTENTRY` are untouched, as today. | |
 | ENTER (105) | MODE: copy the selected cell (§7.4). Otherwise (§2.2): two-stage empty-slot check, then the job. | |
 | 2nd ENTER | MODE: as ENTER. Otherwise ENTRY recall: `ENTRYPOS` as today; `LINE = structure(hist[-1-ENTRYPOS][0])`, `CUR = len(LINE)`, `LASTENTRY = LINE`. No 256 check, as today. | |
 | **2nd 42**, 2nd F2 (12) | `row = picker()` (§3.2), then `key` applies the row (rows 1–2 through `edins`, the others through `put` + PENDING). | |
@@ -1352,7 +1370,7 @@ An `R_MSG` entry has no footer (empty hint row), as today's hero showed none.
 | ENTER (or 2nd ENTER) in MODE, input cell (or a message entry) | paste `structure(e[0])` |
 | VARS | inserts `ans()` or a name (F2 recall, with its `(result)` rows, is gone: §0.12) |
 | ENTRY | §2 |
-| CLEAR | leaves MODE |
+| CLEAR | deletes the selected entry; leaves MODE when the history is empty (§0.14) |
 
 **`enclosing()`** (replaced by `argpos()` in §0.11, which reads `edslot`) scanned back from CUR with a depth counter. It skips unmatched
 `(` whose name is empty (groups and hidden fraction/exponent parens) and continues outward.

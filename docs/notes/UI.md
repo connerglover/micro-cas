@@ -44,7 +44,7 @@ is separate from key-script coverage.
 | X,T,theta,n (32) | `x` | `t` |
 | MATH (41) | Command menu on the tab used last (Algebra at first) | TEST relation picker |
 | VARS (44) | Ans, variables, functions | Same action |
-| CLEAR (45) | Clear/back/hide hero; computation cancel | Same action |
+| CLEAR (45) | Clear/back/hide hero; in the history: delete the selected entry; computation cancel | Same action |
 | Reciprocal (51) | `^-1` | No insertion |
 | SIN/COS/TAN (52..54) | Function call prefix | Inverse function prefix |
 | Power (55) | `^` | `pi` |
@@ -95,9 +95,11 @@ selects the newest answer; up/down move between entries, left selects the input
 cell and right the answer cell, with the band behind that cell only. A selected
 answer wider than the view scrolls with right/left before left moves to the input.
 ENTER copies the selected cell at the caret (an input as 2D text, an answer
-wrapped as needed and without its `+ C`) and returns to the edit line; CLEAR
-(or down past the newest entry) leaves without copying; F5 acts on the selected
-entry. F2 entered and left the scroll before the F-key row of 0.13.
+wrapped as needed and without its `+ C`) and returns to the edit line; down
+past the newest entry leaves without copying; F5 acts on the selected entry.
+CLEAR (v1.0.1) deletes the selected entry, input and answer together, and
+selects the older one (the newer one when it was the oldest); when the history
+is empty it returns to the edit line. Ans and variables are kept. F2 entered and left the scroll before the F-key row of 0.13.
 
 ## Menus and forms
 

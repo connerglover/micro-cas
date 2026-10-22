@@ -138,7 +138,7 @@ These were settled with the user. Do not reopen them.
 | menus | The F1 command menu pastes the command and shows a one-line example/help hint (a lite FlowCE catalog). Command names follow giac, plus short aliases (`int`, `d`, `lim`, ...). |
 | conventions | `log` is base 10 and `ln` is natural. Radians by default, with a degree mode. Exact trig at special angles. `+C` on antiderivatives. Polynomials in descending powers. `i` is the imaginary unit. |
 | failure | A failed indefinite integral is shown unevaluated. A failed definite integral falls back to a numeric value labelled ≈. Limits behave the same way. |
-| keys | F1-F4 the command menu's Algebra, Calculus, Trig and More tabs, F5 cycle forms; with 2nd lit the row relabels to All, Tmpl (template picker), Test, Setup (rad/deg), Help for the current command (v1.0.0, MATHPRINT.md 0.13; F2 was the history scroll). math opens the tab used last. Up/down walk the history, left/right pick its input or answer, enter copies it. Left/right scroll wide answers. sto-> stores. [clear] clears the line or cancels a computation. |
+| keys | F1-F4 the command menu's Algebra, Calculus, Trig and More tabs, F5 cycle forms; with 2nd lit the row relabels to All, Tmpl (template picker), Test, Setup (rad/deg), Help for the current command (v1.0.0, MATHPRINT.md 0.13; F2 was the history scroll). math opens the tab used last. Up/down walk the history, left/right pick its input or answer, enter copies it, [clear] deletes it (v1.0.1). Left/right scroll wide answers. sto-> stores. [clear] clears the line or cancels a computation. |
 | themes | One light palette (v1.0.0 removed the Night theme and its setting). |
 | robustness | [clear] cancels long computations (poll `ti_system.escape()`/`get_key`). MemoryError is caught and shown as a message. |
 | architecture | Flat n-ary expression trees; an explicit-stack parser and printer; a data-driven rule engine run by an explicit-stack loop (derivatives, integral tables, simplification identities); iterative algorithms for factoring, partial fractions, limits and ODEs. Only the UI layer imports `ti_*`; desktop shims stand in. Tests: pytest, a SymPy oracle, golden files, a call-depth checker. |
@@ -3255,7 +3255,7 @@ confirms the rest.
 | 42 | fraction template (Evo; apps on the CE) | fraction template with term capture, `(x)/(□)` | template picker (MathPrint; also 2nd F2) | `b` |
 | 43 | prgm | – | – | `c` |
 | 44 [V] | vars | Ans, variables, functions | | |
-| 45 [V] | clear | clear / back / hide hero; cancel while computing | | |
+| 45 [V] | clear | clear / back / hide hero; in the history, delete the selected entry; cancel while computing | | |
 | 51 | x^n (Evo; x⁻¹ on the CE) | exponent box `^(□)` | `surd(□,)` (xRoot) | `d` |
 | 52, 53, 54 | sin cos tan | `sin(` `cos(` `tan(` | `asin(` `acos(` `atan(` | `e` `f` `g` |
 | 55 | ÷ (Evo; ^ on the CE) | `/` | `pi` | `h` |
@@ -3316,7 +3316,7 @@ confirms the rest.
 | ENTER | evaluate (§16.5) | copy the selected cell at the caret, then return to `EDIT`. An answer is wrapped in `(...)` unless it is a single atom: a name, an unsigned number without `/`, or one call `f(...)` (never with its `+ C`). So `2/3` pasted after `x^` gives `x^(2/3)`, and `x=2` pasted after `3*` gives `3*(x=2)`. An input comes back as 2D text, as ENTRY gives it; a message entry always gives its input. |
 | 2nd ENTER | ENTRY recall | as ENTER |
 | F5, < > | forms of the hero | forms of the selected entry |
-| clear | clear the line; on an empty line, hide the hero | back to `EDIT` |
+| clear | clear the line; on an empty line, hide the hero | delete the selected entry (input and answer) from the history and select the older one, or the newer one if it was the oldest; an empty history goes back to `EDIT`. Ans and variables are kept (v1.0.1, MATHPRINT.md 0.14) |
 
 The selection band covers only the selected cell (v1.0.0; it was the whole row).
 

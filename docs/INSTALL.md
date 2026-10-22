@@ -173,10 +173,11 @@ cancel, then check that `2+3` still returns `5`.
 | Up/down | Up from the edit line scrolls the history; in the history, up/down move between entries (2nd: 5 at a time) |
 | Left/right in the history | Left highlights the input, right the answer; a wide answer scrolls first |
 | ENTER in the history | Copy the highlighted input or answer into the edit line at the caret |
+| CLEAR in the history | Delete the highlighted entry (input and answer); Ans and variables stay |
 | 2nd ENTER | Recall earlier inputs into the edit line |
 | Left/right | Move the caret; with an empty editor, scroll the answer |
 | DEL | Backspace; `ans()` is removed as one unit |
-| CLEAR | Clear input, leave history/menu, or cancel a calculation (down past the newest entry also leaves the history) |
+| CLEAR | Clear the edit line, close a menu, or cancel a calculation. Down past the newest entry leaves the history |
 | 2nd MATH | Relation picker: `= != < <= > >= !` |
 | 2nd 0 | All commands |
 | Fraction key | Stacked fraction: numerator box over denominator box |

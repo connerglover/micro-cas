@@ -40,8 +40,8 @@ def test_up_enters_history_scroll_on_the_last_output():
     assert u.MODE == 1 and u.SEL == 1 and u.SELC == 1
     s = KS.run('1+1{enter}2+3{enter}{up}{down}')
     assert ui(s).MODE == 0                                  # DOWN past the last leaves it
-    s = KS.run('1+1{enter}{up}{clear}')
-    assert ui(s).MODE == 0 and ui(s).LINE == ''
+    s = KS.run('1+1{enter}{up}{clear}')                     # CLEAR deletes the only entry
+    assert ui(s).MODE == 0 and ui(s).LINE == '' and not s.hist
 
 
 def test_up_without_history_is_engine_free_and_opens_no_menu():
@@ -250,3 +250,69 @@ def test_empty_page_reads_press_math_or_menu():
     s = KS.run('')
     assert 'Press math or menu' in s.screen
     assert 'Type math' not in s.screen
+
+
+# -- v1.0.1: CLEAR deletes the selected entry (MATHPRINT.md 0.14) ------------------------------
+
+def test_clear_deletes_the_selected_entry_and_selects_the_older_one():
+    s = KS.run('1+1{enter}2+3{enter}3+4{enter}{up}{up}{clear}')
+    u = ui(s)
+    assert [h[0] for h in s.hist] == ['1+1', '3+4']
+    assert u.MODE == 1 and u.SEL == 0 and u.SELC == 1
+    assert s.mods['run'].ANS == '7'                         # Ans is unchanged
+    assert '2+3' not in s.screen and '1+1' in s.screen and '3+4' in s.screen
+
+
+def test_clear_on_the_input_cell_deletes_the_whole_pair():
+    s = KS.run('1+1{enter}2+3{enter}{up}{left}{clear}')
+    u = ui(s)
+    assert [h[0] for h in s.hist] == ['1+1']
+    assert u.MODE == 1 and u.SEL == 0 and u.SELC == 0
+    assert '5' not in [t[2] for t in s.texts]
+
+
+def test_clear_on_the_oldest_selects_the_newer_one():
+    s = KS.run('1+1{enter}2+3{enter}3+4{enter}{up}{up}{up}{clear}')
+    u = ui(s)
+    assert [h[0] for h in s.hist] == ['2+3', '3+4']
+    assert u.MODE == 1 and u.SEL == 0
+    s = KS.run('1+1{enter}2+3{enter}{up}{up}{clear}{enter}')   # ENTER copies the new selection
+    assert ui(s).LINE == '5' and ui(s).MODE == 0
+
+
+def test_clear_keeps_ans_and_variables_and_leaves_when_empty():
+    s = KS.run('a=3{enter}2+5{enter}{up}{clear}{clear}')
+    u = ui(s)
+    assert not s.hist and u.MODE == 0 and u.SEL == -1
+    assert s.mods['run'].VARS == {'a': '3'} and s.mods['run'].ANS == '7'
+    assert 'Press math' in s.screen
+    s = KS.run('a=3{enter}2+5{enter}{up}{clear}{clear}{clear}')   # the entry's CLEAR again
+    assert ui(s).MODE == 0 and not s.hist
+
+
+def test_clear_outside_the_mode_still_clears_the_line():
+    s = KS.run('1+1{enter}2+3{clear}')
+    assert ui(s).LINE == '' and len(s.hist) == 1
+
+
+def test_clear_resets_the_2nd_enter_recall():
+    s = KS.run('1+1{enter}2+3{enter}3+4{enter}{2nd,enter}{up}{clear}{down}{2nd,enter}')
+    u = ui(s)
+    assert [h[0] for h in s.hist] == ['1+1', '2+3']
+    assert u.MODE == 0 and u.LINE == '2+3'                 # from the newest entry again
+
+
+def test_clear_keeps_the_page_and_the_forms_of_the_others():
+    s = KS.run(''.join('sqrt(%d){enter}' % j for j in (2, 3, 5, 6, 7, 8, 10)) +
+               '{up}{up}{f5}{2nd,up}{clear}')
+    u = ui(s)
+    assert len(s.hist) == 6 and u.MODE == 1
+    assert [h[0] for h in s.hist][u.SEL] == 'sqrt(3)'
+    assert s.hist[4][5][-1][0] == 'decimal'                # sqrt(8) keeps its form
+    assert 0 <= u.SEL <= u.VIEWEND < len(s.hist)
+    u.key(15)                                               # F5 acts on the new selection
+    assert u.MODE == 1
+    TD.reset()
+    u.FULL = True
+    u.redraw()
+    assert u.VIEW[5] == 6
