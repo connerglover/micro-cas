@@ -80,8 +80,8 @@ MODULES = (
     ('odeb',      'CVODEB',    'L',   135,       4),
     ('odec',      'CVODEC',    'L',   134,       6),
     ('oded',      'CVODED',    'L',   120,       4),
-    ('menu',      'CVMENU',    'U',   200,       7),
-    ('menub',     'CVMENUB',   'U',   150,       3),
+    ('menu',      'CVMENU',    'U',   170,       7),
+    ('menub',     'CVMENUB',   'U',   80,        3),
     ('catalog',   'CVCAT',     'U',   150,       8),
     ('catalogb',  'CVCATB',    'U',   150,       4),
 )
