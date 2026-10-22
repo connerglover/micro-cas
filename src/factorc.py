@@ -26,10 +26,7 @@ def g_mfac(P, nv):                                              #@L 2
     D = PC.mdeg(Q, nv)
     fs = []
     comp = 1
-    ks = []
-    for z in Q:                                                 #@unordered-ok (sorted)
-        ks.append(z)
-    ks.sort()
+    ks = sorted(Q)
     if len(ks) == 2 and nv - D.count(0) > 1:
         d = 0
         for i in ks[0] + ks[1]:

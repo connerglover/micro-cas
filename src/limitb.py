@@ -83,6 +83,7 @@ def g_direct(f, x, a, side):                                   #@L 2
             for c in t[1:]:
                 if values.get(c) is None:
                     valid = False
+                    break
             if op == K.CALL:
                 valid = False
             if op == K.ATAN and values.get(t[1]) is None:

@@ -104,21 +104,18 @@ def g_taylor(args, ctx):                                        #@L 2
     f = args[0]
     x = args[1] if len(args) > 1 else K.sym('x')
     a = K.ZERO
-    order = 5
+    order = None
     if K.N[x][0] == K.EQ:
         if len(args) > 3:
             raise K.CasError('Expected taylor(f,x=a,n)')
         x, a = K.N[x][1:]
         if len(args) > 2:
             order = args[2]
-        else:
-            order = K.num(order)
     elif len(args) > 2:
         a = args[2]
-        order = args[3] if len(args) > 3 else K.num(order)
-    else:
-        order = K.num(order)
-    t = K.N[order]
+        if len(args) > 3:
+            order = args[3]
+    t = K.N[order or K.num(5)]
     if K.N[x][0] != K.SYM or not K.free_of(a, x) or K.LST <= K.N[a][0] <= K.GE:
         raise K.CasError('Expected a variable and a constant center')
     if t[0] != K.NUM or t[2] or t[3] != 1 or t[1] < 0 or t[1] > MAXORDER:

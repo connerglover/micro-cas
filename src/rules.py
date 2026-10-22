@@ -96,9 +96,7 @@ def guard_ok(guard, env):                                       #@L 3
             near = (NEAR, op, d)
         else:
             return 0
-    if near is None:
-        return 1
-    return near
+    return near or 1
 
 
 def check(c, s, env, x, trail):                                 #@L 4

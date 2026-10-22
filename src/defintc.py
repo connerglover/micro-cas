@@ -93,8 +93,9 @@ def g_points(f, x, lo, hi):                                    #@L 2
     ordered.sort()
     out = []
     for value, point in ordered:
-        if not out or abs(value - R.MODS['defb'].number(out[-1])) > 1e-10 * (1 + abs(value)):
+        if not out or abs(value - last) > 1e-10 * (1 + abs(value)):
             out.append(point)
+            last = value
     solver = None
     R.drop(('solve', 'fact'))
     yield tuple(out)

@@ -75,9 +75,8 @@ def g_one(f, x, a, side):                                      #@L 2
 
 
 def g_lim(f, x, a, side=0):                                    #@L 2
-    if K.LST <= K.N[a][0] <= K.GE:
-        raise K.CasError(M_ARG)
-    if K.N[x][0] != K.SYM or not K.free_of(a, x) or side not in (-1, 0, 1):
+    if K.LST <= K.N[a][0] <= K.GE or K.N[x][0] != K.SYM or not K.free_of(a, x) or \
+            side not in (-1, 0, 1):
         raise K.CasError(M_ARG)
     if side or a == K.OO or K.isninf(a):
         r = yield R.scoped(g_one(f, x, a, side or 1))

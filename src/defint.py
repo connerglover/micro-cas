@@ -76,13 +76,12 @@ def g_defint(args, ctx):                                      #@L 2
         if numeric:
             jumps = yield R.MODS['defc'].g_points(F, x, lo, hi)
             allpoints = []
+            ordered = []
             for p in points + jumps:
                 v = R.MODS['defb'].number(p)
                 if lo < v < hi and p not in allpoints:
                     allpoints.append(p)
-            ordered = []
-            for p in allpoints:
-                ordered.append((R.MODS['defb'].number(p), p))
+                    ordered.append((v, p))
             ordered.sort()
             edges = [a]
             for v, p in ordered:

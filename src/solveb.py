@@ -7,12 +7,8 @@
 # is squared away; tan, sec, csc, cot and sin powers are rewritten to sin and cos (trigcos,
 # trigsin); the rest is solved numerically. Guards with symbols hold (the generic
 # solution, as giac).
-import math
-
 import node as K
 import run as R
-
-TWOPI = 2.0 * math.pi
 
 
 def g_poly(cs):                                                 #@L 2
@@ -144,7 +140,7 @@ def g_fac(G, ks, x, dep, md):                                   #@L 2
                     return
     if K.V[g] != K.V[x]:
         raise K.CasSoft(SO.M_CANT)
-    w = 360.0 if md & 1 else TWOPI
+    w = 360.0 if md & 1 else R.MODS['solvee'].TWOPI
     out = []
     for v in R.MODS['solved'].nsolve(g, x, 0.0 if trig else -10.0, w if trig else 10.0):
         out.append(K.flt(v))

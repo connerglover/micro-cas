@@ -139,12 +139,13 @@ def g_double(inner, x, a, b):                                  #@L 2
             total = 0.0
             for z, w in rule:
                 xv = (lo + hi + (hi - lo) * z) * 0.5
-                yl = A.nrun(lower, (xv,))
-                if A.LEFTREAL[0] or type(yl) is complex or not -1e200 < yl < 1e200:
-                    raise K.Undefined()
-                yh = A.nrun(upper, (xv,))
-                if A.LEFTREAL[0] or type(yh) is complex or not -1e200 < yh < 1e200:
-                    raise K.Undefined()
+                ys = []
+                for pr in (lower, upper):
+                    v = A.nrun(pr, (xv,))
+                    if A.LEFTREAL[0] or type(v) is complex or not -1e200 < v < 1e200:
+                        raise K.Undefined()
+                    ys.append(v)
+                yl, yh = ys
                 half = (yh - yl) * 0.5
                 if half == 0.0:
                     continue

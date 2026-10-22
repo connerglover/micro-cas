@@ -88,6 +88,7 @@ def g_conditions(sol, conds, x, y, constants):                  #@L 2
         for j in range(nv):
             if rows[i*width+j] != K.ZERO:
                 empty = False
+                break
         if empty and rows[i*width+nv] != K.ZERO:
             yield K.mk((K.LST,))
             return

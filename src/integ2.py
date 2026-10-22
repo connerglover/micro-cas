@@ -65,8 +65,9 @@ def g_tabular(f, x, depth=0):                                   #@L 2
     for j in range(0, len(pairs), 2):
         base, power = pairs[j], pairs[j + 1]
         t = K.N[base]
-        if base == K.E and A.linear(power, x) is not None:
-            a = A.linear(power, x)[0]
+        linear = A.linear(power, x) if base == K.E else None
+        if linear is not None:
+            a = linear[0]
             exponential = K.mul_(K.ONE, [(base, power)])
         elif t[0] in (K.SIN, K.COS) and power == K.ONE and angle is None:
             linear = A.linear(t[1], x)

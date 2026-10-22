@@ -1,12 +1,6 @@
 #@L 2
-# CVSOLVE part b: one factor of an equation (DESIGN 11.2 steps 4-8). A polynomial in one kernel
-# is solved by formula (degree 1, 2, and P(t^e) through s = t^e) or numerically (nroots, approx);
-# its roots go through the kernel's inverse: the template table INV (9.3; one period [0, 2pi)
-# for trig, D2, or [0, 360) in degree mode), exponentials b^u = T (u = ln T/ln b) and radicals
-# u^(1/q) = T (u = T^q). Several kernels: a radical sqrt(A), abs(u) or sin(u) next to cos(u)
-# is squared away; tan, sec, csc, cot and sin powers are rewritten to sin and cos (trigcos,
-# trigsin); the rest is solved numerically. Guards with symbols hold (the generic
-# solution, as giac).
+# CVSOLVE part e: kernel inverses (the template table INV, 9.3), numeric constants (nv) and
+# term-wise division (tdiv) for parts a-d.
 import math
 
 import node as K

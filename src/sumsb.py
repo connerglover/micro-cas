@@ -61,7 +61,7 @@ def g_telescoping(f, x, a, b):                                  #@L 2
                                 try:
                                     tail = A.subst(g, x, K.OO)
                                 except K.CasSoft:
-                                    tail = None
+                                    pass
                                 if tail is None and LI is not None:
                                     tail = yield LI.g_lim(g, x, K.OO)
                                 if tail is None or K.N[tail][0] >= K.CALL or tail == K.OO:

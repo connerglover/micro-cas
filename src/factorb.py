@@ -114,8 +114,10 @@ def ufac(f):                                                    #@L 3
                 for q in PB.divisors(g[-1])[0]:
                     y = r * q
                     p = int(y + 0.5) if y > 0 else -int(0.5 - y)
-                    if fs is None and p and PO.pdivex(g, [-p, q]) is not None:
-                        fs = [[-p, q], PO.pdivex(g, [-p, q])]
+                    if fs is None and p:
+                        v = PO.pdivex(g, [-p, q])
+                        if v is not None:
+                            fs = [[-p, q], v]
             tg = ((g, 1),)
             if e > 1:
                 h = []

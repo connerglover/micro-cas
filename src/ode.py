@@ -93,7 +93,7 @@ def g_verify(sol, f, x, y, yp, ypp):                            #@L 2
         ok = yield R.MODS['normb'].g_iszero(delta)
         good = ok == R.MODS['normb'].YES or ok == A.LIKELY
     except K.CasSoft:
-        good = False
+        pass
     K.keep(mark, None)
     yield good
 
@@ -122,6 +122,7 @@ def g_desolve(args, ctx):                                       #@L 2
         z = K.N[e]
         if z[0] == K.SYM and z[1].rstrip("'") == K.N[y][1] and len(z[1]) > len(K.N[y][1]) + 2:
             higher = True
+            break
     if higher:
         yield K.mk(tuple([K.CALL, K.sym('desolve')] + list(args)))
         return

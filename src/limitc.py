@@ -73,7 +73,8 @@ def g_growth(f, x, a, side):                                   #@L 2
             if s == -1:
                 r = K.ZERO
             elif s == 1:
-                r = K.OO if R.MODS['limb'].signval(coeff) == 1 else K.neg_(K.OO) if R.MODS['limb'].signval(coeff) == -1 else None
+                s = R.MODS['limb'].signval(coeff)
+                r = K.OO if s == 1 else K.neg_(K.OO) if s == -1 else None
             elif s == 0:
                 r = K.mul_(K.ONE, [(coeff, K.ONE), (K.E, u)])
     yield r

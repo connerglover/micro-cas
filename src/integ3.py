@@ -122,12 +122,13 @@ def g_parts(f, x, depth=0):                                    #@L 2
     # Closed cyclic parts for exp(a*x+b)*sin/cos(c*x+d).
     ex = trig = None
     for b, p in pairs:
-        if b == K.E and A.linear(p, x) is not None:
+        lu = A.linear(p, x) if b == K.E else None
+        if lu is not None:
             ex = p
+            a = lu[0]
         elif K.N[b][0] in (K.SIN, K.COS) and p == K.ONE:
             trig = b
     if ex is not None and trig is not None:
-        a = A.linear(ex, x)[0]
         op, u = K.N[trig]
         lu = A.linear(u, x)
         if lu is not None:

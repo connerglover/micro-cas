@@ -50,9 +50,7 @@ def product(t, d):                                             #@L 3
         if dp == K.ZERO:
             pairs += [(p, K.ONE), (db, K.ONE), (b, K.add_([p, K.MONE]))]
         else:
-            terms = []
-            if dp != K.ZERO:
-                terms.append(K.mul_(K.ONE, [(dp, K.ONE), (K.fn_(K.LN, b), K.ONE)]))
+            terms = [K.mul_(K.ONE, [(dp, K.ONE), (K.fn_(K.LN, b), K.ONE)])]
             if db != K.ZERO:
                 terms.append(K.mul_(K.ONE, [(p, K.ONE), (db, K.ONE), (b, K.MONE)]))
             pairs += [(b, p), (K.add_(terms), K.ONE)]
