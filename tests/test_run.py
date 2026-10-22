@@ -95,7 +95,7 @@ def stub_record(val, job):
     JOBS.append(job)
     t = K.N[val]
     if job[3] & P.F_SOLN and (val == K.TRUE or (t[0] == K.LST and len(t) == 1)):
-        return ('msg', 'every x is a solution' if val == K.TRUE else 'no solution', None, 0)
+        return ('msg', 'Every x is a solution' if val == K.TRUE else 'No solution', None, 0)
     return ('ans', ptext(val), None, 0)
 
 
@@ -450,15 +450,15 @@ def test_maxgen(env):
 
 
 def test_bare_return_is_failure(env):
-    assert ev('tnone(x)') == ('msg', 'undefined', None, 0)
+    assert ev('tnone(x)') == ('msg', 'Undefined', None, 0)
 
 
 def test_soft_failure(env):
-    assert ev('tsoft(x)') == ('msg', 'undefined', None, 0)
+    assert ev('tsoft(x)') == ('msg', 'Undefined', None, 0)
     assert ev('tsoftm(x)') == ('msg', 'no closed form', None, 0)
     assert txt('tcatch(x)') == 'caught'
     assert ('catch', None, 'Undefined') in env.log
-    assert ev('1/0') == ('msg', 'undefined', None, 0)     # Undefined in g_eval itself
+    assert ev('1/0') == ('msg', 'Undefined', None, 0)     # Undefined in g_eval itself
     clean()
 
 
@@ -470,7 +470,7 @@ def test_tick(env, monkeypatch):
 
 
 def test_budget(env):
-    assert ev('tloop(1)') == ('msg', 'too long', None, 0)
+    assert ev('tloop(1)') == ('msg', 'Too long to compute', None, 0)
     clean()
 
 
@@ -519,8 +519,8 @@ def test_record_shapes(env):
 
 def test_casError_messages(env):
     assert ev('terr(1)') == ('msg', 'custom message', None, 0)
-    assert ev('1+') == ('msg', 'missing operand', None, 0)
-    assert ev('(1]') == ('msg', 'mismatched bracket', None, 0)
+    assert ev('1+') == ('msg', 'Missing operand', None, 0)
+    assert ev('(1]') == ('msg', 'Mismatched bracket', None, 0)
     assert ev('sin(x,y)') == ('msg', P.M_ARGS, None, 0)
     assert ev('(2^(10^16000))^(10^16000)') == ('msg', K.M_BIG, None, 0)   # exponent > MAXBITS
     assert ev("x'") == ('msg', P.M_PRIME, None, 0)
@@ -529,7 +529,7 @@ def test_casError_messages(env):
 
 @pytest.mark.allow_internal_error
 def test_internal_error(env):
-    assert ev('ttype(1)') == ('msg', 'internal error: TypeError', None, 0)
+    assert ev('ttype(1)') == ('msg', 'Internal error: TypeError', None, 0)
     clean()
     assert txt('1+1') == '2'                       # the session goes on
 
@@ -586,17 +586,17 @@ def test_keyboardinterrupt_reraised_after_reset(env):
 
 def test_msg_rec():
     assert R.msg_rec('Interrupted') == ('msg', 'Interrupted', None, 0)
-    assert R.msg_rec(('missing )',)) == ('msg', 'missing )', None, 0)
-    assert R.msg_rec(('missing operand', 4)) == ('msg', 'missing operand', None, 0)
-    assert R.msg_rec(()) == ('msg', 'error', None, 0)
-    assert R.msg_rec((R.M_INTERNAL, 'KeyError')) == ('msg', 'internal error: KeyError', None, 0)
+    assert R.msg_rec(('Missing )',)) == ('msg', 'Missing )', None, 0)
+    assert R.msg_rec(('Missing operand', 4)) == ('msg', 'Missing operand', None, 0)
+    assert R.msg_rec(()) == ('msg', 'Error', None, 0)
+    assert R.msg_rec((R.M_INTERNAL, 'KeyError')) == ('msg', 'Internal error: KeyError', None, 0)
 
 
 def test_cas_soft_outside_the_loop(env, monkeypatch):
     def bad(val, job):
         raise K.Undefined()
     monkeypatch.setattr(PR, 'record', bad, raising=False)
-    assert ev('1+1') == ('msg', 'undefined', None, 0)
+    assert ev('1+1') == ('msg', 'Undefined', None, 0)
 
 
 def test_undefined_from_start(env, monkeypatch):
@@ -605,15 +605,15 @@ def test_undefined_from_start(env, monkeypatch):
         K.sym('w3')
         raise K.Undefined()
     monkeypatch.setattr(P, 'expand_names', bad)
-    assert ev('x+1') == ('msg', 'undefined', None, 0)
+    assert ev('x+1') == ('msg', 'Undefined', None, 0)
     clean()
-    assert R.HIST[-1] == ['x+1', 'undefined', 'msg', None, 0, None]
+    assert R.HIST[-1] == ['x+1', 'Undefined', 'msg', None, 0, None]
 
 
 @pytest.mark.allow_internal_error
 def test_keyerror_in_a_generator(env):
     """18.4: R.MODS[key] outside the command's closure is a bug: loud, the session survives."""
-    assert ev('tkey(1)') == ('msg', 'internal error: KeyError', None, 0)
+    assert ev('tkey(1)') == ('msg', 'Internal error: KeyError', None, 0)
     clean()
     assert txt('tval(2)') == '2'
 
@@ -624,7 +624,7 @@ def test_overflowerror_in_the_printer(env, monkeypatch):
         K.sym('w4')
         raise OverflowError('int too large to convert to float')
     monkeypatch.setattr(PR, 'record', bad, raising=False)
-    assert ev('1+1') == ('msg', 'internal error: OverflowError', None, 0)
+    assert ev('1+1') == ('msg', 'Internal error: OverflowError', None, 0)
     clean()
 
 
@@ -666,13 +666,13 @@ def test_text_only_session(env):
 
 
 def test_ans(env):
-    assert ev('ans()+1') == ('msg', 'no answer yet', None, 0)
+    assert ev('ans()+1') == ('msg', 'No answer yet', None, 0)
     assert txt('2+3') == '5' and R.ANS == '5'
     assert txt('ans()*2') == '10' and R.ANS == '10'
     assert ev('1+')[0] == 'msg' and R.ANS == '10'               # a message never becomes Ans
-    assert ev('tempty(1)') == ('msg', 'no solution', None, 0) and R.ANS == '10'
+    assert ev('tempty(1)') == ('msg', 'No solution', None, 0) and R.ANS == '10'
     assert txt('x-1') and same('ans()^2', '(x-1)^2')            # in parentheses
-    assert ev('ans()' * 9) == ('msg', 'too many ans()', None, 0)
+    assert ev('ans()' * 9) == ('msg', 'Too many Ans', None, 0)
     assert R.HIST[-1][0] == 'ans()' * 9                         # the history keeps ans()
 
 
@@ -684,10 +684,10 @@ def test_ans_of_a_list(env):
 def test_autoclose(env):
     assert same('sin(x', 'sin(x)') and R.HIST[-1][0] == 'sin(x)'
     assert same('[1,(2', '[1,(2)]') and R.HIST[-1][0] == '[1,(2)]'
-    assert ev('(1]') == ('msg', 'mismatched bracket', None, 0) and R.HIST[-1][0] == '(1]'
+    assert ev('(1]') == ('msg', 'Mismatched bracket', None, 0) and R.HIST[-1][0] == '(1]'
     assert ev('1)')[0] == 'msg' and R.HIST[-1][0] == '1)'
     deep = '(' * 65 + 'x'
-    assert ev(deep) == ('msg', 'too deeply nested', None, 0) and R.HIST[-1][0] == deep
+    assert ev(deep) == ('msg', 'Too deeply nested', None, 0) and R.HIST[-1][0] == deep
 
 
 def test_history_caps(env):
@@ -718,11 +718,11 @@ def test_purge(env):
     ev('a=1')
     ev('f(x)=x')
     ev('b=2')
-    assert ev('purge(a,f)') == ('msg', 'a, f purged', None, 0)
+    assert ev('purge(a,f)') == ('msg', 'a, f deleted', None, 0)
     assert R.VARS == {'b': '2'} and R.FUNCS == {}
-    assert ev('purge(zz)') == ('msg', 'zz purged', None, 0)      # a whole name, never cut
+    assert ev('purge(zz)') == ('msg', 'zz deleted', None, 0)      # a whole name, never cut
     ev('ab=5')
-    assert ev('purge(ab)') == ('msg', 'ab purged', None, 0) and 'ab' not in R.VARS
+    assert ev('purge(ab)') == ('msg', 'ab deleted', None, 0) and 'ab' not in R.VARS
     for s in ('purge(x+1)', 'purge()', 'purge(b)+1', 'purge(b,)', '1+purge(b)'):
         assert ev(s) == ('msg', P.M_PURGE, None, 0), s
     assert R.VARS == {'b': '2'}
@@ -754,7 +754,7 @@ def test_definition_body_unexpanded(env):
 def test_definition_errors(env):
     ev('f(x)=x')
     for s, m in (('f(pi)=1', P.M_ASSIGN), ('f(x,x)=1', P.M_ASSIGN), ('F(x)=x', R.M_BADNAME),
-                 ('f(f)=1', P.M_ASSIGN), ('f(x)=x+', 'missing operand'),
+                 ('f(f)=1', P.M_ASSIGN), ('f(x)=x+', 'Missing operand'),
                  ('f(x,1):=1', P.M_ASSIGN), ('f():=1', P.M_ASSIGN)):
         r = ev(s)
         assert r == ('msg', m, None, 0), (s, r)
@@ -777,7 +777,7 @@ def test_store_arrow(env):
     assert txt('b+1') == '8'
     for s in ('5=>2', '5=>sin', '5=>X', '5=>', '1=>a=>b', '5=>f(x)'):
         assert ev(s) == ('msg', R.M_BADNAME, None, 0), s
-    assert ev('1+=>a') == ('msg', 'missing operand', None, 0) and 'a' not in R.VARS
+    assert ev('1+=>a') == ('msg', 'Missing operand', None, 0) and 'a' not in R.VARS
     assert ev('x+1=>x') == ('msg', R.M_CIRC, None, 0) and 'x' not in R.VARS
     assert R.ANS == '8'
     txt('1,2=>v')
@@ -825,8 +825,8 @@ def test_lone_equation_solves(env):
 
 
 def test_solve_sentinels_through_the_printer(env):
-    assert ev('tempty(1)') == ('msg', 'no solution', None, 0)
-    assert ev('ttrue(1)') == ('msg', 'every x is a solution', None, 0)
+    assert ev('tempty(1)') == ('msg', 'No solution', None, 0)
+    assert ev('ttrue(1)') == ('msg', 'Every x is a solution', None, 0)
     assert JOBS[-1][3] & P.F_SOLN
     assert txt('tval(true)') == 'true'                          # no F_SOLN: an answer
     assert not JOBS[-1][3] & P.F_SOLN
@@ -1252,7 +1252,7 @@ def test_typeerror_injection(env, monkeypatch):
 
     monkeypatch.setattr(P, 'g_eval', broken)
     r = ev('1+1')
-    assert r == ('msg', 'internal error: TypeError', None, 0)
+    assert r == ('msg', 'Internal error: TypeError', None, 0)
     clean()
     monkeypatch.setattr(P, 'g_eval', orig)
     assert txt('1+1') == '2'
@@ -1303,7 +1303,7 @@ def test_real_printer_session(env, monkeypatch):
 def test_real_printer_messages_and_decimals(env, monkeypatch):
     monkeypatch.setattr(PR, 'record', REAL_RECORD)
     assert ev('2<3')[:2] == ('ans', 'true')
-    assert ev('tempty(1)') == ('msg', 'no solution', None, 0)
+    assert ev('tempty(1)') == ('msg', 'No solution', None, 0)
     assert ev('ttrue(1)')[0] == 'msg'
     r = ev('1/3')
     assert r[:3] == ('ans', '1/3', '0.3333333333') and R.ANS == '1/3'

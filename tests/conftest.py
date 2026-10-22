@@ -5,7 +5,7 @@
   (gen_penalty 0, per-frame level assertion) or, with --strict-depth or the strict_depth
   marker, strict mode (every penalty 1, budget 8 only).
 - After each passing test: the node-table invariant scan (section 8.9), SIMPBUG == 0,
-  K.NN == K.BASE if the test ran a full command through run.go, and no 'internal error'
+  K.NN == K.BASE if the test ran a full command through run.go, and no 'Internal error'
   record from run.go.
 - After every test: SIMPBUG is zeroed and K.reset() empties the node table, so node ids never
   leak from one test into the next (fixtures must not keep ids across tests).
@@ -159,7 +159,7 @@ def _session_check(sess):
     allow = item is not None and item.get_closest_marker('allow_internal_error') is not None
     if R is not None and not allow:
         for t in _strings_in(getattr(R, 'HIST', None) or []):
-            if t.startswith('internal error'):
+            if t.startswith('Internal error'):
                 msgs.append('the session reported a bug: %r' % t)
     for name in sorted(mods):
         if getattr(mods[name], 'SIMPBUG', 0):
@@ -347,7 +347,7 @@ class _GoSpy(object):
         for r in self.records:
             if isinstance(r, tuple):
                 for x in r[:2]:
-                    if isinstance(x, str) and x.startswith('internal error'):
+                    if isinstance(x, str) and x.startswith('Internal error'):
                         out.append(r)
                         break
         return out

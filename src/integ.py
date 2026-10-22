@@ -118,10 +118,10 @@ def g_int(f, x, depth=0):                                       #@L 2
 def g_integrate(args, ctx):                                     #@L 2
     f = args[0]
     if len(args) == 3:
-        raise K.CasError('invalid argument')
+        raise K.CasError('Invalid argument')
     x = args[1] if len(args) > 1 else K.sym('x')
     if K.N[x][0] != K.SYM:
-        raise K.CasError('invalid argument')
+        raise K.CasError('Invalid argument')
     ctx[P.X_MV] = x
     if len(args) == 4:
         r = yield R.need('def').g_defint(args, ctx)               #@calls 2

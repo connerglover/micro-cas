@@ -225,12 +225,12 @@ def test_status_message_hides_the_label_until_it_clears():
 def test_label_and_message_share_the_row_when_both_fit():
     s = KS.run('sqrt(2){enter}')
     u = ui(s)
-    u.STATUS = 'engine 1.2s'
+    u.STATUS = 'Engine 1.2s'
     u.FULL = True
     TD.reset()
     u.redraw()
     row = dict((t[2], t) for t in TD.texts() if t[1] == 2)
-    assert 'engine 1.2s' in row and 'exact' in row
+    assert 'Engine 1.2s' in row and 'exact' in row
 
 
 def test_status_row_repaints_only_when_the_label_changes():
@@ -246,10 +246,10 @@ def test_status_row_repaints_only_when_the_label_changes():
     assert not [t for t in TD.texts() if t[1] == 2]
 
 
-def test_empty_page_reads_press_math_or_menu():
+def test_empty_page_reads_press_math():
     s = KS.run('')
-    assert 'Press math or menu' in s.screen
-    assert 'Type math' not in s.screen
+    assert 'Press math' in s.screen                         # v1.0.1: no menu key to name
+    assert 'menu' not in s.screen and 'Type math' not in s.screen
 
 
 # -- v1.0.1: CLEAR deletes the selected entry (MATHPRINT.md 0.14) ------------------------------

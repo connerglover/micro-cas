@@ -39,15 +39,15 @@ input, not the calculator download. Do not mix files from different packages.
    others it keeps. It then sends the compiled libraries to archive, sends the
    launcher CAS to RAM, and verifies their locations. Wait for completion.
 4. Start a fresh **Python** session, select **CAS**, and run it.
-5. The screen should show `RAD` and `ready` with the start time in seconds in
-   the top row, `Press math or menu` in the middle, an empty edit line, and the
+5. The screen should show `RAD` and `Ready` with the start time in seconds in
+   the top row, `Press math` in the middle, an empty edit line, and the
    five bottom labels `Alg`, `Calc`, `Trig`, `More`, and `Forms`. Press **2nd**:
    the labels change to `All`, `Tmpl`, `Test`, `Setup`, and `Help`, and press it
    again to change them back. Without a
-   calculator clock the top row shows only `ready`.
+   calculator clock the top row shows only `Ready`.
 6. Type `2+3` and press **ENTER**. The first ENTER loads the engine: the top row
    shows `Loading engine...`, then `Calculating...`, and the answer `5` appears
-   with `engine` and the engine load time in seconds; the top right shows the
+   with `Engine` and the engine load time in seconds; the top right shows the
    answer's form, `exact`. Opening a menu first also loads the engine. Later
    commands reuse it.
 
@@ -151,7 +151,8 @@ Equivalent reordered expressions are acceptable.
 Then try `sqrt(2)` and press **F5** (or < >) to request its decimal form: the
 label at the top right changes from `exact` to `decimal`. Press up: the last
 answer is highlighted; press left to highlight its input, then **ENTER** to copy
-it into the edit line. While a longer calculation is running, press **CLEAR** to
+it into the edit line. Press up again and **CLEAR** to delete that entry from the
+history. While a longer calculation is running, press **CLEAR** to
 cancel, then check that `2+3` still returns `5`.
 
 ## Everyday controls
@@ -190,8 +191,9 @@ Menus and the catalog list commands by the names the TI-Nspire CX II CAS uses
 ...); ALPHA find matches the name or the command itself (`diff` finds
 Derivative). A command arrives with an empty box for each argument, and the row above the edit line explains
 the box the caret is in and whether it is required, for example `Expr. to
-simplify (required)` or `Order (optional: empty = 1)`. Optional boxes may stay
-empty; ENTER moves to an empty required box and shows `fill in the empty slot`.
+simplify (required)` or `Order (empty: 1)`, which says what an empty box means.
+Optional boxes may stay empty; ENTER moves to an empty required box and shows
+`Fill in the empty box`.
 
 Starting with `+`, `-`, `*`, `/`, a power key, or STO uses the previous answer.
 Use the separate **(-)** key to begin a negative number. **2nd (-)** inserts
@@ -204,7 +206,7 @@ History, stored variables/functions, and settings belong to the current run.
 Quit and restart starts a fresh session. Large or unsupported expressions may
 remain symbolic or return a size/time/memory message. Exact finite sums that exceed the
 bounded accumulator stay written as `sum(...)` or `riemann(...)`. Some combinations of
-giant powers return `number too large`; ordinary exact and complex arithmetic are retained.
+giant powers return `Number too large`; ordinary exact and complex arithmetic are retained.
 
 ## Memory
 

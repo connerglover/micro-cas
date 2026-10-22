@@ -102,16 +102,16 @@ def split_geo(f, x):                                           #@L 3
 def g_sum(args, ctx):                                           #@L 2
     f, x = args[:2]
     if K.N[x][0] != K.SYM:
-        raise K.CasError('sum index must be a variable')
+        raise K.CasError('Sum index must be a variable')
     if len(args) != 4:
         yield K.mk(tuple([K.CALL, K.sym('sum')] + list(args)))
         return
     a, b = args[2:]
     if not K.free_of(a, x) or not K.free_of(b, x):
-        raise K.CasError('sum bounds depend on the index')
+        raise K.CasError('Sum bounds depend on the index')
     lo, hi = integer(a), integer(b)
     if K.N[a][0] == K.NUM and lo is None or K.N[b][0] == K.NUM and hi is None:
-        raise K.CasError('sum bounds must be integers')
+        raise K.CasError('Sum bounds must be integers')
     if f == K.ZERO or lo is not None and hi is not None and hi < lo:
         out = K.ZERO
     elif lo is not None and hi is not None and hi - lo < MAXTERMS:
@@ -129,18 +129,18 @@ def g_sum(args, ctx):                                           #@L 2
 def g_riemann(args, ctx):                                       #@L 2
     f, x, a, b, n = args[:5]
     if K.N[x][0] != K.SYM or not K.free_of(a, x) or not K.free_of(b, x):
-        raise K.CasError('expected a variable and constant bounds')
+        raise K.CasError('Expected a variable and constant bounds')
     count = integer(n)
     if count is not None and (count < 1 or count > MAXTERMS):
-        raise K.CasError('Riemann panels must be from 1 to 1000')
+        raise K.CasError('Strips must be from 1 to 1000')
     if count is None and K.N[n][0] != K.SYM:
-        raise K.CasError('Riemann panels must be an integer or variable')
+        raise K.CasError('Strips must be an integer or variable')
     method = 'right'
     if len(args) > 5:
         t = K.N[args[5]]
         method = t[1] if t[0] == K.SYM else ''
     if method not in ('left', 'right', 'mid', 'trap'):
-        raise K.CasError('expected left, right, mid or trap')
+        raise K.CasError('Expected left, right, mid or trap')
     NO = R.need('norm')
     dx = div(K.add_([b, K.neg_(a)]), n)
     index = K.sym('_riemann')

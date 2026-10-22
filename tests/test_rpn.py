@@ -197,36 +197,36 @@ def test_short_path_answer_text():
 # -- errors ---------------------------------------------------------------------------------------
 
 @pytest.mark.parametrize('s, msg, pos', [
-    ('f(a,,b)', 'empty argument', 4),
-    ('(a]', 'mismatched bracket', 2),
-    ('[a)', 'mismatched bracket', 2),
-    ('{a]', 'mismatched bracket', 2),
-    ('()', 'empty ()', 1),
-    ('x+', 'missing operand', 2),
-    ('(a+)', 'missing operand', 3),
-    ('f(a,)', 'empty argument', 4),
-    ('[a,]', 'empty argument', 3),
-    ('a)', 'unbalanced', 1),
-    ('a]', 'unbalanced', 1),
-    ('(a', 'missing )', 2),
-    ('f(a', 'missing )', 3),
-    ('*a', 'missing operand', 0),
-    ('a**b', 'missing operand', 2),
-    ('a==b', 'missing operand', 2),
-    (',a', 'empty argument', 0),
-    ('a,', 'missing operand', 2),
-    ('a,,b', 'empty argument', 2),
-    ('!', 'missing operand', 0),
-    ('2+!', 'missing operand', 2),
-    ('-', 'missing operand', 1),
-    ('x y', 'missing operator', 2),           # no stage 5 on this path
-    ('2 3', 'missing operator', 2),
-    ('2(x)', 'missing operator', 1),
-    ('(a)(b)', 'missing operator', 3),
-    ('l[2]', 'missing operator', 1),           # no indexing in v1
-    ('sin x', 'missing operator', 4),
-    ('{1,2}x', 'missing operator', 5),
-    ('f(x)(y)', 'missing operator', 4),
+    ('f(a,,b)', 'Empty argument', 4),
+    ('(a]', 'Mismatched bracket', 2),
+    ('[a)', 'Mismatched bracket', 2),
+    ('{a]', 'Mismatched bracket', 2),
+    ('()', 'Empty ()', 1),
+    ('x+', 'Missing operand', 2),
+    ('(a+)', 'Missing operand', 3),
+    ('f(a,)', 'Empty argument', 4),
+    ('[a,]', 'Empty argument', 3),
+    ('a)', 'Unbalanced brackets', 1),
+    ('a]', 'Unbalanced brackets', 1),
+    ('(a', 'Missing )', 2),
+    ('f(a', 'Missing )', 3),
+    ('*a', 'Missing operand', 0),
+    ('a**b', 'Missing operand', 2),
+    ('a==b', 'Missing operand', 2),
+    (',a', 'Empty argument', 0),
+    ('a,', 'Missing operand', 2),
+    ('a,,b', 'Empty argument', 2),
+    ('!', 'Missing operand', 0),
+    ('2+!', 'Missing operand', 2),
+    ('-', 'Missing operand', 1),
+    ('x y', 'Missing operator', 2),           # no stage 5 on this path
+    ('2 3', 'Missing operator', 2),
+    ('2(x)', 'Missing operator', 1),
+    ('(a)(b)', 'Missing operator', 3),
+    ('l[2]', 'Missing operator', 1),           # no indexing in v1
+    ('sin x', 'Missing operator', 4),
+    ('{1,2}x', 'Missing operator', 5),
+    ('f(x)(y)', 'Missing operator', 4),
 ])
 def test_errors(s, msg, pos):
     with pytest.raises(CasError) as e:
@@ -238,14 +238,14 @@ def test_call_name_without_paren():
     toks = [(P.K_NAME, 'f', 0, 1, P.F_CALL), (P.K_NAME, 'x', 1, 2, 0)]
     with pytest.raises(CasError) as e:
         P.rpn(toks)
-    assert e.value.args == ('missing (', 1)
+    assert e.value.args == ('Missing (', 1)
 
 
 def test_nesting_cap():
     assert show(P.rpn(P.lex('(' * 32 + 'x' + ')' * 32))) == 'x' + ' ()' * 32
     with pytest.raises(CasError) as e:
         P.rpn(P.lex('(' * 33 + 'x' + ')' * 33))
-    assert e.value.args == ('too deeply nested', 32)
+    assert e.value.args == ('Too deeply nested', 32)
     s = 'sin(' * 32 + 'x' + ')' * 32             # calls count too
     assert P.rpn(P.lex(s))[-1][:3] == ('F', 'sin', 1)
     with pytest.raises(CasError):

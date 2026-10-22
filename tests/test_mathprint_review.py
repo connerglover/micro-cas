@@ -22,7 +22,7 @@ def test_enter_catches_an_operator_before_an_autoclosed_closer():
                          ('2*({enter}', ('2*()', 3))):
         s = KS.run(script)
         assert line(s) == want, script
-        assert s.mods['ui'].STATUS == 'fill in the empty slot' and not s.hist, script
+        assert s.mods['ui'].STATUS == 'Fill in the empty box' and not s.hist, script
 
 
 def test_enter_still_allows_the_empty_log_base():

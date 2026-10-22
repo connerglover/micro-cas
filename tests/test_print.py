@@ -382,12 +382,12 @@ def test_record_answer_shape():
 def test_record_sentinel_messages():
     x = sym('x')
     soln = ('eval', 'solve(...)', [0, None, 0, 0], PR.F_SOLN)
-    assert PR.record(K.mk((K.LST,)), soln) == ('msg', 'no solution', None, 0)
-    assert PR.record(K.FALSE, soln) == ('msg', 'no solution', None, 0)
-    assert PR.record(K.TRUE, soln) == ('msg', 'every x is a solution', None, 0)
+    assert PR.record(K.mk((K.LST,)), soln) == ('msg', 'No solution', None, 0)
+    assert PR.record(K.FALSE, soln) == ('msg', 'No solution', None, 0)
+    assert PR.record(K.TRUE, soln) == ('msg', 'Every x is a solution', None, 0)
     y = sym('y')
     assert PR.record(K.TRUE, ('eval', 's', [0, y, 0, 0], PR.F_SOLN)) == \
-        ('msg', 'every y is a solution', None, 0)
+        ('msg', 'Every y is a solution', None, 0)
     # without F_SOLN they are answers
     plain = ('eval', 'x', [0, None, 0, 0], 0)
     assert PR.record(K.mk((K.LST,)), plain) == ('ans', '[]', None, 0)
@@ -396,20 +396,20 @@ def test_record_sentinel_messages():
     # DNE and DIVG are messages anywhere at the top level
     ninf = K.mul_(K.MONE, [(K.OO, K.ONE)])
     assert PR.record(K.mk((K.DNE, ninf, K.OO)), plain) == \
-        ('msg', 'does not exist: -oo from the left, oo from the right', None, 0)
+        ('msg', 'Does not exist: -oo from the left, oo from the right', None, 0)
     assert PR.record(K.mk((K.DNE, K.MONE, K.add_([x, K.ONE]))), plain)[1] == \
-        'does not exist: -1 from the left, x+1 from the right'
+        'Does not exist: -1 from the left, x+1 from the right'
     assert PR.record(K.mk((K.DNE, K.UNDEF, K.ONE)), plain) == \
-        ('msg', 'no limit (it oscillates)', None, 0)
-    assert PR.record(K.mk((K.DNE, K.ONE, K.UNDEF)), plain)[1] == 'no limit (it oscillates)'
-    for w, want in ((0, 'diverges (the improper integral does not converge)'),
-                    (1, 'diverges (the integrand is unbounded on the interval)'),
-                    (2, 'diverges (the terms do not go to 0)')):
+        ('msg', 'No limit (it oscillates)', None, 0)
+    assert PR.record(K.mk((K.DNE, K.ONE, K.UNDEF)), plain)[1] == 'No limit (it oscillates)'
+    for w, want in ((0, 'Diverges (the improper integral does not converge)'),
+                    (1, 'Diverges (the integrand is unbounded on the interval)'),
+                    (2, 'Diverges (the terms do not go to 0)')):
         assert PR.record(K.mk((K.DIVG, num(w))), plain) == ('msg', want, None, 0)
     # a long side is cut
     long = K.add_([mul((x, num(j))) for j in range(1, 30)])
     m = PR.record(K.mk((K.DNE, long, K.OO)), plain)[1]
-    assert m.startswith('does not exist: ') and '...' in m and len(m) < 120
+    assert m.startswith('Does not exist: ') and '...' in m and len(m) < 120
 
 
 def test_record_solutions_text():
@@ -422,7 +422,7 @@ def test_record_solutions_text():
 
 
 def test_record_none_is_undefined():
-    assert PR.record(None, ('eval', '1/0')) == ('msg', 'undefined', None, 0)
+    assert PR.record(None, ('eval', '1/0')) == ('msg', 'Undefined', None, 0)
 
 
 def test_record_hold_has_no_decimal_line():

@@ -91,9 +91,9 @@ R|sin|sin
 R|sin sin x|sin sin(x)
 R|sin if|sin if
 # deviation, FlowCE gives "sinx": no strings in cas-evo: an invalid character
-R|"sinx"|!invalid character
+R|"sinx"|!Invalid character
 # deviation, FlowCE gives 5_m: underscore names are reserved for internal symbols (DESIGN 7.2): an invalid character
-R|5_m|!invalid character
+R|5_m|!Invalid character
 R|area|area
 # deviation, FlowCE gives x // sinx: no comments: two / operators
 R|x // sinx|x // sin(x)
@@ -120,7 +120,7 @@ I|integrate(pi*(x+1),x,-3*pi/4,pi/4)|integrate(pi*(x+1),x,-3*pi/4,pi/4)
 I|seq(k^2,k,1,5)|seq(k^2,k,1,5)
 I|l[2]|l[2]
 # deviation, FlowCE gives 5_m: underscore names are reserved for internal symbols (DESIGN 7.2): an invalid character
-I|5_m|!invalid character
+I|5_m|!Invalid character
 # deviation, FlowCE gives 1e5: D14: only E (the EE key) starts an exponent
 I|1e5|1*e5
 # deviation, FlowCE gives 2.5e-3*x: D14: only E (the EE key) starts an exponent
@@ -128,7 +128,7 @@ I|2.5e-3x|2.5*e-3*x
 # deviation, FlowCE gives 0x1F: no 0x/0b literals: the number 0 times a name
 I|0x1F|0*x1F
 # deviation, FlowCE gives "xy": no strings in cas-evo: an invalid character
-I|"xy"|!invalid character
+I|"xy"|!Invalid character
 I|x y|x* y
 I|x mod 3|x mod 3
 I|if x>0 then 1 else 2 end|if x>0 then 1 else 2 end
@@ -187,7 +187,7 @@ I|abcdefghijklmnopqrstuvwxyzabcdef|abcdefghijklmnopqrstuvwxyzabcdef
 I|abcdefghijklmnopqrstuvwxyzabcdefg|abcdefghijklmnopqrstuvwxyzabcdefg
 # '_' inside: not all letters
 # deviation, FlowCE gives x_m: underscore names are reserved for internal symbols (DESIGN 7.2): an invalid character
-I|x_m|!invalid character
+I|x_m|!Invalid character
 I|v1|v1
 I|2v1|2*v1
 # pi is a name of its own (the pi key): pi*r
@@ -246,21 +246,21 @@ I|abc(x):=x+1|abc(x):=x+1
 I|area(r) := pi r^2|area(r) := pi* r^2
 # ')' in a string is not matched
 # deviation, FlowCE gives ab(")"):=1: no strings in cas-evo: an invalid character
-I|ab(")"):=1|!invalid character
+I|ab(")"):=1|!Invalid character
 # deviation, FlowCE gives ab(x):=x;a*b*(2): one expression per line: an invalid character
-I|ab(x):=x;ab(2)|!invalid character
+I|ab(x):=x;ab(2)|!Invalid character
 I|abc := 5|abc := 5
 I|5 => abc|5 => abc
 I|ab:=2cd|ab:=2*c*d
 I|x^4-1=>*|x^4-1=>*
 I|sin(x)^2=>cos|sin(x)^2=>cos
 # deviation, FlowCE gives 15_m=>_cm: underscore names are reserved for internal symbols (DESIGN 7.2): an invalid character
-I|15_m=>_cm|!invalid character
+I|15_m=>_cm|!Invalid character
 i|abc:=5|abc:=5
 # deviation, FlowCE gives 3_(m/s): underscore names are reserved for internal symbols (DESIGN 7.2): an invalid character
-I|3_(m/s)|!invalid character
+I|3_(m/s)|!Invalid character
 # deviation, FlowCE gives 5_m*2*x: underscore names are reserved for internal symbols (DESIGN 7.2): an invalid character
-I|5_m*2x|!invalid character
+I|5_m*2x|!Invalid character
 # deviation, FlowCE gives 0b101: no 0x/0b literals: the number 0 times a name
 I|0b101|0*b101
 # deviation, FlowCE gives 0b101*x: no 0x/0b literals: the number 0 times a name
@@ -296,23 +296,23 @@ I|x->x^2|x->x^2
 I|x<=y|x<=y
 # escaped quote
 # deviation, FlowCE gives "a\\"b"x: no strings in cas-evo: an invalid character
-I|"a\\"b"x|!invalid character
+I|"a\\"b"x|!Invalid character
 # ... does not end the string
 # deviation, FlowCE gives "a\\"xy"2*x: no strings in cas-evo: an invalid character
-I|"a\\"xy"2x|!invalid character
+I|"a\\"xy"2x|!Invalid character
 # escaped backslash ends the string
 # deviation, FlowCE gives "a\\\\"x*y: no strings in cas-evo: an invalid character
-I|"a\\\\"xy|!invalid character
+I|"a\\\\"xy|!Invalid character
 # deviation, FlowCE gives 2"x": no strings in cas-evo: an invalid character
-I|2"x"|!invalid character
+I|2"x"|!Invalid character
 # unterminated
 # deviation, FlowCE gives "abc: no strings in cas-evo: an invalid character
-I|"abc|!invalid character
+I|"abc|!Invalid character
 # deviation, FlowCE gives 2*x // 2x: no comments: two / operators
 I|2x // 2x|2*x // 2*x
 I|x // c|x // c
 # deviation, FlowCE gives x*y//xy\nx*y: one line: control characters are invalid
-I|xy//xy\nxy|!invalid character
+I|xy//xy\nxy|!Invalid character
 I|2x mod 3|2*x mod 3
 I|return 2x|return 2*x
 I|while x<5 do x:=2x od|while x<5 do x:=2*x od
@@ -328,11 +328,11 @@ I|(x+1) (x-1)|(x+1)* (x-1)
 I|x + y|x + y
 I||
 # deviation, FlowCE gives x\ny: one line: control characters are invalid
-I|x\ny|!invalid character
+I|x\ny|!Invalid character
 # deviation, FlowCE gives 2*x\n3*y: one line: control characters are invalid
-I|2x\n3y|!invalid character
+I|2x\n3y|!Invalid character
 # deviation, FlowCE gives 2*x\r\n3*y: one line: control characters are invalid
-I|2x\r\n3y|!invalid character
+I|2x\r\n3y|!Invalid character
 i|2pir|2*pir
 i|pi r|pi* r
 i|x y|x* y
@@ -487,15 +487,15 @@ P|kq(3)|k*q(3)
 
 @ casevo
 # -- errors --
-P|x_1|!invalid character
-P|a;b|!invalid character
-P|"x"|!invalid character
-P|x:y|!invalid character
-P|x$|!invalid character
-P|2x\n|!invalid character
-P|1E999|!number too large
-P|sin1E999|!number too large
-P|\u00e9|!invalid character
+P|x_1|!Invalid character
+P|a;b|!Invalid character
+P|"x"|!Invalid character
+P|x:y|!Invalid character
+P|x$|!Invalid character
+P|2x\n|!Invalid character
+P|1E999|!Number too large
+P|sin1E999|!Number too large
+P|\u00e9|!Invalid character
 # -- the paper-notation splice and a few odd spots --
 R|sin^2(sinx)|sin(sin(x))^2
 R|sin^2(cos x)|sin(cos(x))^2

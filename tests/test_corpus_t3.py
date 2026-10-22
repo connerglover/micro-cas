@@ -26,5 +26,5 @@ def test_divergence_never_becomes_principal_value():
     C.fresh()
     for command in ('integrate(1/x,x,-1,1)', 'integrate(1/x^2,x,-1,1)', 'sum(k,k,1,oo)'):
         rec = R.go(('eval', command))
-        assert rec[0] == 'msg' and 'diverg' in rec[1]
+        assert rec[0] == 'msg' and 'Diverg' in rec[1]
     assert C.answer('sum(1/k,k,1,oo)') == 'oo'

@@ -60,7 +60,7 @@ def varrows():                                                 #@L 3
     R = U.R
     rows = []
     if R.ANS is not None:
-        rows.append(('Ans', 'Last result: ' + R.ANS, 'ans()'))
+        rows.append(('Ans', 'Last answer: ' + R.ANS, 'ans()'))
     for name in sorted(R.VARS):
         rows.append((name + ' = ' + R.VARS[name], 'Stored variable', name))
     for name in sorted(R.FUNCS):

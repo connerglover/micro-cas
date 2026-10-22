@@ -294,7 +294,7 @@ def test_panic_without_the_engine():
     assert 'Out of memory' in TD.screen_text() and '1+2' in TD.screen_text()
     assert TD.OFFSCREEN == [] and TD.OVERDRAW == []
     u.key(45)
-    assert u.LINE == '' and u.STATUS == '' and 'menu' in TD.screen_text()
+    assert u.LINE == '' and u.STATUS == '' and 'Press math' in TD.screen_text()
     assert u.R is None
 
 
@@ -321,7 +321,7 @@ def test_entry_loop_recovers_before_the_engine(monkeypatch):
     monkeypatch.setattr(TD, 'draw_text', flaky)
     s = KS.run('int({snap:panic}{clear}{snap:after}')
     assert 'Out of memory' in s.snap('panic') and 'int(' in s.snap('panic')
-    assert 'menu' in s.snap('after') and 'Out of memory' not in s.snap('after')
+    assert 'Press math' in s.snap('after') and 'Out of memory' not in s.snap('after')
     assert 'run' not in s.mods and s.offscreen == []
 
 
@@ -332,9 +332,9 @@ def test_boot_and_engine_times_are_recorded_and_shown():
     u = s.mods['ui']
     assert isinstance(u.BOOT_MS, int) and u.BOOT_MS >= 0
     assert isinstance(u.ENGINE_MS, int) and u.ENGINE_MS >= 0
-    assert re.search(r'ready \d+\.\ds', s.snap('boot').splitlines()[0])
-    assert ('engine ' + u.secs(u.ENGINE_MS)) in s.snap('answer').splitlines()[0]
-    assert 'engine' not in s.snap('later').splitlines()[0]
+    assert re.search(r'Ready \d+\.\ds', s.snap('boot').splitlines()[0])
+    assert ('Engine ' + u.secs(u.ENGINE_MS)) in s.snap('answer').splitlines()[0]
+    assert 'Engine' not in s.snap('later').splitlines()[0]
     assert u.secs(3150) == '3.1s' and u.secs(None) == '?' and u.secs(-1) == '?'
 
 
@@ -350,7 +350,7 @@ print(json.dumps([u.BOOT_MS, u.ENGINE_MS, s.snap('boot').splitlines()[0],
                   s.snap('answer').splitlines()[0], s.ans]))
 ''')
     assert got[:2] == [None, None]
-    assert got[2] == 'RAD ready' and got[3] == 'RAD engine loaded exact' and got[4] == '2'
+    assert got[2] == 'RAD Ready' and got[3] == 'RAD Engine loaded exact' and got[4] == '2'
 
 
 def test_timing_with_ticks_ms_only():
@@ -369,4 +369,4 @@ s = KS.run('{snap:boot}1+1{enter}')
 u = s.mods['ui']
 print(json.dumps([u.BOOT_MS, u.ENGINE_MS, s.snap('boot').splitlines()[0]]))
 ''')
-    assert got == [7, 7, 'RAD ready 0.0s']
+    assert got == [7, 7, 'RAD Ready 0.0s']

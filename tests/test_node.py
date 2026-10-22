@@ -431,7 +431,7 @@ def test_table_cap_raises_expression_too_complex():
     with pytest.raises(K.CasError) as ei:
         for j in range(K.NMAX):
             K.num(j + 100)
-    assert ei.value.args[0] == 'expression too complex'
+    assert ei.value.args[0] == 'Expression too complex'
     assert K.NN == K.NMAX
 
 
@@ -460,7 +460,7 @@ def test_sentinels_and_released_ids_are_rejected():
     for bad in (K.TRUE, K.FALSE, dne, K.mk((K.HOLD, K.mk((K.MUL, K.TWO, K.TEN, K.TWO))))):
         with pytest.raises(K.CasError) as ei:
             K.add_([x, bad])
-        assert ei.value.args[0] == 'invalid use of a result'
+        assert ei.value.args[0] == 'Invalid use of a result'
         for f in (lambda: K.mul_(K.ONE, [(bad, K.ONE)]), lambda: K.mul_(K.ONE, [(x, bad)]),
                   lambda: K.fn_(K.SIN, bad), lambda: K.neg_(bad), lambda: K.absn(bad),
                   lambda: K.rel_(K.EQ, bad, x)):

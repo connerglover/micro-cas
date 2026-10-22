@@ -95,7 +95,7 @@ def test_about_shows_boot_and_engine_times(monkeypatch):
     TS.load([34, 34, 34, 105])
     with pytest.raises(TS.StopScript):
         R.need('menu').open('setup')
-    assert 'Boot 0.4s, engine 3.1s' in TD.screen_text()
+    assert 'Start 0.4s, engine 3.1s' in TD.screen_text()
 
 
 def row(sig):

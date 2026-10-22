@@ -12,9 +12,9 @@ import run as R
 
 MAXDEP = 8          # nested sub-solves (kernel inverses, squaring, rewrites, elimination)
 MAXROOTS = 24       # roots of one equation, solutions of one system
-M_CANT = 'cannot solve'
-M_MANY = 'too many solutions'
-M_ARG = 'invalid argument'
+M_CANT = 'Cannot solve'
+M_MANY = 'Too many solutions'
+M_ARG = 'Invalid argument'
 
 
 def nd(r):                                                      #@L 4

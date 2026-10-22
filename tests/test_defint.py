@@ -76,7 +76,7 @@ def test_divergence_message_and_nested_propagation():
     for source in ('integrate(1/x,x,1,oo)',
                    'integrate(integrate(1/x^2,x,-1,1),y,0,1)'):
         record = R.go(('eval', source))
-        assert record[0] == 'msg' and record[1].startswith('diverges')
+        assert record[0] == 'msg' and record[1].startswith('Diverges')
 
 
 @pytest.mark.parametrize('source,expected', [

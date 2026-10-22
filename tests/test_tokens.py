@@ -324,7 +324,7 @@ def test_lex_numbers(casevo, s, value):
     if value is None:
         with pytest.raises(CasError) as e:
             P.lex(s)
-        assert e.value.args == ('number too large', 0)
+        assert e.value.args == ('Number too large', 0)
         return
     t = P.lex(s)
     assert len(t) == 1 and t[0][0] == P.K_NUM and t[0][1] == value
@@ -354,7 +354,7 @@ def test_lex_invalid_character(casevo, s, pos):
     """Underscore names are reserved (7.2); no strings, comments or statements."""
     with pytest.raises(CasError) as e:
         P.lex(s)
-    assert e.value.args == ('invalid character', pos)
+    assert e.value.args == ('Invalid character', pos)
 
 
 @pytest.mark.parametrize('s, calls', [
@@ -512,7 +512,7 @@ def test_rewrite_keeps_the_typed_number_text(casevo):
 def test_rewrite_number_too_large_inside_a_name(casevo):
     with pytest.raises(CasError) as e:
         P.ti_rewrite(P.lex('xsin1E999'))
-    assert e.value.args == ('number too large', 4)
+    assert e.value.args == ('Number too large', 4)
 
 
 def test_implicit_without_cut(casevo):

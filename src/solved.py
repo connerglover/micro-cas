@@ -131,7 +131,7 @@ def nsolve(g, x, lo, hi):                                       #@L 3
     try:
         p = A.nprog(g, (x,))
     except K.CasSoft:
-        raise K.CasSoft('cannot solve')
+        raise K.CasSoft('Cannot solve')
     r = [0.0] * len(p)
     out = []
     a = fa = None
@@ -146,7 +146,7 @@ def nsolve(g, x, lo, hi):                                       #@L 3
         except K.CasSoft:
             fb = None
         if fb == 0.0 and fa == 0.0:     # zero on an interval (floor): no isolated roots
-            raise K.CasSoft('cannot solve')
+            raise K.CasSoft('Cannot solve')
         z = b if fb == 0.0 else None
         if fb and fa and fa * fb < 0.0:
             u, fu, w, fw = a, fa, b, fb

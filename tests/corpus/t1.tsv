@@ -21,12 +21,12 @@ factor(2*x^3-4*x^2-6*x)	eq	2*x*(x-3)*(x+1)	algorithms section 6 T1 acceptance
 factor(x^5-x+1)	eq	x^5-x+1	algorithms section 6 T1 acceptance
 factor(360/7)	eq	360/7	algorithms section 6 T1 acceptance
 solve(x^2-5*x+6,x)	roots	2;3	algorithms section 6 T1 acceptance
-solve(x^2+1,x)	msg	no solution	algorithms section 6 T1 acceptance
+solve(x^2+1,x)	msg	No solution	algorithms section 6 T1 acceptance
 solve(2^x=8,x)	roots	3	algorithms section 6 T1 acceptance
 solve(sin(x)=1/2,x)	roots	pi/6;5*pi/6	algorithms section 6 T1 acceptance
 solve(sqrt(x+3)=x-3,x)	roots	6	algorithms section 6 T1 acceptance
 solve(ln(x)=2,x)	roots	e^2	algorithms section 6 T1 acceptance
 solve([x+y+z=6,x-y=0,z=2],[x,y,z])	text	x=2,y=2,z=2	algorithms section 6 T1 acceptance
-x-x=1	msg	no solution	algorithms section 6 T1 acceptance
-x+1=x+1	msg	every x is a solution	algorithms section 6 T1 acceptance
+x-x=1	msg	No solution	algorithms section 6 T1 acceptance
+x+1=x+1	msg	Every x is a solution	algorithms section 6 T1 acceptance
 2<3	text	true	algorithms section 6 T1 acceptance

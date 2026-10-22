@@ -223,7 +223,7 @@ def go(job):  #@L 1
         K.NN = 2
         return ('expr', 'x', None, 0)
     if job == 'bug':
-        return ('msg', 'internal error: TypeError', None, 0)
+        return ('msg', 'Internal error: TypeError', None, 0)
     return ('expr', '1', None, 0)
 '''
 
@@ -368,7 +368,7 @@ def test_conftest_harness(pytester):
     assert '[slots]' in out
     assert 'invariants violated before a reset' in out
     assert 'not BASE' in out
-    assert 'internal error: TypeError' in out
+    assert 'Internal error: TypeError' in out
     assert 'SIMPBUG' in out
 
 
@@ -380,13 +380,13 @@ def test_session_check_for_keyscript_runs():
     if ks is not None:
         assert C._session_check in ks.AFTER_RUN
     bad = NS(mods={'node': NS(N=[None] * 4, H=[0] * 4, V=[0] * 4, NN=2, BASE=1),
-                   'run': NS(HIST=[('1+', ('msg', 'internal error: TypeError', None, 0))],
+                   'run': NS(HIST=[('1+', ('msg', 'Internal error: TypeError', None, 0))],
                              SIMPBUG=1)})
     with pytest.raises(AssertionError) as ei:
         C._session_check(bad)
     msg = str(ei.value)
     assert '[slots]' in msg and 'not BASE' in msg
-    assert 'internal error: TypeError' in msg and 'SIMPBUG' in msg
+    assert 'Internal error: TypeError' in msg and 'SIMPBUG' in msg
     good = NS(mods={'node': NS(N=[None] * 4, H=[0] * 4, V=[0] * 4, NN=1, BASE=1),
                     'run': NS(HIST=[('1+1', ('expr', '2', '2', 0))], SIMPBUG=0)})
     C._session_check(good)

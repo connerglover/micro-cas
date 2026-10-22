@@ -233,8 +233,8 @@ def test_seed_no_real_root():
     """D3: real mode, x^2+1 = 0 has no solution (the empty list, a sentinel)."""
     r = solve_node('x^2+1')
     assert K.N[r] == (K.LST,)
-    assert msg('solve(x^2+1=0)') == 'no solution'
-    assert msg('x^2+1=0') == 'no solution'
+    assert msg('solve(x^2+1=0)') == 'No solution'
+    assert msg('x^2+1=0') == 'No solution'
 
 
 def test_seed_exponential():
@@ -272,26 +272,26 @@ def test_seed_linear_system_3x3():
 # -- the sentinels and messages (10.5, 8.2) -------------------------------------------------------
 
 def test_true_and_false_sentinels():
-    assert msg('x+1=x+1') == 'every x is a solution'
-    assert msg('x-x=1') == 'no solution'
-    assert msg('solve(0)') == 'every x is a solution'
-    assert msg('solve(y-y,y)') == 'every y is a solution'
-    assert msg('solve(5)') == 'no solution'
+    assert msg('x+1=x+1') == 'Every x is a solution'
+    assert msg('x-x=1') == 'No solution'
+    assert msg('solve(0)') == 'Every x is a solution'
+    assert msg('solve(y-y,y)') == 'Every y is a solution'
+    assert msg('solve(5)') == 'No solution'
     assert solve_node('x+1=x+1') == K.TRUE
     assert K.N[solve_node('x-x=1')] == (K.LST,)
     K.reset()
-    assert msg('solve((x-1)^2-x^2+2x-1=0)') == 'every x is a solution'
+    assert msg('solve((x-1)^2-x^2+2x-1=0)') == 'Every x is a solution'
 
 
 def test_identity_after_trig_rewrite():
-    assert msg('solve(sin(x)^2+cos(x)^2=1)') == 'every x is a solution'
+    assert msg('solve(sin(x)^2+cos(x)^2=1)') == 'Every x is a solution'
 
 
 def test_no_solution_cases():
     for s in ('solve(sin(x)=2)', 'solve(sqrt(x)=-1)', 'solve(exp(x)=0)', 'solve(x/(x-1)=1)',
               'solve(sqrt(x^2+1)=x)', 'solve(x^4+1=0)', 'solve(abs(x)=-1)', 'solve(e^x=-2)',
               'solve(cos(x)=-3/2)', 'solve(x^2+x+1=0)'):
-        assert msg(s) == 'no solution', s
+        assert msg(s) == 'No solution', s
 
 
 def test_records_are_solutions():
@@ -303,11 +303,11 @@ def test_records_are_solutions():
 # -- root checks: denominators, domains, extraneous roots --------------------------------------
 
 def test_denominator_roots_are_dropped():
-    assert msg('(x^2-1)/(x-1)=2') == 'no solution'
+    assert msg('(x^2-1)/(x-1)=2') == 'No solution'
     assert ans('(x^2-1)/(x-1)=0') == 'x=-1'
     assert ans('1/(x-1)+1/(x+1)=0') == 'x=0'
     assert ans('1/x=2') == 'x=1/2'
-    assert msg('1/x=0') == 'no solution'
+    assert msg('1/x=0') == 'No solution'
 
 
 def test_domain_roots_are_dropped():
@@ -319,7 +319,7 @@ def test_extraneous_radical_roots():
     assert ans('x-3*sqrt(x)+2=0') == 'x=1,x=4'
     assert ans('sqrt(x)+sqrt(x+1)=3') == 'x=16/9'
     assert ans('sqrt(2x+1)=x-1') == 'x=4'       # 0 is extraneous
-    assert msg('sqrt(x)=-x-1') == 'no solution'
+    assert msg('sqrt(x)=-x-1') == 'No solution'
     assert ans('sqrt(x)=3') == 'x=9'
     assert ans('x^(1/3)=2') == 'x=8'
     assert ans('x^(1/3)=-2') == 'x=-8'        # real odd roots (6.2)
@@ -345,7 +345,7 @@ def test_abs_equations():
     assert ans('abs(x-1)=2') == 'x=-1,x=3'
     assert ans('abs(x-1)=abs(x+1)') == 'x=0'
     assert ans('abs(x-1)+abs(x+1)=4') == 'x=-2,x=2'
-    assert msg('abs(x)=x-2') == 'no solution'
+    assert msg('abs(x)=x-2') == 'No solution'
     assert ans('abs(2x-1)=x') == 'x=1/3,x=1'
 
 
@@ -456,14 +456,14 @@ def test_symbolic_kernels_are_generic():
 
 
 def test_cannot_solve():
-    assert msg('solve(x^5+a*x+1=0,x)') == 'cannot solve'
-    assert msg('solve(x^2<4)') == 'cannot solve'
-    assert msg('solve(floor(x)=2)') == 'cannot solve'
+    assert msg('solve(x^5+a*x+1=0,x)') == 'Cannot solve'
+    assert msg('solve(x^2<4)') == 'Cannot solve'
+    assert msg('solve(floor(x)=2)') == 'Cannot solve'
 
 
 def test_invalid_variable():
-    assert msg('solve(x^2=4,2)') == 'invalid argument'
-    assert msg('solve(x^2=4,x+1)') == 'invalid argument'
+    assert msg('solve(x^2=4,2)') == 'Invalid argument'
+    assert msg('solve(x^2=4,x+1)') == 'Invalid argument'
 
 
 # -- trig: one period (D2), both angle modes -------------------------------------------------------
@@ -520,7 +520,7 @@ TRIG_DEG = {
 @pytest.mark.parametrize('s', sorted(TRIG_RAD))
 def test_trig_one_period_radians(s):
     if TRIG_RAD[s] is None:
-        assert msg(s) == 'no solution'
+        assert msg(s) == 'No solution'
         return
     assert ans(s) == TRIG_RAD[s]
     r = solve_node(s)
@@ -561,13 +561,13 @@ def test_inverse_trig_kernels():
     assert ans('asin(x)=pi/6') == 'x=1/2'
     assert ans('atan(x)=pi/4') == 'x=1'
     assert ans('acos(x)=pi/3') == 'x=1/2'
-    assert msg('asin(x)=2') == 'no solution'
+    assert msg('asin(x)=2') == 'No solution'
     assert ans('asin(x)=30', deg=1) == 'x=1/2'
 
 
 def test_too_many_solutions():
     assert ans('sin(12x)=0').count('x=') == 24
-    assert msg('sin(13x)=0') == 'too many solutions'
+    assert msg('sin(13x)=0') == 'Too many solutions'
 
 
 # -- guards with radicals (9.2, 20.12) -------------------------------------------------------------
@@ -576,8 +576,8 @@ def test_guards_with_radicals():
     assert ans('solve(sin(x)=sqrt(2)/2)') == 'x=pi/4,x=3*pi/4'
     assert ans('cos(x)=sqrt(3)/2') == 'x=pi/6,x=11*pi/6'
     assert ans('cos(x)=(sqrt(6)-sqrt(2))/4') == 'x=5*pi/12,x=19*pi/12'
-    assert msg('sin(x)=sqrt(3)') == 'no solution'           # sqrt(3) > 1
-    assert msg('cos(x)=-sqrt(5)/2') == 'no solution'
+    assert msg('sin(x)=sqrt(3)') == 'No solution'           # sqrt(3) > 1
+    assert msg('cos(x)=-sqrt(5)/2') == 'No solution'
     assert ans('sin(x)=(sqrt(5)-1)/4') == 'x=pi/10,x=9*pi/10'
     assert ans('sin(x)=sqrt(2)/2', deg=1) == 'x=45,x=135'
 
@@ -612,7 +612,7 @@ def test_exponential_kernels():
 def test_hyperbolic_kernels():
     assert ans('sinh(x)=1') == 'x=ln(sqrt(2)+1)'
     assert ans('tanh(x)=1/2') == 'x=ln(3)/2'
-    assert msg('tanh(x)=2') == 'no solution'
+    assert msg('tanh(x)=2') == 'No solution'
     r = go('cosh(x)=2')                     # no inverse template (D3 guard): numeric
     got = [float(t.split('=')[1]) for t in r[1].split(',')]
     assert r[3] & R.F_APPROX and [round(v, 12) for v in got] == [
@@ -626,8 +626,8 @@ def test_complex_coefficients():
 
 
 def test_unknown_functions_cannot_be_solved():
-    assert msg('solve(f(x)=2)') == 'cannot solve'
-    assert msg('solve(x+f(x)=2)') == 'cannot solve'
+    assert msg('solve(f(x)=2)') == 'Cannot solve'
+    assert msg('solve(x+f(x)=2)') == 'Cannot solve'
 
 
 def test_numeric_fallback():
@@ -658,11 +658,11 @@ def test_nsolve_drops_poles():
 def test_linear_systems():
     assert ans('solve([x+y=3,x-y=1],[x,y])') == 'x=2,y=1'
     assert ans('solve([x+y=3,x-y=1])') == 'x=2,y=1'           # unknowns: the symbols
-    assert msg('solve([x+y=1,x+y=2],[x,y])') == 'no solution'   # inconsistent
+    assert msg('solve([x+y=1,x+y=2],[x,y])') == 'No solution'   # inconsistent
     assert ans('solve([x+y=1],[x,y])') == 'x=1-y'                # y free
     assert ans('solve([x+y+z=1,x-y=0],[x,y,z])') == 'x=-(z-1)/2,y=-(z-1)/2'
     assert ans('solve([x+y=a,x-y=b],[x,y])') == 'x=(a+b)/2,y=(a-b)/2'
-    assert msg('solve([x+y=x+y],[x,y])') == 'every x is a solution'
+    assert msg('solve([x+y=x+y],[x,y])') == 'Every x is a solution'
 
 
 def test_linear_system_against_sympy():
@@ -704,7 +704,7 @@ def test_nonlinear_systems():
     assert ans('solve([x^2+y^2=5,x+y=3])') == '[x=1,y=2],[x=2,y=1]'
     assert ans('solve([a*x+y=1,x-y=0],[x,y])') == 'x=1/(a+1),y=1/(a+1)'
     assert ans('solve([y=x^2,y=x+2],[x,y])') == '[x=-1,y=1],[x=2,y=4]'
-    assert msg('solve([x^2+y^2=1,x+y=5],[x,y])') == 'no solution'
+    assert msg('solve([x^2+y^2=1,x+y=5],[x,y])') == 'No solution'
     assert ans('solve([x^2=y,x=2],[x,y])') == 'x=2,y=4'
 
 

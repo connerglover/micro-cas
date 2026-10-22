@@ -423,13 +423,13 @@ def test_nth_derivative_session():
     assert s.hist[0][:2] == ['diff(x^3,x)', '3*x^2']
     s = KS.run(script('nth') + '{right}2{right}x^3{enter}')      # the variable is required
     assert line(s) == ('diff(x^(3),,2)', 11) and not s.hist
-    assert s.mods['ui'].STATUS == 'fill in the empty slot' and 'run' not in s.mods
+    assert s.mods['ui'].STATUS == 'Fill in the empty box' and 'run' not in s.mods
 
 
 def test_derivative_with_an_empty_variable_box():
     s = KS.run(script('diff') + '{right}x^3{enter}')
     assert line(s) == ('diff(x^(3),)', 11) and not s.hist
-    assert s.mods['ui'].STATUS == 'fill in the empty slot' and 'run' not in s.mods
+    assert s.mods['ui'].STATUS == 'Fill in the empty box' and 'run' not in s.mods
 
 
 def test_integral_with_empty_bounds_is_an_antiderivative():
@@ -447,16 +447,16 @@ def test_definite_integral():
 def test_one_empty_bound_is_an_empty_slot():
     s = KS.run(script('int') + '0{right}{right}x^2{right}x{enter}')
     assert line(s) == ('integrate(x^(2),x,0,)', 20) and not s.hist
-    assert s.mods['ui'].STATUS == 'fill in the empty slot'
+    assert s.mods['ui'].STATUS == 'Fill in the empty box'
     s = KS.run(script('int') + '{right}1{right}x^2{right}x{enter}')
     assert line(s) == ('integrate(x^(2),x,,1)', 18) and not s.hist
-    assert s.mods['ui'].STATUS == 'fill in the empty slot'
+    assert s.mods['ui'].STATUS == 'Fill in the empty box'
 
 
 def test_integral_with_an_empty_variable_box():
     s = KS.run(script('int') + '{right}{right}x^2{enter}')
     assert line(s) == ('integrate(x^(2),,,)', 16) and not s.hist
-    assert s.mods['ui'].STATUS == 'fill in the empty slot' and 'run' not in s.mods
+    assert s.mods['ui'].STATUS == 'Fill in the empty box' and 'run' not in s.mods
 
 
 def test_log_base_box():

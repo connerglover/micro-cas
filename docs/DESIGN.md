@@ -1319,7 +1319,7 @@ value stack of ids. It calls only constructors: `mul_`, `fn_` and `rel_` (L5), a
 `R.go` applies these rules to the token list, in this order:
 
 0. `purge(name, ...)`, checked before stage 6 so that the names are not expanded: remove each name
-   from `VARS` and `FUNCS`. The message is `x purged`.
+   from `VARS` and `FUNCS`. The message is `x deleted` (`x purged` before v1.0.1).
 1. `f(x)=body` or `f(x):=body` (detected by stage 4): store `FUNCS[f] = (params, body text)`. The
    message is `f(x) defined`.
 2. `expr=>name`: evaluate `expr`, store its printed text in `VARS[name]`, and show the value. An
@@ -2209,26 +2209,31 @@ generator. `KBI` is a unique sentinel like `TICK`.)
 
 ### 10.5 Exceptions
 
+Since v1.0.1 every message a user sees starts with a capital letter, as on the TI-Nspire
+(`Undefined`, `No solution`, `Missing operand`, `Internal error: TypeError`); the text keeps its
+meaning. The sections below quote the earlier lowercase spellings where they describe history;
+`src/` holds the current texts (MATHPRINT.md 0.15).
+
 | class | base | raised by | effect |
 |---|---|---|---|
 | `CasSoft` | `Exception` | strategies, `Undefined` from constructors and `nev` | the child returns `None` (§10.2). Raised outside the driver loop (`start`, `PR.record`), it gives `undefined`. |
 | `Undefined` | `CasSoft` | `0^-1`, `tan(π/2)`, `ln(0)` | as above. At top level (the root generator returns `None` and `LASTSOFT` is `Undefined`) the message is `undefined` |
-| `CasError` | `Exception` | syntax errors, bad arguments, caps (`too long`, `too large`, `number too large`) | aborts the command and shows the message. **Never used for a mathematical result.** |
+| `CasError` | `Exception` | syntax errors, bad arguments, caps (`Too long to compute`, `Too many terms`, `Number too large`) | aborts the command and shows the message. **Never used for a mathematical result.** |
 | `Cancel` | `BaseException` | the cancel poll | `Interrupted` |
 | `CasMemory` | `BaseException` | `mk` and `need` low-memory checks | `Out of memory` (§18.6) |
 | `MemoryError` | builtin | anywhere | `Out of memory` |
 | `RuntimeError` | builtin | the device depth cap | `Expression too complex` (a bug: the tests should prevent it) |
 | `KeyboardInterrupt` | builtin | `[on]` (if the EVO raises it) | `R.go` resets, then re-raises; the event loop shows `Interrupted` (§16.2) |
-| any other `Exception` | builtin | a bug (`TypeError`, `KeyError`, `OverflowError`, ...) | `internal error: TypeError`. The session survives; tests fail on any such record. |
+| any other `Exception` | builtin | a bug (`TypeError`, `KeyError`, `OverflowError`, ...) | `Internal error: TypeError`. The session survives; tests fail on any such record. |
 
 **Result sentinels are values, not exceptions.** An algorithm returns them, and its caller decides:
 
 | sentinel | meaning | message when it is the top-level result |
 |---|---|---|
-| empty `LST` (from `g_solve`) | no solution | `no solution` |
-| `TRUE` (from `g_solve`) | every x is a solution | `every x is a solution` |
-| `DNE(l, r)` | a limit does not exist | `does not exist: l from the left, r from the right`, or `no limit (it oscillates)` when a side is `UNDEF` |
-| `DIVG(w)` | an improper integral or a series diverges | `diverges (the improper integral does not converge)`, `diverges (the integrand is unbounded on the interval)`, `diverges (the terms do not go to 0)` |
+| empty `LST` (from `g_solve`) | no solution | `No solution` |
+| `TRUE` (from `g_solve`) | every x is a solution | `Every x is a solution` |
+| `DNE(l, r)` | a limit does not exist | `Does not exist: l from the left, r from the right`, or `No limit (it oscillates)` when a side is `UNDEF` |
+| `DIVG(w)` | an improper integral or a series diverges | `Diverges (the improper integral does not converge)`, `Diverges (the integrand is unbounded on the interval)`, `Diverges (the terms do not go to 0)` |
 
 So `integrate(1/(x^2+1),x,0,1)`, whose denominator has no real root, gets an empty list from its
 singularity search and goes on to `π/4`. `PR.record` prints the one-sided values of a `DNE`
@@ -3136,7 +3141,7 @@ CAT = (
 
 - **Help line** (`ui.ARGPH` and `draw.ARGS`, in the UI view pack). Since the QPL changes it
   explains the argument the caret is in and whether it is required ("Expr. to simplify
-  (required)", "Base (optional: empty = 10)"), for every command and 2D slot; it was the
+  (required)", "Base (empty: 10)"), for every command and 2D slot; it was the
   command's signature (MATHPRINT.md §0.11).
 - **2nd F5** (F5 until MATHPRINT.md 0.13) loads CVCAT and shows the full entry for the command
   around the caret: its name (as the Nspire's menus show it), help, example. ENTER on the help
@@ -3297,7 +3302,7 @@ confirms the rest.
   selected), the keys `+ − × ÷ ^ x² x⁻¹ sto→` insert `ans()` first. `(−)` is always a minus sign.
 - **ENTER:**
   1. **Empty-slot check** (cat §1.3): `(,`, `,,`, `,)`, or `()` after a known function, or a line
-     ending in an operator or `(`, moves the caret there, shows `fill in the empty slot`, and does
+     ending in an operator or `(`, moves the caret there, shows `Fill in the empty box`, and does
      not evaluate.
   2. **Empty line:** re-evaluates the last input (TI habit).
   3. **Otherwise** returns `('eval', LINE)`. The history stores the line with autoclose applied.

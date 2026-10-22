@@ -85,19 +85,20 @@ ALPHA = (b' )*+34567=>?@AGHIJKQRSTU[\\]^fg',
          "theta|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z|theta| |'")
 # The hint row's argument phrases (QPL Q5, MATHPRINT.md 7.5; UI data, available before the
 # engine loads): draw.ARGS names one per argument by its letter (A the first); arghelp adds
-# (required) or (optional) unless the phrase says (opt...) itself; each text fits 31 columns.
+# (required) or (optional) unless the phrase names its empty default, (empty: ...); each text
+# fits 31 columns.
 # ALIAS repeats run.ALIAS (tests/test_run.py keeps the two equal).
 ARGPH = ('Argument|Angle|Expr. to simplify|Expr. to expand|Expr. or integer|Variable|'
          'Equation or system|Unknown(s), e.g. x|Expr. to combine|Rational expr.|'
-         'f to differentiate|With respect to|Order (optional: empty = 1)|Integrand|'
-         'Integration var.|Lower bound (opt; empty=indef)|Upper bound (opt; empty=indef)|'
-         'f to take limit of|Value it approaches|Side + or - (opt; empty=both)|Variable or x=a|'
-         'f to expand|Center, e.g. x=0|Order (optional: empty = 5)|Center point|Term to add|'
-         'Index variable|Start value|End value, oo ok|f to approximate|Left end|Right end|'
-         'Number of strips|left/mid/trap (opt: right)|ODE or [ODE,y(0)=..]|Function, e.g. y|'
+         'f to differentiate|With respect to|Order (empty: 1)|Integrand|'
+         'Integration var.|Lower bound (empty: indefinite)|Upper bound (empty: indefinite)|'
+         'f to take limit of|Value it approaches|Side + or - (empty: both)|Variable or x=a|'
+         'f to expand|Center, e.g. x=0|Order (empty: 5)|Center point|Term to add|'
+         'Index variable|Start value|End value or oo|f to approximate|Left end|Right end|'
+         'Number of strips|left, mid, trap (empty: right)|ODE or [ODE,y(0)=..]|Function, e.g. y|'
          'Independent var.|Function|Vars, e.g. [x,y,z]|Radius r(t)|Angle variable|Start angle|'
          'End angle|x(t)|y(t)|Parameter t|End value|Curve f(x)|Expr. to evaluate|'
-         'Variable to delete|More variables|Base (optional: empty = 10)|Radicand|Root index|'
+         'Variable to delete|More variables|Base (empty: 10)|Radicand|Root index|'
          'Exponent|Expression|Numerator|Denominator|')
 ALIAS = {'int': 'integrate', 'd': 'diff', 'deriv': 'diff', 'lim': 'limit', 'series': 'taylor',
          'ratnormal': 'together', 'dsolve': 'desolve', 'gradient': 'grad'}
@@ -221,7 +222,7 @@ def arghelp(nm, j, n):                                         #@L 4
     for q in range(k):
         i = ARGPH.find('|', i) + 1
     t = ARGPH[i:ARGPH.find('|', i)]
-    if '(opt' in t:
+    if '(empty' in t:
         return t
     return t + (' (required)' if j < r else ' (optional)')
 
@@ -1320,7 +1321,7 @@ def redraw():                                                  #@L 2
     D.text(left, 5, ey - 17)
     D.text(lab, lx, 2)
     if not n and 118 < ey - 21:
-        D.text('Press math or menu', 70, 104)
+        D.text('Press math', 110, 104)
     D.color(C['ACC'])
     D.text(chip, 315 - 10*len(chip), 2)
     tabs(fk)
@@ -1350,7 +1351,7 @@ def boot(t0=None):                                             #@L 1
     emodel()
     redraw()
     BOOT_MS = since(t0)
-    STATUS = 'ready ' + secs(BOOT_MS) if BOOT_MS is not None else 'ready'
+    STATUS = 'Ready ' + secs(BOOT_MS) if BOOT_MS is not None else 'Ready'
     redraw()
 
 
@@ -1388,7 +1389,7 @@ def engine():                                                  #@L 2
     D.P = P
     D.PR = PR
     ENGINE_MS = since(t0)
-    NOTE = STATUS = 'engine ' + (secs(ENGINE_MS) if ENGINE_MS is not None else 'loaded')
+    NOTE = STATUS = 'Engine ' + (secs(ENGINE_MS) if ENGINE_MS is not None else 'loaded')
     return R
 
 
@@ -1477,7 +1478,7 @@ def key(k):                                                    #@L 1
                 engine()                # the first ENTER loads the engine
                 pos = empty_slot()
             if pos >= 0:
-                CUR, STATUS = pos, 'fill in the empty slot'
+                CUR, STATUS = pos, 'Fill in the empty box'
             elif LINE or hist:
                 job = ('eval', (LINE if LINE == EFAIL else tidy(LINE)) or
                        hist[-1][0])     # a failed line is not parsed again (EFAIL)
@@ -1597,7 +1598,7 @@ def panic(reason):                                             #@L 1
     D.color(C['SUB'])
     if e is not None:
         D.text(e[0][:31], 5, 30)
-    D.text('CLEAR edits; 2nd MODE quits', 5, 193)
+    D.text('Press a key; 2nd MODE quits', 5, 193)
     D.color(C['INK'])
     D.text(STATUS, 5, 2)
     if e is not None:               # an antiderivative keeps its + C (MATHPRINT.md 7.1)

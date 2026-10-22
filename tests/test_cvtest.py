@@ -40,7 +40,7 @@ def test_device_probe_passes_desktop(monkeypatch, capsys):
     assert state['DEPTHS'] == [(3, True), (6, True), (8, True)]
     assert len(state['MATH_RESULTS']) >= 6
     assert len(state['ENGINE_MATH']) == 6
-    assert all(not record[1].startswith('internal error') for name, record in state['ENGINE_MATH'])
+    assert all(not record[1].startswith('Internal error') for name, record in state['ENGINE_MATH'])
     assert 'CVTEST: %d/%d PASS' % (state['TOTAL'], state['TOTAL']) in output
     assert all(len(line) <= 30 for line in output.splitlines())
     for page in output.split('-- p'):

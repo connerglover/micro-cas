@@ -487,7 +487,7 @@ def test_enter_stage_one_needs_no_engine():
                         ('integrate(,x,0,)|', 15)):
         setline(before)
         U.key(ENTER)
-        assert U.CUR == pos and U.STATUS == 'fill in the empty slot', before
+        assert U.CUR == pos and U.STATUS == 'Fill in the empty box', before
         assert U.R is None
 
 
@@ -503,7 +503,7 @@ def test_enter_on_a_degraded_line_reports_the_slot_without_layout():
         for line, pos in (('x^()', 3), ('2/()', 3), ('()/(2)', 1), ('(1)/()+x^()', 5)):
             U.LINE, U.CUR, U.EFAIL, U.EMODEL, U.STATUS = line, len(line), line, None, ''
             U.key(ENTER)
-            assert U.CUR == pos and U.STATUS == 'fill in the empty slot', line
+            assert U.CUR == pos and U.STATUS == 'Fill in the empty box', line
             assert calls == [] and U.EFLAT and U.R is None
     finally:
         D.mlayout = real
@@ -772,7 +772,7 @@ def test_log_base_skip_follows_the_drawn_name(script, answer):
     # 2log(100,) and xlog(100,) draw log_b (the name the engine reads is log): its empty base
     # is optional at stage 2 too
     s = KS.run(script)
-    assert s.mods['ui'].STATUS != 'fill in the empty slot'
+    assert s.mods['ui'].STATUS != 'Fill in the empty box'
     assert s.hist and s.hist[0][1] == answer
 
 
@@ -820,12 +820,12 @@ KEYS_ALPHA = {32: 'theta', 41: 'a', 42: 'b', 43: 'c', 51: 'd', 52: 'e', 53: 'f',
 HINTS = {'simplify': (1, 1, ('Expr. to simplify (required)',)),
          'solve': (1, 2, ('Equation or system (required)', 'Unknown(s), e.g. x (optional)')),
          'diff': (2, 2, ('f to differentiate (required)', 'With respect to (required)',
-                         'Order (optional: empty = 1)')),
+                         'Order (empty: 1)')),
          'integrate': (2, 4, ('Integrand (required)', 'Integration var. (required)',
-                              'Lower bound (opt; empty=indef)', 'Upper bound (opt; empty=indef)')),
+                              'Lower bound (empty: indefinite)', 'Upper bound (empty: indefinite)')),
          'riemann': (5, 6, ('f to approximate (required)', 'Variable (required)',
                             'Left end (required)', 'Right end (required)',
-                            'Number of strips (required)', 'left/mid/trap (opt: right)')),
+                            'Number of strips (required)', 'left, mid, trap (empty: right)')),
          'purge': (1, 1, ('Variable to delete (required)', 'More variables (optional)',
                           'More variables (optional)'))}
 TEMPLATES = (('Fraction', ''), ('Exponent', ''), ('Square root', 'sqrt()'),

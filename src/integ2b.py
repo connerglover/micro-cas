@@ -80,7 +80,7 @@ def g_decompose(f, x):                                          #@L 2
 def g_partfrac(args, ctx):                                      #@L 2
     x = args[1] if len(args) > 1 else K.sym('x')
     if K.N[x][0] != K.SYM:
-        raise K.CasError('invalid argument')
+        raise K.CasError('Invalid argument')
     ctx[P.X_MV] = x
     R.need('fact')
     parts = yield g_decompose(args[0], x)

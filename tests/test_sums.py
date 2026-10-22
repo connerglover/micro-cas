@@ -80,7 +80,7 @@ def test_p_series_diverges(text):
                                  'sum(k^2,k,1,oo)'])
 def test_terms_do_not_vanish(text):
     result = R.go(('eval', text))
-    assert 'diverges' in result[1] and 'terms' in result[1], result
+    assert 'Diverges' in result[1] and 'terms' in result[1], result
 
 
 @pytest.mark.parametrize('text,expected', [
@@ -137,7 +137,7 @@ def test_riemann_symbolic_and_limit(method, expected):
                                   'riemann(x,x,0,1,2,bad)', 'sum(x,2,0,4)'])
 def test_invalid_arguments(text):
     result = R.go(('eval', text))
-    assert result[0] == 'msg' and not result[1].startswith('internal error'), result
+    assert result[0] == 'msg' and not result[1].startswith('Internal error'), result
 
 
 def test_unsupported_stays_unevaluated():

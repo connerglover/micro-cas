@@ -95,7 +95,7 @@ def test_nonanalytic_is_unevaluated(source):
 def test_invalid_arguments(text):
     result = R.go(('eval', text))
     assert result[0] == 'msg', result
-    assert not result[1].startswith('internal error')
+    assert not result[1].startswith('Internal error')
 
 
 def test_zero_series_and_requested_precision():

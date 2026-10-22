@@ -13,7 +13,7 @@ DT = {K.SIN: 'cos(U)', K.COS: '-sin(U)', K.TAN: 'sec(U)^2',
       K.SINH: 'cosh(U)', K.COSH: 'sinh(U)', K.TANH: '1/cosh(U)^2',
       K.LN: '1/U', K.ABS: 'sign(U)', K.SIGN: '0', K.FLOOR: '0', K.CEIL: '0'}
 MAXORDER = 20
-M_ARG = 'invalid argument'
+M_ARG = 'Invalid argument'
 
 
 def variables(e):                                              #@L 3

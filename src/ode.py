@@ -103,12 +103,12 @@ def g_desolve(args, ctx):                                       #@L 2
     x = args[1] if len(args) > 2 else K.sym('x')
     y = args[2] if len(args) > 2 else args[1] if len(args) > 1 else K.sym('y')
     if K.N[x][0] != K.SYM or K.N[y][0] != K.SYM or x == y:
-        raise K.CasError('expected independent and dependent variables')
+        raise K.CasError('Expected independent and dependent variables')
     data = K.N[args[0]]
     eq = data[1] if data[0] == K.LST and len(data) > 1 else args[0]
     conds = data[2:] if data[0] == K.LST else ()
     if len(conds) > 6:
-        raise K.CasError('too many initial conditions')
+        raise K.CasError('Too many initial conditions')
     t = K.N[eq]
     f = K.add_([t[1], K.neg_(t[2])]) if t[0] == K.EQ else eq
     NO = R.need('norm')

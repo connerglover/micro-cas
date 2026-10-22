@@ -170,7 +170,7 @@ def g_rewrite(root, rs, x, budget):                             #@L 2
             if m != n:
                 new[n] = m
         if fired > budget:
-            raise K.CasSoft('rewrite budget')
+            raise K.CasSoft('Too many rewrites')
         r = K.keep(m0, new.get(root, root))         # drop this pass's garbage
         if r == root or r in seen:                  # a fixpoint or a cycle
             break

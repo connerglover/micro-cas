@@ -107,7 +107,7 @@ def g_taylor(args, ctx):                                        #@L 2
     order = 5
     if K.N[x][0] == K.EQ:
         if len(args) > 3:
-            raise K.CasError('expected taylor(f,x=a,n)')
+            raise K.CasError('Expected taylor(f,x=a,n)')
         x, a = K.N[x][1:]
         if len(args) > 2:
             order = args[2]
@@ -120,9 +120,9 @@ def g_taylor(args, ctx):                                        #@L 2
         order = K.num(order)
     t = K.N[order]
     if K.N[x][0] != K.SYM or not K.free_of(a, x) or K.LST <= K.N[a][0] <= K.GE:
-        raise K.CasError('expected a variable and constant center')
+        raise K.CasError('Expected a variable and a constant center')
     if t[0] != K.NUM or t[2] or t[3] != 1 or t[1] < 0 or t[1] > MAXORDER:
-        raise K.CasError('series order must be an integer from 0 to 20')
+        raise K.CasError('Order must be an integer from 0 to 20')
     n = t[1]
     s = yield g_series(f, x, a, n)
     if s is None:

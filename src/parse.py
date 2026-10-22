@@ -92,12 +92,12 @@ F_ALWAYSAUTO = 8    # always run it
 F_SOLN = 16         # the result is a solution list (the printer's sentinel messages)
 MAXEXP = 64         # stage 6: expansions per line
 MAXDEF = 16         # stage 6: nested expansions
-M_ARGS = 'wrong number of arguments'
-M_DEEP = 'definition too deeply nested'
-M_SYNTAX = 'syntax error'
-M_ASSIGN = 'invalid assignment'
-M_PRIME = "invalid use of '"
-M_PURGE = 'invalid use of purge'
+M_ARGS = 'Wrong number of arguments'
+M_DEEP = 'Definition too deeply nested'
+M_SYNTAX = 'Syntax error'
+M_ASSIGN = 'Invalid assignment'
+M_PRIME = "Invalid use of '"
+M_PURGE = 'Invalid use of purge'
 # one-argument functions -> op codes (5.2)
 ONEARG = {'sin': K.SIN, 'cos': K.COS, 'tan': K.TAN, 'sec': K.SEC, 'csc': K.CSC, 'cot': K.COT,
           'asin': K.ASIN, 'acos': K.ACOS, 'atan': K.ATAN, 'sinh': K.SINH, 'cosh': K.COSH,
@@ -191,7 +191,7 @@ def numval(t, pos, fl):                                         #@L 7
         return (int(t), 1)
     v = float(t)
     if v - v != 0:                      # inf
-        raise K.CasError('number too large', pos)
+        raise K.CasError('Number too large', pos)
     return v
 
 
@@ -259,7 +259,7 @@ def lex(s):                                                     #@L 6
         elif c == '!' or c == "'":
             toks.append((K_POST, c, i, j, 0))
         else:
-            raise K.CasError('invalid character', i)
+            raise K.CasError('Invalid character', i)
         i = j
     for k in range(len(toks) - 1):
         t = toks[k]
@@ -700,19 +700,19 @@ def rpn(toks):                                                  #@L 7
         k = tk[0]
         if k == K_NUM or k == K_NAME:
             if val:
-                raise K.CasError('missing operator', tk[2])
+                raise K.CasError('Missing operator', tk[2])
             if k == K_NAME and tk[4] & F_CALL:
                 if i + 1 == n or toks[i + 1][0] != K_LP:
-                    raise K.CasError('missing (', tk[3])
+                    raise K.CasError('Missing (', tk[3])
                 ops.append(('f', tk[1], i))
                 continue
             out.append(('n' if k == K_NUM else 's', tk[1], i))
             val = True
         elif k == K_LP or k == K_LB:
             if val:
-                raise K.CasError('missing operator', tk[2])
+                raise K.CasError('Missing operator', tk[2])
             if len(argc) >= MAXNEST:
-                raise K.CasError('too deeply nested', tk[2])
+                raise K.CasError('Too deeply nested', tk[2])
             ops.append(('(', tk[1], i))
             argc.append(1)
         elif k == K_COMMA or k == K_RP or k == K_RB:
@@ -720,25 +720,25 @@ def rpn(toks):                                                  #@L 7
                 out.append(ops.pop())
             if k == K_COMMA and not ops:        # a top-level comma: the line is a list
                 if not val:
-                    raise K.CasError('empty argument', tk[2])
+                    raise K.CasError('Empty argument', tk[2])
                 top += 1
                 val = False
                 continue
             if not ops or ops[-1][0] != '(':
-                raise K.CasError('unbalanced', tk[2])
+                raise K.CasError('Unbalanced brackets', tk[2])
             if k == K_COMMA:
                 if not val:
-                    raise K.CasError('empty argument', tk[2])
+                    raise K.CasError('Empty argument', tk[2])
                 argc[-1] += 1
                 val = False
                 continue
             o = ops.pop()
             m = argc.pop()
             if PAIR[o[1]] != tk[1]:
-                raise K.CasError('mismatched bracket', tk[2])
+                raise K.CasError('Mismatched bracket', tk[2])
             if not val:                         # () [] f(), but not (a+) or f(a,)
                 if o[2] != i - 1:
-                    raise K.CasError('empty argument' if m > 1 else 'missing operand', tk[2])
+                    raise K.CasError('Empty argument' if m > 1 else 'Missing operand', tk[2])
                 m = 0
             if o[1] != '(':
                 out.append(('L', m, i))
@@ -749,11 +749,11 @@ def rpn(toks):                                                  #@L 7
             elif m > 1:
                 out.append(('L', m, i))
             else:
-                raise K.CasError('empty ()', tk[2])
+                raise K.CasError('Empty ()', tk[2])
             val = True
         elif k == K_POST:
             if not val:
-                raise K.CasError('missing operand', tk[2])
+                raise K.CasError('Missing operand', tk[2])
             out.append(('o', tk[1], i))
         else:
             o = tk[1]
@@ -761,7 +761,7 @@ def rpn(toks):                                                  #@L 7
                 if o == '-':
                     ops.append(('o', 'neg', i))
                 elif o != '+':
-                    raise K.CasError('missing operand', tk[2])
+                    raise K.CasError('Missing operand', tk[2])
                 continue
             p = PREC[o]
             while ops and ops[-1][0] == 'o':
@@ -776,10 +776,10 @@ def rpn(toks):                                                  #@L 7
     while ops:
         o = ops.pop()
         if o[0] != 'o':
-            raise K.CasError('missing )', e)
+            raise K.CasError('Missing )', e)
         out.append(o)
     if not val and toks:
-        raise K.CasError('missing operand', e)
+        raise K.CasError('Missing operand', e)
     if top > 1:
         out.append(('L', top, -1))      # bare top-level list (solutions)
     return out

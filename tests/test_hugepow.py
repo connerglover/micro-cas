@@ -142,7 +142,7 @@ SAME = [
 @pytest.mark.parametrize('a, b', SAME)
 def test_equal_values_are_the_same_node(a, b):
     if a in ('(2*i)^100000', '(3+4*i)^100000/(3+4*i)^99999'):
-        with pytest.raises(K.CasError, match='number too large'):
+        with pytest.raises(K.CasError, match='Number too large'):
             nd(a)
     elif a in ('2^10000*2^10000', '16^5000', '(4^8193)',
                '10^16000*10^14000', '(257^2)^3000'):
@@ -176,7 +176,7 @@ TEXT = [
 def test_text_and_round_trip(s, want):
     """DESIGN 12.5: the text re-parses (answer path) to the same node."""
     if s in ('(3+4*i)^100000', '(1+i)^100000*x'):
-        with pytest.raises(K.CasError, match='number too large'):
+        with pytest.raises(K.CasError, match='Number too large'):
             nd(s)
         return
     e = nd(s)
@@ -326,7 +326,7 @@ def test_zero_test_is_exact():
     def iszero(s):
         return drive(NB.g_iszero(nd(s)))
     assert iszero('2^100001-2*2^100000') == NB.YES
-    with pytest.raises(K.CasError, match='number too large'):
+    with pytest.raises(K.CasError, match='Number too large'):
         iszero('(2^100000+1)^2-2^200000-2^100001-1')
     assert iszero('2^100000+1') == A.LIKELY
     assert iszero('2^(200001/2)-1') == A.LIKELY

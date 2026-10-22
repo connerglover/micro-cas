@@ -241,15 +241,15 @@ def test_menu_insertion_by_keys():
 def test_enter_needs_the_required_boxes_and_drops_the_optional_ones():
     s = KS.run('{f1}{down}{down}{down}{enter}{enter}')
     u = s.mods['ui']
-    assert u.STATUS == 'fill in the empty slot' and u.CUR == 6 and not s.hist
+    assert u.STATUS == 'Fill in the empty box' and u.CUR == 6 and not s.hist
     s = KS.run('{f1}{down}{down}{down}{enter}x^2=4{enter}')
     assert [tuple(e[:2]) for e in s.hist] == [('solve(x^2=4)', 'x=-2,x=2')]
     s = KS.run('taylor(sin(x),x,0,){enter}')               # the 4-argument form's order
     assert [e[0] for e in s.hist] == ['taylor(sin(x),x,0)']
     s = KS.run('{f1}{enter}{enter}')                                   # Simplify, empty
-    assert s.mods['ui'].STATUS == 'fill in the empty slot' and not s.hist
+    assert s.mods['ui'].STATUS == 'Fill in the empty box' and not s.hist
     s = KS.run('{2nd,0}sin{enter}{enter}')
-    assert s.mods['ui'].STATUS == 'fill in the empty slot' and not s.hist
+    assert s.mods['ui'].STATUS == 'Fill in the empty box' and not s.hist
 
 
 def test_engine_empty_slot_check_on_a_flat_line(engine):
@@ -273,22 +273,22 @@ def test_a_failed_line_stays_1d():
     ('solve', 1, 2, 'Unknown(s), e.g. x (optional)'),
     ('factor', 1, 2, 'Variable (optional)'),
     ('diff', 1, 2, 'With respect to (required)'),
-    ('diff', 2, 3, 'Order (optional: empty = 1)'),
-    ('integrate', 2, 4, 'Lower bound (opt; empty=indef)'),
-    ('limit', 3, 4, 'Side + or - (opt; empty=both)'),
+    ('diff', 2, 3, 'Order (empty: 1)'),
+    ('integrate', 2, 4, 'Lower bound (empty: indefinite)'),
+    ('limit', 3, 4, 'Side + or - (empty: both)'),
     ('limit', 1, 2, 'Variable or x=a (required)'),
     ('taylor', 1, 3, 'Center, e.g. x=0 (required)'),
     ('taylor', 1, 4, 'Variable (required)'),
-    ('taylor', 3, 4, 'Order (optional: empty = 5)'),
-    ('sum', 3, 4, 'End value, oo ok (required)'),
-    ('riemann', 5, 6, 'left/mid/trap (opt: right)'),
+    ('taylor', 3, 4, 'Order (empty: 5)'),
+    ('sum', 3, 4, 'End value or oo (required)'),
+    ('riemann', 5, 6, 'left, mid, trap (empty: right)'),
     ('desolve', 1, 2, 'Function, e.g. y (optional)'),
     ('desolve', 1, 3, 'Independent var. (optional)'),
     ('arclen', 1, 4, 'Variable (required)'),
     ('arclen', 1, 5, 'y(t) (required)'),
     ('purge', 0, 1, 'Variable to delete (required)'),
     ('purge', 3, 4, 'More variables (optional)'),
-    ('log', 1, 2, 'Base (optional: empty = 10)'),
+    ('log', 1, 2, 'Base (empty: 10)'),
     ('surd', 1, 2, 'Root index (required)'),
     ('sin', 0, 1, 'Angle (required)'),
     ('ln', 0, 1, 'Argument (required)'),
@@ -327,13 +327,13 @@ def test_every_argument_text_fits_the_hint_row():
     ('(|)/(2)', 'Numerator (required)'),
     ('x^(|)', 'Exponent (required)'),
     ('e^(2|)', 'Exponent (required)'),
-    ('integrate(x,x,|,)', 'Lower bound (opt; empty=indef)'),
+    ('integrate(x,x,|,)', 'Lower bound (empty: indefinite)'),
     ('integrate(x^(2),|)', 'Integration var. (required)'),
-    ('diff(x^(3),x,|)', 'Order (optional: empty = 1)'),
-    ('sum(k,k,1,|)', 'End value, oo ok (required)'),
-    ('limit(x,x,0,|)', 'Side + or - (opt; empty=both)'),
+    ('diff(x^(3),x,|)', 'Order (empty: 1)'),
+    ('sum(k,k,1,|)', 'End value or oo (required)'),
+    ('limit(x,x,0,|)', 'Side + or - (empty: both)'),
     ('limit(sin(x)/x,x=0|)', 'Variable or x=a (required)'),
-    ('log(8,|)', 'Base (optional: empty = 10)'),
+    ('log(8,|)', 'Base (empty: 10)'),
     ('surd(8,|)', 'Root index (required)'),
     ('sqrt(|)', 'Radicand (required)'),
     ('solve([x+y=1,|],)', 'Equation or system (required)'),     # a list in a call (2D)
@@ -367,7 +367,7 @@ def test_hint_row_on_screen_before_the_engine_loads():
     assert 'run' not in s.mods
     assert 'Integrand (required)' in s.screen
     s = KS.run('{2nd,frac}{down}{down}{down}{down}{down}{down}{down}{down}{enter}{snap:lower}')
-    assert 'Lower bound (opt; empty=indef)' in s.snap('lower')
+    assert 'Lower bound (empty: indefinite)' in s.snap('lower')
     assert 'run' not in s.mods
 
 

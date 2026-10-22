@@ -377,12 +377,12 @@ def test_expand_cap(monkeypatch):
     monkeypatch.setattr(NO, 'pmul', spy)
     with pytest.raises(K.CasError) as x:
         expand('(a+b+c+d)^12')                          # 455 terms > MAXTERMS
-    assert x.value.args[0] == 'too large'
+    assert x.value.args[0] == 'Too many terms'
     assert max(seen) <= NO.MAXTERMS                     # no polynomial ever held more
     with pytest.raises(K.CasError):
         expand('(a+b+c+d+f+g+h)^3*(j+k+l+m+n+p+q)^3')   # 84 * 84 terms
     monkeypatch.setattr(NO, 'pmul', pmul)
-    assert go('expand((a+b+c+d)^12)') == ('msg', 'too large', None, 0)
+    assert go('expand((a+b+c+d)^12)') == ('msg', 'Too many terms', None, 0)
 
 
 def test_expand_cap_lets_big_expansions_through():

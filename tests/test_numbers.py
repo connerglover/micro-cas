@@ -109,7 +109,7 @@ def test_maxbits_guard_is_immediate():
     t0 = time.perf_counter()
     with pytest.raises(K.CasError) as ei:
         K.npowi((K.NUM, 2, 0, 1), 10 ** 6)
-    assert ei.value.args[0] == 'number too large'
+    assert ei.value.args[0] == 'Number too large'
     with pytest.raises(K.CasError):
         K.npowi((K.NUM, 3, 0, 7), -(10 ** 9))
     with pytest.raises(K.CasError):

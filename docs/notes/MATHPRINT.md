@@ -443,6 +443,41 @@ the history), this one wins.
 - **Tests.** `tests/test_history_scroll.py`: middle, input cell, oldest, last entry (back to
   the entry), Ans and variables kept, 2nd ENTER restart, a page with forms.
 
+### 0.15 v1.0.1: the user-visible language (2026-10-22)
+
+User request: re-read every text the calculator shows and polish it for the current UI. Only
+texts changed; no key, layout or engine behavior did. Every text stays ASCII and within its
+row (31 columns for the status and hint rows), and none is longer than needed.
+
+- **Shell (CASUX).** The empty page reads `Press math` (centred, x 110): the menus are on the
+  F-keys and math, and there is no menu key. Status texts start with a capital like the
+  others: `Ready 0.8s`, `Engine 1.2s`, `Fill in the empty box` (the UI calls them boxes).
+  The panic footer reads `Press a key; 2nd MODE quits` (the next key redraws everything).
+- **Argument help.** An optional argument with a default says what an empty box means, in
+  one pattern: `Order (empty: 1)`, `Lower bound (empty: indefinite)`, `Side + or - (empty:
+  both)`, `left, mid, trap (empty: right)`, `Base (empty: 10)`; `arghelp` appends nothing to a
+  phrase containing `(empty`. `End value or oo` replaces `End value, oo ok`.
+- **Menus (CASMNU).** Help tips match the F-key row and the history keys: `ENTER calculates;
+  CLEAR cancels`, `Up: history, <- input -> answer`, `ENTER copies it, CLEAR deletes`,
+  `F1-F4 menus, F5 next form`, `2nd: All Tmpl Test Setup Help`, `2nd ENTER: earlier inputs`,
+  `STO: store; 2nd MODE: quit` (the old row said `MODE quit`, but MODE opens Setup). The help
+  footer is `ENTER paste example  CLEAR back` with a command, `CLEAR back` without. Setup rows
+  say `Delete ...` and `ENTER or <> switches`; the confirmation `ENTER deletes; CLEAR
+  cancels`; About `Start 0.4s, engine 3.1s`; Vars `Last answer: ...`.
+- **Catalog explanations.** Shorter and in the menus' words (`Rewrite in a simpler form.`,
+  `Antiderivative, or the integral from a to b.`, `Area swept by r(t) between two angles.`).
+- **Engine messages.** Every message starts with a capital letter, as `Done`, `Out of memory`
+  and `Invalid variable name` already did (`Undefined`, `No solution`, `Every x is a
+  solution`, `Does not exist: ...`, `Diverges (...)`, `Syntax error`, `Missing operand`,
+  `Internal error: TypeError`, ...). A few say more or say it in the UI's words:
+  `Too long to compute` (the step budget, was `too long`), `Too many terms` (the polynomial
+  cap, was `too large`), `Unbalanced brackets`, `Too many Ans` (2D draws `ans()` as Ans),
+  `Too many break points`, `Order must be an integer from 0 to 20`, Riemann's `Strips must be
+  from 1 to 1000` (the hint row says strips), `Too many rewrites`, `x deleted` for purge (the
+  catalog calls it Delete Variable). Tests that pinned a text were updated with it; the
+  native smoke check lowercases before matching, `build/check_release.py` and the CVTEST
+  expectations use the new capitals.
+
 ---
 
 ## 1. Data model
@@ -1323,7 +1358,7 @@ times (review, §0.8).
 | Two rows | Otherwise the input, then the result right-aligned 2 px below. |
 | Spacing | 3 px between entries. |
 | Selection | In MODE, an ACCSOFT rectangle behind the selected **cell** (§0.12), one row above and below it, clipped to rows 20..SB−1, drawn in the ACCSOFT batch: the input `rect(0, top-1, iw+10, ih+2)`, or the answer from `305 - rw` (0 when it overflows) to the right edge. |
-| Empty page | No history: no title or tagline; only the gray hint line `Press math or menu` at x 70, drawn only if its row ends above `EY-21`. |
+| Empty page | No history: no title or tagline; only the gray hint line `Press math` at x 110 (centred; `Press math or menu` at x 70 before v1.0.1), drawn only if its row ends above `EY-21`. |
 
 ### 7.2 Scrolling
 

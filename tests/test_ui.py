@@ -27,7 +27,7 @@ def test_empty_slot_never_evaluates():
     # MathPrint (MATHPRINT.md 2.2): the engine-free stage finds the slot, so the engine (and its
     # history) never loads
     assert not s.hist and 'run' not in s.mods
-    assert 'empty slot' in s.screen
+    assert 'empty box' in s.screen
 
 
 def test_history_fraction_paste_is_parenthesized():
@@ -102,7 +102,7 @@ def test_empty_builtin_or_alias_keeps_editor_and_moves_caret(name):
     u = s.mods['ui']
     assert not s.hist and u.LINE == original
     assert u.CUR == len(name) + 1
-    assert u.STATUS == 'fill in the empty slot'
+    assert u.STATUS == 'Fill in the empty box'
 
 
 def test_ans_without_arguments_remains_valid():

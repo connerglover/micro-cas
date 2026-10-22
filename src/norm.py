@@ -15,7 +15,7 @@ MAXTERMS = 400      # terms in one polynomial (8.5)
 KRONMAX = 64        # univariate degree after the Kronecker substitution (8.6)
 NVMAX = 64          # kernel slots in one fold (the length of every exponent tuple)
 MAXCELLS = 3200     # terms times slots in one polynomial (memory; with many kernels)
-M_LARGE = 'too large'
+M_LARGE = 'Too many terms'
 GAVEUP = [0]        # NORMAL_GAVE_UP: 1 when the last normal returned its input unchanged
 
 

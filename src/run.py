@@ -222,14 +222,14 @@ F_SOLN = P.F_SOLN   # 16: the result of solve (the printer's sentinel messages)
 M_INTERRUPTED = 'Interrupted'
 M_OOM = 'Out of memory'
 M_TOO_COMPLEX = 'Expression too complex'
-M_UNDEFINED = 'undefined'
-M_INTERNAL = 'internal error'
-M_TOO_LONG = 'too long'
-M_NOANS = 'no answer yet'
-M_MANYANS = 'too many ans()'
+M_UNDEFINED = 'Undefined'
+M_INTERNAL = 'Internal error'
+M_TOO_LONG = 'Too long to compute'
+M_NOANS = 'No answer yet'
+M_MANYANS = 'Too many Ans'
 M_BADNAME = 'Invalid variable name'
-M_CIRC = 'circular definition'
-M_ERROR = 'error'
+M_CIRC = 'Circular definition'
+M_ERROR = 'Error'
 REC_OOM = (R_MSG, M_OOM, None, 0)  # preallocated: built with no memory to spare (18.6)
 
 
@@ -455,7 +455,7 @@ def start(job):                                                 #@L 2
                     del VARS[v]
                 if v in FUNCS:
                     del FUNCS[v]
-            return None, ', '.join(out) + ' purged', (), ()
+            return None, ', '.join(out) + ' deleted', (), ()
         tk = P.ti_implicit(P.ti_rewrite(tk))     # stages 4-5: the line as typed, before stage 6
         n = len(tk)
         t0 = tk[0] if n else (0, '', 0, 0, 0)

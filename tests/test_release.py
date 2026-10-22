@@ -129,7 +129,7 @@ def test_giant_powers_load_their_aux_pack_only_when_met(app):
     for command in ('expand((2^100000+x)^2)', '(3+4*i)^100000/(3+4*i)^99999',
                     '2*10^100000+3*10^100000-5*10^100000',
                     'solve((2*10^100000+3*10^100000-5*10^100000)*x=1,x)'):
-        assert app.go(command)[:2] == ('msg', 'number too large')
+        assert app.go(command)[:2] == ('msg', 'Number too large')
         assert app.go('2+3')[:2] == ('ans', '5')
         app.assert_clean()
     assert app.loads.count(big) == 1, app.loads
@@ -186,7 +186,7 @@ def test_a_failing_family_import_reports_and_does_not_poison_the_session(app):
     app.fail = {target: ImportError('missing pack')}
     with app.traced():
         result = app.get('run', 'go')(('eval', 'diff(x^3,x)'))
-    assert result[:2] == ('msg', 'internal error: ImportError'), result
+    assert result[:2] == ('msg', 'Internal error: ImportError'), result
     assert target not in app.modules
     assert app.go('diff(x^3,x)')[1] == '3*x^2'
     app.assert_clean()
@@ -357,7 +357,7 @@ def test_boot_loads_only_the_ui(release_module):
     app = release_module.Release().run('{snap:boot}')
     kinds = set(app.meta['kinds'][n] for n in app.loads)
     assert kinds <= {'ui', 'view'}, app.loads
-    assert 'Press math or menu' in app.snaps['boot']
+    assert 'Press math' in app.snaps['boot']
     assert 'cas-evo' not in app.snaps['boot'] and 'Exact algebra' not in app.snaps['boot']
 
 
@@ -387,7 +387,7 @@ def test_first_enter_loads_the_engine_once(release_module):
 def test_actual_entry_editor_menus_forms_and_cancel(release_module, script, answer):
     app = release_module.Release().run(script)
     assert app.get('run', 'ANS') == answer
-    assert 'Display error' not in app.screen and 'internal error' not in app.screen
+    assert 'Display error' not in app.screen and 'Internal error' not in app.screen
     app.assert_clean()
     assert 1 < app.max_depth <= 8
 

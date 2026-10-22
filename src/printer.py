@@ -30,14 +30,14 @@ F_APPROX = 4                # the answer is numeric although the input had no fl
 F_DEG = 8                   # degree mode
 F_SOLN = 16                 # the result of solve: [] and true are messages
 M_DONE = 'Done'
-M_UNDEF = 'undefined'
-M_NOSOL = 'no solution'
-M_EVERY = 'every %s is a solution'
-M_DNE = 'does not exist: %s from the left, %s from the right'
-M_OSC = 'no limit (it oscillates)'
-M_DIVG = ('diverges (the improper integral does not converge)',
-          'diverges (the integrand is unbounded on the interval)',
-          'diverges (the terms do not go to 0)')
+M_UNDEF = 'Undefined'
+M_NOSOL = 'No solution'
+M_EVERY = 'Every %s is a solution'
+M_DNE = 'Does not exist: %s from the left, %s from the right'
+M_OSC = 'No limit (it oscillates)'
+M_DIVG = ('Diverges (the improper integral does not converge)',
+          'Diverges (the integrand is unbounded on the interval)',
+          'Diverges (the terms do not go to 0)')
 SIDE = 40                   # characters of a one-sided value in the DNE message
 
 # output precedence: the rpn levels of section 7.7. A node whose own level is below the need of

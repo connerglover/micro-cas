@@ -78,9 +78,9 @@ NINIT = 64
 LOWMEM = 24576
 MAXBITS = 65536
 TRIAL = 10000
-M_COMPLEX = 'expression too complex'
-M_BIG = 'number too large'
-M_RESULT = 'invalid use of a result'
+M_COMPLEX = 'Expression too complex'
+M_BIG = 'Number too large'
+M_RESULT = 'Invalid use of a result'
 
 Q0 = (NUM, 0, 0, 1)
 Q1 = (NUM, 1, 0, 1)

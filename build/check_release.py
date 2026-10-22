@@ -178,7 +178,7 @@ class Release:
         job = text if isinstance(text, tuple) else ('eval', text)
         with self.traced():
             result = self.get('run', 'go')(job)
-        if result[0] == 'msg' and result[1].startswith('internal error'):
+        if result[0] == 'msg' and result[1].startswith('Internal error'):
             raise AssertionError((job, result))
         return result
 

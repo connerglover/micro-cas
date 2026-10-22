@@ -71,7 +71,7 @@ def g_points(f, x, lo, hi):                                    #@L 2
                     high = R.MODS['def'].MAXPOINTS * math.pi if high == float('inf') else high
                     start, stop = math.ceil(low / math.pi - offset), math.floor(high / math.pi - offset)
                     if stop - start + 1 > R.MODS['def'].MAXPOINTS:
-                        raise K.CasError('too many interval break points')
+                        raise K.CasError('Too many break points')
                     roots = []
                     for k in range(start, stop + 1):
                         angle = K.mul_(K.num(2*k + (1 if offset else 0), 0, 2), [(K.PI, K.ONE)])
@@ -87,7 +87,7 @@ def g_points(f, x, lo, hi):                                    #@L 2
             if value is not None and lo <= value <= hi and r not in points:
                 points.append(r)
         if len(points) > R.MODS['def'].MAXPOINTS:
-            raise K.CasError('too many interval break points')
+            raise K.CasError('Too many break points')
     ordered = []
     for point in points:
         ordered.append((R.MODS['defb'].number(point), point))

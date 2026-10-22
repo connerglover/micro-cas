@@ -481,5 +481,5 @@ def test_empty_page_is_plain(editor):
     U.redraw()
     colors = dict((t[2], t[3]) for t in TD.texts())
     assert 'cas-evo' not in colors and 'Exact algebra and calculus' not in colors
-    assert colors['Press math or menu'] == D.COLORS['SUB']
+    assert colors['Press math'] == D.COLORS['SUB']
     assert TD.COUNTS['set_color'] <= 6

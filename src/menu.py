@@ -44,10 +44,10 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
             rows = R.MODS['menub'].varrows()
             title = 'Vars'
         elif kind == 'setup':
-            rows = [('Angle: ' + ('DEG' if R.SET['deg'] else 'RAD'), 'ENTER or arrows toggle'),
-                    ('Clear history', 'Remove past inputs and results'),
-                    ('Clear variables', 'Remove stored variables and functions'),
-                    ('About cas-evo', 'Version, timing, memory and loaded modules')]
+            rows = [('Angle: ' + ('DEG' if R.SET['deg'] else 'RAD'), 'ENTER or <> switches'),
+                    ('Clear history', 'Delete every input and answer'),
+                    ('Clear variables', 'Delete stored variables and functions'),
+                    ('About cas-evo', 'Version, start times, free memory')]
             title = 'Setup'
         elif kind == 'test':
             rows, title = [], 'TEST'
@@ -64,12 +64,12 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
         notetop = NOTE
         if confirmation is not None:
             D.text('Clear history?' if confirmation == 1 else 'Clear variables and functions?', 5, 40)
-            notes = ['ENTER clears; CLEAR keeps them.']
+            notes = ['ENTER deletes; CLEAR cancels']
         elif about:
             D.text('cas-evo 1.0.0 / TI-84 EVO', 5, 40)
             free = R.MEMFREE() if R.MEMFREE is not None else 0
             D.text('Free heap: ' + str(free) + ' bytes', 5, 57)
-            D.text('Boot ' + U.secs(U.BOOT_MS) + ', engine ' + U.secs(U.ENGINE_MS), 5, 74)
+            D.text('Start ' + U.secs(U.BOOT_MS) + ', engine ' + U.secs(U.ENGINE_MS), 5, 74)
             notes = D.wrap('Loaded: ' + ', '.join(R.LOADED), 31)
         elif kind == 'test':
             for j in range(len(TEST)):
@@ -82,10 +82,10 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
                     D.text(helpentry[3][j:j+31], 5, 114 + j//31*17)
                 notes, notetop = D.wrap(helpentry[2], 31), TOP + 17
             else:
-                tips = ('ENTER calculate, CLEAR cancel', '2nd ENTER: previous input',
-                        'up: history; <- in, -> result', 'F1-F4 menu tabs, F5 forms',
-                        '2nd F1 all F2 tmpl F3 test', '2nd F4 setup F5 help MODE quit',
-                        'STO: store a result')
+                tips = ('ENTER calculates; CLEAR cancels', 'Up: history, <- input -> answer',
+                        'ENTER copies it, CLEAR deletes', 'F1-F4 menus, F5 next form',
+                        '2nd: All Tmpl Test Setup Help', '2nd ENTER: earlier inputs',
+                        'STO: store; 2nd MODE: quit')
                 for j in range(len(tips)):
                     D.text(tips[j], 5, TOP + 17*j)
         else:
@@ -102,8 +102,8 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
         footer = 'ENTER select  CLEAR back'
         if kind in TABS:
             footer = '<> tab  ALPHA find  CLEAR back'
-        elif kind == 'help' and helpentry is not None:
-            footer = 'ENTER pastes the example'
+        elif kind == 'help':
+            footer = 'ENTER paste example  CLEAR back' if helpentry is not None else 'CLEAR back'
         D.text(footer, 5, FOOT, C['ACC'])
         key = TS.wait_key()
         if confirmation is not None:

@@ -102,7 +102,7 @@ def test_implicit_initial_condition():
 
 def test_inconsistent_initial_conditions():
     result = R.go(('eval', "desolve([y'=y,y(0)=1,y(0)=2],y)"))
-    assert result[0] == 'msg' and result[1] == 'no solution', result
+    assert result[0] == 'msg' and result[1] == 'No solution', result
 
 
 def test_independent_variable_three_argument_form():
@@ -123,7 +123,7 @@ def test_unsupported_is_held(text):
 
 def test_invalid_condition():
     result = R.go(('eval', "desolve([y'=y,y(x)=1],y)"))
-    assert result[0] == 'msg' and not result[1].startswith('internal error'), result
+    assert result[0] == 'msg' and not result[1].startswith('Internal error'), result
 
 
 @pytest.mark.parametrize('equation', ["y'=y^3", "y*y'=y"])

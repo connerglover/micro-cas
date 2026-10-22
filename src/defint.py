@@ -11,7 +11,7 @@ MAXLEVEL = 6
 MAXPOINTS = 16
 QTOL = 2e-8
 CHECKTOL = 1e-6
-M_ARG = 'invalid argument'
+M_ARG = 'Invalid argument'
 
 
 def g_endpoint(F, x, point, side):                             #@L 2

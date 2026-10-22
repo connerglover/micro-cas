@@ -17,17 +17,17 @@ def g_conditions(sol, conds, x, y, constants):                  #@L 2
     for cond in conds:
         ct = K.N[cond]
         if ct[0] != K.EQ:
-            raise K.CasError('expected initial conditions y(a)=b')
+            raise K.CasError('Expected initial conditions y(a)=b')
         lhs, rhs = K.N[ct[1]], ct[2]
         if lhs[0] != K.CALL or len(lhs) != 3 or K.N[lhs[1]][0] != K.SYM:
-            raise K.CasError('expected initial conditions y(a)=b')
+            raise K.CasError('Expected initial conditions y(a)=b')
         name = K.N[lhs[1]][1]
         base = K.N[y][1]
         if name.rstrip("'") != base or len(name) - len(base) > 2:
-            raise K.CasError('invalid initial condition')
+            raise K.CasError('Invalid initial condition')
         order = len(name) - len(base)
         if not K.free_of(lhs[2], x) or not K.free_of(rhs, x):
-            raise K.CasError('initial conditions must be constant')
+            raise K.CasError('Initial conditions must be constant')
         try:
             if explicit:
                 ev = value

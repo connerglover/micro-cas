@@ -144,7 +144,9 @@ def test_second_f5_is_help_for_the_command_at_the_caret():
     assert title(s.snap('help')) == 'Help'
     assert 'diff(x^3,x,2)' in ui(s).LINE
     s = KS.run('{2nd,f5}{snap:tips}{clear}')
-    assert 'F1-F4 menu tabs, F5 forms' in s.snap('tips')
+    assert 'F1-F4 menus, F5 next form' in s.snap('tips')
+    tips = s.snap('tips').splitlines()          # v1.0.1: quitting is 2nd MODE (MODE is Setup)
+    assert 'STO: store; 2nd MODE: quit' in tips and max(len(t) for t in tips) <= 31
 
 
 # -- F5 and < >: the answer's forms --------------------------------------------------------------

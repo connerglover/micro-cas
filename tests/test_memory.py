@@ -18,6 +18,6 @@ def test_repeated_mixed_commands_release_arena():
 def test_oversized_expansion_fails_cleanly_and_next_command_works():
     C.fresh()
     rec = R.go(('eval', 'expand((a+b+c+d+f+g)^20)'))
-    assert rec[0] == 'msg' and rec[1] in ('too large', 'expression too complex', 'Out of memory')
+    assert rec[0] == 'msg' and rec[1] in ('Too many terms', 'Expression too complex', 'Out of memory')
     assert K.NN == K.BASE and not R.LIVE
     assert C.answer('2+3') == '5'

@@ -12,7 +12,7 @@ import parse as P
 import run as R
 
 TDIV = 1000000      # integer trial division bound (11.2): a cofactor above it stays one base
-M_ARG = 'invalid argument'
+M_ARG = 'Invalid argument'
 COMPLETE = [1]
 
 

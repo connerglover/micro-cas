@@ -10,7 +10,7 @@ MAXREWRITE = 3
 SERORDER = 4
 NUMFIRST = 2
 NUMLAST = 8
-M_ARG = 'invalid argument'
+M_ARG = 'Invalid argument'
 
 
 def numeric(f, x, a, side):                                    #@L 3

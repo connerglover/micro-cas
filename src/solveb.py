@@ -48,7 +48,7 @@ def g_poly(cs):                                                 #@L 2
             t = K.N[c]
             v = t[1] if t[0] == K.NUM and not t[2] and t[3] == 1 else R.MODS['solvee'].nv(c)
             if v is None:
-                raise K.CasSoft('cannot solve')
+                raise K.CasSoft('Cannot solve')
             fs.append(v)
         for v in R.MODS['factd'].nroots(fs):
             ss.append(K.flt(v))
