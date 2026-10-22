@@ -44,7 +44,8 @@ MPREC = {'=>': 1, ':=': 1, '=': 3, '!=': 3, '<': 3, '<=': 3, '>': 3, '>=': 3, '+
 # parse.FNT: the functions the engine cuts out of a longer name (ysin( is y*sin(, kln( k*ln()
 MFNT = ('asinh', 'acosh', 'atanh', 'log10', 'sinh', 'cosh', 'tanh', 'asin', 'acos', 'atan',
         'sqrt', 'sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'exp', 'abs', 'log', 'ln')
-# Line segments (x1,y1,x2,y2 on a 0..10 grid), four bytes each: compact on the heap.
+# Line segments (x1,y1,x2,y2 on a 0..10 grid), four bytes each: compact on the heap. '|up' (the
+# earlier-history arrow, ui.redraw) has a name no token can have.
 GLYPHS = {
     'pi': b'\x00\x02\x0a\x02\x03\x02\x03\x0a\x08\x02\x08\x0a',
     'theta': b'\x02\x01\x08\x01\x08\x01\x09\x05\x09\x05\x08\x09\x08\x09\x02\x09\x02\x09\x01\x05\x01\x05\x02\x01\x01\x05\x09\x05',
@@ -60,7 +61,8 @@ GLYPHS = {
     '->': b'\x00\x05\x0a\x05\x0a\x05\x06\x02\x0a\x05\x06\x08',
     '<=': b'\x09\x00\x01\x04\x01\x04\x09\x08\x01\x0a\x09\x0a',
     '>=': b'\x01\x00\x09\x04\x09\x04\x01\x08\x01\x0a\x09\x0a',
-    '!=': b'\x00\x03\x0a\x03\x00\x07\x0a\x07\x08\x00\x02\x0a'}
+    '!=': b'\x00\x03\x0a\x03\x00\x07\x0a\x07\x08\x00\x02\x0a',
+    '|up': b'\x05\x00\x05\x0a\x05\x00\x01\x04\x05\x00\x09\x04'}
 
 
 # -- the screen ----------------------------------------------------------------------------------

@@ -171,7 +171,7 @@ cancel, then check that `2+3` still returns `5`.
 | 2nd F4 (`Setup`), MODE | Angle mode, session clearing, About |
 | 2nd F5 (`Help`) | Help for the command around the caret; ENTER inserts its example |
 | VARS | Ans, stored variables, and functions |
-| Up/down | Up from the edit line scrolls the history; in the history, up/down move between entries (2nd: 5 at a time) |
+| Up/down | Up from the edit line scrolls the history; in the history, up/down move between entries (2nd: 5 at a time). `Press up for earlier entries` at the top means older entries are hidden above |
 | Left/right in the history | Left highlights the input, right the answer; a wide answer scrolls first |
 | ENTER in the history | Copy the highlighted input or answer into the edit line at the caret |
 | CLEAR in the history | Delete the highlighted entry (input and answer); Ans and variables stay |

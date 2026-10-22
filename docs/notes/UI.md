@@ -99,7 +99,9 @@ wrapped as needed and without its `+ C`) and returns to the edit line; down
 past the newest entry leaves without copying; F5 acts on the selected entry.
 CLEAR (v1.0.1) deletes the selected entry, input and answer together, and
 selects the older one (the newer one when it was the oldest); when the history
-is empty it returns to the edit line. Ans and variables are kept. F2 entered and left the scroll before the F-key row of 0.13.
+is empty it returns to the edit line. Ans and variables are kept. While older
+entries are hidden above the page (v1.0.1), a gray up arrow and `Press up for
+earlier entries` sit at the top of the history area, in a row reserved only then. F2 entered and left the scroll before the F-key row of 0.13.
 
 ## Menus and forms
 
@@ -160,6 +162,7 @@ SUB, LINE, ACC and ACCSOFT.
 calculation chains, negative entry, recall, atomic Ans deletion, slots, history
 paste, assignment, forms, help, cancellation, quit, and history clearing;
 `tests/test_history_scroll.py` the history scroll mode and the status row;
+`tests/test_history_more.py` the earlier-history indicator;
 `tests/test_fkeys.py` every plain and 2nd F-key, the row's relabelling and repaint cost,
 and the math key's remembered tab.
 `tests/test_menu.py` covers relation selection, templates, vars, settings, help,

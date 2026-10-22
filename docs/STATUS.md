@@ -89,6 +89,17 @@ them as current.
   `cas-evo-v1.0.1.zip`, SHA-256
   `56252014b93109d5d075f55be0fe15e9feb5a5b6524be7cc4975e28717612b74`), `SHA256SUMS` and the
   Node installer tests (31).
+  Earlier-history indicator (user request, after 0b967ac): while older entries are hidden
+  above the history page, a stroked up arrow (`draw.GLYPHS['|up']`) and `Press up for
+  earlier entries` sit at rows 21..35 in SUB; an entry with older ones above stays below row
+  38, so the band is reserved only while entries are hidden (MATHPRINT.md §7.1). Full redraws
+  only; `tests/test_history_more.py` (6: long/short history, tall entries, scroll mode at
+  newest and oldest, CLEAR until it fits, no draws while typing). Lint, framelint, the
+  not-slow suite with `--strict-depth -n 4` (4,348 passed), `release.py`, `archive.py`
+  (188,953 B; CASUX 30,884 → 31,011 B), `tests/test_archive_release.py` (86) and cas32
+  startup/ui/ui_edit/ui_calculus (189,776 and 185,680) pass. README rewritten (short,
+  screenshot in `.github/assets/`). Not rerun after it: the bundled tier, the probe and cas64
+  native suites, `package_archive.mjs`/`archive_zip.py`.
   **Pending:** an EVO run of v1.0.1, and the user's merge and `v1.0.1` tag to deliver it
   (INSTALL.md ships in the ZIP).
 - **Hardware acceptance (user report, 2026-10-22).** The user ran the MathPrint

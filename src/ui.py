@@ -1198,7 +1198,8 @@ def redraw():                                                  #@L 2
         return
     # The history page (MATHPRINT.md 7.1, 7.2): entries stacked upwards from sb, the focused
     # one always shown. In MODE the page ends at VIEWEND; when SEL is above the page, a forward
-    # pass from SEL finds the new VIEWEND and the page is planned again from it.
+    # pass from SEL finds the new VIEWEND and the page is planned again from it. An entry with
+    # older ones above it stays below row 38: rows 21..35 keep the earlier-history indicator.
     plan = []
     span = 0
     d = -1
@@ -1212,6 +1213,7 @@ def redraw():                                                  #@L 2
         i = start
         while 0 <= i < n and len(plan) < PAGEMAX:
             f = hist[i]
+            lim = 38 if (i if d < 0 else start) else 21     # the top entry's limit
             inp = None
             try:
                 inp = D.mlayout(f[0], 1)
@@ -1235,7 +1237,7 @@ def redraw():                                                  #@L 2
                 ra = b[2]
                 cap = LISTH
                 if i == fi:         # the stage's height, less the input's when it goes under it
-                    cap = sb - 21
+                    cap = sb - lim
                     if iw + rw + 20 > VIEWW or b[3] > LISTH:
                         cap -= ih + 2
                     cap = max(15, min(HEROH, cap))
@@ -1258,12 +1260,12 @@ def redraw():                                                  #@L 2
                 it = 0
                 rt = ih + 2
             if d > 0:
-                if plan and used + h > sb - 21:
+                if plan and used + h > sb - lim:
                     break
                 used += h + 3
                 plan.append(i)
             else:
-                if plan and y - h < 21:
+                if plan and y - h < lim:
                     break
                 y -= h
                 plan.append((y, h, i, inp, it, b, lines, rt, rw, rh, iw, ih))
@@ -1325,6 +1327,9 @@ def redraw():                                                  #@L 2
         if p[6] is not None:
             for j in range(len(p[6])):
                 D.text(p[6][j], 310 - 10*len(p[6][j]), p[0] + p[7] + 17*j, None, clip)
+    if plan and plan[-1][2] and plan[-1][0] > 37:      # older entries hidden above (7.1)
+        D.glyph(('g', 0, 0, '|up', 9, 13), 5, 22, D.SCREEN)
+        D.text('Press up for earlier entries', 17, 21)
     D.text(left, 5, ey - 17)
     D.text(lab, lx, 2)
     if not n and 118 < ey - 21:

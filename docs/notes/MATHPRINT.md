@@ -1330,9 +1330,16 @@ D.mreduce 6`, the same depth as the old `redraw` chain.
 ### 7.1 Entry layout (full redraw only)
 
 The **focused** entry is `SEL` in MODE, else the newest. At most `PAGEMAX = 5` entries are
-shown, stacked upward from `SB` while `top ≥ 21`. The focused entry is always shown, even
+shown, stacked upward from `SB` while `top ≥ 21`, or `top ≥ 38` for an entry with older
+entries above it (v1.0.1): rows 21..35 then keep the **earlier-history indicator**, the
+stroked up arrow `draw.GLYPHS['|up']` at x 5 and `Press up for earlier entries` at x 17,
+row 21, in the SUB batch. It is drawn when the page's top entry is not the oldest and starts
+below row 37, so the band is reserved only while entries are hidden, in MODE too (at the
+oldest entry it goes away), and never overlaps an entry; a CLEAR that makes the history fit
+gives the rows back. Like the rest of the page it is painted only by a full redraw: typing
+never repaints it (`tests/test_history_more.py`). The focused entry is always shown, even
 when it is taller than the stage: its result view height is then cut to what fits
-(`min(92, SB - 21)`, less the input height + 2 only when the result goes under the input,
+(`min(92, SB - top)` with the limit above, less the input height + 2 only when the result goes under the input,
 at least 15) and it is clipped to rows 20..SB. (Review, §0.8: subtracting the input height
 for a one-row entry cut a 2/3 beside its input down to "2" when the entry box grew.)
 
