@@ -3,13 +3,15 @@
 import ui as U
 import draw as D
 
+CATEGORIES = ('A', 'C', 'T', 'SDVNF', 'ACTSDVNF')     # the category codes of menu.TABS
+ACTIONS = ('solve', 'factor', 'expand', 'simplify', 'partfrac', 'integrate', 'diff', 'limit', 'taylor')
+
 def entries(cat, tab, prefix):                                 #@L 3
     """The rows of tab whose name or insertion text starts with the find prefix: name matches
     first, then the others (su: Sum, then surd's Nth Root); the All tab sorted by name."""
-    R = U.R
     out = []
     more = []
-    categories = R.MODS['menu'].CATEGORIES[tab]
+    categories = CATEGORIES[tab]
     for row in cat:
         hit = False
         for code in row[4]:
@@ -30,13 +32,11 @@ def entries(cat, tab, prefix):                                 #@L 3
     return out + more
 
 
-
 def insertion(row):                                           #@L 3
-    R = U.R
     prefix = row[1]
     if '(' not in prefix:
         return (prefix, False, len(prefix))
-    act = prefix[:-1] in R.MODS['menu'].ACTIONS
+    act = prefix[:-1] in ACTIONS
     # MathPrint (MATHPRINT.md 3): a command with a template inserts the picker's text, every
     # box empty (diff(,), log(,), integrate(,,,), limit(,,,)); any other one its boxed count
     # from draw.ARGS (the required arguments and the optional ones worth filling, QPL Q4:
@@ -51,7 +51,6 @@ def insertion(row):                                           #@L 3
     if i >= 0:
         n = int(D.ARGS[i + len(prefix) + 2])
     return (prefix + ',' * (n - 1) + ')', act, len(prefix))
-
 
 
 def varrows():                                                 #@L 3

@@ -6,13 +6,7 @@ import ui as U
 import draw as D
 
 TABS = ('algebra', 'calculus', 'trig', 'more', 'all')
-CATEGORIES = ('A', 'C', 'T', 'SDVNF', 'ACTSDVNF')
-ACTIONS = ('solve', 'factor', 'expand', 'simplify', 'partfrac', 'integrate', 'diff', 'limit', 'taylor')
 TEST = ('=', '!=', '<', '<=', '>', '>=', '!')
-DIGITS = {92: 1, 93: 2, 94: 3, 82: 4, 83: 5, 84: 6, 72: 7, 73: 8, 74: 9}
-ALPHA = {41:'a',42:'b',43:'c',51:'d',52:'e',53:'f',54:'g',55:'h',61:'i',62:'j',
-         63:'k',64:'l',65:'m',71:'n',72:'o',73:'p',74:'q',75:'r',81:'s',82:'t',
-         83:'u',84:'v',85:'w',91:'x',92:'y',93:'z'}
 PAGE = 6
 TOP = 22            # first list row; rows are 17 px apart (one 15-row text cell and a gap)
 NOTE = 128          # the selected row's explanation: up to 3 lines
@@ -106,6 +100,8 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
             footer = 'ENTER paste example  CLEAR back' if helpentry is not None else 'CLEAR back'
         D.text(footer, 5, FOOT, C['ACC'])
         key = TS.wait_key()
+        d = U.kmap(U.PLAIN, key)        # a digit key: 1-9 (0 none), as the editor's keypad
+        d = int(d) if d is not None and d.isdigit() else 0
         if confirmation is not None:
             if key == 105:
                 if confirmation == 1:
@@ -130,15 +126,16 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
         if kind == 'test':
             if key in (24, 26, 25, 34):
                 selected = (selected + (1 if key in (26, 34) else -1)) % len(TEST)
-            elif key == 105 or key in DIGITS and DIGITS[key] <= len(TEST):
-                index = selected if key == 105 else DIGITS[key] - 1
+            elif key == 105 or 0 < d <= len(TEST):
+                index = selected if key == 105 else d - 1
                 return (TEST[index], False, len(TEST[index]))
             continue
         if kind in TABS and key == 31:
             alpha = 2 if alpha == 1 else 1
             continue
-        if kind in TABS and alpha and key in ALPHA:
-            prefix += ALPHA[key]
+        t = U.kmap(U.ALPHA, key) if kind in TABS and alpha else None
+        if t is not None and len(t) == 1 and t.isalpha():  # a letter (theta, space, ' are not)
+            prefix += t
             selected = 0
             alpha = 0 if alpha == 1 else alpha
             continue
@@ -149,9 +146,9 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
         elif key in (24, 26) and kind in TABS:
             tab = (tab + (1 if key == 26 else -1)) % len(TABS)
             prefix, selected = '', 0
-        elif key == 105 or key in DIGITS or kind == 'setup' and key in (24, 26) and not selected:
-            if key in DIGITS:
-                selected = selected // PAGE * PAGE + DIGITS[key] - 1
+        elif key == 105 or d or kind == 'setup' and key in (24, 26) and not selected:
+            if d:
+                selected = selected // PAGE * PAGE + d - 1
             if selected >= len(rows):
                 selected = max(0, len(rows)-1)
                 continue
