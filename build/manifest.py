@@ -40,13 +40,13 @@ MODULES = (
     ('ui',        'CVUI',      'R',   1400,      37),   # + the MathPrint editor and screen (MATHPRINT.md 2-7)
     # lazy (L) and lazy UI (U) modules and parts, DESIGN 4.1 and 4.3
     ('rules',     'CVRULE',    'L',   150,       4),
-    ('rulesb',    'CVRULEB',   'L',   149,       4),
+    ('rulesb',    'CVRULEB',   'L',   147,       4),
     ('poly',      'CVPOLY',    'L',   149,       3),
     ('polyb',     'CVPOLYB',   'L',   129,       3),
     ('polyc',     'CVPOLYC',   'L',   138,       3),
     ('norm',      'CVNORM',    'L',   150,       4),
-    ('normc',     'CVNORMC',   'L',   137,       4),
-    ('normb',     'CVNORMB',   'L',   145,       4),
+    ('normc',     'CVNORMC',   'L',   135,       4),
+    ('normb',     'CVNORMB',   'L',   141,       4),
     ('ident',     'CVIDENT',   'L',   80,        5),
     ('factor',    'CVFACT',    'L',   145,       4),
     ('factorb',   'CVFACTB',   'L',   141,       3),
