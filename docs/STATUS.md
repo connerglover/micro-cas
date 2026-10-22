@@ -7,6 +7,40 @@ them as current.
 
 ## Current delivery
 
+- **v1.0.1 merged to `main` (2026-10-22).** `origin/main` is 880db52 (the v1.0.1 final
+  acceptance below). `git ls-remote` shows a remote annotated tag `v1.0.1` naming 880db52;
+  its tag run and Release asset (`cas-evo-v1.0.1.zip`) were not checked from this clone, so
+  the tag and its delivery remain the user's step to confirm. No EVO run of v1.0.1 is recorded.
+- **v1.0.2 on `mathprint`: the product is named MicroCAS (user decision, 2026-10-22; local,
+  not pushed or tagged).** MicroCAS is the name inside the code and on every screen,
+  page and document a user or reader sees; the GitHub repository stays **cas-evo** (its URLs,
+  `connerglover/cas-evo`, the publisher's generator path) and the Cloudflare Worker stays
+  `cas`. The RAM launcher stays **CAS** (`CAS.8xpy2`) and the pack names (CASUI, CASUX,
+  CASK1, ...) are unchanged. Changed: Setup row `About MicroCAS` and the About screen
+  `MicroCAS 1.0.2 / TI-84 EVO`; `VERSION` 1.0.2 (`release.json`/`archive.json` `release`);
+  the download `dist/microcas-calculator.zip` (Release asset `microcas-<tag>.zip`, CI
+  artifacts `microcas-calculator` and `microcas-web-installer`, build input
+  `dist/microcas-packs.zip`); the installer site (title, headings, copy, messages, licenses
+  page; the help says earlier versions released as cas-evo are recognized); README,
+  INSTALL.md (names the former cas-evo files), AGENTS.md, PRODUCT.md, root and engine
+  DESIGN.md, HOSTING.md, PACKAGING.md, UI.md and device-python.md. Kept: the internal
+  module `casevo` (entry source `src/casevo.py`, `manifest.ENTRY`), the legacy device
+  name `CASEVO` and the `website/legacy-*.json` records (file names and hashes of earlier
+  releases, so the installer still recognizes and replaces them), the transport's
+  `/casevo-*` scratch paths, `CAS_EVO_*` test variables, `website/package.json`'s package
+  name, probe sources and dated historical notes. `build/release.py` still removes a stale
+  `cas-evo-packs.zip` and `build/website.py` a stale `cas-evo-calculator.zip`.
+  **Host and native evidence** (not hardware): lint, framelint, the not-slow suite with
+  `--strict-depth -n 4` (4,350 passed), `release.py`, `archive.py` with the pinned v1.12
+  `mpy-cross` (22 files, 188,955 B; only the About texts changed),
+  `tests/test_archive_release.py` (86), cas32 startup 95,000 (21,840 B free), `ui` and
+  `ui_edit` 173,360, `ui_calculus` 189,776 and 185,680, probe 212,000 (55/55), cas64
+  500,000 (all suites, 55/55), `package_archive.mjs` (22 objects, 191,263 B),
+  `archive_zip.py` (`microcas-calculator.zip`, 136,945 B), and the Node installer tests
+  (31). `build/website.py` could not finish here: fetching the WebTILP source archive got
+  HTTP 403 from this session's proxy, so `check_pages.py` on a full site was not run (its
+  unit tests pass). **Pending:** the user's merge and `v1.0.2` tag (INSTALL.md ships in the
+  ZIP), the tag run's `microcas-v1.0.2.zip` asset and pages update, and an EVO run.
 - **v1.0.0 accepted on the user's EVO (user report, 2026-10-22).** The user merged
   `mathprint` into `main`, tagged `v1.0.0` and reported that it works on their TI-84 EVO,
   F-key row included. The remote tag `v1.0.0` is annotated and names 22b0464 (the F-key row

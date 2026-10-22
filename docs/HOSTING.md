@@ -23,15 +23,15 @@ To release, set `VERSION` in `build/manifest.py` (and the About text in
 `src/menu.py`, which a test keeps equal), commit on main, then tag and push:
 
 ```text
-git tag -a v1.0.0 -m "cas-evo 1.0.0"
-git push origin v1.0.0
+git tag -a v1.0.2 -m "MicroCAS 1.0.2"
+git push origin v1.0.2
 ```
 
 A tag run builds and tests everything, then:
 
 - **Attach the calculator ZIP**: creates the GitHub Release for the tag if it
   does not exist yet (or uses the one created in the UI) and uploads
-  `dist/cas-evo-calculator.zip` as `cas-evo-<tag>.zip` (`--clobber` replaces a
+  `dist/microcas-calculator.zip` as `microcas-<tag>.zip` (`--clobber` replaces a
   previous upload). Only this job and the publish job have contents-write
   permission, from GitHub's built-in token.
 - **Update website deployment branch**: updates pages with the exact installer
@@ -40,7 +40,7 @@ A tag run builds and tests everything, then:
 Creating the release in the GitHub UI with a new tag also works: the
 `release: published` event builds and attaches the ZIP. When a tag push and its
 Release both start a run, the runs for one tag queue (a concurrency group per
-tag). A Release run that finds `cas-evo-<tag>.zip` already attached skips the
+tag). A Release run that finds `microcas-<tag>.zip` already attached skips the
 build; a tag-push run that comes second builds again and replaces the ZIP
 (`--clobber`), which is harmless. A Release published for a tag that does not
 start with `v` builds nothing. A Release created by the workflow's own token
@@ -89,7 +89,8 @@ not enable GitHub Pages. See [STATUS.md](STATUS.md) for what has actually been v
 
 - Check GitHub's **Build calculator app** run for the tag. The build,
   **Attach the calculator ZIP** and **Update website deployment branch** jobs
-  should succeed, and the Release should list `cas-evo-<tag>.zip`.
+  should succeed, and the Release should list `microcas-<tag>.zip`
+  (releases before v1.0.2 list `cas-evo-<tag>.zip`).
   `pages/deployment.json` records the source commit, tag and run URL. Then check
   the Worker build in Cloudflare.
 - To retry, rerun the tag's workflow run (or **Run workflow** on the tag). If the

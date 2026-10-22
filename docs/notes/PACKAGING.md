@@ -151,7 +151,7 @@ heap remain device checks.
    identifiers. The release sizes every pack with mpy-cross, writes the loader
    tables, checks `PACKMAX`, and writes the pack sources (`CAS*.py`),
    the launcher `CAS.py`, `release.json`, `SHA256SUMS`, `INSTALL.md` and the
-   build input `dist/cas-evo-packs.zip`. The developer probe goes to
+   build input `dist/microcas-packs.zip`. The developer probe goes to
    `dist/dev/CVTEST.py` (recorded under `release.json` `devtools`): the native
    `startup` and `probe` suites run it, and no package contains it.
 2. `build/check_release.py` (with `tests/test_release.py`) runs the packed
@@ -160,7 +160,7 @@ heap remain device checks.
 3. `build/archive.py` compiles the packs; the launcher stays source.
 4. `build/package_archive.mjs` converts every object with pinned TIVarsLib into
    the EVO container and reads it back to verify name, type and payload bytes.
-5. `build/archive_zip.py` writes `cas-evo-calculator.zip`: the 22 EVO objects,
+5. `build/archive_zip.py` writes `microcas-calculator.zip`: the 22 EVO objects,
    `archive.json`, `INSTALL.md` and `SHA256SUMS`.
 
 ### Compiler and ABI

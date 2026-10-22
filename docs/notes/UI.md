@@ -1,8 +1,9 @@
 # UI implementation reference
 
 The editable implementation is `src/casevo.py`, `ui.py`, `draw.py`, `menu.py`,
-`menub.py`, `catalog.py`, and `forms.py`. Release packaging embeds the application
-in a single minified `CASEVO.py`; users transfer that generated file. See
+`menub.py`, `catalog.py`, and `forms.py` (MicroCAS; the product was called cas-evo
+before 1.0.2). Release packaging merges them into compiled library packs and the
+RAM launcher `CAS` ([FASTBOOT.md](FASTBOOT.md)). See
 [installation and device acceptance](../INSTALL.md).
 
 ## Screens and control flow

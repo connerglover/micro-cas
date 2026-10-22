@@ -1,4 +1,4 @@
-# Agent guide for cas-evo
+# Agent guide for MicroCAS (repository cas-evo)
 
 This is the shared operating guide for coding agents in this repository.
 `CLAUDE.md` points here; maintain instructions in this file only. Current user
@@ -6,9 +6,10 @@ instructions take precedence over repository defaults.
 
 ## Purpose and priorities
 
-cas-evo is a Python computer algebra system for the **TI-84 EVO**. It provides
-exact algebra, calculus, series, sums, differential equations, geometric
-integrals, and a calculator editor with textbook-style answers. Preserve the
+MicroCAS is a Python computer algebra system for the **TI-84 EVO**. The
+repository keeps its original name, cas-evo, which releases before 1.0.2 also
+used. It provides exact algebra, calculus, series, sums, differential equations,
+geometric integrals, and a calculator editor with textbook-style answers. Preserve the
 complete T1/T2/T3/UI feature set when fixing compatibility or memory problems.
 Multiple calculator files are intentional and authorized. Graphing is outside
 the current scope.
@@ -95,7 +96,7 @@ Desktop build scripts can use the modern Python version pinned in CI.
   storage and roughly 500 KB user RAM do not imply a 500 KB Python heap. PROBE3
   measured **185,296 bytes free at program start**; **173,360 bytes** were free
   after a probe imported `ti_plotlib`, `ti_graphics`, `ti_image` and more, which
-  cas-evo does not import. Native tests use these values as total heaps, with a
+  MicroCAS does not import. Native tests use these values as total heaps, with a
   `ti_draw` stub rather than an EVO emulator; `build.yml` names the heap of each
   suite.
 - Draw only through `ti_draw`, with the device semantics recorded in
@@ -114,8 +115,8 @@ Desktop build scripts can use the modern Python version pinned in CI.
 
 ## Calculator build and installation contract
 
-The user download is **`dist/cas-evo-calculator.zip`** (CI artifact
-`cas-evo-v1`; on a GitHub Release `cas-evo-<tag>.zip`; the release version is
+The user download is **`dist/microcas-calculator.zip`** (CI artifact
+`microcas-calculator`; on a GitHub Release `microcas-<tag>.zip`; the release version is
 `build/manifest.py` `VERSION`, recorded in `release.json` and `archive.json`). Its format is **packs-v1**
 ([docs/notes/FASTBOOT.md](docs/notes/FASTBOOT.md)): **21 compiled `.8mp2`
 packs for Archive** and the **`CAS.8xpy2` launcher for RAM**, 22 files. The
@@ -134,7 +135,7 @@ The build has distinct stages:
    placement, renames, lazy aliases) and `build/shrink.py` (identifier
    shortening). It writes the loader tables into the run pack, checks pack sizes
    with mpy-cross, and outputs the pack sources, the launcher, `release.json`,
-   `SHA256SUMS`, `INSTALL.md` and the intermediate `dist/cas-evo-packs.zip`.
+   `SHA256SUMS`, `INSTALL.md` and the intermediate `dist/microcas-packs.zip`.
    It also writes the developer diagnostic probe `dist/dev/CVTEST.py` (shrunk
    with the same mapping, recorded under `release.json` `devtools`) for the
    native CI checks; it never ships to the calculator.
@@ -231,8 +232,9 @@ Artifact-dependent skips before packaging do not establish artifact acceptance.
   telemetry is required for installation. Desktop Chrome/Edge are the target.
 - Validate all transfer-object hashes before device access. Install compiled
   libraries to Archive before the RAM launcher, then verify their types/locations.
-  Delete or replace an earlier cas-evo file only when its decoded contents match
-  a recorded release (`website/legacy-*.json`, built by `build/legacy_manifest.mjs`
+  Delete or replace an earlier MicroCAS (or cas-evo) file only when its decoded
+  contents match a recorded release (`website/legacy-*.json`, built by
+  `build/legacy_manifest.mjs`
   from the published v1 and packs-v1 packages and the delivered MathPrint test
   ZIPs) or the current package. Keep and
   list modified or unreadable files, and leave unrelated calculator content alone.
@@ -255,8 +257,8 @@ Artifact-dependent skips before packaging do not establish artifact acceptance.
 `main` owns source. The build workflow runs only for pushed `v*` tags, GitHub
 Releases published for `v*` tags and manual dispatch, not for ordinary pushes or pull requests, so
 run the local acceptance commands before committing. A successful tag run
-attaches `cas-evo-<tag>.zip` to the tag's GitHub Release (creating it if
-missing) and updates `pages` with the exact `cas-evo-web-installer` artifact;
+attaches `microcas-<tag>.zip` to the tag's GitHub Release (creating it if
+missing) and updates `pages` with the exact `microcas-web-installer` artifact;
 only those two jobs get contents-write permission from the built-in token, and a
 Release created by that token starts no run. The publisher requires the tag to
 still name the built commit and never replaces a newer release on pages.

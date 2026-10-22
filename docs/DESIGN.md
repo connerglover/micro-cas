@@ -1,4 +1,4 @@
-# cas-evo design
+# MicroCAS design
 
 **Status:** the authoritative design for implementers, version 1.1, 2026-10-10. Version 1.1 applies
 the first design review; the [Design review log](#design-review-log) records what changed and what
@@ -87,7 +87,7 @@ otherwise.
 
 ## 1. Overview and goals
 
-cas-evo is a computer algebra system for the TI-84 EVO, written in the calculator's Python. It is a
+MicroCAS is a computer algebra system for the TI-84 EVO, written in the calculator's Python. It is a
 spiritual port of FlowCE, the giac-based CAS flash app for the TI-84 Plus CE. FlowCE is the model
 for features, input habits and textbook-style answers. giac is an algorithm reference only, and none
 of its code ships.
@@ -183,7 +183,7 @@ The full detail is in `device-python.md`. This summary lists what drives the des
 | `math` domain errors may return nan instead of raising; float overflow gives inf without raising | A (PROBE6 `math`) | `nrun` checks every value for nan and inf whatever the probe shows (§6.6) |
 | `sys.version` is 3.4.0 (MicroPython family). No f-strings. `eval`/`exec` work. | V | The subset lint (§20.3). `%`-formatting only. |
 | No `math.gcd/isqrt/log10`, `int.bit_length`, `functools`, `itertools`, `re`, `fractions`, `cmath`, `decimal` | V/A | We write our own: gcd loops, Newton isqrt, complex helpers, a decimal formatter. |
-| About 185 KB free at program start (PROBE3: 185,296 B); 173 KB after a probe imported `ti_plotlib`, `ti_graphics`, `ti_image` and more, which cas-evo does not import. Bytecode, compile transients, qstrs and data all share this heap. | V | Resident code about 58 KB. Lazy families, eviction, regions, node caps (§18). |
+| About 185 KB free at program start (PROBE3: 185,296 B); 173 KB after a probe imported `ti_plotlib`, `ti_graphics`, `ti_image` and more, which MicroCAS does not import. Bytecode, compile transients, qstrs and data all share this heap. | V | Resident code about 58 KB. Lazy families, eviction, regions, node caps (§18). |
 | The GC is non-moving and mark-sweep | A | Allocate long-lived buffers early. No large dict growth (the intern table is our own). |
 | Module names are `[A-Z][A-Z0-9]{0,7}`, in a flat namespace. User modules can import each other. A program runs as `from NAME import *`. | V | `CAS` plus `CVxxxxxx`. No `__main__` guard. The entry body is depth 0. |
 | A 20k-iteration loop takes 0.066 s (about 3.3 µs per simple iteration) | V | Step budgets on every search. Numeric pre-checks before exact work. |
@@ -1111,7 +1111,7 @@ This is an exact port of cat §5.6.
   `y''` and `u` on a line containing `desolve`. So `y'(0)=0` is the condition `CALL(y', 0) = 0`,
   not `y'*(0)`.
 - **`*` is the only thing inserted,** so the pass is idempotent.
-- **cas-evo addition (D9):** the 1-letter alias `d` is FUNCTION only when it is not a stored
+- **MicroCAS addition (D9):** the 1-letter alias `d` is FUNCTION only when it is not a stored
   variable and its argument list has a top-level comma. So `d(x^2,x)` is a derivative and `d(x+1)`
   is `d*(x+1)`.
 

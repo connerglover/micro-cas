@@ -1,6 +1,6 @@
 <div align="center">
 
-  # cas-evo
+  # MicroCAS
 
   <b>A computer algebra system with a textbook-style editor for the TI-84 EVO.</b>
 
@@ -10,7 +10,7 @@
     <img src="https://img.shields.io/badge/Python-3.4%20subset-245cd0?style=flat-square" alt="Python 3.4 subset" />
   </p>
 
-  <img src=".github/assets/screenshot.png" width="480" alt="cas-evo on the TI-84 EVO screen" />
+  <img src=".github/assets/screenshot.png" width="480" alt="MicroCAS on the TI-84 EVO screen" />
 </div>
 
 ## ✨ Features
@@ -25,9 +25,9 @@
 
 ## 📦 Installation
 
-1. Download `cas-evo-<tag>.zip` from the latest GitHub Release and extract it.
+1. Download `microcas-<tag>.zip` from the latest GitHub Release and extract it.
 2. With [WebTILP](https://adriweb.github.io/tilibs/), send every `.8mp2` file to **Archive** and `CAS.8xpy2` to **RAM**.
-   Or use the browser installer: download `cas-evo-web-installer` from the release's
+   Or use the browser installer: download `microcas-web-installer` from the release's
    **Build calculator app** run and run `python serve_installer.py --directory website`.
 3. Open the **Python** app and run **CAS**.
 
@@ -57,14 +57,15 @@ python -m pytest -q -m "not slow" --strict-depth
 python build/release.py
 python build/archive.py --mpy-cross /path/to/pinned-v1.12/mpy-cross
 node build/package_archive.mjs
-python build/archive_zip.py        # dist/cas-evo-calculator.zip
+python build/archive_zip.py        # dist/microcas-calculator.zip
 ```
 
 Pushing a `v*` tag runs the [build workflow](.github/workflows/build.yml), which tests the
-compiled packs on native MicroPython and attaches `cas-evo-<tag>.zip` to the tag's Release.
+compiled packs on native MicroPython and attaches `microcas-<tag>.zip` to the tag's Release.
 
 ## 🤝 Contributing
 
 Read [AGENTS.md](AGENTS.md) first: device code targets the calculator's Python 3.4 subset with
 bounded call depth and heap. [docs/DESIGN.md](docs/DESIGN.md) describes the engine and
-[docs/STATUS.md](docs/STATUS.md) records verified results and open checks.
+[docs/STATUS.md](docs/STATUS.md) records verified results and open checks. The repository keeps
+its original name, cas-evo; releases before 1.0.2 were published under that name.
