@@ -11,7 +11,7 @@ const fromHex = text => {
 
 // Decode an EVO Python object with the pinned TIVarsLib and fingerprint what the
 // calculator stores: the compiled module body, or the source text of a script.
-// The installer and build/legacy_manifest.mjs share this definition.
+// build/legacy_manifest.mjs records earlier releases with this definition.
 export async function describePythonObject(converter, bytes) {
   const path = '/casevo-object.8xpy2';
   converter.FS.writeFile(path, bytes);
@@ -38,10 +38,9 @@ export async function describePythonObject(converter, bytes) {
 }
 
 export class WebTilpTransport {
-  constructor({ factory = globalThis.TILibsModule, converterFactory,
+  constructor({ factory = globalThis.TILibsModule,
     log = () => {}, gap = 100, timeout = 90000 } = {}) {
     this.factory = factory;
-    this.converterFactory = converterFactory || (() => import('./vendor/TIVarsLib.js').then(m => m.default()));
     this.log = log;
     this.gap = gap;
     this.timeout = timeout;
@@ -127,32 +126,6 @@ export class WebTilpTransport {
     try {
       return JSON.parse(this.module.FS.readFile(path, { encoding: 'utf8' }));
     } finally { this.module.FS.unlink(path); }
-  }
-
-  async describe(bytes) {
-    this.converter ||= await this.converterFactory();
-    return describePythonObject(this.converter, bytes);
-  }
-
-  // Read one listed Python object back and fingerprint it. Returns null when
-  // the object is not a readable Python module or script.
-  async inspect(entry) {
-    if (!this.connected) throw new Error('The calculator disconnected. Reconnect and install again.');
-    const dir = '/casevo-old';
-    if (!this.module.FS.analyzePath(dir).exists) this.module.FS.mkdir(dir);
-    this.check(await this.call('calc_recv_var', 'number',
-      ['number', 'string', 'string', 'number', 'string'],
-      [this.handle, '', entry.name, entry.type, dir]), `Reading ${entry.name}`);
-    const path = this.module.FS.readFile('/last_recv_path.txt', { encoding: 'utf8' }).trim();
-    if (!path.startsWith(dir + '/') || path.includes('..')) throw new Error('The calculator returned an invalid file path. Reconnect and try again.');
-    try {
-      return await this.describe(this.module.FS.readFile(path));
-    } catch {
-      return null;
-    } finally {
-      // Each received copy is removed so a stale path can never be read twice.
-      if (!this.dead && this.module.FS.analyzePath(path).exists) this.module.FS.unlink(path);
-    }
   }
 
   // WebTILP: int calc_del_var(CableHandle*, const char* folder, const char* name, uint8_t type).

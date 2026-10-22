@@ -15,5 +15,5 @@ The converter is also used by the automatic calculator build. Every source or
 bytecode payload is converted, read back, and compared byte-for-byte, including
 the embedded module name and the PythonScript/PythonModule type.
 
-cas-evo's browser code uses the unmodified runtime through its public C exports.
-No dependency supplies claims of cas-evo hardware acceptance.
+MicroCAS's browser code uses the unmodified runtime through its public C exports.
+No dependency supplies claims of MicroCAS hardware acceptance.
