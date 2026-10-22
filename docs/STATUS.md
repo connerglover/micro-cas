@@ -30,14 +30,19 @@ them as current.
   `/casevo-*` scratch paths, `CAS_EVO_*` test variables, `website/package.json`'s package
   name, probe sources and dated historical notes. `build/release.py` still removes a stale
   `cas-evo-packs.zip` and `build/website.py` a stale `cas-evo-calculator.zip`.
-  **Host and native evidence** (not hardware): lint, framelint, the not-slow suite with
-  `--strict-depth -n 4` (4,350 passed), `release.py`, `archive.py` with the pinned v1.12
-  `mpy-cross` (22 files, 188,955 B; only the About texts changed),
-  `tests/test_archive_release.py` (86), cas32 startup 95,000 (21,840 B free), `ui` and
-  `ui_edit` 173,360, `ui_calculus` 189,776 and 185,680, probe 212,000 (55/55), cas64
-  500,000 (all suites, 55/55), `package_archive.mjs` (22 objects, 191,263 B),
-  `archive_zip.py` (`microcas-calculator.zip`, 136,945 B), and the Node installer tests
-  (31). `build/website.py` could not finish here: fetching the WebTILP source archive got
+  **Host and native evidence** (final acceptance 2026-10-22; not hardware): lint,
+  framelint, the not-slow suite with `--strict-depth -n 4` (4,350 passed), `release.py`
+  (launcher `CAS.py` 512 B), `transfer.py` on `CAS.py` and `dev/CVTEST.py` (5,533 B), the
+  same suite `--bundled` (4,350 passed), `check_release.py` (packaged self-test, strict depth
+  8/8), `archive.py` with the pinned v1.12 `mpy-cross` (22 files, 188,955 B; only the About
+  texts changed), `tests/test_archive_release.py` (86), cas32 startup 95,000 (21,840 B
+  free), `ui` 173,360 (60,672 B free after shedding idle packs), `ui_edit` 173,360
+  (57,712), `ui_calculus` 189,776 (74,960) and 185,680 (70,928), probe 212,000 (55/55,
+  63,376 final), cas64 500,000 (all suites, 55/55, 267,072 final), `package_archive.mjs`
+  (22 objects, 191,263 B), `archive_zip.py` (`microcas-calculator.zip`, 25 entries,
+  136,945 B, reproducible), `sha256sum --check SHA256SUMS` and the Node installer tests
+  (31). The calculator ZIP was copied to `dist/microcas-v1.0.2.zip`, SHA-256
+  `8a26acc166c0ff9176fc2bdcfcda32e4c6738de124059bbef227145ae7a25081`. `build/website.py` could not finish here: fetching the WebTILP source archive got
   HTTP 403 from this session's proxy, so `check_pages.py` on a full site was not run (its
   unit tests pass). **Pending:** the user's merge and `v1.0.2` tag (INSTALL.md ships in the
   ZIP), the tag run's `microcas-v1.0.2.zip` asset and pages update, and an EVO run.
