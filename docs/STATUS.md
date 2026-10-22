@@ -44,6 +44,30 @@ them as current.
   was out of Actions minutes) and an EVO run of the changes made after the
   accepted 678d16d build (status-row form label, history selection and copy,
   theme and Classic removal).
+- **v1.0.0 F-key row (on `mathprint` after the `v1.0.0` tag; 2026-10-22).** The
+  user's approved design (MATHPRINT.md §0.13): the plain row reads `Alg Calc Trig
+  More Forms` (F1-F4 open the menu on the Algebra, Calculus, Trig and More tabs;
+  F5 cycles the focused or selected answer's forms, as < >, and does nothing
+  without an answer); while the 2nd chip is lit it reads `All Tmpl Test Setup
+  Help` (All tab, template picker, TEST picker, Setup, help for the command at
+  the caret), repainted only when the layer changes. MATH opens the tab used
+  last (Algebra at first, tabs switched inside the menu count); 2nd MATH, VARS,
+  MODE and 2nd 0 are unchanged. The `hist` tab is gone: up scrolls the history,
+  CLEAR or down past the newest entry leaves it. INSTALL.md (which ships in the
+  ZIP), DESIGN.md §16, notes/UI.md and MATHPRINT.md are updated. **Host and
+  native evidence** (not hardware): lint, framelint, the new
+  `tests/test_fkeys.py`, the not-slow suite in source and bundled tiers (4,299
+  passed bundled; source 4,298 plus the host-timing guard
+  `test_dense_line_host_time_guard`, which failed once under `-n 6` load and
+  passes alone), `build/release.py`, `build/transfer.py`, `build/archive.py`
+  with the v1.12 `mpy-cross`, and every cas32/cas64 native heap of `build.yml`.
+  Estimates CASUX ~29,031 → ~29,218 B, CASUI ~3,417 → ~3,388 B; compiled
+  CASUX 30,998 → 31,218 B, CASUI 3,515 → 3,490 B, CASMNU 8,696 → 8,732 B,
+  archive 205,799 → 206,030 B; native cas32 `ui` boot heap 121,104 → 120,848 B
+  free, result after shedding 59,136 → 58,208 B, `ui_calculus` (185,680) 69,184
+  → 68,464 B, `ui_edit` 55,968 → 55,376 B. **Pending:** an EVO run of the
+  F-key row, and a new release tag to deliver it (and the updated INSTALL.md)
+  to users; nothing is pushed or tagged.
 - **packs-v1 is merged into local `main`**: `perf/fast-boot` was fast-forwarded
   from 177779f through the verified fixes at **1e06608**, as requested on
   2026-10-12. It is not pushed and CI has not run on it. Remote main remains

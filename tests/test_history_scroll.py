@@ -1,6 +1,6 @@
 """v1.0.0: history scrolling and the status row (docs/notes/MATHPRINT.md 7.2, 7.3, 6.1).
 
-F2 (and UP from the entry) enters the history page's scroll mode (MODE), as on the TI-Nspire
+UP from the entry enters the history page's scroll mode (MODE), as on the TI-Nspire
 CX II CAS: UP/DOWN move between entries, LEFT selects the input (left column), RIGHT the output
 (right column), with the band behind the chosen cell only; ENTER copies the selected cell into
 the entry at the caret and the editor is active again. An output wider than the view scrolls
@@ -11,7 +11,7 @@ hides it until the message clears.
 import keyscript as KS
 import ti_draw as TD
 
-SECOND, LEFT, UP, RIGHT, DOWN, ENTER, CLEAR, F2, F4 = 21, 24, 25, 26, 34, 105, 45, 12, 14
+SECOND, LEFT, UP, RIGHT, DOWN, ENTER, CLEAR = 21, 24, 25, 26, 34, 105, 45
 WIDE = 'expand((x+1)^12){enter}'
 
 
@@ -32,20 +32,20 @@ def band(s):
     return out
 
 
-# -- F2 and UP enter the scroll mode -----------------------------------------------------------
+# -- UP enters the scroll mode (F2 is the Calculus tab since the F-key row of 0.13) ------------
 
-def test_f2_enters_history_scroll_on_the_last_output():
-    s = KS.run('1+1{enter}2+3{enter}{f2}')
+def test_up_enters_history_scroll_on_the_last_output():
+    s = KS.run('1+1{enter}2+3{enter}{up}')
     u = ui(s)
     assert u.MODE == 1 and u.SEL == 1 and u.SELC == 1
-    s = KS.run('1+1{enter}2+3{enter}{f2}{f2}')
-    assert ui(s).MODE == 0                                  # F2 again leaves it, like CLEAR
-    s = KS.run('1+1{enter}{f2}{clear}')
+    s = KS.run('1+1{enter}2+3{enter}{up}{down}')
+    assert ui(s).MODE == 0                                  # DOWN past the last leaves it
+    s = KS.run('1+1{enter}{up}{clear}')
     assert ui(s).MODE == 0 and ui(s).LINE == ''
 
 
-def test_f2_without_history_is_engine_free_and_opens_no_menu():
-    s = KS.run('{f2}')
+def test_up_without_history_is_engine_free_and_opens_no_menu():
+    s = KS.run('{up}')
     assert 'run' not in s.mods and 'menu' not in s.mods
     assert ui(s).MODE == 0 and 'Recall' not in s.screen
 
@@ -55,11 +55,11 @@ def test_up_from_the_entry_selects_the_last_output():
     assert ui(s).MODE == 1 and ui(s).SELC == 1
 
 
-def test_f2_tab_is_labelled_hist():
+def test_tabs_are_the_catalog_tabs_and_forms():
     s = KS.run('')
-    assert 'recall' not in s.screen
+    assert 'recall' not in s.screen and 'hist' not in s.screen
     tabs = [t for t in s.texts if t[1] == 193]
-    assert [t[2] for t in sorted(tabs)] == ['menu', 'hist', 'setup', 'forms', 'help']
+    assert [t[2] for t in sorted(tabs)] == ['Alg', 'Calc', 'Trig', 'More', 'Forms']
 
 
 def test_vars_key_lists_variables_without_history():
@@ -121,7 +121,7 @@ def test_2nd_up_and_down_take_five_steps_and_forms_act_on_the_selection():
     s = KS.run(''.join('sqrt(%d){enter}' % j for j in (2, 3, 5, 6, 7, 8, 10)) +
                '{up}{2nd,up}')
     assert ui(s).SEL == 1
-    s = KS.run('sqrt(2){enter}sqrt(3){enter}{up}{up}{f4}')
+    s = KS.run('sqrt(2){enter}sqrt(3){enter}{up}{up}{f5}')
     assert s.hist[0][5][-1][0] == 'decimal' and not s.hist[1][5]
     assert ui(s).MODE == 1 and ui(s).SEL == 0
 
@@ -186,7 +186,7 @@ def test_form_label_is_at_the_top_right_without_f4():
     lab = [t for t in s.texts if t[2] == 'exact']
     assert lab and lab[0][1] == 2 and lab[0][0] == 315 - 50
     assert '~ 1.414213562' in s.screen                      # the decimal stays in the footer
-    s = KS.run('sqrt(2){enter}{f4}')
+    s = KS.run('sqrt(2){enter}{f5}')
     lab = [t for t in s.texts if t[2] == 'decimal']
     assert lab and lab[0][1] == 2 and lab[0][0] == 315 - 70
 

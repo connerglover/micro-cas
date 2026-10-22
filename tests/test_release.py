@@ -374,8 +374,9 @@ def test_first_enter_loads_the_engine_once(release_module):
     ('2+3{enter}*2{enter}', '10'),
     ('2+3{enter}{2nd,enter}{enter}', '5'),
     ('x+1{f1}{down}{enter}{enter}', 'x+1'),
-    ('sqrt(2){enter}{f4}{f3}{enter}{clear}', '1.4142135623731'),
-    ('2/3{enter}{f2}{enter}{enter}', '2/3'),
+    ('sqrt(2){enter}{f5}{mode}{enter}{clear}', '1.4142135623731'),
+    ('2/3{enter}{up}{enter}{enter}', '2/3'),
+    ('{2nd,f2}{down}{down}{enter}4{right}{enter}', '2'),     # 2nd F2: the template picker
     ('expand((x+y)^20){enter}{clear@1}2+3{enter}', '5'),
     # the MathPrint editor in the packs (docs/notes/MATHPRINT.md 2-4, 8): the picker, the
     # fraction and power keys, DEL unwrapping a fraction, and copying a history input

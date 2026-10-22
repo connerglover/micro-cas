@@ -50,6 +50,8 @@ EFAIL = None        # the LINE a panic (reason 0 or 3) ran on: edited flat until
 VIEWEND = -1        # the bottom history entry shown in MODE
 STATVIEW = None     # what the status row last showed (repainted only when it changes)
 HINTVIEW = None     # what the hint row last showed
+TABVIEW = None      # the F-key layer the tab row last showed: 0 plain, 5 the 2nd layer
+TAB = 0             # the catalog tab last used (menu.TABS index): the math key opens it
 HKEY = None         # the hint row's slot (argpos) and its text (arghelp), found once per slot
 HTEXT = ''
 CARETC = 'INK'      # the caret's color slot
@@ -66,11 +68,14 @@ PAGEMAX = 5         # history entries shown at most
 VIEWW = 300
 HEROH = 92
 LISTH = 60
-FKEYS = ('menu', 'hist', 'setup', 'forms', 'help')
+# The F-key row (MATHPRINT.md 0.13): the plain layer, then the 2nd layer (shown while the 2nd
+# chip is lit). Plain F1-F4 open catalog tabs 0-3, F5 is the forms key; 2nd F2 is the template
+# picker, and 2nd F1, F3, F4, F5 open the menu their label names (lowercase: menu.open's kind).
+FKEYS = ('Alg', 'Calc', 'Trig', 'More', 'Forms', 'All', 'Tmpl', 'Test', 'Setup', 'Help')
 CHIPS = ('', '2nd', 'a', 'a-lock', 'A-LOCK')
 # The TI-84 Evo keypad (TI's Evo key map and keypad notes): x^n left of sin (51; 2nd xRoot),
 # the fraction template on the CE's apps key (42), / * - + one row up (55 65 75 85), and < >
-# in the CE's + place (95), which switches representations: here the answer's forms (as F4).
+# in the CE's + place (95), which switches representations: here the answer's forms (as F5).
 # (key codes, texts): kmap(T, k) is the text of key k in table T, or None.
 PLAIN = (b' *34567=>?@AGHIJKQRSTU[\\]^fgh',
          'x|/|^|sin(|cos(|tan(|/|^2|,|(|)|*|log(|7|8|9|-|ln(|4|5|6|+|=>|1|2|3|0|.|-')
@@ -951,7 +956,7 @@ def edkey(k, mod):                                             #@L 2
         edvert(1)
         return
     if mod == 0 and not LINE and R is not None and R.ANS is not None and \
-            k in (51, 55, 61, 65, 75, 85, 91):  # 95 has no text here (key's F4 branch)
+            k in (51, 55, 61, 65, 75, 85, 91):  # 95 has no text here (key's F5 branch)
         put('ans()', 5)                     # the leading-operator rule; the map is now stale
     if mod == 0 and k == 42:
         edins('frac')
@@ -1119,7 +1124,7 @@ def redraw():                                                  #@L 2
     ink, gray, accent. Otherwise only the rows whose contents changed: the status row
     (STATVIEW), the hint row (HINTVIEW) and the entry (epaint); nothing at all when nothing
     changed. emodel() ran before: redraw never lays out the entry."""
-    global XOFF, DX, FULL, VIEW, VIEWEND, STATVIEW, HINTVIEW, HKEY, HTEXT
+    global XOFF, DX, FULL, VIEW, VIEWEND, STATVIEW, HINTVIEW, HKEY, HTEXT, TABVIEW
     hist = R.HIST if R is not None else []
     n = len(hist)
     C = D.COLORS
@@ -1149,6 +1154,7 @@ def redraw():                                                  #@L 2
     if len(STATUS) + len(lab) >= r:     # a status message that needs the room hides the label
         lab = ''
     sv = (STATUS[:r], MOD, deg, lab)
+    fk = 5 if MOD == 1 else 0           # the F-key layer: 2nd relabels the row (0.13)
     hv = (left, ey)
     chip = CHIPS[MOD]
     lx = 305 - 10*(len(chip) + len(lab)) + (0 if chip else 10)
@@ -1158,6 +1164,11 @@ def redraw():                                                  #@L 2
     if not FULL and VIEW == (MODE, SEL, col, VIEWEND, DX, n, EH, span):
         st = sv != STATVIEW
         ht = hv != HINTVIEW
+        if fk != TABVIEW:               # one fill over the labels; the gaps stay background
+            D.rect(0, 193, 319, 15, C['ACCSOFT'])
+            D.color(C['BG'])
+            for i in range(1, 5):
+                D.line(64*i - 1, 193, 64*i - 1, 207)
         if st:
             D.rect(0, 0, 320, 19, C['BG'])
         if ht:
@@ -1172,6 +1183,8 @@ def redraw():                                                  #@L 2
             D.text(lab, lx, 2, C['SUB'])
         if st and chip:
             D.text(chip, 315 - 10*len(chip), 2, C['ACC'])
+        if fk != TABVIEW:
+            tabs(fk)
         STATVIEW = sv
         HINTVIEW = hv
         return
@@ -1310,12 +1323,21 @@ def redraw():                                                  #@L 2
         D.text('Press math or menu', 70, 104)
     D.color(C['ACC'])
     D.text(chip, 315 - 10*len(chip), 2)
-    for i in range(5):
-        D.text(FKEYS[i], 64*i + (63 - 10*len(FKEYS[i])) // 2, 193)
+    tabs(fk)
     VIEW = (MODE, SEL, col, VIEWEND, DX, n, EH, span)
     FULL = False
     STATVIEW = sv
     HINTVIEW = hv
+
+
+def tabs(fk):                                                  #@L 3
+    """The labels of F-key layer fk (0 plain, 5 the 2nd layer), centred in the 63 px tabs, in
+    the accent color."""
+    global TABVIEW
+    D.color(D.COLORS['ACC'])
+    for i in range(fk, fk + 5):
+        D.text(FKEYS[i], 64*(i - fk) + (63 - 10*len(FKEYS[i])) // 2, 193)
+    TABVIEW = fk
 
 
 def boot(t0=None):                                             #@L 1
@@ -1375,9 +1397,10 @@ def busy(steps):                                               #@L 2
 
 
 def key(k):                                                    #@L 1
-    """One key (MATHPRINT.md 2: dispatch order). The editing keys go to edkey; F2, UP and the
-    arrows in MODE scroll and select the history (7.2). The editor model is refreshed before
-    dispatch and before every redraw; a job (ENTER, F4) frees it before the computation."""
+    """One key (MATHPRINT.md 2: dispatch order). The editing keys go to edkey; UP and the
+    arrows in MODE scroll and select the history (7.2); F1-F5 act on the layer the row shows
+    (0.13). The editor model is refreshed before dispatch and before every redraw; a job
+    (ENTER, F5) frees it before the computation."""
     global LINE, CUR, MOD, MODE, SEL, SELC, HERO, DX, ENTRYPOS, LASTENTRY, STATUS, FULL, XOFF
     global EXOFF
     global PENDING, VIEWEND, EDMAP, EDL, EKEY, EMODEL, ED1D
@@ -1414,11 +1437,6 @@ def key(k):                                                    #@L 1
             HERO = False
         STATUS = ''
         TS.escape()
-    elif k == 12:                       # F2: the history's scroll mode, or out of it
-        if MODE:
-            MODE = 0
-        elif hist:
-            MODE, SEL, SELC, DX = 1, len(hist) - 1, 1, 0
     elif k == 26 and MODE and not SELC:
         SELC, DX = 1, 0
     elif k == 24 and MODE and not DX:   # a wide output scrolls back first
@@ -1456,22 +1474,33 @@ def key(k):                                                    #@L 1
             elif LINE or hist:
                 job = ('eval', (LINE if LINE == EFAIL else tidy(LINE)) or
                        hist[-1][0])     # a failed line is not parsed again (EFAIL)
-    elif (k == 14 or k == 95) and hist:
-        idx = SEL if MODE else len(hist)-1
-        if hist[idx][2] == R.R_ANS:
-            job = ('form', idx)
-    elif k in (11, 13, 15, 22, 41, 44) or (k == 102 and mod == 1):
-        kind = 'algebra'
+    elif k == 95 or k == 15 and mod != 1:  # F5 and < >: the answer's forms (nothing without)
+        if hist:
+            idx = SEL if MODE else len(hist)-1
+            if hist[idx][2] == R.R_ANS:
+                job = ('form', idx)
+    elif mod == 1 and (k == 42 or k == 12):  # 2nd + fraction, 2nd F2: the template picker
+        row = picker()
+        FULL = True
+        if row == 0:
+            edins('frac')
+        elif row == 1:
+            edins('pow')
+        elif row is not None:
+            tput(tmpl(row)[1])
+    elif 10 < k < 16 or k in (22, 41, 44) or (k == 102 and mod == 1):
         if k == 44:
             kind = 'vars'
-        elif k in (13, 22):
+        elif k == 22:
             kind = 'setup'
-        elif k == 15:
-            kind = 'help'
         elif k == 41:
-            kind = 'test' if mod == 1 else 'calculus'
+            kind = 'test' if mod == 1 else TAB      # math: the last tab used
         elif k == 102:
             kind = 'all'
+        elif mod == 1:                  # the 2nd layer: All, Test, Setup, Help (0.13)
+            kind = FKEYS[k - 6].lower()
+        else:                           # F1-F4: the catalog tabs
+            kind = k - 11
         engine()
         FULL = True
         k = argpos(True)
@@ -1483,15 +1512,6 @@ def key(k):                                                    #@L 1
         VIEWEND = min(VIEWEND, len(R.HIST) - 1)
         if choice is not None:
             R.need('menub').apply(choice)   # CASMNU is loaded: the menu just ran
-    elif k == 42 and mod == 1:
-        row = picker()
-        FULL = True
-        if row == 0:
-            edins('frac')
-        elif row == 1:
-            edins('pow')
-        elif row is not None:
-            tput(tmpl(row)[1])
     else:
         edkey(k, mod)
     if job is not None:

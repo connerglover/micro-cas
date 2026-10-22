@@ -177,12 +177,12 @@ def test_flat_typing_repaints_the_row_only(editor):
 def test_modifier_repaints_the_status_row_only(editor):
     press([92, FRAC, 93])
     TD.reset()
-    U.key(SECOND)
-    assert fills() == [('fill_rect', -1, -1, 321, 20)]
-    assert count('set_color') <= 3
+    U.key(SECOND)               # the F-key row's labels follow the 2nd layer (0.13)
+    assert fills() == [('fill_rect', -1, 192, 320, 16), ('fill_rect', -1, -1, 321, 20)]
+    assert count('set_color') <= 4
     TD.reset()
     U.key(SECOND)
-    assert fills() == [('fill_rect', -1, -1, 321, 20)]
+    assert fills() == [('fill_rect', -1, 192, 320, 16), ('fill_rect', -1, -1, 321, 20)]
 
 
 def test_2d_typing_cost(editor):

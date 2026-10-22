@@ -20,7 +20,10 @@ FOOT = 192
 
 
 def open(kind, line='', cur=0, command=''):                     #@L 2
+    """kind: a menu name, or a TABS index (the F-keys and math, ui.TAB)."""
     R = U.R
+    if type(kind) is int:
+        kind = TABS[kind]
     cat = R.need('cat').CAT
     tab = TABS.index(kind) if kind in TABS else 0
     selected, prefix, alpha = 0, '', 0
@@ -34,6 +37,7 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
             break
     while True:
         if kind in TABS:
+            U.TAB = tab                 # the math key opens the last tab used
             rows = R.MODS['menub'].entries(cat, tab, prefix)
             title = TABS[tab][0].upper() + TABS[tab][1:] + (' / ' + prefix if prefix else '')
         elif kind == 'vars':
@@ -79,8 +83,8 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
                 notes, notetop = D.wrap(helpentry[2], 31), TOP + 17
             else:
                 tips = ('ENTER calculate, CLEAR cancel', '2nd ENTER: previous input',
-                        'F2 or up: scroll the history', '<- input, -> result; ENTER copy',
-                        'F1 menu  F3 setup  F4 forms', 'F5 help  2nd MODE quit',
+                        'up: history; <- in, -> result', 'F1-F4 menu tabs, F5 forms',
+                        '2nd F1 all F2 tmpl F3 test', '2nd F4 setup F5 help MODE quit',
                         'STO: store a result')
                 for j in range(len(tips)):
                     D.text(tips[j], 5, TOP + 17*j)

@@ -566,14 +566,14 @@ def test_up_leaves_the_line_for_history_only_without_a_candidate():
 # -- menus: PENDING and the TEST leave rule ----------------------------------------------------
 
 def test_menu_insertion_puts_the_caret_in_the_first_empty_slot():
-    for script, line, cur in (('{math}{enter}', 'diff(,)', 6),
-                              ('{math}{down}{enter}', 'integrate(,,,)', 12),
-                              ('{math}{down}{down}{enter}', 'limit(,,,)', 7),
+    for script, line, cur in (('{f2}{enter}', 'diff(,)', 6),
+                              ('{f2}{down}{enter}', 'integrate(,,,)', 12),
+                              ('{f2}{down}{down}{enter}', 'limit(,,,)', 7),
                               ('{2nd,0}su{enter}', 'sum(,,,)', 5),
                               # only closers after the caret: an action wraps the line
-                              ('x^(2{math}{down}{enter}', 'integrate(x^(2),,,)', 17),
-                              ('x^(2{left}{math}{down}{enter}', 'x^(integrate(,,,)2)', 15),
-                              ('{math}{down}{enter}x{2nd,right}', 'integrate(,,x,)', 15),
+                              ('x^(2{f2}{down}{enter}', 'integrate(x^(2),,,)', 17),
+                              ('x^(2{left}{f2}{down}{enter}', 'x^(integrate(,,,)2)', 15),
+                              ('{f2}{down}{enter}x{2nd,right}', 'integrate(,,x,)', 15),
                               ('{2nd,0}sin{enter}', 'sin()', 4)):
         s = KS.run(script)
         u = s.mods['ui']
@@ -667,7 +667,7 @@ def test_model_is_fresh_after_every_key():
 
 def test_mathprint_is_the_only_entry():
     assert not hasattr(U, 'CLASSIC')
-    s = KS.run('{f3}{snap:setup}' + '{down}' * 3 + '{enter}{snap:about}{clear}{clear}1{frac}2')
+    s = KS.run('{mode}{snap:setup}' + '{down}' * 3 + '{enter}{snap:about}{clear}{clear}1{frac}2')
     shown = s.snap('setup')
     assert 'Entry' not in shown and 'Classic' not in shown and 'Theme' not in shown
     assert 'Free heap' in s.snap('about') and s.mods['ui'].LINE == '(1)/(2)'
@@ -761,7 +761,7 @@ def test_close_never_crosses_a_comma(before, keys, after):
 def test_forms_key_without_history_inserts_nothing():
     # < > (95) with an answer but no history (Clear history keeps Ans) has no action: the
     # leading-operator rule must not leave a stray ans()
-    s = KS.run('2{enter}{f3}{down}{enter}{enter}{clear}{<>}')
+    s = KS.run('2{enter}{mode}{down}{enter}{enter}{clear}{<>}')
     assert not s.hist and s.ans is not None
     assert s.mods['ui'].LINE == ''
 

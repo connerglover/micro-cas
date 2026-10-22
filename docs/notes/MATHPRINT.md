@@ -376,11 +376,54 @@ below are updated.
 | MathPrint only | `ui.CLASSIC` and every Classic branch are gone (`key`'s 1D insert/DEL/arrow tail, `insert()`, `menub` Classic counts, the Classic test of `apply`, `empty_slot`, `emodel`); `EMODEL` is the LINE of the model. The flat path stays for robustness only: a line over the caps or out of memory (`ED1D`, §5.3), the line a panic ran on (`EFAIL`) and the plain panic screen. F3 Setup is Angle, Clear history, Clear variables, About; ←/→ toggle only the Angle row. |
 | Form label at the top right | The focused answer's form (`e[5][-1][0]`, or `exact`) is drawn in SUB at the top right of the status row, right-aligned against the modifier chip with a 10 px gap (`lx = 305 - 10*(len(chip) + len(label))`, +10 without a chip), without `F4`. It shows when the footer did (MODE, or an empty LINE with `HERO`). `STATVIEW = (STATUS[:room()], MOD, deg, label)`, so the row repaints only when the label changes. A status message that would not leave one free column before the label (`len(STATUS) + len(label) >= room()`) hides the label until the message clears: messages are transient and the label is always recoverable. The hint row's footer keeps only `~ decimal` (`HINTVIEW = (left, EY)`). |
 | Empty page text | `Press math or menu`, centred (x 70): the calculator has a math key, so "type" read wrong. |
-| F2 is history scroll | F2 (11..15's second key) enters MODE on the newest answer, engine-free, or leaves it; it opens no menu. The `recall` menu is gone; VARS (44) opens `Vars`: Ans, variables and functions (`menub.varrows`). The F2 tab reads `hist` (`history` is 70 px, wider than a 63 px tab). |
+| F2 is history scroll (until §0.13: F2 is now the Calculus tab, ↑ scrolls) | F2 (11..15's second key) entered MODE on the newest answer, engine-free, or left it; it opened no menu. The `recall` menu is gone; VARS (44) opens `Vars`: Ans, variables and functions (`menub.varrows`). The F2 tab reads `hist` (`history` is 70 px, wider than a 63 px tab). |
 | Nspire cell selection | `SELC` (CASUI global, 1 = answer) is the selected cell: ↑ from the entry and F2 select the newest answer; ↑/↓ keep the column; ← selects the input, → the answer. An answer wider than the view scrolls first: with the answer selected → adds 24 to `DX` (clamped to its span), ← subtracts 24 and selects the input only at `DX = 0`. ENTER (with or without 2nd) copies the selected cell at the caret: the input as `structure(e[0])` (2D, as ENTRY), the answer as `wrapped(e[1])` (bare inside an empty hidden slot; never the `+ C`), and the editor is active again (`put` clears MODE). A message entry (`R_MSG`) always selects its input. The ACCSOFT band covers only the selected cell: the input's box at x 0..iw+10, or the answer's from 5 px left of it to the right edge (the whole row when it overflows); `VIEW` holds the effective column, so a column change is one full redraw like a selection move. |
 
 CASUX 29,436 → 29,031 B and CASUI 3,759 → 3,417 B of bytecode (mpy-cross estimates from
 `build/release.py`), CASMNU 9,027 → 8,694 B.
+
+### 0.13 The F-key row and its 2nd layer (2026-10-22)
+
+The user's approved design, after the v1.0.0 hardware run. Where this section and an older
+one differ (§0.12's "F2 is history scroll", §2's dispatch rows), this one wins.
+
+| Key | Plain (row `Alg Calc Trig More Forms`) | 2nd (row `All Tmpl Test Setup Help`) |
+|---|---|---|
+| F1 (11) | catalog on the Algebra tab | catalog on the All tab (A-Z, ALPHA find), as 2nd 0 |
+| F2 (12) | catalog on the Calculus tab | the template picker, as 2nd + fraction (42) |
+| F3 (13) | catalog on the Trig tab | the TEST relation picker, as 2nd math |
+| F4 (14) | catalog on the More tab | Setup, as mode (22) |
+| F5 (15) | the focused or selected answer's forms, as `< >` (95); nothing without an answer | help for the command at the caret (`argpos(True)`), F5's job until now |
+
+- **The row follows the layer.** `ui.FKEYS` holds both layers (plain 0-4, 2nd 5-9); the
+  layer is `5 if MOD == 1 else 0`, so the alpha modes keep the plain row (and an alpha F-key
+  acts on it). `tabs(fk)` draws a layer's labels (ACC, centred in the 63 px tabs, at most 6
+  characters) and records it in `TABVIEW`. A full redraw draws the current layer. The partial
+  redraw repaints the row only when the layer differs from `TABVIEW`: one ACCSOFT fill over
+  the label rows (x 0..318, y 193..207), the four 1 px BG gaps between the tabs, then the
+  labels. So 2nd costs one fill, four lines and five texts more than before (one more
+  `set_color`), and 2nd again, or the key it modifies, the same once more; no other key
+  touches the row.
+- **math opens the last tab.** `ui.TAB` (CASUI, a `menu.TABS` index, 0 Algebra at boot) is
+  set by `menu.open` whenever a catalog tab shows, including tabs switched with ←/→ inside
+  the menu and the All tab. math (41) opens `TAB`; 2nd math stays TEST, vars Vars, mode
+  Setup, 2nd 0 the All tab. `menu.open` takes a tab index for `kind` as well as a name.
+- **The history** scrolls with ↑ from the entry only; CLEAR, or ↓ past the newest entry,
+  leaves it (F2 entered and left it in §0.12; the `hist` tab is gone).
+- **Help (2nd F5)** shows the key summary with no command at the caret; its tips now read
+  `F1-F4 menu tabs, F5 forms` and `2nd F1 all F2 tmpl F3 test`, `2nd F4 setup F5 help MODE quit`.
+- **Packs.** `ui.tabs` and `ui.FKEYS` live in CASUX (manifest); `TAB` and `TABVIEW` are CASUI
+  globals. The 2nd-layer menus use `FKEYS[k - 6].lower()` as `menu.open`'s kind (`all`,
+  `test`, `setup`, `help`), so no second name table is needed. CASUX 29,031 → 29,218 B,
+  CASUI 3,417 → 3,388 B, CASMNU 8,694 → 8,736 B (mpy-cross estimates from `build/release.py`).
+  Native 32-bit v1.12 smoke runs pass at every `build.yml` heap; free heap after the first
+  result moved by -928 B (`ui`, 173,360), -592 B (`ui_edit`), -720 B (`ui_calculus`,
+  185,680) and +1,168 B (`startup`, 95,000) against the v1.0.0 packs.
+- **Tests.** `tests/test_fkeys.py`: every plain and 2nd F-key, math's remembered tab (also
+  after ←/→ inside the menu), F5 with and without an answer, `< >`, ↑ history scroll, the
+  row's relabelling and repaint cost, alpha modes keeping the plain row. Tests that pinned
+  the old keys use the new ones (F4 forms → F5, F3 setup → mode, F5 help → 2nd F5, F2
+  history → ↑, math's Calculus tab → F2).
 
 ---
 
@@ -556,13 +599,12 @@ does a picker row.
    `redraw()`, as today. **Every** `redraw` call is preceded by `emodel()`.
 2. `if EMODEL != LINE: emodel()` (normally a no-op; it matters after `panic`).
 3. `mod >= 2 and k in ALPHA` → plain insert of the letter (so alpha+42 is still `b`).
-4. 2nd MODE → `QUIT`; CLEAR; F2; ←/→ in MODE or on an empty LINE; ↑/↓ in MODE; ENTER;
-   F4/95; menus; as listed below.
-5. 2nd 42 → picker.
-6. Otherwise `edkey(k, mod)`.
+4. 2nd MODE → `QUIT`; CLEAR; ←/→ in MODE or on an empty LINE; ↑/↓ in MODE; ENTER;
+   F5/95 (forms); 2nd 42 and 2nd F2 → picker; menus; as listed below (§0.13).
+5. Otherwise `edkey(k, mod)`.
    A key with no entry does nothing, and the following `redraw` makes no ti_draw call
    (§6.4 step 6).
-7. If a job was set: `STATUS = 'Calculating...'`, `emodel()`, `redraw()`, then free the
+6. If a job was set: `STATUS = 'Calculating...'`, `emodel()`, `redraw()`, then free the
    editor (`EDMAP = EDL = EKEY = None`, `EMODEL = None`, `PENDING = None`) and
    `D.clear_cache()`; else `emodel()`, `redraw()`.
 
@@ -590,16 +632,15 @@ MathPrint tables.
 | 64 `)`, 2nd 64 `}`, 2nd 85 `]` | First match: (1) `LINE[CUR]` is the same closer, hidden or visible: step over it; at a hidden numerator closer this lands on the denominator start. (2) CUR is inside a visible group or a plain call (the innermost bracket pair around CUR that lies inside the current slot) whose opener is the same bracket type and whose closer is further right: **move** that closer to CUR. This undoes the autoclose of key 63 when the user closes earlier. Not when a top-level comma of that pair lies between CUR and the closer (it would take the later arguments out of the call): then (4) (§0.5). (3) The current slot is the root: insert the closer literally (the layout draws it as text; the engine reports it). (2′) The innermost bracket is a visible opener of the same type with no closer: insert the closer (`(x+1|` → `(x+1)|`; §0.5). (4) Otherwise (inside a hidden or template slot, with nothing to close): no-op. | `x^(2|)` → `x^(2)|`; `sin(x|)` → `sin(x)|`; `2(3|x+1)` → `2(3)|x+1`; `sin(a|+b)` → `sin(a)|+b`; `x+1|` → `x+1)|`; `integrate(f|,x)` → unchanged; `f(a|,b)` → unchanged |
 | 62 `,` | Leave rule. Then (**C9**, §0.10), in a template slot of a template at its largest form (`len(args) == TPL[name][-1]`, fresh map only): move to the stop after the slot's end in `ORD`, which is the next box in drawn order or, after the last box, the template's end; it never inserts. Otherwise, if `LINE[CUR] == ','`, step over it; else insert `,` (so typing `integrate(f,x,a,b)` as text still works). | `surd(,3|)` → `surd(|,3)`; `integrate(,,0|,)` → `integrate(,,0,|)`; `integrate(x,x|,0,1)` → `integrate(x,x,0,1)|`; `diff(,x|)` → `diff(,x,|)` (the nth derivative); `integrate(x^(2|),x)` → `integrate(x^(2),|x)` |
 | ← → (24/26), with or without 2nd | MODE (§0.12): with the input selected → selects the answer (`DX = 0`); with the answer selected → is `DX + 24` and ← is `DX - 24`, or selects the input when `DX = 0`. Empty LINE: `DX ± 24` (the newest answer). Otherwise move to the previous/next stop in drawn order (§4.2; 2nd: home / end). No layout. | |
-| F2 (12) | MODE: leave it. Otherwise, with history: `MODE, SEL, SELC, DX = 1, len(hist)-1, 1, 0`. Engine-free; no menu (§0.12). | |
 | ↑ (25) | MODE: as today (2nd ↑ moves 5; the column stays). Empty LINE: enter history (as today, if any). 2nd ↑ with a non-empty LINE: enter history directly, as today. Otherwise `edvert(-1)` (§4.4). If that returns False and history exists: `MODE, SEL, SELC = 1, len(hist)-1, 1` (the newest answer). | `x^(|)` ↑ → history |
 | ↓ (34) | MODE: as today (2nd ↓ moves 5; past the newest leaves MODE). Otherwise `edvert(+1)` (2nd ↓ too); nothing if False. | `(a|)/(b)` ↓ → `(a)/(b|)` |
 | DEL (23) | §4.3 | |
 | CLEAR (45), with or without 2nd | Unchanged order: leave MODE; else empty LINE (`CUR = XOFF = EXOFF = 0`, `PENDING = None`; `emodel` then sets `EH = 20`); else `HERO = False`. Always `STATUS = ''` and `TS.escape()`. `ENTRYPOS`/`LASTENTRY` are untouched, as today. | |
 | ENTER (105) | MODE: copy the selected cell (§7.4). Otherwise (§2.2): two-stage empty-slot check, then the job. | |
 | 2nd ENTER | MODE: as ENTER. Otherwise ENTRY recall: `ENTRYPOS` as today; `LINE = structure(hist[-1-ENTRYPOS][0])`, `CUR = len(LINE)`, `LASTENTRY = LINE`. No 256 check, as today. | |
-| **2nd 42** (new) | `row = picker()` (§3.2), then `key` applies the row (rows 1–2 through `edins`, the others through `put` + PENDING). | |
-| F1, math (41), 2nd math (TEST), vars (44), F3, mode (22), F5, 2nd 0 | `R.need('menu').open(kind, LINE, CUR, command)`, the command of `argpos()` (§0.11; was `enclosing()`). The result goes through today's wrap/limit code (an action wraps the whole line when the caret is at its end; in MathPrint also when only closers `) ] }` follow it, since autoclosed and hidden closers sit after a caret that looks like it is at the end: `sin(x|)` + simplify → `simplify(sin(x))`, §0.8), then `insert(text, offset)`. If `text` contains `(` and the line is 2D, `PENDING = (start, start + len(text))`; on a flat line PENDING is not set and the offset stands. A TEST relation (`=`, `!=`, `<`, `<=`, `>`, `>=`, not `!`) first applies the leave rule. After the menu: `VIEWEND = min(VIEWEND, len(hist)-1)` (Clear history may have emptied it). | |
-| F4, `< >` (95) | Unchanged (needs history; `95` with no history does nothing). | |
+| **2nd 42**, 2nd F2 (12) | `row = picker()` (§3.2), then `key` applies the row (rows 1–2 through `edins`, the others through `put` + PENDING). | |
+| F1-F4 (tabs 0-3), math (41, `ui.TAB`), 2nd math (TEST), vars (44), mode (22), 2nd F1 (All), 2nd F3 (TEST), 2nd F4 (Setup), 2nd F5 (help), 2nd 0 (§0.13) | `R.need('menu').open(kind, LINE, CUR, command)`, the command of `argpos()` (§0.11; was `enclosing()`). The result goes through today's wrap/limit code (an action wraps the whole line when the caret is at its end; in MathPrint also when only closers `) ] }` follow it, since autoclosed and hidden closers sit after a caret that looks like it is at the end: `sin(x|)` + simplify → `simplify(sin(x))`, §0.8), then `insert(text, offset)`. If `text` contains `(` and the line is 2D, `PENDING = (start, start + len(text))`; on a flat line PENDING is not set and the offset stands. A TEST relation (`=`, `!=`, `<`, `<=`, `>`, `>=`, not `!`) first applies the leave rule. After the menu: `VIEWEND = min(VIEWEND, len(hist)-1)` (Clear history may have emptied it). | |
+| F5 (15), `< >` (95) | The focused or selected answer's forms (needs an answer; without one nothing happens). F4 until §0.13. | |
 | Any other key or modifier combination (33, 43, 2nd digits, 2nd 91, …) | No entry in any table: nothing changes and no ti_draw call is made. | |
 
 ### 2.1 Fraction term capture (42 and picker row 1), in `edins`

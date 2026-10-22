@@ -56,7 +56,7 @@ def insertion(row):                                           #@L 3
 
 def varrows():                                                 #@L 3
     """The vars key's rows: Ans, the stored variables and the functions (the history scrolls
-    on the page itself: F2 or up)."""
+    on the page itself: up)."""
     R = U.R
     rows = []
     if R.ANS is not None:

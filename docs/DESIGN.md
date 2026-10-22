@@ -138,7 +138,7 @@ These were settled with the user. Do not reopen them.
 | menus | The F1 command menu pastes the command and shows a one-line example/help hint (a lite FlowCE catalog). Command names follow giac, plus short aliases (`int`, `d`, `lim`, ...). |
 | conventions | `log` is base 10 and `ln` is natural. Radians by default, with a degree mode. Exact trig at special angles. `+C` on antiderivatives. Polynomials in descending powers. `i` is the imaginary unit. |
 | failure | A failed indefinite integral is shown unevaluated. A failed definite integral falls back to a numeric value labelled ≈. Limits behave the same way. |
-| keys | F1 menu, F2 history scroll (v1.0.0; was Ans/history recall, now on vars without the history), F3 settings (rad/deg), F4 cycle forms, F5 help for the current command. Up/down walk the history, left/right pick its input or answer, enter copies it. Left/right scroll wide answers. sto-> stores. [clear] clears the line or cancels a computation. |
+| keys | F1-F4 the command menu's Algebra, Calculus, Trig and More tabs, F5 cycle forms; with 2nd lit the row relabels to All, Tmpl (template picker), Test, Setup (rad/deg), Help for the current command (v1.0.0, MATHPRINT.md 0.13; F2 was the history scroll). math opens the tab used last. Up/down walk the history, left/right pick its input or answer, enter copies it. Left/right scroll wide answers. sto-> stores. [clear] clears the line or cancels a computation. |
 | themes | One light palette (v1.0.0 removed the Night theme and its setting). |
 | robustness | [clear] cancels long computations (poll `ti_system.escape()`/`get_key`). MemoryError is caught and shown as a message. |
 | architecture | Flat n-ary expression trees; an explicit-stack parser and printer; a data-driven rule engine run by an explicit-stack loop (derivatives, integral tables, simplification identities); iterative algorithms for factoring, partial fractions, limits and ODEs. Only the UI layer imports `ti_*`; desktop shims stand in. Tests: pytest, a SymPy oracle, golden files, a call-depth checker. |
@@ -3121,7 +3121,8 @@ CAT = (
 
 - **Categories:** `A` algebra, `C` calculus, `T` trig, `S` sums and series, `D` differential
   equations, `V` vectors, `N` numbers, `F` functions and symbols.
-- **The F1 menu tabs** are Algebra (A), Calculus (C), Trig (T), More (S, D, V, N, F) and All (A-Z).
+- **The menu tabs** are Algebra (A), Calculus (C), Trig (T), More (S, D, V, N, F) and All (A-Z);
+  F1-F4 open the first four, 2nd F1 the All tab (MATHPRINT.md 0.13).
   The help text is written fresh: FlowCE's English catalog has gaps (cat §7.4).
 - **Templates and labels** follow the TI-Nspire (MATHPRINT.md 0.10, 3): nothing is
   prefilled. In MathPrint a command with a 2D template inserts that template with every box
@@ -3130,15 +3131,16 @@ CAT = (
   command inserts one empty box per required argument (FlowCE's required-argument rule, cat
   §1.3). (v1.0.0 removed the Classic 1D entry setting; MathPrint is the only editor.)
 
-### 15.4 Help line and F5 help
+### 15.4 Help line and help (2nd F5)
 
 - **Help line** (`ui.ARGPH` and `draw.ARGS`, in the UI view pack). Since the QPL changes it
   explains the argument the caret is in and whether it is required ("Expr. to simplify
   (required)", "Base (optional: empty = 10)"), for every command and 2D slot; it was the
   command's signature (MATHPRINT.md §0.11).
-- **F5** loads CVCAT and shows the full entry for the command around the caret: its name (as the
-  Nspire's menus show it), help, example. ENTER on the help screen pastes the example. With no command at the caret, F5 shows the
-  key summary page (FlowCE *Shortcuts*).
+- **2nd F5** (F5 until MATHPRINT.md 0.13) loads CVCAT and shows the full entry for the command
+  around the caret: its name (as the Nspire's menus show it), help, example. ENTER on the help
+  screen pastes the example. With no command at the caret, it shows the key summary page
+  (FlowCE *Shortcuts*).
 
 ---
 
@@ -3166,7 +3168,9 @@ y  14..157  stage: history entries, newest at the bottom; the newest entry is dr
             HERO (large, with the footer "≈ value") while the edit line is empty
 y 158..169  help line: signature of the command around the caret (gray, small)
 y 170..189  edit line: 1D text, caret, horizontal scroll with edge markers
-y 190..209  F-key bar: 5 tabs x 64 px: menu | hist | setup | forms | help
+y 190..209  F-key bar: 5 tabs x 64 px: Alg | Calc | Trig | More | Forms; while the 2nd
+            chip is lit: All | Tmpl | Test | Setup | Help (MATHPRINT.md 0.13). The row is
+            repainted (one fill, the four gaps, the labels) only when the layer changes
 ```
 
 - **A history entry** is the input as small gray 1D text on the left, then the result
@@ -3238,16 +3242,16 @@ confirms the rest.
 
 | code | key | plain | 2nd | alpha |
 |---|---|---|---|---|
-| 11-15 [V] | y= window zoom trace graph (F1-F5) | menu, history scroll, setup, forms, help | – | – |
+| 11-15 [V] | y= window zoom trace graph (F1-F5) | menu tabs Algebra, Calculus, Trig, More; F5 forms (nothing without an answer) | All tab, template picker, TEST picker, setup, help (the row relabels while 2nd is lit) | as plain |
 | 21 [V] | 2nd | modifier | | |
-| 22 [V] | mode | setup (F3) | **quit** | |
+| 22 [V] | mode | setup (2nd F4) | **quit** | |
 | 23 [V] | del | backspace (`ans()` as one unit) | – | |
 | 24, 26 [V] | left, right | caret, or scroll the answer (D4) | home, end | |
 | 25, 34 [V] | up, down | history navigation (§16.6) | page | |
 | 31 [V] | alpha | modifier; alpha alpha or 2nd alpha = lock | | |
 | 32 | X,T,θ,n | `x` | `t` | `theta` |
-| 41 [V] | math | menu (F1, Calculus tab) | TEST picker: `= != < <= > >= !` (D16, §16.7) | `a` |
-| 42 | fraction template (Evo; apps on the CE) | fraction template with term capture, `(x)/(□)` | template picker (MathPrint) | `b` |
+| 41 [V] | math | menu on the tab used last (`ui.TAB`; Algebra at first) | TEST picker: `= != < <= > >= !` (D16, §16.7; also 2nd F3) | `a` |
+| 42 | fraction template (Evo; apps on the CE) | fraction template with term capture, `(x)/(□)` | template picker (MathPrint; also 2nd F2) | `b` |
 | 43 | prgm | – | – | `c` |
 | 44 [V] | vars | Ans, variables, functions | | |
 | 45 [V] | clear | clear / back / hide hero; cancel while computing | | |
@@ -3266,8 +3270,8 @@ confirms the rest.
 | 85 | + (Evo; − on the CE) | `+` | `]` | `w` |
 | 91 [V] | sto→ | `=>` | | `x` |
 | 92-94 | 1 2 3 | digits | | `y` `z` `theta` |
-| 95 | < > (Evo; + on the CE) | the answer's forms, as F4 (the Evo key switches representations) | | |
-| 102 | 0 | `0` | menu, All tab (catalog) | space |
+| 95 | < > (Evo; + on the CE) | the answer's forms, as F5 (the Evo key switches representations) | | |
+| 102 | 0 | `0` | menu, All tab (catalog; also 2nd F1) | space |
 | 103 | . | `.` | `i` | `'` (prime; D6) |
 | 104 [V] | (−) | `-` | `ans()` | |
 | 105 [V] | enter | evaluate | ENTRY (recall inputs) | |
@@ -3305,12 +3309,12 @@ confirms the rest.
 
 | key | in `EDIT` mode | in `HIST` mode |
 |---|---|---|
-| up, F2 | enter `HIST` mode, selecting the newest entry's answer | up: previous entry (2nd: 5); F2: back to `EDIT` |
+| up | enter `HIST` mode, selecting the newest entry's answer | previous entry (2nd: 5) |
 | down | – | next entry (2nd: 5); past the newest, back to `EDIT` |
 | left/right | move the caret when the line is non-empty; scroll the hero when it is empty (D4) | left selects the **input** cell, right the **answer** cell (TI-Nspire); a selected answer wider than the view scrolls first (right to its end, left back to its start, then left selects the input) |
 | ENTER | evaluate (§16.5) | copy the selected cell at the caret, then return to `EDIT`. An answer is wrapped in `(...)` unless it is a single atom: a name, an unsigned number without `/`, or one call `f(...)` (never with its `+ C`). So `2/3` pasted after `x^` gives `x^(2/3)`, and `x=2` pasted after `3*` gives `3*(x=2)`. An input comes back as 2D text, as ENTRY gives it; a message entry always gives its input. |
 | 2nd ENTER | ENTRY recall | as ENTER |
-| F4 | forms of the hero | forms of the selected entry |
+| F5, < > | forms of the hero | forms of the selected entry |
 | clear | clear the line; on an empty line, hide the hero | back to `EDIT` |
 
 The selection band covers only the selected cell (v1.0.0; it was the whole row).
@@ -3319,9 +3323,11 @@ The stage scrolls so that the selected entry stays visible.
 
 ### 16.7 Menus (CVMENU; modal screens with their own `wait_key` loop at L2)
 
-**F1 command menu** (also `math`, and 2nd 0 for the All tab):
+**Command menu** (F1-F4 open its first four tabs, 2nd F1 and 2nd 0 the All tab, `math` the tab
+used last; MATHPRINT.md 0.13):
 
-- Tabs Algebra / Calculus / Trig / More / All. `left`/`right` switch tabs.
+- Tabs Algebra / Calculus / Trig / More / All. `left`/`right` switch tabs; the tab shown is
+  remembered in `ui.TAB` for the next `math`.
 - Rows show the signature and the one-line help (CVCAT). `up`/`down` select, `1`-`9` pick, and
   alpha letters filter by prefix (search).
 - **ENTER** inserts the template, with the caret in the first slot. FlowCE's action rule
@@ -3331,21 +3337,22 @@ The stage scrolls so that the selected entry stays visible.
   - on an empty line with a result available, they apply to `ans()`.
 - `clear` or F1 closes the menu.
 
-**TEST picker** (2nd math, D16): a one-row menu `=  !=  <  <=  >  >=  !`, as the TI-84 TEST
+**TEST picker** (2nd math or 2nd F3, D16): a one-row menu `=  !=  <  <=  >  >=  !`, as the TI-84 TEST
 menu. `1`-`7` or left/right and ENTER insert the operator at the caret; `clear` closes it. It lives
 in the `menu` part with the F1 menu.
 
-**vars** (v1.0.0; F2 was recall, and now scrolls the history, §16.6): `Ans`, `name = value` for
+**vars** (v1.0.0; F2 was recall, then the history scroll, now the Calculus tab; up scrolls the
+history, §16.6): `Ans`, `name = value` for
 each variable, and the defined functions. ENTER inserts `ans()` or the name.
 
-**F3 setup** (also `mode`):
+**Setup** (2nd F4, also `mode`):
 
 - Angle RAD/DEG: toggled by ENTER or left/right, applied at once. (v1.0.0 removed the theme and
   the Classic entry rows.)
 - Clear history, Clear variables: each asks for confirmation.
 - About: version, `gc.mem_free()`, the loaded modules.
 
-**F4 forms** (§14). **F5 help** (§15.4).
+**F5 forms** (§14). **2nd F5 help** (§15.4).
 
 When a menu is closed, CVMENU, CVMENUB, CVCAT and CVCATB are evicted if memory is low (§18.5).
 
@@ -3370,8 +3377,9 @@ slots), drawn with `ti_draw.set_color(r, g, b)`:
 
 - **Edit keys** redraw only the edit line, the help line and the status chip: a few `fill_rect` and
   `draw_text` calls.
-- **Full redraws** happen only after an evaluation, F4, a history move or cell change, or a menu
-  closing.
+- **Full redraws** happen only after an evaluation, F5, a history move or cell change, or a menu
+  closing. The 2nd and alpha keys repaint the status row, and the F-key row only when the layer
+  changes (2nd on or off).
 - **Display lists** are cached per visible entry (`CACHE`, §16.3), so scrolling history does not
   lay out again. The cache is capped at 4 KB and emptied before every computation, so it never
   competes with the working set.

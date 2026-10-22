@@ -399,10 +399,11 @@ def test_the_hint_row_repaints_only_when_the_slot_changes(monkeypatch):
     ('(1)/(|)', ''), ('x^(|)', ''), ('solve(x|,)', 'solve')])
 def test_help_names_the_command_around_a_fraction_or_exponent(engine, monkeypatch, before,
                                                                command):
-    """F5 opens the help of the call around the caret, as before the hint row changed: a
+    """2nd F5 opens the help of the call around the caret, as before the hint row changed: a
     fraction, exponent or group slot inside a call is part of that call's argument."""
     setline(before)
     seen = []
     monkeypatch.setattr(engine.need('menu'), 'open', lambda *a: seen.append(a[3]))
+    U.key(21)
     U.key(15)
     assert seen == [command]

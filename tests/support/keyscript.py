@@ -59,7 +59,7 @@ ON = TS.ON
 KEY = {
     'f1': 11, 'f2': 12, 'f3': 13, 'f4': 14, 'f5': 15,
     'y=': 11, 'window': 12, 'zoom': 13, 'trace': 14, 'graph': 15,
-    'menu': 11, 'hist': 12, 'history': 12, 'setup': 13, 'forms': 14, 'help': 15,
+    'menu': 11, 'alg': 11, 'calc': 12, 'trig': 13, 'more': 14, 'forms': 15,
     '2nd': 21, 'mode': 22, 'del': 23, 'left': 24, 'up': 25, 'right': 26,
     'alpha': 31, 'xttn': 32, 'xt': 32, 'stat': 33, 'down': 34,
     'math': 41, 'frac': 42, 'apps': 42, 'prgm': 43, 'vars': 44, 'clear': 45,
@@ -89,11 +89,11 @@ ALPHA = 31
 # DESIGN 16.4 as data: code -> (plain, 2nd, alpha). A string is the text the key inserts; a
 # string starting with '@' is an action; None means the key does nothing in that state.
 KEYTEXT = {
-    11: ('@menu', None, None),
-    12: ('@history', None, None),
-    13: ('@setup', None, None),
-    14: ('@forms', None, None),
-    15: ('@help', None, None),
+    11: ('@menu:algebra', '@menu:all', None),     # the F-key row (MATHPRINT.md 0.13)
+    12: ('@menu:calculus', '@templates', None),
+    13: ('@menu:trig', '@test', None),
+    14: ('@menu:more', '@setup', None),
+    15: ('@forms', '@help', None),
     22: ('@setup', '@quit', None),
     23: ('@del', None, None),
     24: ('@left', '@home', None),
@@ -102,7 +102,7 @@ KEYTEXT = {
     32: ('x', 't', 'theta'),
     33: (None, None, None),
     34: ('@down', '@pagedown', None),
-    41: ('@menu:calculus', '@test', 'a'),
+    41: ('@menu:last', '@test', 'a'),             # the tab last used (Algebra at first)
     42: ('@frac', '@templates', 'b'),
     43: (None, None, 'c'),
     44: ('@vars', None, None),

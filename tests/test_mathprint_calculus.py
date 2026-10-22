@@ -150,9 +150,9 @@ def test_nth_root_key_starts_in_the_index():
 
 
 def test_menu_insertions_in_mathprint():
-    for keys, want in (('{math}{enter}', ('diff(,)', 6)),
-                       ('{math}{down}{enter}', ('integrate(,,,)', 12)),
-                       ('{math}{down}{down}{enter}', ('limit(,,,)', 7)),
+    for keys, want in (('{f2}{enter}', ('diff(,)', 6)),
+                       ('{f2}{down}{enter}', ('integrate(,,,)', 12)),
+                       ('{f2}{down}{down}{enter}', ('limit(,,,)', 7)),
                        ('{2nd,0}su{enter}', ('sum(,,,)', 5)),
                        ('{2nd,0}sur{enter}', ('surd(,)', 6)),
                        ('{2nd,0}log{enter}', ('log(,)', 5)),
@@ -164,11 +164,11 @@ def test_menu_insertions_in_mathprint():
 
 
 def test_menu_wraps_the_line_into_the_template():
-    s = KS.run('x^(2{math}{down}{enter}')
+    s = KS.run('x^(2{f2}{down}{enter}')
     assert line(s) == ('integrate(x^(2),,,)', 17)      # lower bound, then upper, f, dx
-    s = KS.run('x^(3{math}{enter}')
+    s = KS.run('x^(3{f2}{enter}')
     assert line(s) == ('diff(x^(3),)', 11)              # the variable box
-    s = KS.run('x^(3{math}{enter}x{enter}')
+    s = KS.run('x^(3{f2}{enter}x{enter}')
     assert s.hist[0][:2] == ['diff(x^3,x)', '3*x^2']
 
 
@@ -561,7 +561,7 @@ def test_no_plus_c_for_other_answers():
 def test_paste_recall_and_forms_have_no_plus_c():
     s = KS.run('integrate(x^2,x){enter}{up}{enter}')
     assert s.mods['ui'].LINE == '(x^3/3)'
-    s = KS.run('integrate(x^2,x){enter}{f4}')
+    s = KS.run('integrate(x^2,x){enter}{f5}')
     assert all('C' not in str(f) for f in s.hist[0][5])
     assert [t[0] for t in answer_texts()].count('C') == 1
 

@@ -155,6 +155,8 @@ PACKS = (
                'draw.frame', 'draw.large', 'draw.tree', 'draw.measure', 'draw.place',
                'draw.layout', 'draw.render', 'draw.glyph', 'ui.PLAIN', 'ui.SECOND', 'ui.ALPHA', 'ui.kmap',
                'ui.ALIAS', 'ui.tmpl', 'ui.TN',
+               # the F-key row and its 2nd layer (docs/notes/MATHPRINT.md 0.13)
+               'ui.tabs', 'ui.FKEYS',
                # MathPrint (docs/notes/MATHPRINT.md 9.2): the engine-free editor layout
                'ui.tidy', 'draw.TPL', 'draw.TGAP', 'draw.MPREC',
                # the MathPrint editor keys (milestone B)

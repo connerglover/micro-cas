@@ -126,12 +126,13 @@ SCREENS = [
     'integrate(x^2,x,0,1){enter}sum(k^2,k,1,n){enter}limit(sin(x)/x,x,0){enter}x',
     'x+' * 40 + '{left}' * 5 + '{2nd,left}{2nd,right}',
     '{f1}{right}' + '{down}' * 8 + '{alpha}s{del}{clear}',
-    '{2nd,0}{snap}{clear}{2nd,math}{clear}diff({f5}{clear}{f5}{clear}',
-    '{f3}{down}{down}{down}{down}{enter}{clear}{clear}',
-    '{f3}{enter}{clear}2/3{enter}x^2{enter}{up}{left}{right}',
-    '2/3{enter}expand((x+1)^12){enter}{f2}' + '{right}' * 14 + '{left}' * 16 + '{up}{enter}',
-    '2{enter}sqrt(8){enter}{up}{up}{f4}{f4}{down}{down}{down}',
-    'sqrt(2){enter}{f4}',
+    '{2nd,0}{snap}{clear}{2nd,math}{clear}diff({2nd,f5}{clear}{2nd,f5}{clear}',
+    '{mode}{down}{down}{down}{down}{enter}{clear}{clear}',
+    '{mode}{enter}{clear}2/3{enter}x^2{enter}{up}{left}{right}',
+    '2/3{enter}expand((x+1)^12){enter}{up}' + '{right}' * 14 + '{left}' * 16 + '{up}{enter}',
+    '2{enter}sqrt(8){enter}{up}{up}{f5}{f5}{down}{down}{down}',
+    'sqrt(2){enter}{f5}',
+    '{2nd}{f2}{clear}{2nd,f1}{clear}{2nd,f3}{clear}{2nd,f4}{clear}{f3}{clear}{f4}{clear}{math}{clear}',
     '1/0{enter}solve(x^2+1,x){enter}',
     'expand((x+y)^20){enter}{clear@1}',
     '{alpha}{alpha}abc{2nd}de{alpha}{2nd}',
@@ -221,9 +222,10 @@ def test_modifier_repaints_status_only():
     s = KS.run('2/3{enter}1+')
     u = s.mods['ui']
     TD.reset()
-    u.key(21)
-    assert [c for c in TD.CALLS if c[0] == 'fill_rect'] == [('fill_rect', -1, -1, 321, 20)]
-    assert TD.COUNTS['set_color'] <= 3
+    u.key(21)                   # and the F-key row, relabelled to the 2nd layer (0.13)
+    assert [c for c in TD.CALLS if c[0] == 'fill_rect'] == [('fill_rect', -1, 192, 320, 16),
+                                                            ('fill_rect', -1, -1, 321, 20)]
+    assert TD.COUNTS['set_color'] <= 4
 
 
 def _counting(monkeypatch, d):

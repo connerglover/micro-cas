@@ -41,22 +41,22 @@ def test_test_picker_and_definition():
 
 
 def test_evo_keys_forms_fraction_and_xroot():
-    # the TI-84 Evo's < > key switches representations (the answer's forms, as F4); its
+    # the TI-84 Evo's < > key switches representations (the answer's forms, as F5); its
     # fraction key types /; 2nd x^n is xRoot
-    a, b = KS.run('1{frac}4{enter}{<>}'), KS.run('1{frac}4{enter}{f4}')
+    a, b = KS.run('1{frac}4{enter}{<>}'), KS.run('1{frac}4{enter}{f5}')
     assert a.mods['run'].HIST == b.mods['run'].HIST and a.mods['run'].HIST[0][0] == '1/4'
     assert a.mods['run'].HIST[0][5][-1] == ('decimal', '0.25')
     assert KS.run('{2nd,x^n}3,8{enter}').ans == '2'   # the index box first, as drawn
 
 
 def test_forms_and_angle_setting():
-    s = KS.run('sqrt(2){enter}{f4}{f3}{enter}{clear}')
+    s = KS.run('sqrt(2){enter}{f5}{mode}{enter}{clear}')
     assert s.ans.startswith('1.414213562')
     assert s.mods['run'].SET == {'deg': 1}              # no theme setting (v1.0.0)
 
 
 def test_help_example_paste():
-    s = KS.run('diff({f5}{enter}')
+    s = KS.run('diff({2nd,f5}{enter}')
     assert 'diff(x^3,x,2)' in s.mods['ui'].LINE
 
 
@@ -72,7 +72,7 @@ def test_quit():
 
 
 def test_clear_history_while_selected():
-    s = KS.run('2{enter}{up}{f3}{down}{enter}{enter}{clear}{enter}')
+    s = KS.run('2{enter}{up}{mode}{down}{enter}{enter}{clear}{enter}')
     assert s.hist == [] and s.mods['ui'].MODE == 0
     assert 'Display error' not in s.screen
 
@@ -111,7 +111,7 @@ def test_ans_without_arguments_remains_valid():
 
 
 def test_decimal_form_hides_approximation_until_exact_returns():
-    s = KS.run('sqrt(2){enter}{snap:exact}{f4}{snap:decimal}{f4}{snap:restored}')
+    s = KS.run('sqrt(2){enter}{snap:exact}{f5}{snap:decimal}{f5}{snap:restored}')
     assert '~ 1.414213562' in s.snap('exact')
     assert 'decimal' in s.snap('decimal') and '~ ' not in s.snap('decimal')
     assert 'exact' in s.snap('restored') and '~ 1.414213562' in s.snap('restored')

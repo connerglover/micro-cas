@@ -19,7 +19,7 @@ text. The editor is limited to 256 characters and scrolls to keep the caret visi
 
 The entry point runs its event loop at module scope to avoid a wrapper frame:
 `wait_key` -> `U.key` -> optional `R.go` -> `U.show`. `U.key` returns `None`,
-`U.QUIT`, or a job tuple. Calculation and F4 jobs pass through the same runner.
+`U.QUIT`, or a job tuple. Calculation and forms (F5) jobs pass through the same runner.
 `U.boot` injects native cancellation, memory, and busy-display hooks. Session data
 remain in the runner as text, separate from the temporary expression arena.
 
@@ -36,13 +36,13 @@ is separate from key-script coverage.
 
 | Key (code) | Plain action | With 2nd |
 |---|---|---|
-| F1..F5 (11..15) | Menu, history scroll, setup, forms, help | Same action |
+| F1..F5 (11..15) | Menu tabs Algebra, Calculus, Trig, More; F5 forms | All tab, template picker, TEST picker, setup, help |
 | MODE (22) | Setup | Quit |
 | DEL (23) | Backspace; delete `ans()` atomically | Same action |
 | Left/right (24/26) | Caret movement, or answer scrolling; in the history: input/answer cell | Home/end in nonempty editor |
 | Up/down (25/34) | History navigation | Jump five history entries |
 | X,T,theta,n (32) | `x` | `t` |
-| MATH (41) | Calculus command tab | TEST relation picker |
+| MATH (41) | Command menu on the tab used last (Algebra at first) | TEST relation picker |
 | VARS (44) | Ans, variables, functions | Same action |
 | CLEAR (45) | Clear/back/hide hero; computation cancel | Same action |
 | Reciprocal (51) | `^-1` | No insertion |
@@ -83,17 +83,26 @@ ENTER on an empty line repeats the last input. Repeated 2nd ENTER walks older
 inputs until the recalled line is edited. Empty template slots move the caret
 instead of starting calculation. History paste wraps compound results in parentheses.
 
-History scroll (v1.0.0, as on the TI-Nspire CX II CAS): F2 or up from the edit line
+The F-key row (v1.0.0, MATHPRINT.md 0.13) shows `Alg Calc Trig More Forms`; while the 2nd
+chip is lit it shows `All Tmpl Test Setup Help` and the keys act on that layer. Alpha modes keep
+the plain row. The row is repainted (one fill over the labels, the four tab gaps, the labels)
+only when the layer changes, tracked in `ui.TABVIEW`. Plain F5 and < > (95) cycle the focused
+answer's forms and do nothing without an answer. The math key opens the tab used last,
+`ui.TAB` (a `menu.TABS` index; `menu.open` sets it, also when left/right switch tabs).
+
+History scroll (v1.0.0, as on the TI-Nspire CX II CAS): up from the edit line
 selects the newest answer; up/down move between entries, left selects the input
 cell and right the answer cell, with the band behind that cell only. A selected
 answer wider than the view scrolls with right/left before left moves to the input.
 ENTER copies the selected cell at the caret (an input as 2D text, an answer
-wrapped as needed and without its `+ C`) and returns to the edit line; F2 or
-CLEAR leaves without copying; F4 acts on the selected entry.
+wrapped as needed and without its `+ C`) and returns to the edit line; CLEAR
+(or down past the newest entry) leaves without copying; F5 acts on the selected
+entry. F2 entered and left the scroll before the F-key row of 0.13.
 
 ## Menus and forms
 
-F1 opens Algebra. Left/right cycles Algebra, Calculus, Trig, More, and All. Rows
+F1-F4 open Algebra, Calculus, Trig and More, 2nd F1 and 2nd 0 the All tab, and
+math the tab used last. Left/right cycles Algebra, Calculus, Trig, More, and All. Rows
 show a signature and help text; six rows fit per page. Up/down selects; ENTER
 inserts; numeric keys choose entries relative to the displayed page. ALPHA letters
 filter by prefix; DEL removes a filter character. CLEAR or F1 closes the screen.
@@ -105,14 +114,14 @@ and `taylor` wrap an existing line when the caret is at its end; an empty line
 uses `ans()` when available. Other entries insert at the caret.
 
 VARS contains Ans, stored variables, and stored functions (the history scrolls on
-the page itself). F3 toggles RAD/DEG immediately; v1.0.0 removed the theme and
+the page itself). Setup (2nd F4 or MODE) toggles RAD/DEG immediately; v1.0.0 removed the theme and
 Classic entry settings. Clearing history or
 definitions requires local confirmation; CLEAR cancels that confirmation. About
-shows the version, available heap, and loaded runtime families. F5 shows the
+shows the version, available heap, and loaded runtime families. 2nd F5 shows the
 enclosing command's name, explanation, and example, or a shortcut summary.
 ENTER inserts a command example at the caret.
 
-F4 calls `R.go(('form', index))`, operating on the original answer parsed inertly.
+F5 (and < >) calls `R.go(('form', index))`, operating on the original answer parsed inertly.
 Available forms cycle through simplified, one fraction, factored, expanded, and
 decimal; exact constant results try decimal first. Duplicate character multisets
 are skipped, then the cycle returns to exact. A form updates the displayed text
@@ -147,8 +156,10 @@ SUB, LINE, ACC and ACCSOFT.
 
 `tests/test_ui.py` exercises the actual entry loop with calculator key scripts:
 calculation chains, negative entry, recall, atomic Ans deletion, slots, history
-paste, assignment, F4, help, cancellation, quit, and history clearing;
-`tests/test_history_scroll.py` the history scroll mode and the status row.
+paste, assignment, forms, help, cancellation, quit, and history clearing;
+`tests/test_history_scroll.py` the history scroll mode and the status row;
+`tests/test_fkeys.py` every plain and 2nd F-key, the row's relabelling and repaint cost,
+and the math key's remembered tab.
 `tests/test_menu.py` covers relation selection, templates, vars, settings, help,
 and command/macro catalog coverage. `tests/test_forms.py` checks cycling, Ans,
 inert old results, held calculus, and history length. `tests/test_layout.py` checks

@@ -41,7 +41,9 @@ input, not the calculator download. Do not mix files from different packages.
 4. Start a fresh **Python** session, select **CAS**, and run it.
 5. The screen should show `RAD` and `ready` with the start time in seconds in
    the top row, `Press math or menu` in the middle, an empty edit line, and the
-   five bottom labels `menu`, `hist`, `setup`, `forms`, and `help`. Without a
+   five bottom labels `Alg`, `Calc`, `Trig`, `More`, and `Forms`. Press **2nd**:
+   the labels change to `All`, `Tmpl`, `Test`, `Setup`, and `Help`, and press it
+   again to change them back. Without a
    calculator clock the top row shows only `ready`.
 6. Type `2+3` and press **ENTER**. The first ENTER loads the engine: the top row
    shows `Loading engine...`, then `Calculating...`, and the answer `5` appears
@@ -128,9 +130,10 @@ deleting it.
 
 ## First checks
 
-Use RAD mode for these examples. Type each expression and press **ENTER**. F1
-opens command templates; **MATH** opens the Calculus tab. Type letters with
-**ALPHA**. Equivalent reordered expressions are acceptable.
+Use RAD mode for these examples. Type each expression and press **ENTER**. F1 to
+F4 open the command menu on its Algebra, Calculus, Trig and More tabs; **MATH**
+opens the tab you used last (Algebra at first). Type letters with **ALPHA**.
+Equivalent reordered expressions are acceptable.
 
 | Input | Expected result |
 |---|---|
@@ -145,8 +148,8 @@ opens command templates; **MATH** opens the Calculus tab. Type letters with
 | `grad(x*y,[x,y])` | `[y,x]` |
 | `integrate(1/(2+cos(x)),x,0,2*pi)` | `2*sqrt(3)*pi/3`; one of the heaviest commands for memory |
 
-Then try `sqrt(2)` and press **F4** to request its decimal form: the label at
-the top right changes from `exact` to `decimal`. Press **F2** (or up): the last
+Then try `sqrt(2)` and press **F5** (or < >) to request its decimal form: the
+label at the top right changes from `exact` to `decimal`. Press up: the last
 answer is highlighted; press left to highlight its input, then **ENTER** to copy
 it into the edit line. While a longer calculation is running, press **CLEAR** to
 cancel, then check that `2+3` still returns `5`.
@@ -155,19 +158,25 @@ cancel, then check that `2+3` still returns `5`.
 
 | Key | Action |
 |---|---|
-| F1 / Y= | Command menu; left/right changes tabs |
-| F2 / WINDOW | Scroll the history (F2 again or CLEAR returns to the edit line) |
+| F1 / Y= (`Alg`) | Command menu on the Algebra tab; left/right changes tabs |
+| F2 / WINDOW (`Calc`) | Command menu on the Calculus tab |
+| F3 / ZOOM (`Trig`) | Command menu on the Trig tab |
+| F4 / TRACE (`More`) | Command menu on the More tab |
+| F5 / GRAPH (`Forms`), < > | Next available form of the highlighted or last answer (exact, decimal, ...); its name is shown at the top right. Nothing without an answer |
+| MATH | Command menu on the tab used last (Algebra at first) |
+| 2nd F1 (`All`) | All commands, A to Z; ALPHA letters find a command |
+| 2nd F2 (`Tmpl`) | Template picker (as 2nd fraction key) |
+| 2nd F3 (`Test`) | Relation picker (as 2nd MATH) |
+| 2nd F4 (`Setup`), MODE | Angle mode, session clearing, About |
+| 2nd F5 (`Help`) | Help for the command around the caret; ENTER inserts its example |
 | VARS | Ans, stored variables, and functions |
-| F3 / ZOOM / MODE | Angle mode, session clearing, About |
-| F4 / TRACE, < > | Next available form of the highlighted or last answer (exact, decimal, ...); its name is shown at the top right |
-| F5 / GRAPH | Help for the command around the caret; ENTER inserts its example |
 | Up/down | Up from the edit line scrolls the history; in the history, up/down move between entries (2nd: 5 at a time) |
 | Left/right in the history | Left highlights the input, right the answer; a wide answer scrolls first |
 | ENTER in the history | Copy the highlighted input or answer into the edit line at the caret |
 | 2nd ENTER | Recall earlier inputs into the edit line |
 | Left/right | Move the caret; with an empty editor, scroll the answer |
 | DEL | Backspace; `ans()` is removed as one unit |
-| CLEAR | Clear input, leave history/menu, or cancel a calculation |
+| CLEAR | Clear input, leave history/menu, or cancel a calculation (down past the newest entry also leaves the history) |
 | 2nd MATH | Relation picker: `= != < <= > >= !` |
 | 2nd 0 | All commands |
 | Fraction key | Stacked fraction: numerator box over denominator box |
@@ -204,7 +213,7 @@ small program and 173,360 bytes after importing `ti_plotlib`, `ti_graphics`,
 packs on native 32-bit MicroPython v1.12: startup on a 95,000-byte total heap,
 `2+3` and long 2D lines at 173,360 bytes, seven calculus commands at 189,776
 bytes, and 55 diagnostic calculations at 212,000 bytes. Graphics are stubbed, so
-these are not calculator measurements. **F3 > About cas-evo** shows the free
+these are not calculator measurements. **MODE > About cas-evo** shows the free
 heap, and a calculation that runs out of memory shows `Out of memory`; the next
 command should still work. The 55-case diagnostic program (`CVTEST`) is a
 developer tool built and run in CI; it is not part of the package.

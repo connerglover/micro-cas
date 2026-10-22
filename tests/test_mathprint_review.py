@@ -11,7 +11,8 @@ def line(s):
 # -- menu templates ------------------------------------------------------------------------------
 
 def test_mathprint_menu_templates_have_empty_boxes():
-    assert line(KS.run('{41}{105}')) == ('diff(,)', 6)  # d/d[]([]): the variable box first
+    # F2 (12) is the Calculus tab; math (41) opens the last tab used, Algebra at first
+    assert line(KS.run('{12}{105}')) == ('diff(,)', 6)  # d/d[]([]): the variable box first
 
 
 # -- ENTER's empty-slot check inside autoclosed brackets ----------------------------------------

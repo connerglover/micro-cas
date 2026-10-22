@@ -625,7 +625,8 @@ def test_keytext_matches_design_table():
     assert KS.KEYTEXT[104] == ('-', 'ans()', None)
     assert KS.KEYTEXT[103] == ('.', 'i', "'")
     assert KS.KEYTEXT[22] == ('@setup', '@quit', None)
-    assert KS.KEYTEXT[41] == ('@menu:calculus', '@test', 'a')
+    assert KS.KEYTEXT[41] == ('@menu:last', '@test', 'a')       # the last tab (0.13)
+    assert KS.KEYTEXT[15] == ('@forms', '@help', None)
     assert KS.KEYTEXT[102] == ('0', '@menu:all', ' ')
     for code, name in KS.NAME.items():
         assert KS.KEY[name] == code
