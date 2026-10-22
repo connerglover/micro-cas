@@ -1,5 +1,6 @@
 {
   "generator": "cas-evo/build/publish_site.py",
-  "source_commit": "702bc53964bc5af3f67c452ca5aa8504272b4c06",
-  "run_url": "https://github.com/connerglover/cas-evo/actions/runs/38346919802"
+  "source_commit": "22b0464d95df4ea4140cbb412aad5276e2293011",
+  "source_ref": "refs/tags/v1.0.0",
+  "run_url": "https://github.com/connerglover/cas-evo/actions/runs/39716426061"
 }

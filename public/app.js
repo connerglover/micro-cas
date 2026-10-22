@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-import { Installer, validatePackage, validateLegacy, sha256 } from './installer.js';
+import { Installer, LEGACY, validatePackage, validateLegacy, sha256 } from './installer.js';
 import { WebTilpTransport } from './transport.js';
 
 const $ = id => document.getElementById(id);
@@ -57,7 +57,8 @@ function fileState(name, state) {
 }
 
 function showPackage() {
-  if (typeof pkg.version === 'string') $('package-version').textContent = pkg.version;
+  if (typeof pkg.release === 'string') $('package-version').textContent = `v${pkg.release}`;
+  else if (typeof pkg.version === 'string') $('package-version').textContent = pkg.version;
   $('file-count').textContent = `${pkg.files.length} files`;
   $('source-size').textContent = bytes(pkg.totalBytes);
   $('ram-size').textContent = `${bytes(pkg.files.filter(file => file.destination === 'ram').reduce((sum, file) => sum + file.bytes, 0))} in RAM`;
@@ -157,7 +158,7 @@ $('primary').addEventListener('click', async () => {
       $('device-name').textContent = device.model === 49 ? 'TI-84 EVO-T connected' : 'TI-84 EVO connected';
       $('archive-free').textContent = device.listing.memory?.ok ? `${bytes(device.listing.memory.flash_free)} free in archive` : '';
       $('status-text').textContent = 'Connected. Ready to install.';
-      $('action-note').textContent = 'Libraries go to archive; CASEVO and CVTEST go to RAM. Earlier cas-evo files are removed or replaced only after an exact content check.';
+      $('action-note').textContent = 'Libraries go to archive; CAS goes to RAM. Earlier cas-evo files are removed or replaced only after an exact content check.';
       stage(1);
     } else {
       installed = false;
@@ -237,16 +238,22 @@ window.addEventListener('beforeunload', event => {
 });
 
 try {
-  const [metaResponse, response, legacyResponse] = await Promise.all(['./package-meta.json', './package.json', './legacy-v1.json']
+  const [metaResponse, response] = await Promise.all(['./package-meta.json', './package.json']
     .map(url => fetch(url, { cache: 'no-store' })));
-  if (!metaResponse.ok || !response.ok || !legacyResponse.ok) throw new Error('The download package is unavailable. Reload the page and try again.');
-  const [meta, data, legacyData] = await Promise.all([metaResponse.json(), response.arrayBuffer(), legacyResponse.arrayBuffer()]);
-  if (await sha256(data) !== meta.sha256 || await sha256(legacyData) !== meta.legacySha256) {
-    throw new Error('The package download was incomplete. Reload before connecting.');
-  }
+  if (!metaResponse.ok || !response.ok) throw new Error('The download package is unavailable. Reload the page and try again.');
+  const [meta, data] = await Promise.all([metaResponse.json(), response.arrayBuffer()]);
+  if (await sha256(data) !== meta.sha256) throw new Error('The package download was incomplete. Reload before connecting.');
+  // The records of earlier releases, each pinned by the build (build/website.py).
+  const records = await Promise.all(LEGACY.map(async name => {
+    const reply = await fetch('./' + name, { cache: 'no-store' });
+    if (!reply.ok) throw new Error('The download package is unavailable. Reload the page and try again.');
+    const bytes = await reply.arrayBuffer();
+    if (await sha256(bytes) !== meta.legacy?.[name]) throw new Error('The package download was incomplete. Reload before connecting.');
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }));
   pkg = await validatePackage(JSON.parse(new TextDecoder().decode(data)));
-  legacy = JSON.parse(new TextDecoder().decode(legacyData));
-  validateLegacy(legacy);
+  validateLegacy(records);
+  legacy = records;
   showPackage();
   const isolated = await globalThis.isolationReady;
   supported = !!(isSecureContext && navigator.serial?.requestPort && isolated && globalThis.TILibsModule);
@@ -257,7 +264,7 @@ try {
     $('action-note').textContent = 'The ZIP and installation help remain available.';
   }
   log(`Verified ${pkg.files.length} transfer files; ${pkg.totalBytes} bytes. Libraries use MPY v5.3.`);
-  log(`Loaded the record of ${legacy.files.length} earlier cas-evo ${legacy.release} files for exact-match cleanup.`);
+  for (const record of legacy) log(`Loaded the record of ${record.files.length} earlier cas-evo ${record.release} files for exact-match cleanup.`);
 } catch (error) {
   pkg = undefined;
   legacy = undefined;
