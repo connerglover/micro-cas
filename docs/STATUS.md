@@ -382,7 +382,7 @@ EVO runs can show whether these cases fit on the calculator.
      `python build/linemap.py --map dist/release.json --tb FILE`, run on a build
      of the same commit, maps pack lines to source. A native host check is not
      an emulator.
-3. Connect Cloudflare Worker cas-evo to the generated pages branch, deploy, attach
+3. Connect Cloudflare Worker `cas` (docs/HOSTING.md) to the generated pages branch, deploy, attach
    the custom domain, and verify HTTPS, isolation headers, package downloads and
    WASM initialization. Repository visibility remains private.
 
