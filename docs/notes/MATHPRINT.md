@@ -364,6 +364,24 @@ about 0.6 KB, less `HINT`, `hint` and `enclosing`); CASMNU 9,039 → 9,068 B; ev
 still passes. `D.mcall` reads `asec(` as `a*sec(` (MFNT mirrors parse.FNT; the engine reads
 asec); `argpos` names it asec (likewise acsc, acot), so its hint is `Argument`, not `Angle`.
 
+### 0.12 Release v0.1.0: one editor, history scroll, the form label (2026-10-22)
+
+The user's requests for the first tagged release, with the TI-Nspire CX II CAS as the
+reference. Where this section and an older one differ, this one wins; §2, §6, §7 and §8
+below are updated.
+
+| Request | Implementation |
+|---|---|
+| No theme | `draw.COLORS` is one literal light palette (BG, INK, SUB, LINE, ACC, ACCSOFT); `draw.theme`, `PALETTES`, `SLOTS` and the unused CARD/BAR/BARINK slots are gone, `R.SET` is `{'deg': 0}`, `VIEW` has no theme field and F3 Setup has no Theme row. |
+| MathPrint only | `ui.CLASSIC` and every Classic branch are gone (`key`'s 1D insert/DEL/arrow tail, `insert()`, `menub` Classic counts, the Classic test of `apply`, `empty_slot`, `emodel`); `EMODEL` is the LINE of the model. The flat path stays for robustness only: a line over the caps or out of memory (`ED1D`, §5.3), the line a panic ran on (`EFAIL`) and the plain panic screen. F3 Setup is Angle, Clear history, Clear variables, About; ←/→ toggle only the Angle row. |
+| Form label at the top right | The focused answer's form (`e[5][-1][0]`, or `exact`) is drawn in SUB at the top right of the status row, right-aligned against the modifier chip with a 10 px gap (`lx = 305 - 10*(len(chip) + len(label))`, +10 without a chip), without `F4`. It shows when the footer did (MODE, or an empty LINE with `HERO`). `STATVIEW = (STATUS[:room()], MOD, deg, label)`, so the row repaints only when the label changes. A status message that would not leave one free column before the label (`len(STATUS) + len(label) >= room()`) hides the label until the message clears: messages are transient and the label is always recoverable. The hint row's footer keeps only `~ decimal` (`HINTVIEW = (left, EY)`). |
+| Empty page text | `Press math or menu`, centred (x 70): the calculator has a math key, so "type" read wrong. |
+| F2 is history scroll | F2 (11..15's second key) enters MODE on the newest answer, engine-free, or leaves it; it opens no menu. The `recall` menu is gone; VARS (44) opens `Vars`: Ans, variables and functions (`menub.varrows`). The F2 tab reads `hist` (`history` is 70 px, wider than a 63 px tab). |
+| Nspire cell selection | `SELC` (CASUI global, 1 = answer) is the selected cell: ↑ from the entry and F2 select the newest answer; ↑/↓ keep the column; ← selects the input, → the answer. An answer wider than the view scrolls first: with the answer selected → adds 24 to `DX` (clamped to its span), ← subtracts 24 and selects the input only at `DX = 0`. ENTER (with or without 2nd) copies the selected cell at the caret: the input as `structure(e[0])` (2D, as ENTRY), the answer as `wrapped(e[1])` (bare inside an empty hidden slot; never the `+ C`), and the editor is active again (`put` clears MODE). A message entry (`R_MSG`) always selects its input. The ACCSOFT band covers only the selected cell: the input's box at x 0..iw+10, or the answer's from 5 px left of it to the right edge (the whole row when it overflows); `VIEW` holds the effective column, so a column change is one full redraw like a selection move. |
+
+CASUX 29,436 → 29,031 B and CASUI 3,759 → 3,417 B of bytecode (mpy-cross estimates from
+`build/release.py`), CASMNU 9,027 → 8,694 B.
+
 ---
 
 ## 1. Data model
@@ -377,13 +395,13 @@ asec); `argpos` names it asec (likewise acsc, acot), so its hint is `Argument`, 
 | `EXOFF` | `0` | Pixel scroll of the **2D** entry. |
 | `EH` | `20` | Entry box height, one of 20/40/60/80. |
 | `EDMAP` | `None` | Caret map of the last 2D layout of `LINE` (§5.2, "Result"), or `None` for a flat/1D line. |
-| `EMODEL` | `None` | `(LINE, CLASSIC)` for which `emodel()` last built the model. The model is rebuilt only when this differs, so a degraded line (`ED1D`, `EFAIL`) is not laid out again until the text changes, and the F3 Classic toggle rebuilds it. Set to `None` before every job and in `panic`. |
+| `EMODEL` | `None` | The `LINE` for which `emodel()` last built the model (until §0.12 `(LINE, CLASSIC)`). The model is rebuilt only when this differs, so a degraded line (`ED1D`, `EFAIL`) is not laid out again until the text changes. Set to `None` before every job and in `panic`. |
 | `EFLAT` | `True` | The current line is drawn and edited flat/1D (§5.1, §5.3). Set by `emodel()`. |
 | `EDL`, `EKEY` | `None` | Last painted entry: `EDMAP`'s display list (layout coordinates, drawn at `10 - EXOFF`, content top; the trailing box at the caret is skipped when drawn) and `(LINE, CUR, geometry, caret column, caret top)`, geometry `(flat, XOFF, EXOFF, EH, theme, content top, ascent)` (§0.6); `XOFF` counts only for a flat line (it is 0 in a 2D key, §0.8). Used by the diff paint. |
 | `PENDING` | `None` | `(a, b)`: put the caret in the first empty slot (drawn order) inside `LINE[a:b]`. Resolved in `emodel()` (§6.5). |
 | `ED1D` | `False` | The current line is drawn 1D because the layout is over its caps or raised `MemoryError`. |
 | `EFAIL` | `None` | The `LINE` for which `panic` (reason 0 or 3) ran. While `LINE == EFAIL`, it is drawn 1D, so a failing layout is never retried in a loop. |
-| `CLASSIC` | `False` | F3 setting (§8). |
+| `SELC` | `1` | The selected cell in MODE: 0 the input, 1 the answer (§0.12; `CLASSIC` was here until v0.1.0). |
 | `VIEWEND` | `-1` | Index of the bottom-most history entry shown in MODE (§7.2). |
 | `STATVIEW`, `HINTVIEW` | `None` | What the status row and the hint row last showed. A row is repainted only when this changes. |
 | `HERO` | `True` | Now means "show the focused entry's footer in the hint row". CLEAR on an empty line clears it. It only affects `HINTVIEW`; it is **not** part of `VIEW`, so it never causes a full redraw. |
@@ -514,7 +532,7 @@ Round trip: `tidy(structure(s))` must evaluate to the same `run.go` record as `s
 
 ---
 
-## 2. Keys (MathPrint; Classic is §8)
+## 2. Keys (MathPrint, the only editor since §0.12)
 
 Every edit goes through `ui.put(line, cur)` (L4). If `len(line) > 256`, it sets
 `STATUS = 'Input limit: 256 characters'` and changes nothing. Otherwise it applies
@@ -530,26 +548,25 @@ apply it only when the slot's whole content is one visible group (struct's rule)
 
 **Leading-operator rule.** Unchanged. On an empty LINE with `R.ANS` set, plain keys
 51, 55, 61, 65, 75, 85 and 91 insert `ans()` first (95, also in today's set, has no text in
-the editor: Classic's table guard inserts nothing for it, and neither does `edkey`; §0.5). The keys 42 and 104 do not, nor
+the editor: `edkey` inserts nothing for it; §0.5). The keys 42 and 104 do not, nor
 does a picker row.
 
 **Dispatch order in `key` (L1).** Today's order is kept; new branches slot in as follows.
 1. 21 (2nd) and 31 (alpha) change `MOD`, then `emodel()` (a no-op unless stale) and
    `redraw()`, as today. **Every** `redraw` call is preceded by `emodel()`.
-2. `if EMODEL != (LINE, CLASSIC): emodel()` (normally a no-op; it matters after `panic` and
-   after a menu changed CLASSIC).
+2. `if EMODEL != LINE: emodel()` (normally a no-op; it matters after `panic`).
 3. `mod >= 2 and k in ALPHA` → plain insert of the letter (so alpha+42 is still `b`).
-4. 2nd MODE → `QUIT`; CLEAR; DEL; ←/→; ↑/↓; ENTER; F4/95; menus; as listed below.
-5. 2nd 42 → picker (MathPrint only).
-6. Otherwise, in MathPrint, `edkey(k, mod)`; in Classic, today's `PLAIN`/`SECOND` insert.
+4. 2nd MODE → `QUIT`; CLEAR; F2; ←/→ in MODE or on an empty LINE; ↑/↓ in MODE; ENTER;
+   F4/95; menus; as listed below.
+5. 2nd 42 → picker.
+6. Otherwise `edkey(k, mod)`.
    A key with no entry does nothing, and the following `redraw` makes no ti_draw call
    (§6.4 step 6).
 7. If a job was set: `STATUS = 'Calculating...'`, `emodel()`, `redraw()`, then free the
    editor (`EDMAP = EDL = EKEY = None`, `EMODEL = None`, `PENDING = None`) and
    `D.clear_cache()`; else `emodel()`, `redraw()`.
 
-**Tables.** `PLAIN`, `SECOND` and `ALPHA` stay exactly as today (Classic uses them as
-today). In MathPrint, `edkey` handles the action keys (42, 51, 61, 62, 63, 64, 2nd 51,
+**Tables.** `PLAIN`, `SECOND` and `ALPHA` stay exactly as today. `edkey` handles the action keys (42, 51, 61, 62, 63, 64, 2nd 51,
 2nd 63, 2nd 64, 2nd 75, 2nd 85) itself and otherwise inserts the table text, with one
 rule: a table text ending in `(` (`sin(`, `log(`, `ln(`, `asin(`, `sqrt(`, `10^(`, `e^(`)
 is inserted as `text + ')'` with the caret before the `)`. There are no separate
@@ -572,16 +589,16 @@ MathPrint tables.
 | 63 `(`, 2nd 63 `{`, 2nd 75 `[` | In an empty hidden exponent (`x^(|)`): no-op, because the box is the group. Otherwise insert the opener at CUR and its closer at the **end of the current slot** (§4.1; for a flat line, the innermost unmatched bracket pair, else the end of the line). | `|x+1` → `(|x+1)`; `1/|4` → `1/(|4)`; at the end: `(|)` |
 | 64 `)`, 2nd 64 `}`, 2nd 85 `]` | First match: (1) `LINE[CUR]` is the same closer, hidden or visible: step over it; at a hidden numerator closer this lands on the denominator start. (2) CUR is inside a visible group or a plain call (the innermost bracket pair around CUR that lies inside the current slot) whose opener is the same bracket type and whose closer is further right: **move** that closer to CUR. This undoes the autoclose of key 63 when the user closes earlier. Not when a top-level comma of that pair lies between CUR and the closer (it would take the later arguments out of the call): then (4) (§0.5). (3) The current slot is the root: insert the closer literally (the layout draws it as text; the engine reports it). (2′) The innermost bracket is a visible opener of the same type with no closer: insert the closer (`(x+1|` → `(x+1)|`; §0.5). (4) Otherwise (inside a hidden or template slot, with nothing to close): no-op. | `x^(2|)` → `x^(2)|`; `sin(x|)` → `sin(x)|`; `2(3|x+1)` → `2(3)|x+1`; `sin(a|+b)` → `sin(a)|+b`; `x+1|` → `x+1)|`; `integrate(f|,x)` → unchanged; `f(a|,b)` → unchanged |
 | 62 `,` | Leave rule. Then (**C9**, §0.10), in a template slot of a template at its largest form (`len(args) == TPL[name][-1]`, fresh map only): move to the stop after the slot's end in `ORD`, which is the next box in drawn order or, after the last box, the template's end; it never inserts. Otherwise, if `LINE[CUR] == ','`, step over it; else insert `,` (so typing `integrate(f,x,a,b)` as text still works). | `surd(,3|)` → `surd(|,3)`; `integrate(,,0|,)` → `integrate(,,0,|)`; `integrate(x,x|,0,1)` → `integrate(x,x,0,1)|`; `diff(,x|)` → `diff(,x,|)` (the nth derivative); `integrate(x^(2|),x)` → `integrate(x^(2),|x)` |
-| ← → (24/26) | MODE or empty LINE: `DX ± 24`, as today. Otherwise move to the previous/next stop in drawn order (§4.2). No layout. | |
-| 2nd ← / 2nd → | MODE or empty LINE: `DX ± 24`, as today. Otherwise home / end: `CUR = 0` / `len(LINE)`. | |
-| ↑ (25) | MODE: as today (2nd ↑ moves 5). Empty LINE: enter history (as today, if any). 2nd ↑ with a non-empty LINE: enter history directly, as today. Otherwise `edvert(-1)` (§4.4). If that returns False and history exists: `MODE, SEL = 1, len(hist)-1`. | `x^(|)` ↑ → history |
+| ← → (24/26), with or without 2nd | MODE (§0.12): with the input selected → selects the answer (`DX = 0`); with the answer selected → is `DX + 24` and ← is `DX - 24`, or selects the input when `DX = 0`. Empty LINE: `DX ± 24` (the newest answer). Otherwise move to the previous/next stop in drawn order (§4.2; 2nd: home / end). No layout. | |
+| F2 (12) | MODE: leave it. Otherwise, with history: `MODE, SEL, SELC, DX = 1, len(hist)-1, 1, 0`. Engine-free; no menu (§0.12). | |
+| ↑ (25) | MODE: as today (2nd ↑ moves 5; the column stays). Empty LINE: enter history (as today, if any). 2nd ↑ with a non-empty LINE: enter history directly, as today. Otherwise `edvert(-1)` (§4.4). If that returns False and history exists: `MODE, SEL, SELC = 1, len(hist)-1, 1` (the newest answer). | `x^(|)` ↑ → history |
 | ↓ (34) | MODE: as today (2nd ↓ moves 5; past the newest leaves MODE). Otherwise `edvert(+1)` (2nd ↓ too); nothing if False. | `(a|)/(b)` ↓ → `(a)/(b|)` |
 | DEL (23) | §4.3 | |
 | CLEAR (45), with or without 2nd | Unchanged order: leave MODE; else empty LINE (`CUR = XOFF = EXOFF = 0`, `PENDING = None`; `emodel` then sets `EH = 20`); else `HERO = False`. Always `STATUS = ''` and `TS.escape()`. `ENTRYPOS`/`LASTENTRY` are untouched, as today. | |
-| ENTER (105) | MODE: paste the result (§7.4). Otherwise (§2.2): two-stage empty-slot check, then the job. | |
-| 2nd ENTER | MODE: paste `structure(e[0])`. Otherwise ENTRY recall: `ENTRYPOS` as today; `LINE = structure(hist[-1-ENTRYPOS][0])`, `CUR = len(LINE)`, `LASTENTRY = LINE`. No 256 check, as today. | |
-| **2nd 42** (new) | MathPrint: `row = picker()` (§3.2), then `key` applies the row (rows 1–2 through `edins`, the others through `put` + PENDING). Classic: nothing, as today. | |
-| F1, math (41), 2nd math (TEST), vars (44), F2, F3, mode (22), F5, 2nd 0 | `R.need('menu').open(kind, LINE, CUR, command)`, the command of `argpos()` (§0.11; was `enclosing()`). The result goes through today's wrap/limit code (an action wraps the whole line when the caret is at its end; in MathPrint also when only closers `) ] }` follow it, since autoclosed and hidden closers sit after a caret that looks like it is at the end: `sin(x|)` + simplify → `simplify(sin(x))`, §0.8), then `insert(text, offset)`. If `text` contains `(` and the line is 2D, `PENDING = (start, start + len(text))`; on a flat line PENDING is not set and the offset stands. A TEST relation (`=`, `!=`, `<`, `<=`, `>`, `>=`, not `!`) first applies the leave rule. After the menu: `VIEWEND = min(VIEWEND, len(hist)-1)` (Clear history may have emptied it). | |
+| ENTER (105) | MODE: copy the selected cell (§7.4). Otherwise (§2.2): two-stage empty-slot check, then the job. | |
+| 2nd ENTER | MODE: as ENTER. Otherwise ENTRY recall: `ENTRYPOS` as today; `LINE = structure(hist[-1-ENTRYPOS][0])`, `CUR = len(LINE)`, `LASTENTRY = LINE`. No 256 check, as today. | |
+| **2nd 42** (new) | `row = picker()` (§3.2), then `key` applies the row (rows 1–2 through `edins`, the others through `put` + PENDING). | |
+| F1, math (41), 2nd math (TEST), vars (44), F3, mode (22), F5, 2nd 0 | `R.need('menu').open(kind, LINE, CUR, command)`, the command of `argpos()` (§0.11; was `enclosing()`). The result goes through today's wrap/limit code (an action wraps the whole line when the caret is at its end; in MathPrint also when only closers `) ] }` follow it, since autoclosed and hidden closers sit after a caret that looks like it is at the end: `sin(x|)` + simplify → `simplify(sin(x))`, §0.8), then `insert(text, offset)`. If `text` contains `(` and the line is 2D, `PENDING = (start, start + len(text))`; on a flat line PENDING is not set and the offset stands. A TEST relation (`=`, `!=`, `<`, `<=`, `>`, `>=`, not `!`) first applies the leave rule. After the menu: `VIEWEND = min(VIEWEND, len(hist)-1)` (Clear history may have emptied it). | |
 | F4, `< >` (95) | Unchanged (needs history; `95` with no history does nothing). | |
 | Any other key or modifier combination (33, 43, 2nd digits, 2nd 91, …) | No entry in any table: nothing changes and no ti_draw call is made. | |
 
@@ -632,7 +649,7 @@ The scan reads the fresh map when there is one (stale-map rule, §1.1); otherwis
 
 ```
 pos = -1
-if LINE and not CLASSIC:
+if LINE:
     pos = empty_map()                    # stage 1: engine-free; the model is fresh (key step 2)
 if pos < 0 and LINE:
     engine()                             # the first ENTER loads the engine
@@ -640,7 +657,7 @@ if pos < 0 and LINE:
 if pos >= 0:
     CUR, STATUS = pos, 'fill in the empty slot'
 elif LINE or hist:
-    job = ('eval', (LINE if CLASSIC or LINE == EFAIL else tidy(LINE)) or hist[-1][0])
+    job = ('eval', (LINE if LINE == EFAIL else tidy(LINE)) or hist[-1][0])
 ```
 
 `empty_map()` (L3) never lays out (the model is already fresh: `key` ran `emodel()` at
@@ -704,7 +721,7 @@ the first box in drawn order (PENDING). In MathPrint `menub.insertion(row)` retu
 picker text that starts with the catalog prefix, if any (`diff(` → `diff(,)`, `log(` →
 `log(,)`, `surd(` → `surd(,)`, `integrate(` → `integrate(,,,)`, `sum(` → `sum(,,,)`,
 `limit(` → `limit(,,,)`), else one empty box per required parameter; the offset stays
-`len(prefix)` and PENDING overrides it. Classic (§8) keeps the old texts. Since §0.11 the
+`len(prefix)` and PENDING overrides it. (The Classic column below is history: §8.) Since §0.11 the
 count of a plain call's boxes comes from `draw.ARGS` (required plus the optional ones worth
 filling), and the rows below show the newer counts.
 
@@ -1023,7 +1040,6 @@ Nodes and boxes are dropped after the call. Only `EDMAP` and `EDL` are kept.
 
 The line is drawn and edited as a flat line (structure parens visible, linear stops) when
 any of these holds:
-- `CLASSIC`;
 - `LINE == EFAIL`;
 - `len(LINE) > 160`;
 - `mparse` returns None;
@@ -1033,7 +1049,7 @@ any of these holds:
   idle while typing (`EDL`, `EKEY`, the layout caches, and through `R.evict_all()` the
   families and the input, printer and aux packs, which the next command reloads) and
   rebuilds the model once (review, §0.8). If that fails too, `ED1D` becomes True; `EMODEL`
-  is still set to `(LINE, CLASSIC)`, so only the next text change retries. Measured on
+  is still set to `LINE`, so only the next text change retries. Measured on
   native MicroPython 1.12 (32-bit, 173,360-byte heap, after `2+3` ENTER): a calculus line
   went 1D at 83 characters before the retry, and stays 2D to about 140 characters with it
   (`build/micro_smoke.py --suite ui_edit` pins 97-, 72- and 130-character lines).
@@ -1088,9 +1104,9 @@ is drawn by `epaint`.
 
 | Rows | Contents | At EH = 20 (today) |
 |---|---|---|
-| 0..18 | Status: `RAD`/`DEG` at (5, 2) INK; STATUS at x 45, INK, `room()` columns; chip right-aligned at `315-10*len` in ACC. Rule at y 19 (LINE). | same |
+| 0..18 | Status: `RAD`/`DEG` at (5, 2) INK; STATUS at x 45, INK, `room()` columns; the focused answer's form label in SUB right-aligned 10 px left of the chip (or at the right edge), hidden while a status message needs its room (§0.12); chip right-aligned at `315-10*len` in ACC. Rule at y 19 (LINE). | same |
 | 20..EY−21 | History stage (§7). Entries stack upward from `SB = EY - 20`. | 20..149, SB 150 (today's list origin) |
-| EY−19..EY−2 | Hint/footer row: fill `rect(0, EY-19, 320, 18)`, text at (5, EY−17) in SUB; the footer's right part at `315-10*len`. | 151..168, text 153 |
+| EY−19..EY−2 | Hint/footer row: fill `rect(0, EY-19, 320, 18)`, text at (5, EY−17) in SUB (the argument help, or the focused answer's `~ decimal`). | 151..168, text 153 |
 | EY−1 | Rule (LINE). | 169 |
 | EY..189 | Entry box: fill `rect(0, EY, 320, EH)`; view x 10..309; markers `<` at (0, by−11) and `>` at (310, by−11) in INK, where `by = ytop + asc` is the content baseline (so a one-row line puts them at text top 172, as today). `<` shows when `XOFF`/`EXOFF` > 0; `>` when content remains right of the view. | 170..189 |
 | 190..209 | F-key tabs, unchanged: ACCSOFT `rect(64i, 191, 63, 19)`, labels in ACC at 193. | same |
@@ -1139,7 +1155,8 @@ today's formula exactly, `D.line(cx-1, ytop-1, cx-1, ytop+15)`: for a one-row li
    `D.mlayout` for the entry. Defensively, `redraw` paints the entry flat whenever
    `EDMAP is None or EDMAP[0] != LINE` (for example a test calling `u.redraw()` right after
    `panic`), so it can never index a stale map.
-2. **Full or partial.** `full = FULL or VIEW != (theme, MODE, SEL, VIEWEND, DX, len(hist), EH, span)`,
+2. **Full or partial.** `full = FULL or VIEW != (MODE, SEL, column, VIEWEND, DX, len(hist), EH, span)`
+   (`column`: the selected cell, §0.12),
    `span` the focused answer's overflow at the last full redraw; `DX` is first clamped to it,
    so ←/→ on an answer that fits is a no-op key (§0.6).
    `HERO` is deliberately not in `VIEW`: it only changes the hint row, which `HINTVIEW`
@@ -1149,23 +1166,24 @@ today's formula exactly, `D.line(cx-1, ytop-1, cx-1, ytop+15)`: for a one-row li
    redraw the focused answer's `DX` is clamped to `max(0, w - 300)`, as today's hero did.
 3. **Full.** Paint everything in color batches:
    1. BG: screen.
-   2. ACCSOFT: tabs and the selection band.
+   2. ACCSOFT: tabs and the selection band (the selected cell only).
    3. LINE: rules.
-   4. SUB: the entry's empty-slot outlines, history inputs, messages, hint/footer.
+   4. SUB: the entry's empty-slot outlines, history inputs, messages, hint/footer, the form
+      label.
    5. INK: status text, results, entry, caret, markers.
    6. ACC: chip and F-key labels.
 
    That is ≤ 6 `set_color`.
 4. **Partial.** Each region repaints only if it changed:
-   - status row when `STATVIEW != (STATUS[:room()], MOD, deg)`;
+   - status row when `STATVIEW != (STATUS[:room()], MOD, deg, label)`;
    - hint row when `HINTVIEW` changed;
    - entry when `LINE`, `CUR` or the geometry differ from `EKEY` (§0.6).
 
-   All BG fills come first, then SUB (boxes, hint), INK, and ACC (chip, only when the
-   status row repaints).
+   All BG fills come first, then SUB (boxes, hint), INK, SUB (the form label) and ACC (chip),
+   the last two only when the status row repaints.
 5. **Entry paint (`epaint(full)`, L3).** Three paths, first match:
    - **Full entry repaint** — a full redraw, a flat line, or `EFLAT`/`XOFF`/`EXOFF`/`EH`/
-     `theme`, content top or ascent changed: `rect(0, EY, 320, EH)`, then the row, or
+     content top or ascent changed: `rect(0, EY, 320, EH)`, then the row, or
      `mrender(…, x0=10, x1=319, SUB, True)` (not in a full redraw, whose SUB batch draws
      the boxes) and `mrender(…, INK, False)`, markers, caret.
    - **Caret only** — LINE (hence the display list) unchanged, only `CUR` moved (←/→,
@@ -1200,13 +1218,12 @@ today's formula exactly, `D.line(cx-1, ytop-1, cx-1, ytop+15)`: for a one-row li
 
 Called by `key` (before dispatch when stale, and before every `redraw`), `show` and `boot`.
 It does no drawing.
-1. If `EMODEL != (LINE, CLASSIC)`: set `EMODEL`; `EFLAT = CLASSIC or LINE == EFAIL or
+1. If `EMODEL != LINE`: set `EMODEL`; `EFLAT = LINE == EFAIL or
    len(LINE) > 160 or D.mflat(LINE)`; for a 2D line, `EDMAP = D.mlayout(LINE, 2)` inside
    `try/except MemoryError` (§5.3); `None` or over-height → `EFLAT = True`, `EDMAP = None`.
 2. Resolve `PENDING` (2D: first `E` of `EMPTY` inside `[a, b)`, an optional box included;
    flat: drop it) and clear it.
-3. Snap `CUR` to a stop (2D: next stop in buffer order; a flat MathPrint line: `D.mstop`;
-   Classic: no snap, every index is a stop, so ← moves into a call name as before, §8).
+3. Snap `CUR` to a stop (2D: next stop in buffer order; a flat line: `D.mstop`).
 4. Update `EH` (§6.1), then `XOFF` (flat) or `EXOFF` (2D) (§6.3).
 
 Its deepest chain is `key 1 → emodel 2 → D.mlayout 3 → D.mparse 4 → D.mshut 5 →
@@ -1246,8 +1263,8 @@ times (review, §0.8).
 | One row | If `in.w + res.w + 20 ≤ 300` and the result is ≤ 60 high (§0.6): baselines aligned, result right edge at 309. |
 | Two rows | Otherwise the input, then the result right-aligned 2 px below. |
 | Spacing | 3 px between entries. |
-| Selection | In MODE, an ACCSOFT `rect(0, top-1, 320, h+2)` behind the selected entry, drawn in the ACCSOFT batch. |
-| Empty page | No history: no title or tagline; only the gray hint line `Type math, or press menu`, drawn only if its row ends above `EY-21`. |
+| Selection | In MODE, an ACCSOFT rectangle behind the selected **cell** (§0.12), one row above and below it, clipped to rows 20..SB−1, drawn in the ACCSOFT batch: the input `rect(0, top-1, iw+10, ih+2)`, or the answer from `305 - rw` (0 when it overflows) to the right edge. |
+| Empty page | No history: no title or tagline; only the gray hint line `Press math or menu` at x 70, drawn only if its row ends above `EY-21`. |
 
 ### 7.2 Scrolling
 
@@ -1275,13 +1292,13 @@ entry is at the bottom.
 
 | State | Shows |
 |---|---|
-| MODE | the selected entry's footer |
-| LINE empty and `HERO` | the newest entry's footer |
+| MODE | the selected entry's footer (its form label is in the status row, §0.12) |
+| LINE empty and `HERO` | the newest entry's footer (likewise) |
 | LINE non-empty | the help of the argument at the caret (§0.11: `arghelp(*argpos())`, ≤ 31 columns), or nothing |
 
 The footer is today's text without the `+ C`, which is drawn on the answer's row (§7.1, §0.10):
-- left: `'~ ' + approx` if exact, cut to `29 - len(right)`;
-- right: `label + '  F4'`.
+- `'~ ' + approx` if the shown form is `exact`, cut to 31 columns; the form label itself
+  moved to the status row (§0.12).
 
 An `R_MSG` entry has no footer (empty hint row), as today's hero showed none.
 `test_decimal_form_hides_approximation_until_exact_returns` therefore holds.
@@ -1290,9 +1307,9 @@ An `R_MSG` entry has no footer (empty hint row), as today's hero showed none.
 
 | Action | Result |
 |---|---|
-| ENTER in MODE | `paste(wrapped(e[1]))`. If CUR is in an empty hidden fraction or exponent slot, the text is pasted bare. Result pastes are not `structure`d. |
-| 2nd ENTER in MODE | paste `structure(e[0])` |
-| F2 recall | inserts `ans()`, `(result)` or a name, unchanged |
+| ENTER (or 2nd ENTER) in MODE, answer cell | `paste(wrapped(e[1]))`. If CUR is in an empty hidden fraction or exponent slot, the text is pasted bare. Result pastes are not `structure`d and never carry `+ C`. |
+| ENTER (or 2nd ENTER) in MODE, input cell (or a message entry) | paste `structure(e[0])` |
+| VARS | inserts `ans()` or a name (F2 recall, with its `(result)` rows, is gone: §0.12) |
 | ENTRY | §2 |
 | CLEAR | leaves MODE |
 
@@ -1301,39 +1318,18 @@ An `R_MSG` entry has no footer (empty hint row), as today's hero showed none.
 So inside `integrate((x)/(|),x)` it returns `integrate`. The hint and F5 help follow.
 The name is the letter/digit run before `(` with **leading digits dropped** (`2sin(x|)`
 gives `sin`, not today's `2sin`); a run of digits only (`2(x|)`) counts as unnamed and is
-skipped like a group. In Classic, `enclosing` behaves the same (the change is harmless
-there and keeps one function).
+skipped like a group.
 
 ---
 
-## 8. MathPrint / Classic
+## 8. MathPrint / Classic (removed in v0.1.0)
 
-F3 Setup gains **row index 5**, `Entry: MathPrint` / `Entry: Classic`. It is appended after
-About, so indices 0–4 are unchanged.
-
-`menu.open` setup branch: `selected < 2` toggles as today; `2, 3` confirm; `4` About;
-`5` sets `U.CLASSIC = not U.CLASSIC` on ENTER, digit 6 and ←/→ (like rows 0–1; today's
-code sends every `selected ≥ 4` to About, so the branch must test `== 4` explicitly). The
-row label is `'Entry: ' + ('Classic' if U.CLASSIC else 'MathPrint')`, note
-`'ENTER or arrows toggle'`. Six rows fit `menu.PAGE = 6`. `CLASSIC` is a CASUI ui global, not
-an `R.SET` entry, so the editor can read it before the engine loads and `run` is unchanged;
-it lasts for the session, like the other settings.
-
-The toggle needs no extra code in `key`: the next `emodel()` sees `EMODEL != (LINE,
-CLASSIC)` and rebuilds the model, and `key` already sets `FULL = True` after a menu.
-
-Classic is **today's editor exactly**:
-- today's `PLAIN`/`SECOND` tables, used directly (they are not changed for MathPrint);
-- `insert()`, today's DEL, ±1 arrows, 1D row;
-- no autoclose, no `tidy`, no `structure`, no map, no picker (2nd 42 does nothing);
-- no caret snap (§6.5) and no template texts in menu insertions (`menub.insertion` gives the
-  required boxes as before: `diff(,)`, `integrate(,)`, `limit(,,)`, `log()`);
-- ENTER skips stage 1 (§2.2).
-
-History inputs stay 2D. Classic also serves as:
-- the user's escape hatch;
-- the device-timing fallback;
-- the reference for old expectations.
+Until v0.1.0, F3 Setup row 5 (`Entry: MathPrint` / `Entry: Classic`, the ui global
+`CLASSIC`) switched to the pre-MathPrint 1D editor. The user asked for MathPrint entry only,
+so the setting, the global and every Classic branch are gone (§0.12). What Classic also
+served stays, without a user mode: the flat 1D path of `emodel`/`epaint`/`edslot` for a
+line over the layout caps or out of memory and for the line a panic ran on (§5.3), and the
+plain panic screen.
 
 ---
 
@@ -1351,7 +1347,7 @@ History inputs stay 2D. Classic also serves as:
 | `edkey(k, mod)` (MathPrint editing keys) | ui | 2 | CASUX | edins, eddel, edmove, edvert, insert, tput 3; leave, put 4 |
 | `tput(t)`: a template text at the caret, the caret in its first box (PENDING, §0.10) | ui | 3 | CASUX | put 4 |
 | `picker()` | ui | 2 | CASUX | D.rect/text/line 5, D.color 6, TS.wait_key (native) |
-| `redraw()` (rewritten, §6.4; history plan inline) | ui | 2 | CASUX | D.mlayout, D.layout, D.theme, epaint, argpos 3; D.render, D.mrender, room, arghelp 4; D.text/rect/line 5; D.color 6 |
+| `redraw()` (rewritten, §6.4; history plan inline) | ui | 2 | CASUX | D.mlayout, D.layout, epaint, argpos 3; D.render, D.mrender, room, arghelp 4; D.text/rect/line 5; D.color 6 |
 | `engine`, `busy` | ui | 2 | as today | unchanged |
 | `edins(op, t='')`: `frac`, `pow`, `sq`, `open`, `close`, `comma`, `text` | ui | 3 | CASUX | edslot, edterm, leave, put 4; bmatch 5 |
 | `eddel()` → True: move left instead | ui | 3 | CASUX | put, keep, spans 4; bmatch, D.mcall 5 |
@@ -1413,7 +1409,7 @@ assigned in a function, which `packs.Plan.constant` requires of a placed name).
 `ui`-kind pack; a view pack may not hold a global that a function assigns
 (`packs.py`: "lives in soft pack … but assigns globals").
 - `ui`: `EXOFF`, `EH`, `EDMAP`, `EDL`, `EKEY`, `EMODEL`, `EFLAT`, `PENDING`, `ED1D`,
-  `EFAIL`, `CLASSIC`, `VIEWEND`, `STATVIEW`, `HINTVIEW`, `CARETC`, `EDIFF`, `PAGEMAX`,
+  `EFAIL`, `VIEWEND`, `STATVIEW`, `SELC` (§0.12), `HINTVIEW`, `CARETC`, `EDIFF`, `PAGEMAX`,
   and (review, §0.8) `BALLAST`, the boot block (released by `boot()`).
 - `draw`: `ICACHE`, `ICACHE_BYTES`.
 

@@ -36,14 +36,14 @@ is separate from key-script coverage.
 
 | Key (code) | Plain action | With 2nd |
 |---|---|---|
-| F1..F5 (11..15) | Menu, recall, setup, forms, help | Same action |
+| F1..F5 (11..15) | Menu, history scroll, setup, forms, help | Same action |
 | MODE (22) | Setup | Quit |
 | DEL (23) | Backspace; delete `ans()` atomically | Same action |
-| Left/right (24/26) | Caret movement, or answer scrolling | Home/end in nonempty editor |
+| Left/right (24/26) | Caret movement, or answer scrolling; in the history: input/answer cell | Home/end in nonempty editor |
 | Up/down (25/34) | History navigation | Jump five history entries |
 | X,T,theta,n (32) | `x` | `t` |
 | MATH (41) | Calculus command tab | TEST relation picker |
-| VARS (44) | Recall | Recall |
+| VARS (44) | Ans, variables, functions | Same action |
 | CLEAR (45) | Clear/back/hide hero; computation cancel | Same action |
 | Reciprocal (51) | `^-1` | No insertion |
 | SIN/COS/TAN (52..54) | Function call prefix | Inverse function prefix |
@@ -60,7 +60,7 @@ is separate from key-script coverage.
 | Zero (102) | `0` | All command tab |
 | Decimal (103) | `.` | `i` |
 | Negative (104) | `-` without leading Ans | `ans()` |
-| ENTER (105) | Evaluate, or paste selected result | ENTRY recall, or selected input |
+| ENTER (105) | Evaluate, or copy the selected history cell | ENTRY recall, or the selected cell |
 
 2nd (21) and ALPHA (31) are normally one-shot. ALPHA twice or 2nd ALPHA locks
 lowercase entry; 2nd toggles lowercase/uppercase while locked; ALPHA unlocks.
@@ -83,6 +83,14 @@ ENTER on an empty line repeats the last input. Repeated 2nd ENTER walks older
 inputs until the recalled line is edited. Empty template slots move the caret
 instead of starting calculation. History paste wraps compound results in parentheses.
 
+History scroll (v0.1.0, as on the TI-Nspire CX II CAS): F2 or up from the edit line
+selects the newest answer; up/down move between entries, left selects the input
+cell and right the answer cell, with the band behind that cell only. A selected
+answer wider than the view scrolls with right/left before left moves to the input.
+ENTER copies the selected cell at the caret (an input as 2D text, an answer
+wrapped as needed and without its `+ C`) and returns to the edit line; F2 or
+CLEAR leaves without copying; F4 acts on the selected entry.
+
 ## Menus and forms
 
 F1 opens Algebra. Left/right cycles Algebra, Calculus, Trig, More, and All. Rows
@@ -96,8 +104,9 @@ Templates contain required argument slots, with the caret in the first slot.
 and `taylor` wrap an existing line when the caret is at its end; an empty line
 uses `ans()` when available. Other entries insert at the caret.
 
-F2 contains Ans, the latest ten successful results, stored variables, and stored
-functions. F3 toggles RAD/DEG and Paper/Night immediately. Clearing history or
+VARS contains Ans, stored variables, and stored functions (the history scrolls on
+the page itself). F3 toggles RAD/DEG immediately; v0.1.0 removed the theme and
+Classic entry settings. Clearing history or
 definitions requires local confirmation; CLEAR cancels that confirmation. About
 shows the version, available heap, and loaded runtime families. F5 shows the
 enclosing command's name, explanation, and example, or a shortcut summary.
@@ -118,7 +127,6 @@ table in DESIGN 14 is broader than the current implementation's filters.
 | `D.layout(text, width=300, height=110)` | Level 3; returns display-list box and fit metadata |
 | `D.paint(box, x, y, scrollx=0, scrolly=0)` | Level 3; clips graphics to the box viewport |
 | `D.text(s, x, y, small=False, color=None)` | Level 3; native text, default INK color |
-| `D.theme(n)` / `D.settheme(n)` | Level 3; selects Paper or Night palette |
 | `D.clear_cache()` | Level 3; releases cached display lists |
 
 Layout converts answer text through `P.lex` and `P.rpn`, then constructs boxes and
@@ -132,15 +140,16 @@ The box dictionary contains `dl`, `kinds`, `w`, `h`, `asc`, `desc`, `fallback`,
 (`l`), or vector glyphs (`g`). Large text is tried first, then small; oversized or
 invalid input can fall back to plain text. Limits are 400 RPN tokens and nesting
 24. The cache holds at most five entries and an estimated 4 KB, and is cleared
-before every calculation. `COLORS` is a dictionary keyed by BG, INK, SUB, LINE,
-ACC, ACCSOFT, CARD, BAR, and BARINK.
+before every calculation. `COLORS` is the one light palette, keyed by BG, INK,
+SUB, LINE, ACC and ACCSOFT.
 
 ## Validation boundary
 
 `tests/test_ui.py` exercises the actual entry loop with calculator key scripts:
 calculation chains, negative entry, recall, atomic Ans deletion, slots, history
-paste, assignment, F4/theme, help, cancellation, quit, and history clearing.
-`tests/test_menu.py` covers relation selection, templates, recall, settings, help,
+paste, assignment, F4, help, cancellation, quit, and history clearing;
+`tests/test_history_scroll.py` the history scroll mode and the status row.
+`tests/test_menu.py` covers relation selection, templates, vars, settings, help,
 and command/macro catalog coverage. `tests/test_forms.py` checks cycling, Ans,
 inert old results, held calculus, and history length. `tests/test_layout.py` checks
 box kinds, clipping, scripts, fallbacks, cache limits, and printed-answer parsing.

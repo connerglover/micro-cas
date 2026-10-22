@@ -138,8 +138,8 @@ These were settled with the user. Do not reopen them.
 | menus | The F1 command menu pastes the command and shows a one-line example/help hint (a lite FlowCE catalog). Command names follow giac, plus short aliases (`int`, `d`, `lim`, ...). |
 | conventions | `log` is base 10 and `ln` is natural. Radians by default, with a degree mode. Exact trig at special angles. `+C` on antiderivatives. Polynomials in descending powers. `i` is the imaginary unit. |
 | failure | A failed indefinite integral is shown unevaluated. A failed definite integral falls back to a numeric value labelled ≈. Limits behave the same way. |
-| keys | F1 menu, F2 Ans/history recall, F3 settings (rad/deg, theme), F4 cycle forms, F5 help for the current command. Up/down walk the history (enter pastes). Left/right scroll wide answers. sto-> stores. [clear] clears the line or cancels a computation. |
-| themes | Paper and Night. No persistence between runs. |
+| keys | F1 menu, F2 history scroll (v0.1.0; was Ans/history recall, now on vars without the history), F3 settings (rad/deg), F4 cycle forms, F5 help for the current command. Up/down walk the history, left/right pick its input or answer, enter copies it. Left/right scroll wide answers. sto-> stores. [clear] clears the line or cancels a computation. |
+| themes | One light palette (v0.1.0 removed the Night theme and its setting). |
 | robustness | [clear] cancels long computations (poll `ti_system.escape()`/`get_key`). MemoryError is caught and shown as a message. |
 | architecture | Flat n-ary expression trees; an explicit-stack parser and printer; a data-driven rule engine run by an explicit-stack loop (derivatives, integral tables, simplification identities); iterative algorithms for factoring, partial fractions, limits and ODEs. Only the UI layer imports `ti_*`; desktop shims stand in. Tests: pytest, a SymPy oracle, golden files, a call-depth checker. |
 | layout | `src/` (device code), `shim/`, `tests/`, `build/` (bundler), `docs/`. Python venv at `.venv`. Desktop CPython 3.14; device code is the Python 3.4 / MicroPython subset. |
@@ -244,7 +244,7 @@ written as parts (§4.3).
 | `printer.py` | `CVPRINT` | R | `PR` | 1D printer, display order, decimal formatter, messages | 330 | 7 | T1 |
 | `alg.py` | `CVALG` | R | `A` | `postorder`, `subst`, predicates (`linear`, `quadratic`, `split_const`, `degree`, `simplify_candidate`), `size`, numeric evaluator `nev`, numeric zero probe | 300 | 7 | T1 |
 | `run.py` | `CVRUN` | R | `R` | `go` (runner + trampoline), loader/evictor, command registry, session store (Ans, history, VARS, FUNCS), settings, result records | 300 | 7 | T1 |
-| `draw.py` | `CVDRAW` | R | `D` | Layout boxes, display list, renderer, themes, glyph strokes | 350 | 8 | UI |
+| `draw.py` | `CVDRAW` | R | `D` | Layout boxes, display list, renderer, the palette, glyph strokes | 350 | 8 | UI |
 | `ui.py` | `CVUI` | R | `U` | Key handling, modifier state, editor, history view, hero, status | 400 | 9 | UI |
 | `rules.py` | `CVRULE` | L | `RU` | Rule-set compiler and cache, matcher, `rebuild`, `g_rewrite`, guards | 250 (2 parts) | 6 | T1 |
 | `poly.py` | `CVPOLY` | L | `PO` | Dense Z[x] lists, division, PRS gcd, Yun, Bezout, rational roots, Gauss-Jordan over Q, sparse multivariate dicts | 350 (3 parts) | 8 | T1 |
@@ -263,7 +263,7 @@ written as parts (§4.3).
 | `defint.py` | `CVDEF` | L | `DI` | Definite and improper integrals, tanh-sinh, Gauss-Legendre, multiple integrals | 300 (2 parts) | 7 | T2/T3 |
 | `sums.py` | `CVSUM` | L | `SU` | Finite and infinite sums, convergence tests, Riemann sums | 300 (2 parts) | 7 | T3 |
 | `ode.py` | `CVODE` | L | `OD` | ODE classifier and solvers, initial conditions | 320 (3 parts) | 7 | T3 |
-| `menu.py` | `CVMENU` | U | `M` | F1 menu, TEST picker, F2 recall, F3 settings, F5 help screens | 250 (2 parts) | 6 | UI |
+| `menu.py` | `CVMENU` | U | `M` | F1 menu, TEST picker, vars, F3 settings, F5 help screens | 250 (2 parts) | 6 | UI |
 | `catalog.py` | `CVCAT` | U | `CA` | Catalog entries and help text (data) | data | 7 | UI |
 
 Resident total: about 2,650 lines, about 58 KB [E].
@@ -325,7 +325,7 @@ the compile peak at the size of one part, because each part compiles on its own.
 | CVDEF (300) | `defint`: singularities, F, jumps, symmetry; `defintb`: quadrature, improper pieces, multiple integrals | one |
 | CVSUM (300) | `sums`: finite and symbolic sums, Riemann; `sumsb`: infinite-series tests, known-series table, numeric | one |
 | CVODE (320) | `ode`: classifier, 1st-order linear, separable, Bernoulli; `odeb`: 2nd order with constant coefficients; `odec`: initial conditions, implicit answers | one |
-| CVMENU (250) | `menu`: F1 menu, TEST picker; `menub`: F2 recall, F3 setup, F5 help | two (UI) |
+| CVMENU (250) | `menu`: F1 menu, TEST picker; `menub`: vars, F3 setup, F5 help | two (UI) |
 | CVCAT (data, about 7 KB) | `catalog`: the Algebra and Trig entries; `catalogb`: Calculus and More. A data module has a compile peak too: at least one parse node per literal. | two (UI); the All tab and F5 load both |
 
 ---
@@ -1361,7 +1361,7 @@ it` (§16.1).
 | `HIST` | A list of entries `[input, output, kind, approx, flags, forms]`. At most 40 entries and 8 KB of text; the oldest is dropped first. `forms` is `None` until F4 computes it (§14). |
 | `VARS` | `{name: canonical text}` |
 | `FUNCS` | `{name: (params tuple, body text)}` |
-| `SET` | settings: `deg` (0/1), `theme` (0 Paper, 1 Night) |
+| `SET` | settings: `deg` (0/1) |
 
 Re-parsing stored text is cheap, and **`parse(print(e)) == e` is a tested invariant** (§12.5). It
 is what makes text-only session state safe.
@@ -2916,7 +2916,7 @@ emits the **display list**, a flat list of flat tuples:
 | `('g', glyph, x, y, w, h)` | stroked glyph |
 
 `render(dl, dx, clip)` (L3) draws the list with `ti_graphics` calls only. It applies the horizontal
-scroll offset `dx` and the clip rectangle. Colors come from the theme (§16.8).
+scroll offset `dx` and the clip rectangle. Colors come from the palette (§16.8).
 
 ### 13.5 Fitting and scrolling
 
@@ -2936,7 +2936,7 @@ scroll offset `dx` and the clip rectangle. Colors come from the theme (§16.8).
 |---|---|
 | `+ C` | on the answer's row, right after it and spaced like its operators, in the answer's color, when the record flag `F_PLUSC` is set (§7.9): the view lays out the answer text with `+C` appended, so alignment and scrolling count it (MATHPRINT.md 0.10, 7.1). The history text stays the bare answer |
 | `≈ value` | under the hero, from the stored decimal |
-| form chip | `exact`, or the current form name, followed by `F4` |
+| form label | `exact`, or the current form name, at the top right of the status row, left of the modifier chip (v0.1.0; it was a footer chip with `F4`) |
 | `≈` prefix | before an answer that is itself a numeric fallback (record flag `F_APPROX`) |
 
 ### 13.7 Glyphs
@@ -3128,7 +3128,7 @@ CAT = (
   empty (`diff(` → d/d□(□) as `diff(,)`, `integrate(` → `integrate(,,,)`, `limit(` →
   `limit(,,,)`, `log(` → `log(,)`) and the caret in the first box in drawn order; any other
   command inserts one empty box per required argument (FlowCE's required-argument rule, cat
-  §1.3). Classic inserts the required boxes only, as before.
+  §1.3). (v0.1.0 removed the Classic 1D entry setting; MathPrint is the only editor.)
 
 ### 15.4 Help line and F5 help
 
@@ -3157,14 +3157,16 @@ All coordinates live in one table in CVUI. PROBE7 confirms the drawable size, as
 320 × 210.
 
 ```
-y   0..13   status strip: left RAD|DEG; middle status text (Calculating..., form name,
-            "fill in the empty slot", "x is now 3: purge(x) clears it" for a record with
-            F_PURGEHINT, section 7.9); right modifier chip 2nd | a | A | a-lock | A-LOCK
+y   0..13   status strip: left RAD|DEG; middle status text (Calculating..., "fill in the
+            empty slot", "Stored; purge(name) clears" for a record with F_PURGEHINT,
+            section 7.9); right the focused answer's form label (exact, decimal, ...; gray)
+            and the modifier chip 2nd | a | A | a-lock | A-LOCK. A status message that needs
+            the room hides the form label until it clears (v0.1.0)
 y  14..157  stage: history entries, newest at the bottom; the newest entry is drawn as the
-            HERO (large, with the footer "≈ value  [form F4]") while the edit line is empty
+            HERO (large, with the footer "≈ value") while the edit line is empty
 y 158..169  help line: signature of the command around the caret (gray, small)
 y 170..189  edit line: 1D text, caret, horizontal scroll with edge markers
-y 190..209  F-key bar: 5 tabs x 64 px: menu | recall | setup | forms | help
+y 190..209  F-key bar: 5 tabs x 64 px: menu | hist | setup | forms | help
 ```
 
 - **A history entry** is the input as small gray 1D text on the left, then the result
@@ -3216,6 +3218,7 @@ variables) survives any bug; only a `U.panic` that itself fails can end the prog
 | `MOD` | 0 none, 1 2nd, 2 alpha, 3 alpha-lock lowercase, 4 alpha-lock uppercase |
 | `MODE` | `EDIT` or `HIST` |
 | `SEL` | the selected history index in `HIST` mode |
+| `SELC` | the selected cell of that entry: 0 the input (left), 1 the answer (right; v0.1.0) |
 | `HERO` | True while the newest entry is shown large (the edit line is empty in `EDIT` mode) |
 | `DX` | horizontal scroll offset of the shown answer |
 | `ENTRYPOS` | ENTRY recall position |
@@ -3235,7 +3238,7 @@ confirms the rest.
 
 | code | key | plain | 2nd | alpha |
 |---|---|---|---|---|
-| 11-15 [V] | y= window zoom trace graph (F1-F5) | menu, recall, setup, forms, help | – | – |
+| 11-15 [V] | y= window zoom trace graph (F1-F5) | menu, history scroll, setup, forms, help | – | – |
 | 21 [V] | 2nd | modifier | | |
 | 22 [V] | mode | setup (F3) | **quit** | |
 | 23 [V] | del | backspace (`ans()` as one unit) | – | |
@@ -3244,14 +3247,14 @@ confirms the rest.
 | 31 [V] | alpha | modifier; alpha alpha or 2nd alpha = lock | | |
 | 32 | X,T,θ,n | `x` | `t` | `theta` |
 | 41 [V] | math | menu (F1, Calculus tab) | TEST picker: `= != < <= > >= !` (D16, §16.7) | `a` |
-| 42 | fraction template (Evo; apps on the CE) | fraction template with term capture, `(x)/(□)` (Classic: `/`) | template picker (MathPrint) | `b` |
+| 42 | fraction template (Evo; apps on the CE) | fraction template with term capture, `(x)/(□)` | template picker (MathPrint) | `b` |
 | 43 | prgm | – | – | `c` |
-| 44 [V] | vars | recall (F2) | | |
+| 44 [V] | vars | Ans, variables, functions | | |
 | 45 [V] | clear | clear / back / hide hero; cancel while computing | | |
-| 51 | x^n (Evo; x⁻¹ on the CE) | exponent box `^(□)` (Classic: `^`) | `surd(□,)` (xRoot; Classic: `surd(`) | `d` |
+| 51 | x^n (Evo; x⁻¹ on the CE) | exponent box `^(□)` | `surd(□,)` (xRoot) | `d` |
 | 52, 53, 54 | sin cos tan | `sin(` `cos(` `tan(` | `asin(` `acos(` `atan(` | `e` `f` `g` |
 | 55 | ÷ (Evo; ^ on the CE) | `/` | `pi` | `h` |
-| 61 | x² | `^(2)` (Classic: `^2`) | `sqrt(□)` | `i` |
+| 61 | x² | `^(2)` | `sqrt(□)` | `i` |
 | 62 | , | `,` | `E` (EE) | `j` |
 | 63, 64 | ( ) | `(` `)` | `{` `}` | `k` `l` |
 | 65 | × (Evo; ÷ on the CE) | `*` | `e` | `m` |
@@ -3277,8 +3280,9 @@ confirms the rest.
 - **MathPrint** (the default entry; docs/notes/MATHPRINT.md 2): `U.edkey` handles the editing
   keys. Table texts ending in `(` are closed at once (`sin(□)`), `)` steps over a closer or
   closes the nearest visible group, 42/51/61 and 2nd 51 insert templates, and DEL, the arrows and
-  up/down follow the 2D caret map. F3 Setup row 6, `Entry: Classic`, restores the 1D editor of
-  this section exactly.
+  up/down follow the 2D caret map. It is the only editor since v0.1.0 (the `Entry: Classic`
+  setting is gone); a line over the layout caps, out of memory or after a panic is still edited
+  flat (MATHPRINT.md 5.3), which is not a user mode.
 
 ### 16.5 Editor (1D, FlowCE habits, cat §5)
 
@@ -3301,13 +3305,15 @@ confirms the rest.
 
 | key | in `EDIT` mode | in `HIST` mode |
 |---|---|---|
-| up | enter `HIST` mode, selecting the newest entry | previous entry |
-| down | – | next entry; past the newest, back to `EDIT` |
-| ENTER | evaluate (§16.5) | paste the selected **result** at the caret, then return to `EDIT`. The text is wrapped in `(...)` unless it is a single atom: a name, an unsigned number without `/`, or one call `f(...)`. So `2/3` pasted after `x^` gives `x^(2/3)`, and `x=2` pasted after `3*` gives `3*(x=2)`. |
-| 2nd ENTER | ENTRY recall | paste the selected **input** |
-| left/right | move the caret when the line is non-empty; scroll the hero when it is empty (D4) | scroll the selected answer |
+| up, F2 | enter `HIST` mode, selecting the newest entry's answer | up: previous entry (2nd: 5); F2: back to `EDIT` |
+| down | – | next entry (2nd: 5); past the newest, back to `EDIT` |
+| left/right | move the caret when the line is non-empty; scroll the hero when it is empty (D4) | left selects the **input** cell, right the **answer** cell (TI-Nspire); a selected answer wider than the view scrolls first (right to its end, left back to its start, then left selects the input) |
+| ENTER | evaluate (§16.5) | copy the selected cell at the caret, then return to `EDIT`. An answer is wrapped in `(...)` unless it is a single atom: a name, an unsigned number without `/`, or one call `f(...)` (never with its `+ C`). So `2/3` pasted after `x^` gives `x^(2/3)`, and `x=2` pasted after `3*` gives `3*(x=2)`. An input comes back as 2D text, as ENTRY gives it; a message entry always gives its input. |
+| 2nd ENTER | ENTRY recall | as ENTER |
 | F4 | forms of the hero | forms of the selected entry |
 | clear | clear the line; on an empty line, hide the hero | back to `EDIT` |
+
+The selection band covers only the selected cell (v0.1.0; it was the whole row).
 
 The stage scrolls so that the selected entry stays visible.
 
@@ -3329,12 +3335,13 @@ The stage scrolls so that the selected entry stays visible.
 menu. `1`-`7` or left/right and ENTER insert the operator at the caret; `clear` closes it. It lives
 in the `menu` part with the F1 menu.
 
-**F2 recall** (also `vars`): `Ans`, the last 10 results (1D, truncated), `name = value` for each
-variable, and the defined functions. ENTER inserts `ans()`, `(result text)`, or the name.
+**vars** (v0.1.0; F2 was recall, and now scrolls the history, §16.6): `Ans`, `name = value` for
+each variable, and the defined functions. ENTER inserts `ans()` or the name.
 
 **F3 setup** (also `mode`):
 
-- Angle RAD/DEG and theme Paper/Night: toggled by ENTER or left/right, applied at once.
+- Angle RAD/DEG: toggled by ENTER or left/right, applied at once. (v0.1.0 removed the theme and
+  the Classic entry rows.)
 - Clear history, Clear variables: each asks for confirmation.
 - About: version, `gc.mem_free()`, the loaded modules.
 
@@ -3345,27 +3352,25 @@ When a menu is closed, CVMENU, CVMENUB, CVCAT and CVCATB are evicted if memory i
 Menu screens run at L2 and draw through `D.measure`, `D.place` and `D.render` (L3) directly, never
 through `D.layout` (L2), so that every call edge goes down a level (§17.1).
 
-### 16.8 Themes
+### 16.8 Palette
 
-The palette is FlowCE's (cat §6.2), drawn with `ti_draw.set_color(r, g, b)`:
+One light palette (`draw.COLORS`; v0.1.0 removed the Night theme, its setting and the unused
+slots), drawn with `ti_draw.set_color(r, g, b)`:
 
-| slot | Paper | Night | used for |
-|---|---|---|---|
-| BG | `#F7F8FA` | `#0C0F14` | stage |
-| INK | `#111419` | `#EAEEF3` | results, edit line |
-| SUB | `#6C7581` | `#86919E` | inputs, hints, `≈`, messages |
-| LINE | `#DBE0E7` | `#262E3A` | separators |
-| ACC | `#245CCC` | `#64A5FF` | caret, selection, chip text |
-| ACCSOFT | `#E2EAFA` | `#182840` | selected entry, chips |
-| CARD | `#FFFFFF` | `#161C24` | menus |
-| BAR | `#FFFFFF` | `#10151C` | F-key bar |
-| BARINK | `#4E5662` | `#96A0AD` | F-key labels |
+| slot | color | used for |
+|---|---|---|
+| BG | `#F7F8FA` | stage |
+| INK | `#111419` | results, edit line |
+| SUB | `#6C7581` | inputs, hints, `≈`, messages, the form label |
+| LINE | `#DBE0E7` | separators, empty boxes |
+| ACC | `#245CCC` | caret, chip text, F-key labels |
+| ACCSOFT | `#E2EAFA` | selected cell, F-key tabs |
 
 ### 16.9 Redraw policy
 
 - **Edit keys** redraw only the edit line, the help line and the status chip: a few `fill_rect` and
   `draw_text` calls.
-- **Full redraws** happen only after an evaluation, F4, a history move, a theme change, or a menu
+- **Full redraws** happen only after an evaluation, F4, a history move or cell change, or a menu
   closing.
 - **Display lists** are cached per visible entry (`CACHE`, §16.3), so scrolling history does not
   lay out again. The cache is capped at 4 KB and emptied before every computation, so it never

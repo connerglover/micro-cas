@@ -115,7 +115,8 @@ Desktop build scripts can use the modern Python version pinned in CI.
 ## Calculator build and installation contract
 
 The user download is **`dist/cas-evo-calculator.zip`** (CI artifact
-`cas-evo-v1`). Its format is **packs-v1**
+`cas-evo-v1`; on a GitHub Release `cas-evo-<tag>.zip`; the release version is
+`build/manifest.py` `VERSION`, recorded in `release.json` and `archive.json`). Its format is **packs-v1**
 ([docs/notes/FASTBOOT.md](docs/notes/FASTBOOT.md)): **21 compiled `.8mp2`
 packs for Archive** and the **`CAS.8xpy2` launcher for RAM**, 22 files. The
 user runs CAS from the Python app (source `src/casevo.py`; `manifest.ENTRY`
@@ -214,7 +215,7 @@ failure disappear.
 | Loader/compiler/packs/memory | Source and bundled acceptance, `build/check_release.py` and `tests/test_archive_release.py` (UI-only boot, eviction, failed-import recovery, depth), and actual MPY v5 native checks at every `build.yml` heap |
 | Transfer/installer | Rebuilt package, real TIVarsLib round-trips, Node installer tests, browser behavior and package integrity |
 | Website presentation | Relevant browser states and responsive/accessibility checks using the existing design direction |
-| Branch publisher/workflow | `tests/test_publish_site.py`, workflow lint, Worker dry run, and observed publication from a successful main run |
+| Branch publisher/workflow | `tests/test_publish_site.py`, `tests/test_workflow.py`, workflow lint (YAML load or actionlint), Worker dry run, and observed Release upload and publication from a successful `v*` tag run |
 | Instructions/documentation only | Paths, links, command accuracy, stale-reference scan and `git diff --check`; no unrelated engine retest |
 
 The normal acceptance command excludes the `slow` marker. Run relevant slow
@@ -251,11 +252,19 @@ Artifact-dependent skips before packaging do not establish artifact acceptance.
 
 ## Branches, commits and Cloudflare
 
-`main` owns source and builds. Successful main builds update `pages` with the
-exact `cas-evo-web-installer` artifact. `build/cloudflare/` supplies its Worker
-configuration; `public/` is the only served directory. `pages/deployment.json`
-records the source commit and run. Edit source/templates on main, not generated
-files on pages. Keep the independent deployment history; use normal pushes.
+`main` owns source. The build workflow runs only for pushed `v*` tags, published
+GitHub Releases and manual dispatch, not for ordinary pushes or pull requests, so
+run the local acceptance commands before committing. A successful tag run
+attaches `cas-evo-<tag>.zip` to the tag's GitHub Release (creating it if
+missing) and updates `pages` with the exact `cas-evo-web-installer` artifact;
+only those two jobs get contents-write permission from the built-in token, and a
+Release created by that token starts no run. The publisher requires the tag to
+still name the built commit and never replaces a newer release on pages.
+Create a release tag only when the user asks for one. `build/cloudflare/`
+supplies its Worker configuration; `public/` is the only served directory.
+`pages/deployment.json` records the source commit, ref and run. Edit
+source/templates on main, not generated files on pages. Keep the independent
+deployment history; use normal pushes.
 
 Cloudflare is a **Worker connected to the `pages` Git branch**, not the previous
 Pages Direct Upload setup. Use [docs/HOSTING.md](docs/HOSTING.md) for dashboard
@@ -270,11 +279,10 @@ Write concise intent-based commit messages. Preserve the established footer:
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ```
 
-Commit milestones and inspect push/CI outcomes. Avoid creating a PR unless
-requested. Keep generated build outputs on pages or in Actions artifacts, out
-of main. For documentation-only commits, `[skip ci]` is appropriate only when
-the changed documents are not embedded in delivered artifacts; for example,
-`docs/INSTALL.md` ships in the calculator ZIP and requires a rebuilt package.
+Commit milestones and inspect tag-run outcomes. Avoid creating a PR unless
+requested. Keep generated build outputs on pages, in Actions artifacts or on
+Releases, out of main. `docs/INSTALL.md` ships in the calculator ZIP, so a
+change to it needs a new release tag to reach users.
 
 ## Finish a task
 

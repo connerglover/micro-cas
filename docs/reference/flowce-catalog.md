@@ -201,7 +201,7 @@ All of these are T1, except `theta`, which is only a symbol (T3 polar).
 |---|---|---|---|
 | Graph | line or answer | plots the line or the selected/large answer as `plot(...)`. It refuses an empty line ("Type a function of x first") and an equation ("Not a function of x"). | out |
 | All commands | search | opens the command search with an empty query | T1 |
-| Paper or Night | theme | switches the theme at once | T1 (cas-evo: F3 settings) |
+| Paper or Night | theme | switches the theme at once | T1 (cas-evo: F3 settings until v0.1.0, which keeps the Paper palette only) |
 | Other plots | kinds | KhiCAS's plot menu (classic F3, below) | out |
 | File | sessions | KhiCAS's File menu (save/load sessions, scripts, ...) | out |
 | Clear history | | asks "Clear the history?", then clears | T1 |

@@ -4,7 +4,8 @@ A Python computer algebra system for the TI-84 EVO: exact arithmetic, radicals,
 complex numbers, simplify/expand/factor/solve, derivatives, limits, integration,
 series, sums, differential equations, gradients and geometric integrals. Powers
 too large to compute stay exact powers (`3^(2^20)` gives `3^1048576`). Includes
-a calculator editor, history, stored variables/functions and 2D answers.
+a MathPrint (2D) editor, a scrollable history whose inputs and answers can be
+copied back, stored variables/functions and 2D answers.
 
 The calculator build (format `packs-v1`) contains **21 compiled library packs
 for Archive and one small launcher, `CAS`, for RAM**, preserving the full
@@ -16,10 +17,11 @@ start on the EVO and then stopped at a `ti_graphics.setColor` call; see
 
 ## Download and run
 
-Download **cas-evo-v1** (the artifact name is unchanged) from a successful
-**Build calculator app** GitHub Actions run. Extract the artifact, then extract
-its `cas-evo-calculator.zip`. Locally, the same ZIP is written to
-`dist/cas-evo-calculator.zip`.
+The current release is **cas-evo 0.1.0** (tag `v0.1.0`). Download
+**cas-evo-v0.1.0.zip** from its GitHub Release; it is the calculator ZIP
+(`cas-evo-calculator.zip`) of the tag's **Build calculator app** run, whose
+artifact **cas-evo-v1** (the artifact name is unchanged) holds the same file.
+Locally, the same ZIP is written to `dist/cas-evo-calculator.zip`.
 
 For automatic placement, download **cas-evo-web-installer** from that run,
 extract it, and run `python serve_installer.py --directory website`. Open
@@ -81,9 +83,11 @@ The build bundles and minifies `src/`, merges the device modules into packs
 compiles the packs to MPY v5.3 with pinned MicroPython v1.12, then converts and
 round-trips every EVO object with TIVarsLib. The downloadable ZIP is
 deterministic and checksummed. `dist/cas-evo-packs.zip` is internal build input
-only. GitHub Actions builds both downloadable artifacts on main pushes, pull
-requests to main and manual dispatch; the workflow contains the exact compiler
-revision and flags. Only successful main builds update the deployment branch.
+only. GitHub Actions builds both downloadable artifacts for pushed `v*` tags,
+published GitHub Releases and manual dispatch (not on ordinary pushes or pull
+requests); the workflow contains the exact compiler revision and flags. A tag run
+attaches the calculator ZIP to the tag's Release as `cas-evo-<tag>.zip` and
+updates the deployment branch ([docs/HOSTING.md](docs/HOSTING.md)).
 
 The action checks the pack sources on MicroPython 1.29 and the actual MPY v5
 bytecode on 1.12: startup on a 95,000-byte 32-bit heap, UI arithmetic at

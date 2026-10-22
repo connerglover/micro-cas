@@ -1,12 +1,42 @@
 # Delivery status and evidence
 
-Last reviewed: 2026-10-21. Repository: connerglover/cas-evo (private).
+Last reviewed: 2026-10-22. Repository: connerglover/cas-evo (private).
 Use [AGENTS.md](../AGENTS.md) for operating instructions. This file records a
 dated snapshot; verify remote heads, build results and hosting before reporting
 them as current.
 
 ## Current delivery
 
+- **Release v0.1.0 prepared on `mathprint` (local, not pushed, not tagged;
+  2026-10-22).** User requests: the theme function is gone (one light palette,
+  no F3 row, `R.SET = {'deg': 0}`); MathPrint is the only entry (the Classic
+  setting and its code paths are removed; the internal 1D fallback for
+  over-cap/out-of-memory lines and after a panic stays); the answer's form label
+  (`exact`, `decimal`, ...) moved from the footer (`exact  F4`) to the top right
+  of the status row, left of the modifier chip, hidden while a status message
+  needs the room; the empty page reads `Press math or menu`; F2 (tab `hist`)
+  and up scroll the history instead of opening the recall menu (VARS keeps Ans,
+  variables and functions), with TI-Nspire cell selection: up/down between
+  entries, left the input, right the answer (a wide answer scrolls first), the
+  band behind that cell only, ENTER copies the cell into the edit line
+  (MATHPRINT.md §0.12). The workflow now runs only for `v*` tags, published
+  Releases and manual dispatch, attaches `cas-evo-<tag>.zip` to the tag's
+  Release (creating it if needed) and publishes the website from tags only
+  (HOSTING.md); `release.json` and `archive.json` record `release: 0.1.0`.
+  **Host and native evidence** (not hardware): lint, framelint, the not-slow
+  suite in source and bundled tiers (4,268 passed each), `build/release.py`,
+  `build/transfer.py`, `build/archive.py` with the pinned v1.12 `mpy-cross`,
+  `tests/test_archive_release.py`, `build/package_archive.mjs`,
+  `build/archive_zip.py`, checksums, `node --test website/tests/*.test.js`
+  (31 passed), the workflow YAML loads, and every native heap of `build.yml`
+  passes on cas32/cas64. Compiled sizes: CASUX 31,480 → 30,998 B, CASUI
+  3,794 → 3,515 B, CASMNU 9,068 → 8,696 B, archive 206,945 → 205,799 B; native
+  cas32 `ui` boot heap 120,416 → 121,104 B free and result 31,920 → 32,528 B,
+  `ui_calculus` (189,776) result 45,872 → 46,816 B. `build/website.py` could not
+  download the WebTILP source archive in this sandbox (HTTP 403), so the website
+  assembly and `check_pages.py` ran only in earlier CI. **Pending:** pushing,
+  the first tag run (Release upload and pages publication have not been observed),
+  and an actual EVO run of this build (status row, history selection, copy).
 - **packs-v1 is merged into local `main`**: `perf/fast-boot` was fast-forwarded
   from 177779f through the verified fixes at **1e06608**, as requested on
   2026-10-12. It is not pushed and CI has not run on it. Remote main remains
