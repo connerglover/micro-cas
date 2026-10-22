@@ -206,9 +206,9 @@ def test_form_label_sits_left_of_the_modifier_chip():
 def test_status_message_hides_the_label_until_it_clears():
     s = KS.run('sqrt(2)=>x{enter}')
     u = ui(s)
-    assert u.STATUS == 'Stored; purge(name) clears'
+    assert u.STATUS == 'Stored; purge(name) deletes'
     assert 'exact' not in [t[2] for t in s.texts if t[1] == 2]
-    u.STATUS = 'Stored; purge(name) clears'
+    u.STATUS = 'Stored; purge(name) deletes'
     u.FULL = True
     TD.reset()
     u.redraw()

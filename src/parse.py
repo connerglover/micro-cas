@@ -87,7 +87,7 @@ CHK = (K_OP, K_OP, K_OP, K_OP, K_OP, K_OP, K_OP, K_OP, K_LP, K_RP, K_LB, K_RB, K
 X_DEG = 0           # 1: degree mode (6.5)
 X_MV = 1            # the main variable id for the printer, or None (12.3); g_eval leaves it
 X_APPROX = 2        # 1: the input had a float: exact() on input, approx() on the result (6.3)
-X_INERT = 3         # 1: inert mode (F4, the round trip): commands build CALL nodes, no simplify
+X_INERT = 3         # 1: inert mode (forms, the round trip): commands build CALL nodes, no simplify
 # registry flags (the fifth field of R.CMDS entries, DESIGN 15.1); bits apart from F_IMPL/F_CALL
 F_NOAUTO = 4        # skip the default simplify path
 F_ALWAYSAUTO = 8    # always run it
@@ -837,7 +837,7 @@ def untok(toks, s=None):                                        #@L 7
 
 def tokens(text, ctxt=1):                                       #@L 3
     """Stages 3-6 (DESIGN 7.1): lex, ti_rewrite, ti_implicit, then expand_names unless ctxt is
-    0 (the answer path: F4 and the round trip re-parse answer text without the session)."""
+    0 (the answer path: F5 forms and the round trip re-parse answer text without the session)."""
     t = ti_implicit(ti_rewrite(lex(text)))
     if ctxt:
         t = expand_names(t)

@@ -1555,7 +1555,7 @@ def show(job, rec):                                             #@L 1
     STATUS = rec[1] if rec[0] == R.R_MSG else NOTE
     NOTE = ''
     if rec[3] & R.F_PURGEHINT:
-        STATUS = 'Stored; purge(name) clears'
+        STATUS = 'Stored; purge(name) deletes'
     FULL = True
     emodel()
     redraw()

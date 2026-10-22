@@ -216,7 +216,7 @@ R_MSG = 'msg'
 F_PLUSC = 1         # an antiderivative: the view draws + C (7.9 rule 6, 13.6)
 F_PURGEHINT = 2     # a store into a working variable (7.9)
 F_APPROX = 4        # the answer is a numeric fallback (13.6; set by the printer)
-F_DEG = 8           # evaluated in degree mode (F4 re-parses in the entry's mode)
+F_DEG = 8           # evaluated in degree mode (F5 forms re-parse in the entry's mode)
 F_SOLN = P.F_SOLN   # 16: the result of solve (the printer's sentinel messages)
 
 M_INTERRUPTED = 'Interrupted'
@@ -410,7 +410,7 @@ def start(job):                                                 #@L 2
     global LINE, CTX, FLAGS, TARGET, FORMINDEX
     ks = []                              # the families to preload, and the rule sets
     rs = []
-    if job[0] != 'eval':                 # F4: the entry's original answer text, inert (14)
+    if job[0] != 'eval':                 # F5 forms: the entry's original answer text, inert (14)
         FORMINDEX = job[1]
         e = HIST[job[1]]
         code = P.rpn(P.tokens(e[5][0][1] if e[5] else e[1], 0))

@@ -1,5 +1,5 @@
 #@L 2
-# F4 transforms an inert original answer; the runner commits the resulting text.
+# F5 (forms) transforms an inert original answer; the runner commits the resulting text.
 import node as K
 import alg as A
 import parse as P

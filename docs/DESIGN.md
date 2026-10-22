@@ -3166,7 +3166,7 @@ All coordinates live in one table in CVUI. PROBE7 confirms the drawable size, as
 
 ```
 y   0..13   status strip: left RAD|DEG; middle status text (Calculating..., "fill in the
-            empty slot", "Stored; purge(name) clears" for a record with F_PURGEHINT,
+            empty slot", "Stored; purge(name) deletes" for a record with F_PURGEHINT,
             section 7.9); right the focused answer's form label (exact, decimal, ...; gray)
             and the modifier chip 2nd | a | A | a-lock | A-LOCK. A status message that needs
             the room hides the form label until it clears (v1.0.0)
