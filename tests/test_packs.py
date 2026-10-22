@@ -354,3 +354,179 @@ def test_tight_needs_known_packs():
     device = {'CVNODE': '', 'CVRUN': RUN, 'CVFA': '', 'CVFB': ''}
     with pytest.raises(packs.PackError, match='TIGHT'):
         packs.merge(device, man)
+
+
+# -- int constants as literals in the engine packs (manifest INLINE) ------------------------------
+
+INLINE_ROWS = (('CASK', ('node', 'run'), 'core'), ('CASP', ('printer',), 'soft'),
+               ('CASF', ('fa', 'fb'), 'family'))
+
+
+def inlined(sources, rows=INLINE_ROWS, kinds=('core', 'family', 'soft', 'aux'), clients=()):
+    mods = sorted(set(m.split('.')[0] for _, ms, _ in rows for m in ms))
+    man = Man(mods, rows)
+    man.INLINE = kinds
+    device = dict(('CV' + k.upper(), _d(v)) for k, v in sources.items())
+    return packs.merge(device, man, dict((k, _d(v)) for k, v in clients))
+
+
+def _fn(source, name):
+    return ast.unparse([s for s in ast.parse(source).body
+                        if isinstance(s, ast.FunctionDef) and s.name == name][0])
+
+
+def test_engine_packs_read_module_ints_as_literals(tmp_path, monkeypatch):
+    src = {'node': 'NUM = 3\nMUL = 5\ndef kind(e):\n    return NUM if e else MUL\n',
+           'run': RUN + 'def f():\n    return K.NUM + K.MUL\n',
+           'printer': 'import CVNODE as K\ndef p(e):\n    return K.MUL * e\n',
+           'fa': 'import CVNODE as K\nimport CVPRINTER as P\ndef g(d=K.NUM):\n'
+                 '    return P.p(K.MUL) + d\n',
+           'fb': ''}
+    out, _, meta = inlined(src)
+    assert _fn(out['CASK'], 'kind') == 'def kind(e):\n    return 3 if e else 5'
+    assert _fn(out['CASK'], 'f') == 'def f():\n    return 3 + 5'
+    assert _fn(out['CASP'], 'p') == 'def p(e):\n    return 5 * e'
+    assert _fn(out['CASF'], 'g') == "def g(d=3):\n    return __import__('CASP').p(5) + d"
+    assert 'NUM = 3' in out['CASK'] and 'MUL = 5' in out['CASK']     # bindings stay: getattr
+    for pack, spans in meta['statements'].items():   # build/linemap.py: one span per statement
+        assert len(spans) == len(ast.parse(out[pack]).body)
+    load(out, tmp_path, monkeypatch)
+    import CASK
+    import CASF
+    assert CASK.f() == 8 and CASK.kind(0) == 5 and CASF.g() == 28
+    assert getattr(CASK, 'NUM') == 3
+
+
+def test_inlining_follows_the_manifest_kinds():
+    src = {'node': 'NUM = 3\n', 'run': RUN + 'def f():\n    return K.NUM\n',
+           'printer': '', 'fa': 'import CVNODE as K\ndef g():\n    return K.NUM\n', 'fb': ''}
+    out, _, _ = inlined(src, kinds=('family',))
+    assert 'return 3' in out['CASF'] and 'return NUM' in out['CASK']
+    out, _, _ = inlined(src, kinds=())
+    assert 'return CASK.NUM' in out['CASF']
+    with pytest.raises(packs.PackError, match='INLINE'):
+        inlined(src, kinds=('engine',))
+
+
+def test_patched_loader_tables_are_never_inlined(tmp_path, monkeypatch):
+    """merge and the release write these run tables after bundling: EVDICT is 0 in run.py but 1
+    on the calculator, so a literal 0 would switch the eviction clearing off."""
+    run = RUN.replace('FRAG=0', 'FRAG=0\nEVDICT=0\nSHEDAT=0\nPEAKB=80\nLINES={}\nCOST={}\nROOM={}')
+    src = {'node': '', 'printer': '', 'fb': '',
+           'run': run + 'KEEP = 7\ndef cfg():\n    return (EVDICT, SHEDAT, PEAKB, FRAG, KEEP)\n',
+           'fa': 'import CVRUN as R\ndef h():\n    return R.EVDICT + R.FRAG\n'}
+    out, _, _ = inlined(src)
+    assert _fn(out['CASK'], 'cfg') == \
+        'def cfg():\n    return (EVDICT, SHEDAT, PEAKB, FRAG, 7)'
+    assert 'CASK.EVDICT + CASK.FRAG' in out['CASF']
+    out['CASK'] = packs.loader_tables(out['CASK'], {'SHEDAT': 65536})
+    load(out, tmp_path, monkeypatch)
+    import CASK
+    import CASF
+    assert CASK.cfg() == (1, 65536, 0, 2048, 7) and CASF.h() == 2049
+    for name in packs.PATCHED:
+        assert name in packs.PATCHED
+    with pytest.raises(packs.PackError, match='PATCHED'):
+        packs.loader_tables(out['CASK'], {'KEEP': 8})
+
+
+@pytest.mark.parametrize('where, code', [
+    ('fa', 'def w():\n    K.X = 2\n'),                    # another module stores it
+    ('fa', 'def w():\n    K.X += 1\n'),                   # augmented attribute store
+    ('fa', 'def w():\n    del K.X\n'),
+    ('fa', "def w():\n    setattr(K, 'X', 2)\n"),
+    ('fa', "def w():\n    delattr(K, 'X')\n"),
+    ('node', 'def w():\n    global X\n    X = 2\n'),     # its own module, in a function
+    ('fb', 'def w():\n    global X\n    X = 2\n'),       # any module's global X
+    ('node', 'X = 4\n'),                                  # bound twice
+    ('node', 'X += 1\n'),
+    ('node', 'for X in (1, 2):\n    pass\n'),
+    ('node', 'try:\n    pass\nexcept ValueError as X:\n    pass\n'),
+    ('client', 'K.X = 2\n'),                              # an entry program stores it
+])
+def test_a_name_assigned_anywhere_else_is_no_constant(where, code):
+    src = {'node': 'X = 1\n', 'run': RUN + 'def f():\n    return K.X\n',
+           'printer': '', 'fa': 'import CVNODE as K\n', 'fb': ''}
+    clients = ()
+    if where == 'client':
+        clients = (('CLIENT', 'import CVNODE as K\n' + code),)
+    else:
+        src[where] += code
+    out, _, _ = inlined(src, clients=clients)
+    assert 'return X' in out['CASK']
+
+
+@pytest.mark.parametrize('code', [
+    'def w(n):\n    setattr(K, n, 2)\n',
+    'def w(n):\n    delattr(K, n)\n',
+    'def w():\n    globals()["X"] = 2\n',
+    'def w():\n    K.__dict__["X"] = 2\n',
+    'def w():\n    vars(K)["X"] = 2\n',
+])
+def test_a_computed_store_fails_an_inlining_build(code):
+    src = {'node': 'X = 1\n', 'run': RUN + 'def f():\n    return K.X\n',
+           'printer': '', 'fa': 'import CVNODE as K\n' + code, 'fb': ''}
+    with pytest.raises(packs.PackError, match='computed'):
+        inlined(src)
+    merged(dict(src, printer=''), (('CASK', ('node', 'run', 'printer'), 'core'),
+                                   ('CASF', ('fa', 'fb'), 'family')))   # no inlining: built
+
+
+def test_the_eviction_clearing_and_reflective_reads_keep_working(tmp_path, monkeypatch):
+    """run.unload's setattr(m, k, None) (EVDICT) clears an evicted pack, whose code no longer
+    runs; getattr and loader lookups by name still find the binding."""
+    run = RUN + _d('''
+        import sys
+        def unload(n):
+            m = sys.modules[n]
+            del sys.modules[n]
+            for k in dir(m):
+                if not k.startswith('__'):
+                    setattr(m, k, None)
+        def peek(name):
+            return getattr(K, name) + getattr(need('fa'), 'LIM')
+        ''')
+    src = {'node': 'X = 1\n', 'run': run, 'printer': '',
+           'fa': 'LIM = 64\ndef g():\n    return LIM\n', 'fb': ''}
+    out, _, _ = inlined(src)
+    assert _fn(out['CASF'], 'g') == 'def g():\n    return 64'
+    load(out, tmp_path, monkeypatch)
+    import CASK
+    assert CASK.peek('X') == 65
+    CASK.unload('CASF')
+    assert CASK.need('fa').g() == 64 and CASK.peek('X') == 65
+
+
+def test_only_small_ints_become_literals(tmp_path, monkeypatch):
+    src = {'node': _d('''
+               B = True
+               F = 1.5
+               S = 'x'
+               N = None
+               NEG = -1
+               LO = -1073741824
+               HI = 1073741823
+               BIG = 1073741824
+               NBIG = -1073741825
+               HEX = 0x7f
+               def mk(x):
+                   return x
+               ZERO = mk(0)
+               '''),
+           'run': RUN + _d('''
+               def f():
+                   return (K.B, K.F, K.S, K.N, K.LO, K.HI, K.BIG, K.NBIG, K.HEX, K.ZERO)
+               def neg():
+                   return (K.NEG ** 2, -K.NEG, K.NEG.bit_length(), 2 - K.NEG, K.HEX.bit_length())
+               def same(x):
+                   return x is K.HI or x is not K.NEG
+               '''),
+           'printer': '', 'fa': '', 'fb': ''}
+    out, _, _ = inlined(src)
+    assert _fn(out['CASK'], 'f') == \
+        'def f():\n    return (B, F, S, N, -1073741824, 1073741823, BIG, NBIG, 127, ZERO)'
+    assert _fn(out['CASK'], 'same') == 'def same(x):\n    return x is HI or x is not NEG'
+    load(out, tmp_path, monkeypatch)
+    import CASK
+    assert CASK.neg() == (1, 1, 1, 3, 7)
+    assert CASK.f() == (True, 1.5, 'x', None, -2 ** 30, 2 ** 30 - 1, 2 ** 30, -2 ** 30 - 1, 127, 0)

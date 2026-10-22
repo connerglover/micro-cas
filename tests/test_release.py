@@ -521,3 +521,28 @@ def test_release_version_is_recorded(release_module):
     assert meta['release'] == module.VERSION == '1.0.1'
     assert ("'cas-evo %s / TI-84 EVO'" % module.VERSION) in (ROOT / 'src/menu.py').read_text()
     assert ('cas-evo ' + module.VERSION) in (ROOT / 'docs/INSTALL.md').read_text('utf-8')
+
+
+def test_engine_packs_read_module_ints_as_literals_but_never_patched_tables(booted):
+    """build/manifest.py INLINE: the engine packs read ints like node.NUM as literals, while the
+    loader tables merge and the release overwrite (packs.PATCHED: EVDICT is 0 in run.py, 1 here)
+    stay global reads in the shipped run pack."""
+    meta = booted.meta
+    run_pack = meta['owner'][booted.device('run')]
+    tree = ast.parse((ROOT / 'dist' / (run_pack + '.py')).read_text('ascii'))
+    fns = dict((s.name, s) for s in tree.body if isinstance(s, ast.FunctionDef))
+    read = lambda fn: set(n.id for n in ast.walk(fns[booted.final('run', fn)])
+                          if isinstance(n, ast.Name))
+    assert booted.final('run', 'EVDICT') in read('unload')
+    assert booted.get('run', 'EVDICT') == 1
+    assert booted.final('run', 'SHEDAT') in read('go')
+    assert booted.final('run', 'FRAG') in read('need')
+    # node.NUM and node.ADD are 0 and 8 in node.py: no engine pack names them any more
+    for old in ('NUM', 'ADD'):
+        assert booted.get('node', old) == {'NUM': 0, 'ADD': 8}[old]   # bindings remain
+        new = booted.final('node', old)
+        for pack, kind in meta['kinds'].items():
+            if kind in ('core', 'family', 'soft', 'aux'):
+                text = ast.parse((ROOT / 'dist' / (pack + '.py')).read_text('ascii'))
+                assert not any(isinstance(n, ast.Attribute) and n.attr == new
+                               for n in ast.walk(text)), (pack, old)

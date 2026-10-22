@@ -59,6 +59,22 @@ the pack on demand.
   `global R` and `import run as R` (as in `ui.engine`) binds the pack at run time,
   through the UI's home pack, so the engine never loads at boot.
 - run.py's `DEV` table maps every runtime key to its pack.
+- **Int constants.** In every pack (the engine kinds of `build/manifest.py`
+  `INLINE` and the `TIGHT` UI packs; not the entry programs) a read of a
+  module-level int becomes a literal: `K.NUM` compiles to `0`, with no global or attribute lookup.
+  The name must be bound once at module level, to a literal int (not a bool) in
+  MicroPython's 31-bit small-int range, and no code may assign it again by any
+  spelling: no attribute store, augmented store, `del` or literal-named
+  `setattr`/`delattr` in any module or entry program, no `global NAME` in any
+  module, no second module-level binding (loop or `except ... as` targets
+  included). The run tables that merge and the release overwrite (`packs.PATCHED`:
+  `EVDICT`, `SHEDAT`, `FRAG`, `PEAKB`, ...) never qualify, and `loader_tables`
+  rejects any other table. An operand of `is` keeps its read. Computed stores
+  (`setattr` with a computed name, `globals()`, `vars(m)`, `__dict__`) fail the
+  build, except `run.unload`'s `setattr(m, k, None)`, which empties an evicted
+  pack whose code no longer runs. The binding itself stays, so `getattr` and
+  `MODS[...]` lookups by name still find it. A harness that changes such a
+  constant on a pack (rather than in `src/`) no longer reaches the code.
 - Entry programs (the launcher CAS, and the developer probe CVTEST as an extra source) are
   rewritten with the same mapping, not packed.
 
@@ -66,7 +82,8 @@ The packer raises `PackError` instead of emitting a pack it cannot prove
 correct: dynamic dispatch to a renamed or placed name, module code that would
 hold a soft pack, aux code that could reach the loader or is a generator, a
 soft-pack module that assigns its own globals, nested functions, classes or
-lambdas, `from` imports and comprehension targets that rebind a rewritten name.
+lambdas, `from` imports, comprehension targets that rebind a rewritten name, and
+computed stores that could change an inlined int.
 
 ### Loader tables
 

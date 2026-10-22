@@ -142,6 +142,18 @@ holds 77 of 97, and native mlayout of a 150-character line fell from 1,268 to 1,
 `tests/test_release.py` keeps every tight pack's table off full and the view pack's at most
 85% full.
 
+Later addition (v1.0.1): the engine packs (`INLINE` kinds core, family, soft and aux) read
+module-level ints as literals too, without the other tight measures, so they keep their
+line-number tables and `build/linemap.py` still locates them. The rule (PACKAGING.md,
+`packs.Plan.int_constant`): one module-level binding to a 31-bit small-int literal that no
+code assigns again by any spelling; run's patched loader tables (`EVDICT` is 0 in run.py
+and 1 on the calculator) never qualify. A `K.NUM` read was LOAD_GLOBAL plus LOAD_ATTR with
+their cache bytes; a literal is one or two bytes. Compiled archive 203,965 -> 188,805 bytes
+(CASK1 22,177 -> 20,852, CASK2 17,963 -> 16,647, CASALG 19,076 -> 17,263, CASPR 11,925 ->
+10,569; UI packs unchanged). Native cas32 heap: 20,672 bytes free after the 95,000-byte
+startup (18,768 before) and about 4,800 more after a result in the ui, ui_edit and
+ui_calculus suites. Results were identical on 29,837 differential records; speed unchanged.
+
 Later addition: a second aux pack, CASBIG, holds `nodeb` (powers too large to fold, DESIGN
 6.1). `node` keeps only cheap tests and reaches it through `__import__`, so a command without a
 giant power never loads it; `nodeb`'s back-reference to `node` (`K = None`, bound by node's

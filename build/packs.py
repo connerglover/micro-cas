@@ -44,7 +44,12 @@ Rewriting:
 - values the loader computes at run time (``R.MODS['k']``, ``R.need('k')``) evaluate to a home
   pack, so their attributes keep attribute syntax (``MODS['k']`` of the running pack itself
   becomes a plain global: it may run while the pack is still importing);
-- run.py's ``DEV`` table maps every runtime key to its pack.
+- run.py's ``DEV`` table maps every runtime key to its pack;
+- in the TIGHT packs and the packs of the manifest's INLINE kinds (the engine), a read of a
+  module-level int becomes a literal (``K.NUM`` -> ``0``) when the name is bound once, to a
+  31-bit small-int literal, and no code assigns it again by any spelling (``Plan.written``);
+  run's PATCHED loader tables, bools, larger ints and computed values (node IDs) stay global
+  reads, and so does an operand of ``is``. The binding stays, for getattr and the loader.
 
 Anything this compiler cannot prove raises PackError instead of producing a subtly wrong pack.
 ``clients`` are entry programs (the launcher ``man.ENTRY``; the developer probe CVTEST):
@@ -63,6 +68,13 @@ class PackError(ValueError):
 KINDS = ('ui', 'core', 'family', 'soft', 'view', 'aux')
 # MicroPython's compiler gives these bare names a meaning: const(x) must fold to an integer.
 COMPILER = ('const',)
+# run.py's loader tables that merge or the release overwrite after bundling: their source values
+# are not the calculator's (EVDICT is 0 in run.py, 1 in the pack), so they are never inlined.
+PATCHED = ('DEV', 'SOFT', 'VIEW', 'AUX', 'EVDICT', 'SHEDAT', 'ROOM', 'LINES', 'COST', 'PEAKB',
+           'FRAG')
+# An inlined int must be a MicroPython small int (31 bits on the EVO): a larger one would be a
+# separate long-int object in every function that names it.
+SMALLINT = 1 << 30
 
 
 def _literal(node):
@@ -111,6 +123,33 @@ def _immutable(v):
     if isinstance(v, tuple):
         return all(_immutable(x) for x in v)
     return v is None or isinstance(v, (bool, int, float, complex, str, bytes))
+
+
+def _written(tree, client=False):
+    """(names, computed): attribute names this code stores or deletes (A.NAME = v, A.NAME += v,
+    del A.NAME, setattr/delattr with a literal name), and the computed stores it makes, which
+    could reach any module global. setattr(m, k, None) is run.unload's eviction clearing (EVDICT):
+    it empties a module that no code runs any more, so it is no store. A client's globals() is
+    its own namespace."""
+    names, computed = set(), []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute):
+            if isinstance(node.ctx, (ast.Store, ast.Del)):
+                names.add(node.attr)
+            if node.attr == '__dict__':
+                computed.append('__dict__')
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            f = node.func.id
+            if f in ('setattr', 'delattr') and len(node.args) >= 2:
+                key = node.args[1]
+                if isinstance(key, ast.Constant) and isinstance(key.value, str):
+                    names.add(key.value)
+                elif not (f == 'setattr' and len(node.args) == 3 and
+                          isinstance(node.args[2], ast.Constant) and node.args[2].value is None):
+                    computed.append(f)
+            elif f == 'vars' and node.args or f == 'globals' and not client:
+                computed.append(f)
+    return names, computed
 
 
 def _function_locals(fn):
@@ -194,7 +233,7 @@ def _runtime_keys(run_source):
 class Plan(object):
     """Pack membership, function placement, renames and the run-time key map."""
 
-    def __init__(self, sources, man, run='CVRUN'):
+    def __init__(self, sources, man, run='CVRUN', clients=()):
         rows = man.rows()
         dev = dict((rows[s][0], rows[s][1]) for s in rows)
         self.order = []                 # (pack, kind, home modules, placed (module, fn))
@@ -238,6 +277,12 @@ class Plan(object):
         for pack in self.tight:
             if pack not in self.kind:
                 raise PackError('TIGHT names unknown pack %s' % pack)
+        for kind in getattr(man, 'INLINE', ()):
+            if kind not in KINDS:
+                raise PackError('INLINE names unknown pack kind %r' % kind)
+        # packs that read int constants as literals (int_constant): TIGHT and the INLINE kinds
+        self.inline = self.tight | set(p for p in self.kind
+                                       if self.kind[p] in getattr(man, 'INLINE', ()))
         self.run = run
         self.keys = _runtime_keys(sources[run])
         self.modules = {}
@@ -269,6 +314,26 @@ class Plan(object):
             for node in ast.walk(m.tree):
                 if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Store):
                     self.stored.add(node.attr)
+        # Names some code may assign besides their one module-level binding, by any spelling:
+        # attribute stores and setattr in any module or entry program, and any module's 'global
+        # NAME' (a function of another module of the pack may write the same pack global).
+        self.written = set()
+        computed = []
+        trees = [(m.name, m.tree, False) for m in self.modules.values()]
+        trees += [(c, ast.parse(clients[c]), True) for c in sorted(clients)]
+        for where, tree, client in trees:
+            names, dyn = _written(tree, client)
+            self.written |= names
+            computed += ['%s: %s' % (where, f) for f in dyn]
+        for m in self.modules.values():
+            self.written |= m.mutates
+            for stmt in m.tree.body:
+                for node in ast.walk(stmt):
+                    if isinstance(node, ast.ExceptHandler) and node.name:
+                        self.written.add(node.name)
+        if computed and self.inline:
+            raise PackError('computed stores (%s) could change a module int that %s read as a '
+                            'literal' % (', '.join(sorted(computed)), sorted(self.inline)))
         self.rename = {}                # (device module, name) -> new name
         used = set()
         for m in self.modules.values():
@@ -417,13 +482,19 @@ class Plan(object):
         return name in m.values and name not in m.mutates
 
     def int_constant(self, device, name):
-        """The int a module-level name is bound to once and never assigned again (in a function
-        or as a module attribute), or None: a tight pack reads it as a literal."""
+        """The int a module-level name is bound to once, by a literal, and never assigned again
+        (see written), or None: an inlining pack (TIGHT, INLINE) reads it as a literal. Bools,
+        ints beyond MicroPython's 31-bit small ints, computed values such as node IDs and the
+        loader tables merge and the release patch (PATCHED) stay global reads."""
         m = self.modules.get(device)
-        if m is None or not self.constant(device, name) or name in self.stored:
+        if m is None or not self.constant(device, name) or name in self.written:
+            return None
+        if device == self.run and name in PATCHED:
             return None
         v = m.values[name]
-        return v if type(v) is int else None
+        if type(v) is not int or not -SMALLINT <= v < SMALLINT:
+            return None
+        return v
 
     def _shared(self, a, b, name):
         """Both modules bind name to the same literal, import the same native module, or alias
@@ -598,8 +669,11 @@ class Rewrite(ast.NodeTransformer):
         loc = plan.where(device, name)
         new = plan.rename.get((device, name), name)
         value = plan.int_constant(device, name)
-        if value is not None and isinstance(ctx, ast.Load) and self.here in plan.tight and \
-                not self.client:
+        if value is not None and isinstance(ctx, ast.Load) and self.here in plan.inline and \
+                not self.client and not getattr(node, 'identity', False):
+            if value < 0:               # -1, so that unparse keeps (-1) ** 2 and (-1).bit_length()
+                return ast.copy_location(ast.UnaryOp(
+                    op=ast.USub(), operand=ast.copy_location(ast.Constant(-value), node)), node)
             return ast.copy_location(ast.Constant(value), node)
         if loc == self.here and not self.client:
             if self.fn is not None:
@@ -700,6 +774,13 @@ class Rewrite(ast.NodeTransformer):
         attr = self.plan.rename.get((target, node.attr), node.attr)
         value = self.visit(node.value)
         return ast.copy_location(ast.Attribute(value=value, attr=attr, ctx=node.ctx), node)
+
+    def visit_Compare(self, node):
+        """An operand of 'is' keeps its global read: identity is not the literal's business."""
+        if any(isinstance(op, (ast.Is, ast.IsNot)) for op in node.ops):
+            for operand in [node.left] + node.comparators:
+                operand.identity = True
+        return self.generic_visit(node)
 
     def visit_Call(self, node):
         fn = node.func
@@ -917,9 +998,12 @@ def _set(tree, name, value):
 
 
 def loader_tables(source, run_tables):
-    """Set run.py's loader tables in an (unshrunk) pack source; returns the new source."""
+    """Set run.py's loader tables in an (unshrunk) pack source; returns the new source. Only
+    PATCHED tables: the packs may read any other run int as a literal."""
     tree = ast.parse(source)
     for name in sorted(run_tables):
+        if name not in PATCHED:
+            raise PackError('loader table %s is not in PATCHED' % name)
         _set(tree, name, run_tables[name])
     return ast.unparse(tree) + '\n'
 
@@ -978,7 +1062,7 @@ def alias_resident(fn, packs, taken, least=3):
 
 def merge(sources, man, clients=()):
     """Return ({pack: source}, {client: source}, metadata). Sources use device names."""
-    plan = Plan(sources, man)
+    plan = Plan(sources, man, clients=clients)
     for m in plan.modules.values():
         _check_comprehensions(plan, m)
     emitted = dict((p, []) for p in plan.kind)  # pack -> [(module, statement)]

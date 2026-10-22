@@ -48,8 +48,29 @@ them as current.
   the archive tests (86), every native heap above (cas32 result heap before shedding: `ui`
   33,456 B, `ui_edit` 30,496 B, `ui_calculus` at 189,776 47,744 B), `package_archive.mjs`
   (22 transfer objects), `archive_zip.py` (142,596 B zipped, copied to
-  `cas-evo-v1.0.1.zip`), `SHA256SUMS` and the Node installer tests (31). **Pending:** an EVO run of
-  v1.0.1, and the user's merge and `v1.0.1` tag to deliver it (INSTALL.md ships in the ZIP).
+  `cas-evo-v1.0.1.zip`), `SHA256SUMS` and the Node installer tests (31).
+  Engine int constants (user request, after f218b91): the engine packs (`INLINE` kinds core,
+  family, soft, aux) now read module-level ints such as `K.NUM` or `P.X_DEG` as literals,
+  as the UI packs already did (rule: PACKAGING.md; run's patched loader tables such as
+  `EVDICT` excluded). Compiled archive 203,965 → 188,805 B (CASK1 22,177 → 20,852,
+  CASK2 17,963 → 16,647, CASALG 19,076 → 17,263, CASPR 11,925 → 10,569, CASIN 12,128 →
+  10,688, CASLIM 10,845 → 9,200; CASUI/CASUX unchanged), `release.py` estimates 184,332 →
+  175,324 B, ZIP 142,596 → 136,777 B. Native cas32: startup 95,000 leaves 20,672 B free
+  (18,768 before); result heap `ui` 34,112 → 38,864 B, `ui_edit` 30,896 → 35,712 B,
+  `ui_calculus` 47,968 → 52,784 B (189,776) and 43,936 → 48,752 B (185,680); probe 212,000
+  and cas64 500,000 at 55/55; every native transcript identical apart from heap readings.
+  Differential: the 4,987 distinct inputs of the tests, corpora and golden files in RAD and
+  DEG (9,974 evaluations) plus three F5 forms of each answer (19,863), run through the
+  packed release, give the same 29,837 result records before and after. Speed unchanged:
+  native cas32 corpus timing (330 inputs × 3) 1,669 → 1,681 ms (mean of three, noise), the
+  55 probe diagnostics 526 → 496 ms (cas32), host differential 50.1 → 50.0 s. Checks: lint,
+  framelint, both not-slow tiers with `--strict-depth` (4,338 passed each; a `-n 6` bundled
+  run had one host-timing flake in `test_dense_line_host_time_guard`, which passes alone and
+  reads `dist/device`, not the packs), `check_release.py` (strict depth 8/8, as before),
+  `tests/test_archive_release.py`, `build/linemap.py`, `package_archive.mjs` (22 objects),
+  `archive_zip.py` (copied to `cas-evo-v1.0.1.zip`) and the Node installer tests (31).
+  **Pending:** an EVO run of v1.0.1, and the user's merge and `v1.0.1` tag to deliver it
+  (INSTALL.md ships in the ZIP).
 - **Hardware acceptance (user report, 2026-10-22).** The user ran the MathPrint
   test builds on their TI-84 EVO and reported that they work (the latest build
   delivered before this report was `cas-evo-678d16d.zip`: launcher CAS, no

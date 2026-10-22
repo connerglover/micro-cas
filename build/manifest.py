@@ -190,6 +190,10 @@ PACKMAX = 60000
 # mpy-cross -O3 drops the line-number tables. The UI packs only: tracebacks from them then
 # report line 1 (function names remain), so release.json's line map no longer locates them.
 TIGHT = ('CASUI', 'CASUX')
+# Pack kinds whose code also reads module-level ints as literals (build/packs.py int_constant: a
+# name bound once to a small-int literal that no code assigns again, by any spelling; run's
+# loader tables excluded). The engine packs, with their line-number tables; TIGHT covers the UI.
+INLINE = ('core', 'family', 'soft', 'aux')
 HOTBUILTINS = ('len', 'range', 'min', 'max')
 # run.room(phase): the soft pack each phase loads, so memory is made for it first.
 ROOMS = {'input': 'CASIN', 'print': 'CASPR', 'layout': 'CASUX'}
