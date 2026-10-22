@@ -1,4 +1,4 @@
-# cas-evo website deployment
+# MicroCAS website deployment
 
 This generated `pages` branch contains the tested web installer in `public/` and
 its Cloudflare Worker configuration. Application and website source live on

@@ -1,4 +1,4 @@
-"""pytest harness for cas-evo (DESIGN.md section 20.1).
+"""pytest harness for MicroCAS (DESIGN.md section 20.1).
 
 - Puts src/, shim/ and tests/support on sys.path; turns off CPython's int/str digit limit.
 - Runs every test's call phase under the depth checker (section 20.2): default mode
@@ -81,7 +81,7 @@ STATE = _State()
 # -- options and configuration ----------------------------------------------------------------
 
 def pytest_addoption(parser):
-    g = parser.getgroup('cas-evo')
+    g = parser.getgroup('microcas')
     g.addoption('--strict-depth', action='store_true', default=False,
                 help='run every test with all depth penalties at 1 (budget 8 only)')
     g.addoption('--no-depth-check', action='store_true', default=False,

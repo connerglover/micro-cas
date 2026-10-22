@@ -1,4 +1,4 @@
-// Record what each object of an earlier cas-evo release contains on the calculator.
+// Record what each object of an earlier MicroCAS release (cas-evo before v1.0.2) contains on the calculator.
 //
 //   git show 2849055909cabe6137bcdda0ada89b579628da11:public/package.json > v1-package.json
 //   node build/legacy_manifest.mjs v1-package.json [output] [--archive archive.json] [--check]
@@ -90,7 +90,7 @@ function zipPackage(bytes) {
 export async function buildLegacyManifest(bytes, converter) {
   const digest = crypto.createHash('sha256').update(bytes).digest('hex');
   const record = RELEASES.find(r => r.package.sha256 === digest);
-  if (!record) throw new Error(`not a recorded cas-evo release package: sha256 ${digest}`);
+  if (!record) throw new Error(`not a recorded MicroCAS (cas-evo) release package: sha256 ${digest}`);
   const raw = record.package.zip ? zipPackage(bytes) : JSON.parse(Buffer.from(bytes).toString('utf8'));
   const pkg = await validatePackage(raw, record.launchers);
   if (pkg.files.length !== record.package.files || pkg.version !== (record.release === 'v1' ? 'v1' : 'packs-v1')) {

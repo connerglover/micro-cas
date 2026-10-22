@@ -1,7 +1,7 @@
 """Token passes (DESIGN 7.1-7.5, 7.10): lex, ti_rewrite, ti_implicit, classify, untok.
 
 The FlowCE port lives in tests/golden/tiinput.txt (every case of FlowCE's
-tests/host/test_tiinput.cc, plus the cas-evo cases); its properties are checked here on the
+tests/host/test_tiinput.cc, plus the MicroCAS cases); its properties are checked here on the
 golden cases and on seeded random lines, as FlowCE does.
 """
 import os
@@ -259,7 +259,7 @@ def test_golden_tiinput(monkeypatch, update_golden):
                 why = 'stages 4-5 twice differ from once'
         if why:
             bad.append('line %d: %s %r -> %r: %s' % (no, mode, s, got, why))
-    assert ncases >= 266 + 150              # FlowCE's 67 + 199 cases, plus the cas-evo ones
+    assert ncases >= 266 + 150              # FlowCE's 67 + 199 cases, plus the MicroCAS ones
     if update_golden:
         with open(GOLDEN, 'w', encoding='ascii', newline='\n') as fh:
             fh.write('\n'.join(out_lines))
@@ -612,7 +612,7 @@ FRAGS = ('x', 'y', 'ab', 'pir', 'pi', 'e', 'i', 'f', 'g', 'h', 'sin', 'cos(', 'm
          'v1', 'oo', 'inf', 'xsin', '2', '3.5', '.5', '1E5', '2e', '0', '(', ')', '[', ']', '{',
          '}', ',', '+', '-', '*', '/', '^', '!', "'", ':=', '=>', '==', '!=', '<=', '>=', '**',
          '=', '<', '>', ' ', '  ', '\t', 'mod', 'if', 'then', 'and', 'in', THETA, PI,
-         # cas-evo additions
+         # MicroCAS additions
          'E', '2E-3', "y'", "y''", 'desolve(', 'dsolve', 'd(', 'mid', 'sin^', '^-1', 'sinx',
          'ln', 'lnx', 'sqrt', '^2', '2x', 'cosx', 'sec', 'asin(', 'log10', 'O(', 'f(x)=',
          'g(x,y)=', 'u', 'abc', 'xy', 't', 'diff(', 'int', 'E5', '123', 'sinh', 'xcos')

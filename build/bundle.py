@@ -1,4 +1,4 @@
-"""cas-evo bundler, phase 1: strip and rename imports (DESIGN 19.2; task M0.4).
+"""MicroCAS bundler, phase 1: strip and rename imports (DESIGN 19.2; task M0.4).
 
     python build/bundle.py [--src DIR] [--dist DIR] [--no-lint] [--test]
     python build/bundle.py --tables      # run.py's desktop DEV/PARTS/FAMILY/CLOSURE literals
@@ -945,7 +945,7 @@ def _check_output(s, m, text, path, bud, man, src_lines, lintmod, mpy_bytes):
 def _sizes(order, budget, mins, srclines, mpy, man, sizer, dev_dir):
     cmd = getattr(sizer, 'cmd', None)
     tool = ' '.join(cmd) if cmd else ('custom' if sizer is not None else 'not found')
-    out = ['# cas-evo bundle sizes (DESIGN 19.2). FACTOR %s, MPYB %s, LAZYMAX %d, mpy-cross: %s'
+    out = ['# MicroCAS bundle sizes (DESIGN 19.2). FACTOR %s, MPYB %s, LAZYMAX %d, mpy-cross: %s'
            % (man.FACTOR, man.MPYB, man.LAZYMAX, tool),
            '# est KB = .mpy bytes x FACTOR, or lines x MPYB x FACTOR without mpy-cross (~)',
            '%-9s %-9s %-5s %5s %5s %6s %7s %6s %7s %5s  %s'

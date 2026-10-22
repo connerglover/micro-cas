@@ -1,4 +1,4 @@
-# Input passes: FlowCE tests/host/test_tiinput.cc ported (DESIGN 7.10), then cas-evo cases.
+# Input passes: FlowCE tests/host/test_tiinput.cc ported (DESIGN 7.10), then MicroCAS cases.
 # Checked by tests/test_tokens.py; regenerate the expected column with --update-golden.
 #
 # A case is   MODE|input|expected
@@ -90,7 +90,7 @@ R|xsin:=1|xsin:=1
 R|sin|sin
 R|sin sin x|sin sin(x)
 R|sin if|sin if
-# deviation, FlowCE gives "sinx": no strings in cas-evo: an invalid character
+# deviation, FlowCE gives "sinx": no strings in MicroCAS: an invalid character
 R|"sinx"|!Invalid character
 # deviation, FlowCE gives 5_m: underscore names are reserved for internal symbols (DESIGN 7.2): an invalid character
 R|5_m|!Invalid character
@@ -127,7 +127,7 @@ I|1e5|1*e5
 I|2.5e-3x|2.5*e-3*x
 # deviation, FlowCE gives 0x1F: no 0x/0b literals: the number 0 times a name
 I|0x1F|0*x1F
-# deviation, FlowCE gives "xy": no strings in cas-evo: an invalid character
+# deviation, FlowCE gives "xy": no strings in MicroCAS: an invalid character
 I|"xy"|!Invalid character
 I|x y|x* y
 I|x mod 3|x mod 3
@@ -245,7 +245,7 @@ I|g(x):=2x|g(x):=2*x
 I|abc(x):=x+1|abc(x):=x+1
 I|area(r) := pi r^2|area(r) := pi* r^2
 # ')' in a string is not matched
-# deviation, FlowCE gives ab(")"):=1: no strings in cas-evo: an invalid character
+# deviation, FlowCE gives ab(")"):=1: no strings in MicroCAS: an invalid character
 I|ab(")"):=1|!Invalid character
 # deviation, FlowCE gives ab(x):=x;a*b*(2): one expression per line: an invalid character
 I|ab(x):=x;ab(2)|!Invalid character
@@ -295,18 +295,18 @@ I|f'(x)|f'(x)
 I|x->x^2|x->x^2
 I|x<=y|x<=y
 # escaped quote
-# deviation, FlowCE gives "a\\"b"x: no strings in cas-evo: an invalid character
+# deviation, FlowCE gives "a\\"b"x: no strings in MicroCAS: an invalid character
 I|"a\\"b"x|!Invalid character
 # ... does not end the string
-# deviation, FlowCE gives "a\\"xy"2*x: no strings in cas-evo: an invalid character
+# deviation, FlowCE gives "a\\"xy"2*x: no strings in MicroCAS: an invalid character
 I|"a\\"xy"2x|!Invalid character
 # escaped backslash ends the string
-# deviation, FlowCE gives "a\\\\"x*y: no strings in cas-evo: an invalid character
+# deviation, FlowCE gives "a\\\\"x*y: no strings in MicroCAS: an invalid character
 I|"a\\\\"xy|!Invalid character
-# deviation, FlowCE gives 2"x": no strings in cas-evo: an invalid character
+# deviation, FlowCE gives 2"x": no strings in MicroCAS: an invalid character
 I|2"x"|!Invalid character
 # unterminated
-# deviation, FlowCE gives "abc: no strings in cas-evo: an invalid character
+# deviation, FlowCE gives "abc: no strings in MicroCAS: an invalid character
 I|"abc|!Invalid character
 # deviation, FlowCE gives 2*x // 2x: no comments: two / operators
 I|2x // 2x|2*x // 2*x
