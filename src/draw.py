@@ -878,9 +878,12 @@ def mbox(s, nodes, root, mode):                                #@L 4
         e = nd[2]
         if k == 'L':
             if nd[4] & 1 or mode == 1 and nd[4] & 2 and s[a:e] in GLYPHS:
-                bx[n] = leaf(boxes, s[a:e], n)
-            else:
-                bx[n] = tleaf(boxes, a, e, None, n)
+                r = leaf(boxes, s[a:e], n)
+            else:                       # tleaf, inline (one per leaf: the editor's hot path)
+                boxes.append((CW * (e - a), ASC, DESC, (), (('s', 0, -ASC, None, a, e),), 'text',
+                              n))
+                r = len(boxes) - 1
+            bx[n] = r
             continue
         if k == 'E':
             boxes.append((0 if nd[4] & 4 else CW, ASC, DESC, (),

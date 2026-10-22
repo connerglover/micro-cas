@@ -174,11 +174,12 @@ def argpos(outer=False):                                       #@L 3
     exponent: a flat line). outer (help): a fraction or exponent slot gives the slot it sits in too.
     edslot reads the fresh caret map of a 2D line (no layout), else scans the flat line. None
     outside any call."""
+    s = LINE
     r = edslot(CUR)
     for k in range(24):
         if r[2] != 'G' and not (outer and r[2] in 'QW'):
             break
-        if not outer and r[3] and LINE[r[3] - 1] == '^':
+        if not outer and r[3] and s[r[3] - 1] == '^':
             return ('^', 0, 1)
         r = edslot(r[3])
     k = r[2]
@@ -188,8 +189,8 @@ def argpos(outer=False):                                       #@L 3
         return ('^', 0, 1)
     if k == 'R' or k == 'G':
         return None
-    nm = LINE[r[3]:LINE.find('(', r[3])]
-    if r[3] and LINE[r[3] - 1] == 'a' and nm in ('sec', 'csc', 'cot'):
+    nm = s[r[3]:s.find('(', r[3])]
+    if r[3] and s[r[3] - 1] == 'a' and nm in ('sec', 'csc', 'cot'):
         nm = 'a' + nm                   # the layout reads asec( as a*sec( (D.MFNT); the engine not
     return (ALIAS.get(nm, nm), r[5], r[6])
 
@@ -446,10 +447,11 @@ def emodel():                                                  #@L 2
                 ED1D = ED1D or True
     M = EDMAP
     c = CUR
-    if PENDING is not None:
+    p = PENDING
+    if p is not None:
         if M is not None:
             for e in M[12]:
-                if PENDING[0] <= e[0] < PENDING[1]:
+                if p[0] <= e[0] < p[1]:
                     c = e[0]
                     break
         PENDING = None
@@ -516,10 +518,10 @@ def edslot(i):                                                 #@L 4
     caret map's when it is fresh (the stale-map rule, 1.1), else a bracket scan of the flat line,
     where every bracket is visible and a top-level comma also ends the slot (R root, G group,
     C call)."""
-    M = EDMAP
-    if M is not None and M[0] == LINE and M[9][i] >= 0:
-        return M[10][M[9][i]]
     s = LINE
+    M = EDMAP
+    if M is not None and M[0] == s and M[9][i] >= 0:
+        return M[10][M[9][i]]
     n = len(s)
     depth = 0
     a = o = -1
@@ -1133,9 +1135,10 @@ def redraw():                                                  #@L 2
     C = D.COLORS
     ey = 190 - EH
     sb = ey - 20
-    XOFF = max(0, min(XOFF, CUR))
-    if CUR - XOFF > 29:
-        XOFF = CUR - 29
+    c = CUR
+    XOFF = max(0, min(XOFF, c))
+    if c - XOFF > 29:
+        XOFF = c - 29
     fi = (sel if mode else n - 1) if n else -1
     left = lab = ''
     col = 0
@@ -1161,10 +1164,12 @@ def redraw():                                                  #@L 2
     hv = (left, ey)
     chip = CHIPS[MOD]
     lx = 305 - 10*(len(chip) + len(lab)) + (0 if chip else 10)
-    span = VIEW[7] if VIEW is not None else DX
-    if DX > span:                   # the focused answer's overflow at the last full redraw:
-        DX = span                   # <-/-> past it is a no-op key, not a full redraw
-    if not FULL and VIEW == (mode, sel, col, VIEWEND, DX, n, EH, span):
+    dx = DX
+    ve = VIEWEND
+    span = VIEW[7] if VIEW is not None else dx
+    if dx > span:                   # the focused answer's overflow at the last full redraw:
+        DX = dx = span              # <-/-> past it is a no-op key, not a full redraw
+    if not FULL and VIEW == (mode, sel, col, ve, dx, n, EH, span):
         st = sv != STATVIEW
         ht = hv != HINTVIEW
         if fk != TABVIEW:               # one fill over the labels; the gaps stay background
@@ -1199,7 +1204,7 @@ def redraw():                                                  #@L 2
     d = -1
     start = n - 1
     if mode:
-        start = VIEWEND if sel <= VIEWEND < n else sel
+        start = ve if sel <= ve < n else sel
     for ps in range(3 if n else 0):
         plan = []
         y = sb
@@ -1273,8 +1278,8 @@ def redraw():                                                  #@L 2
         else:
             break
     if mode and plan:
-        VIEWEND = plan[0][2]
-    DX = min(DX, span)
+        VIEWEND = ve = plan[0][2]
+    DX = dx = min(dx, span)
     D.rect(0, 0, 320, 210, C['BG'])
     D.color(C['ACCSOFT'])
     for i in range(5):
@@ -1300,18 +1305,18 @@ def redraw():                                                  #@L 2
         b = p[5]
         if b is not None:
             y = p[0] + p[7]
-            x = 310 - p[8] if p[8] <= VIEWW else 10 - (DX if p[2] == fi else 0)
+            x = 310 - p[8] if p[8] <= VIEWW else 10 - (dx if p[2] == fi else 0)
             D.render(b[0], x, (10, max(20, y), 309, min(sb - 1, y + p[9] - 1)), y)
             if p[2] == fi and span:
                 y += p[9] // 2 - 7
-                if DX:
+                if dx:
                     D.text('<', 0, y)
-                if DX < span:
+                if dx < span:
                     D.text('>', 310, y)
     clip = (0, 20, 319, sb - 1)
     D.color(C['SUB'])
     if EDL is not None:                 # the entry's empty-slot boxes (epaint skipped them)
-        D.mrender(EDL, 10 - EXOFF, EKEY[2][5], (10, ey, 309, 189), 0, 319, C['SUB'], True, CUR)
+        D.mrender(EDL, 10 - EXOFF, EKEY[2][5], (10, ey, 309, 189), 0, 319, C['SUB'], True, c)
     for p in plan:
         if p[3] is None:
             D.text(hist[p[2]][0][:31], 5, p[0] + p[4], None, clip)
@@ -1327,7 +1332,7 @@ def redraw():                                                  #@L 2
     D.color(C['ACC'])
     D.text(chip, 315 - 10*len(chip), 2)
     tabs(fk)
-    VIEW = (mode, sel, col, VIEWEND, DX, n, EH, span)
+    VIEW = (mode, sel, col, ve, dx, n, EH, span)
     FULL = False
     STATVIEW = sv
     HINTVIEW = hv
