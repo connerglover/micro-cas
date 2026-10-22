@@ -706,20 +706,17 @@ def rpn(toks):                                                  #@L 7
         elif k == K_COMMA or k == K_RP or k == K_RB:
             while ops and ops[-1][0] == 'o':
                 out.append(ops.pop())
-            if k == K_COMMA and not ops:        # a top-level comma: the line is a list
+            if k == K_COMMA and (not ops or ops[-1][0] == '('):
                 if not val:
                     raise K.CasError('Empty argument', tk[2])
-                top += 1
+                if ops:
+                    argc[-1] += 1
+                else:
+                    top += 1                    # a top-level comma: the line is a list
                 val = False
                 continue
             if not ops or ops[-1][0] != '(':
                 raise K.CasError('Unbalanced brackets', tk[2])
-            if k == K_COMMA:
-                if not val:
-                    raise K.CasError('Empty argument', tk[2])
-                argc[-1] += 1
-                val = False
-                continue
             o = ops.pop()
             m = argc.pop()
             if PAIR[o[1]] != tk[1]:

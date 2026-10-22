@@ -383,14 +383,12 @@ def sorder(n, mv):                                              #@L 6
         r = 1 if sg < 0 else 0
         if not c[2]:
             lst.append((0, 0, r, 0, 0, 0, 0, 0, t[1]))
-        elif c[0] == K.NUM:
-            if c[1]:
-                lst.append((0, 0, r, 0, 0, 0, 0, 0, K.mk(K.nnorm(c[1], 0, c[3]))))
-            lst.append((0, 0, r + 1, 0, 0, 0, 1, K.I, K.mk(K.nnorm(c[2], 0, c[3]))))
-        else:
-            if c[1]:
-                lst.append((0, 0, r, 0, 0, 0, 0, 0, K.mk((K.FLT, c[1], 0.0))))
-            lst.append((0, 0, r + 1, 0, 0, 0, 1, K.I, K.mk((K.FLT, c[2], 0.0))))
+        else:                                   # the real part, then the imaginary one
+            for j in (0, 1):
+                if j or c[1]:
+                    x = c[1 + j]
+                    x = K.mk(K.nnorm(x, 0, c[3]) if c[0] == K.NUM else (K.FLT, x, 0.0))
+                    lst.append((0, 0, r + j, 0, 0, 0, j, K.I if j else 0, x))
     for j in range(2, len(t), 2):
         m = t[j]
         x = tkey(m)
@@ -494,58 +492,39 @@ def pdisp(n, k, c):                                             #@L 5
     # the coefficient: the numerator text cs (None: omitted, a real 1) and the denominator dq
     dq = 1
     cp = Q_ATOM
+    a = q[1]
+    bb = q[2]
+    if (a if a else bb) < 0:                    # the display sign goes in front (csgn)
+        neg = not neg
+        a = -a
+        bb = -bb
     if q[0] == K.NUM:
-        a = q[1]
-        bb = q[2]
         dq = q[3]
         if not bb:
-            if a < 0:
-                neg = not neg
-                a = -a
             cs = istr(a)
             if cs is None:
                 return None
             if a == 1:
                 cs = None
         elif not a:
-            if bb < 0:
-                neg = not neg
-                bb = -bb
             cs = imstr(bb, 1)
             if cs is None:
                 return None
             if bb != 1:
                 cp = Q_MUL
         else:
-            if a < 0:
-                neg = not neg
-                a = -a
-                bb = -bb
             cs = istr(a)
             x = imstr(bb if bb > 0 else -bb, 1)
             if cs is None or x is None:
                 return None
             cs = '(' + cs + ('+' if bb > 0 else '-') + x + ')'
+    elif not bb:
+        cs = fstr(a)
+    elif not a:
+        cs = fstr(bb) + '*i'
+        cp = Q_MUL
     else:
-        re = q[1]
-        im = q[2]
-        if not im:
-            if re < 0:
-                neg = not neg
-                re = -re
-            cs = fstr(re)
-        elif not re:
-            if im < 0:
-                neg = not neg
-                im = -im
-            cs = fstr(im) + '*i'
-            cp = Q_MUL
-        else:
-            if re < 0:
-                neg = not neg
-                re = -re
-                im = -im
-            cs = '(' + fstr(re) + ('+' + fstr(im) if im > 0 else '-' + fstr(-im)) + '*i)'
+        cs = '(' + fstr(a) + ('+' + fstr(bb) if bb > 0 else '-' + fstr(-bb)) + '*i)'
     # the factors, numerator into seq and denominator into dseq
     seq = []
     dseq = []
