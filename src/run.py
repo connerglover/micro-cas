@@ -806,10 +806,7 @@ def room(phase):                                                #@L 2
         gc.collect()
         if MEMFREE() >= want:
             break
-        v = None
-        for x in LOADED:
-            if x not in PINNED and not LIVE.get(x, 0) and (v is None or USE[x] < USE[v]):
-                v = x
+        v = victim(None)                 # no stamp is None: any unpinned, idle family
         if v is not None:
             evict(v)
         elif not shed(name) and not shed(name, AUX):

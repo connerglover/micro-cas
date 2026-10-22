@@ -222,7 +222,7 @@ def linear(e, x):                                               #@L 5
         for u, k in r[i]:
             ts.append(K.mk(k) if u == K.ONE else K.add_([u], k))
         out.append(K.add_(ts))
-    return (out[0], out[1])
+    return tuple(out)
 
 
 def quadratic(e, x):                                            #@L 5
@@ -237,7 +237,7 @@ def quadratic(e, x):                                            #@L 5
         for u, k in r[i]:
             ts.append(K.mk(k) if u == K.ONE else K.add_([u], k))
         out.append(K.add_(ts))
-    return (out[0], out[1], out[2])
+    return tuple(out)
 
 
 def split_const(e, x):                                          #@L 5

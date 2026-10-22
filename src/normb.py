@@ -52,14 +52,15 @@ def g_iszero(e):                                                #@L 2
             r = R.MODS['ident'].lnsplit(NO.normal(e, 1))
         except K.CasError:
             r = e
-        if R.MODS['normc'].kinds(r) & 1:
+        NC = R.MODS['normc']
+        if NC.kinds(r) & 1:
             x = yield R.MODS['rules'].g_rewrite(r, 'zbasis', 0, BUD)
             if x is not None:
                 r = x
         r = NO.normal(r)
         if r == K.ZERO:
             v = YES
-        elif not K.HUGE and not R.MODS['normc'].kinds(r) & 2 or A.nprobe(e) == A.NO:
+        elif not K.HUGE and not NC.kinds(r) & 2 or A.nprobe(e) == A.NO:
             v = A.NO
     K.keep(m0, None)
     yield v
@@ -92,6 +93,7 @@ def g_one(e, full):                                             #@L 2
     #   a+b*sqrt(n) rationalized.
     global SIMPBUG
     NO = R.MODS['norm']
+    NC = R.MODS['normc']
     RU = R.MODS['rules']
     t = K.N[e]
     op = t[0]
@@ -101,7 +103,7 @@ def g_one(e, full):                                             #@L 2
     m0 = K.NN
     best = e
     bs = A.size(e, True)
-    f = R.MODS['normc'].kinds(e)
+    f = NC.kinds(e)
     for k in range(9):
         r = None
         if 1 < k < 7 and (f & 1 if k < 5 else full):
@@ -120,27 +122,27 @@ def g_one(e, full):                                             #@L 2
                 for j in range(2, len(t), 2):
                     if op == K.MUL and not f & 6:
                         x.append((NO.normal(t[j]), t[j + 1]))
-                cs = [K.mul_(t[1], x) if len(x) > 1 else R.MODS['normc'].dfac(NO.normal(e))]
+                cs = [K.mul_(t[1], x) if len(x) > 1 else NC.dfac(NO.normal(e))]
             elif k == 1 and op == K.ADD:
                 x = [t[1]]
                 y = []
                 for j in range(2, len(t), 2):
-                    (y if R.MODS['normc'].kinds(t[j]) & 2 else x).append(K.mul_(t[j + 1], [(t[j], K.ONE)]))
+                    (y if NC.kinds(t[j]) & 2 else x).append(K.mul_(t[j + 1], [(t[j], K.ONE)]))
                 if len(x) > 2 and y:
-                    cs = [K.add_([R.MODS['normc'].dfac(NO.normal(K.add_(x)))] + y)]
+                    cs = [K.add_([NC.dfac(NO.normal(K.add_(x)))] + y)]
             elif r is not None and k < 4:
                 cs.append(NO.normal(r))
             elif k == 7 and full:
                 cs = [R.MODS['ident'].denest(e)]
             elif k == 8 and full:                           # D = a+b*sqrt(n): times a-b*sqrt(n)
                 r = NO.normal(e)
-                x = R.MODS['normc'].dden(r)
+                x = NC.dden(r)
                 if x:
                     D = K.N[x]
                     y = [D[1]]
                     for j in range(2, len(D), 2):
                         c = K.N[D[j + 1]]
-                        y.append(K.mul_(K.nneg(c) if R.MODS['normc'].kinds(D[j]) & 2 else c, [(D[j], K.ONE)]))
+                        y.append(K.mul_(K.nneg(c) if NC.kinds(D[j]) & 2 else c, [(D[j], K.ONE)]))
                     y = K.add_(y)
                     cs = [NO.normal(K.mul_(K.ONE, [(r, K.ONE), (x, K.ONE), (y, K.ONE), (
                         NO.normal(K.mul_(K.ONE, [(x, K.ONE), (y, K.ONE)]), 1), K.MONE)]))]
