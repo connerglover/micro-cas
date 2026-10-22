@@ -35,7 +35,7 @@ def remote_ref(repo, ref):
 
 
 def version(ref):
-    """(0, 1, 0) for refs/tags/v0.1.0; None for a ref that is not a v* release tag."""
+    """(1, 0, 0) for refs/tags/v1.0.0; None for a ref that is not a v* release tag."""
     name = ref.rsplit('/', 1)[-1]
     if not ref.startswith('refs/tags/v'):
         return None

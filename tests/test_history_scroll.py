@@ -1,4 +1,4 @@
-"""v0.1.0: history scrolling and the status row (docs/notes/MATHPRINT.md 7.2, 7.3, 6.1).
+"""v1.0.0: history scrolling and the status row (docs/notes/MATHPRINT.md 7.2, 7.3, 6.1).
 
 F2 (and UP from the entry) enters the history page's scroll mode (MODE), as on the TI-Nspire
 CX II CAS: UP/DOWN move between entries, LEFT selects the input (left column), RIGHT the output

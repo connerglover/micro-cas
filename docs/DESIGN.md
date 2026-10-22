@@ -138,8 +138,8 @@ These were settled with the user. Do not reopen them.
 | menus | The F1 command menu pastes the command and shows a one-line example/help hint (a lite FlowCE catalog). Command names follow giac, plus short aliases (`int`, `d`, `lim`, ...). |
 | conventions | `log` is base 10 and `ln` is natural. Radians by default, with a degree mode. Exact trig at special angles. `+C` on antiderivatives. Polynomials in descending powers. `i` is the imaginary unit. |
 | failure | A failed indefinite integral is shown unevaluated. A failed definite integral falls back to a numeric value labelled ≈. Limits behave the same way. |
-| keys | F1 menu, F2 history scroll (v0.1.0; was Ans/history recall, now on vars without the history), F3 settings (rad/deg), F4 cycle forms, F5 help for the current command. Up/down walk the history, left/right pick its input or answer, enter copies it. Left/right scroll wide answers. sto-> stores. [clear] clears the line or cancels a computation. |
-| themes | One light palette (v0.1.0 removed the Night theme and its setting). |
+| keys | F1 menu, F2 history scroll (v1.0.0; was Ans/history recall, now on vars without the history), F3 settings (rad/deg), F4 cycle forms, F5 help for the current command. Up/down walk the history, left/right pick its input or answer, enter copies it. Left/right scroll wide answers. sto-> stores. [clear] clears the line or cancels a computation. |
+| themes | One light palette (v1.0.0 removed the Night theme and its setting). |
 | robustness | [clear] cancels long computations (poll `ti_system.escape()`/`get_key`). MemoryError is caught and shown as a message. |
 | architecture | Flat n-ary expression trees; an explicit-stack parser and printer; a data-driven rule engine run by an explicit-stack loop (derivatives, integral tables, simplification identities); iterative algorithms for factoring, partial fractions, limits and ODEs. Only the UI layer imports `ti_*`; desktop shims stand in. Tests: pytest, a SymPy oracle, golden files, a call-depth checker. |
 | layout | `src/` (device code), `shim/`, `tests/`, `build/` (bundler), `docs/`. Python venv at `.venv`. Desktop CPython 3.14; device code is the Python 3.4 / MicroPython subset. |
@@ -2936,7 +2936,7 @@ scroll offset `dx` and the clip rectangle. Colors come from the palette (§16.8)
 |---|---|
 | `+ C` | on the answer's row, right after it and spaced like its operators, in the answer's color, when the record flag `F_PLUSC` is set (§7.9): the view lays out the answer text with `+C` appended, so alignment and scrolling count it (MATHPRINT.md 0.10, 7.1). The history text stays the bare answer |
 | `≈ value` | under the hero, from the stored decimal |
-| form label | `exact`, or the current form name, at the top right of the status row, left of the modifier chip (v0.1.0; it was a footer chip with `F4`) |
+| form label | `exact`, or the current form name, at the top right of the status row, left of the modifier chip (v1.0.0; it was a footer chip with `F4`) |
 | `≈` prefix | before an answer that is itself a numeric fallback (record flag `F_APPROX`) |
 
 ### 13.7 Glyphs
@@ -3128,7 +3128,7 @@ CAT = (
   empty (`diff(` → d/d□(□) as `diff(,)`, `integrate(` → `integrate(,,,)`, `limit(` →
   `limit(,,,)`, `log(` → `log(,)`) and the caret in the first box in drawn order; any other
   command inserts one empty box per required argument (FlowCE's required-argument rule, cat
-  §1.3). (v0.1.0 removed the Classic 1D entry setting; MathPrint is the only editor.)
+  §1.3). (v1.0.0 removed the Classic 1D entry setting; MathPrint is the only editor.)
 
 ### 15.4 Help line and F5 help
 
@@ -3161,7 +3161,7 @@ y   0..13   status strip: left RAD|DEG; middle status text (Calculating..., "fil
             empty slot", "Stored; purge(name) clears" for a record with F_PURGEHINT,
             section 7.9); right the focused answer's form label (exact, decimal, ...; gray)
             and the modifier chip 2nd | a | A | a-lock | A-LOCK. A status message that needs
-            the room hides the form label until it clears (v0.1.0)
+            the room hides the form label until it clears (v1.0.0)
 y  14..157  stage: history entries, newest at the bottom; the newest entry is drawn as the
             HERO (large, with the footer "≈ value") while the edit line is empty
 y 158..169  help line: signature of the command around the caret (gray, small)
@@ -3218,7 +3218,7 @@ variables) survives any bug; only a `U.panic` that itself fails can end the prog
 | `MOD` | 0 none, 1 2nd, 2 alpha, 3 alpha-lock lowercase, 4 alpha-lock uppercase |
 | `MODE` | `EDIT` or `HIST` |
 | `SEL` | the selected history index in `HIST` mode |
-| `SELC` | the selected cell of that entry: 0 the input (left), 1 the answer (right; v0.1.0) |
+| `SELC` | the selected cell of that entry: 0 the input (left), 1 the answer (right; v1.0.0) |
 | `HERO` | True while the newest entry is shown large (the edit line is empty in `EDIT` mode) |
 | `DX` | horizontal scroll offset of the shown answer |
 | `ENTRYPOS` | ENTRY recall position |
@@ -3280,7 +3280,7 @@ confirms the rest.
 - **MathPrint** (the default entry; docs/notes/MATHPRINT.md 2): `U.edkey` handles the editing
   keys. Table texts ending in `(` are closed at once (`sin(□)`), `)` steps over a closer or
   closes the nearest visible group, 42/51/61 and 2nd 51 insert templates, and DEL, the arrows and
-  up/down follow the 2D caret map. It is the only editor since v0.1.0 (the `Entry: Classic`
+  up/down follow the 2D caret map. It is the only editor since v1.0.0 (the `Entry: Classic`
   setting is gone); a line over the layout caps, out of memory or after a panic is still edited
   flat (MATHPRINT.md 5.3), which is not a user mode.
 
@@ -3313,7 +3313,7 @@ confirms the rest.
 | F4 | forms of the hero | forms of the selected entry |
 | clear | clear the line; on an empty line, hide the hero | back to `EDIT` |
 
-The selection band covers only the selected cell (v0.1.0; it was the whole row).
+The selection band covers only the selected cell (v1.0.0; it was the whole row).
 
 The stage scrolls so that the selected entry stays visible.
 
@@ -3335,12 +3335,12 @@ The stage scrolls so that the selected entry stays visible.
 menu. `1`-`7` or left/right and ENTER insert the operator at the caret; `clear` closes it. It lives
 in the `menu` part with the F1 menu.
 
-**vars** (v0.1.0; F2 was recall, and now scrolls the history, §16.6): `Ans`, `name = value` for
+**vars** (v1.0.0; F2 was recall, and now scrolls the history, §16.6): `Ans`, `name = value` for
 each variable, and the defined functions. ENTER inserts `ans()` or the name.
 
 **F3 setup** (also `mode`):
 
-- Angle RAD/DEG: toggled by ENTER or left/right, applied at once. (v0.1.0 removed the theme and
+- Angle RAD/DEG: toggled by ENTER or left/right, applied at once. (v1.0.0 removed the theme and
   the Classic entry rows.)
 - Clear history, Clear variables: each asks for confirmation.
 - About: version, `gc.mem_free()`, the loaded modules.
@@ -3354,7 +3354,7 @@ through `D.layout` (L2), so that every call edge goes down a level (§17.1).
 
 ### 16.8 Palette
 
-One light palette (`draw.COLORS`; v0.1.0 removed the Night theme, its setting and the unused
+One light palette (`draw.COLORS`; v1.0.0 removed the Night theme, its setting and the unused
 slots), drawn with `ti_draw.set_color(r, g, b)`:
 
 | slot | color | used for |

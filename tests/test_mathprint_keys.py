@@ -663,7 +663,7 @@ def test_model_is_fresh_after_every_key():
             assert U.MODE == 0 and len(U.LINE) <= 256
 
 
-# -- MathPrint is the only editor (v0.1.0) ---------------------------------------------------
+# -- MathPrint is the only editor (v1.0.0) ---------------------------------------------------
 
 def test_mathprint_is_the_only_entry():
     assert not hasattr(U, 'CLASSIC')

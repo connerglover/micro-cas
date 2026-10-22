@@ -141,7 +141,7 @@ def test_palette_and_native_calls():
     paint(box, 10, 20)
     assert set(TD.COUNTS) <= ON_EVO
     assert all(a[0] != 'draw_text' or all(ord(c) < 128 for c in a[3]) for a in TD.CALLS)
-    assert D.COLORS['BG'] == (247, 248, 250)            # the one light palette (v0.1.0)
+    assert D.COLORS['BG'] == (247, 248, 250)            # the one light palette (v1.0.0)
     assert not hasattr(D, 'theme') and not hasattr(D, 'PALETTES')
     assert TD.COUNTS['set_color'] == 1                  # one color for a whole answer
 

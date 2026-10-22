@@ -364,7 +364,7 @@ about 0.6 KB, less `HINT`, `hint` and `enclosing`); CASMNU 9,039 → 9,068 B; ev
 still passes. `D.mcall` reads `asec(` as `a*sec(` (MFNT mirrors parse.FNT; the engine reads
 asec); `argpos` names it asec (likewise acsc, acot), so its hint is `Argument`, not `Angle`.
 
-### 0.12 Release v0.1.0: one editor, history scroll, the form label (2026-10-22)
+### 0.12 Release v1.0.0: one editor, history scroll, the form label (2026-10-22)
 
 The user's requests for the first tagged release, with the TI-Nspire CX II CAS as the
 reference. Where this section and an older one differ, this one wins; §2, §6, §7 and §8
@@ -401,7 +401,7 @@ CASUX 29,436 → 29,031 B and CASUI 3,759 → 3,417 B of bytecode (mpy-cross est
 | `PENDING` | `None` | `(a, b)`: put the caret in the first empty slot (drawn order) inside `LINE[a:b]`. Resolved in `emodel()` (§6.5). |
 | `ED1D` | `False` | The current line is drawn 1D because the layout is over its caps or raised `MemoryError`. |
 | `EFAIL` | `None` | The `LINE` for which `panic` (reason 0 or 3) ran. While `LINE == EFAIL`, it is drawn 1D, so a failing layout is never retried in a loop. |
-| `SELC` | `1` | The selected cell in MODE: 0 the input, 1 the answer (§0.12; `CLASSIC` was here until v0.1.0). |
+| `SELC` | `1` | The selected cell in MODE: 0 the input, 1 the answer (§0.12; `CLASSIC` was here until v1.0.0). |
 | `VIEWEND` | `-1` | Index of the bottom-most history entry shown in MODE (§7.2). |
 | `STATVIEW`, `HINTVIEW` | `None` | What the status row and the hint row last showed. A row is repainted only when this changes. |
 | `HERO` | `True` | Now means "show the focused entry's footer in the hint row". CLEAR on an empty line clears it. It only affects `HINTVIEW`; it is **not** part of `VIEW`, so it never causes a full redraw. |
@@ -1322,9 +1322,9 @@ skipped like a group.
 
 ---
 
-## 8. MathPrint / Classic (removed in v0.1.0)
+## 8. MathPrint / Classic (removed in v1.0.0)
 
-Until v0.1.0, F3 Setup row 5 (`Entry: MathPrint` / `Entry: Classic`, the ui global
+Until v1.0.0, F3 Setup row 5 (`Entry: MathPrint` / `Entry: Classic`, the ui global
 `CLASSIC`) switched to the pre-MathPrint 1D editor. The user asked for MathPrint entry only,
 so the setting, the global and every Classic branch are gone (§0.12). What Classic also
 served stays, without a user mode: the flat 1D path of `emodel`/`epaint`/`edslot` for a
@@ -1516,7 +1516,7 @@ guard: one `mlayout` of a dense 160-character line < 400 µs. The EVO run times 
 
 | Test | Pin |
 |---|---|
-| `test_full_redraw_uses_few_colors` | Full ≤ 6 colors (one palette since v0.1.0, §0.12). The second bare `u.redraw()` now makes **no** ti_draw call (`TD.CALLS == []`). Then `u.key(92)` gives fills `== [('fill_rect', -1, 169, 321, 21)]`, `set_color ≤ 2`, `draw_text == 1`, `draw_line == 1`. |
+| `test_full_redraw_uses_few_colors` | Full ≤ 6 colors (one palette since v1.0.0, §0.12). The second bare `u.redraw()` now makes **no** ti_draw call (`TD.CALLS == []`). Then `u.key(92)` gives fills `== [('fill_rect', -1, 169, 321, 21)]`, `set_color ≤ 2`, `draw_text == 1`, `draw_line == 1`. |
 | `test_typing_costs_few_colors_per_key` | `typing.colors <= 2*30 + 6*2` (was `4*31 + 6*2`). The first assertion is kept. |
 | New `test_first_key_after_answer_keeps_stage` | After `2/3{enter}`, key `1` makes no `fill_rect` with `y < 150` other than the status row. |
 | New `test_modifier_repaints_status_only` | `u.key(21)`: fills `== [('fill_rect', -1, -1, 321, 20)]`, `set_color ≤ 3`. |
@@ -1655,7 +1655,7 @@ and half-filled, `tidy`/`structure` round trips, sessions, inline `+ C`, Classic
    - `VIEWEND` scrolling.
    - Footer strings.
    - Same-row width guard.
-   - (Classic toggle: removed in v0.1.0, §0.12, §8.)
+   - (Classic toggle: removed in v1.0.0, §0.12, §8.)
    - `HERO` changes (first key after an answer, DEL to an empty line) repaint only the hint
      row, never the stage.
    - ENTER on `log(8,)` (picker 1.7 with the base left empty) evaluates `log(8)`; ENTER on
@@ -1690,13 +1690,13 @@ When it ships, update DESIGN §16 (16.1, 16.4, 16.5, 16.6, 16.9), `docs/notes/UI
 | Risk | Mitigation |
 |---|---|
 | CASUX ~+10 KB (measured +19.8 KB bytecode, `room('layout')` +27.7 KB; §9.2) raises reload pressure; `ui_calculus` at 189,776 had under 2 KB spare | Measure first in CI (not yet run: the open gate of §0.7). Phase 3 option: lay answers out with `mparse(mode 1)` and drop `draw.tree/measure` (~−1.7 KB). Picker rows and menu code stay small. |
-| EVO cost of `draw_text`/`draw_line`/`set_color` is unknown | Flat fast path; the diff paint; INK caret. `EDIFF` and `CARETC` are switches (Classic was one until v0.1.0). Time keys on the device. |
+| EVO cost of `draw_text`/`draw_line`/`set_color` is unknown | Flat fast path; the diff paint; INK caret. `EDIFF` and `CARETC` are switches (Classic was one until v1.0.0). Time keys on the device. |
 | Diff paint leaves stale pixels | The pixel-equivalence property test (§12.7); full repaint on any geometry change; kill switch. |
 | The display disagrees with the engine (`ti_rewrite` notation such as `sin^2(x)`, `xy`) | It is drawn as typed; the value is the engine's. Precedence-agreement test. |
 | `tidy` or `structure` changes the meaning | One-token rule with neighbour checks; engine-equality round trips (§12.4). |
 | The entry `(..)/(..)` rule flips when typing `(a)/(` with ÷ | Documented: identical text means an identical picture. 42 is the fraction key. |
 | Heap spike on long 2D lines | 160 characters / 192 nodes / h 76 caps; `MemoryError` → 1D; rows built in place; `EFAIL`. |
-| Key-semantics surprise (autoclose, `(` wraps to the slot end, ↑ moves inside a fraction first) | Nspire/FlowCE conventions; worked-example tests (Classic, the 1D editor, was removed in v0.1.0). |
+| Key-semantics surprise (autoclose, `(` wraps to the slot end, ↑ moves inside a fraction first) | Nspire/FlowCE conventions; worked-example tests (Classic, the 1D editor, was removed in v1.0.0). |
 | keyscript and native streams drift | Streams are generated from keyscript. The typist emits only real keys (26 for leaving an exponent). The round-trip and linear-typing tests (§12.6). |
 
 **Not reproduced:** the Nspire gray temporary paren; Tab cycling (→ follows drawn order and

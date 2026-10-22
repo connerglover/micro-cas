@@ -17,14 +17,14 @@ Wrangler login and Cloudflare secrets in GitHub are not needed.
 ## Releases
 
 The **Build calculator app** workflow runs only for a pushed tag that starts
-with `v` (for example `v0.1.0`), for a GitHub Release published in the UI, and
+with `v` (for example `v1.0.0`), for a GitHub Release published in the UI, and
 by hand (**Run workflow**). Ordinary pushes and pull requests do not run it.
 To release, set `VERSION` in `build/manifest.py` (and the About text in
 `src/menu.py`, which a test keeps equal), commit on main, then tag and push:
 
 ```text
-git tag -a v0.1.0 -m "cas-evo 0.1.0"
-git push origin v0.1.0
+git tag -a v1.0.0 -m "cas-evo 1.0.0"
+git push origin v1.0.0
 ```
 
 A tag run builds and tests everything, then:

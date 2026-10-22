@@ -7,8 +7,13 @@ them as current.
 
 ## Current delivery
 
-- **Release v0.1.0 prepared on `mathprint` (local, not pushed, not tagged;
-  2026-10-22).** User requests: the theme function is gone (one light palette,
+- **Hardware acceptance (user report, 2026-10-22).** The user ran the MathPrint
+  test builds on their TI-84 EVO and reported that they work (the latest build
+  delivered before this report was `cas-evo-678d16d.zip`: launcher CAS, no
+  CVTEST, Nspire names, argument boxes and the argument help row). This is the
+  first actual EVO acceptance of the MathPrint editor; no device timings or
+  transcripts were recorded.
+- **Release v1.0.0 on `mathprint` (tag `v1.0.0`; 2026-10-22).** User requests: the theme function is gone (one light palette,
   no F3 row, `R.SET = {'deg': 0}`); MathPrint is the only entry (the Classic
   setting and its code paths are removed; the internal 1D fallback for
   over-cap/out-of-memory lines and after a panic stays); the answer's form label
@@ -22,7 +27,7 @@ them as current.
   (MATHPRINT.md §0.12). The workflow now runs only for `v*` tags, published
   Releases and manual dispatch, attaches `cas-evo-<tag>.zip` to the tag's
   Release (creating it if needed) and publishes the website from tags only
-  (HOSTING.md); `release.json` and `archive.json` record `release: 0.1.0`.
+  (HOSTING.md); `release.json` and `archive.json` record `release: 1.0.0`.
   **Host and native evidence** (not hardware): lint, framelint, the not-slow
   suite in source and bundled tiers (4,268 passed each), `build/release.py`,
   `build/transfer.py`, `build/archive.py` with the pinned v1.12 `mpy-cross`,
@@ -34,9 +39,11 @@ them as current.
   cas32 `ui` boot heap 120,416 → 121,104 B free and result 31,920 → 32,528 B,
   `ui_calculus` (189,776) result 45,872 → 46,816 B. `build/website.py` could not
   download the WebTILP source archive in this sandbox (HTTP 403), so the website
-  assembly and `check_pages.py` ran only in earlier CI. **Pending:** pushing,
-  the first tag run (Release upload and pages publication have not been observed),
-  and an actual EVO run of this build (status row, history selection, copy).
+  assembly and `check_pages.py` ran only in earlier CI. **Pending:** the first tag
+  run (Release upload and pages publication have not been observed; the account
+  was out of Actions minutes) and an EVO run of the changes made after the
+  accepted 678d16d build (status-row form label, history selection and copy,
+  theme and Classic removal).
 - **packs-v1 is merged into local `main`**: `perf/fast-boot` was fast-forwarded
   from 177779f through the verified fixes at **1e06608**, as requested on
   2026-10-12. It is not pushed and CI has not run on it. Remote main remains

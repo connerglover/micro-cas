@@ -52,7 +52,7 @@ def test_evo_keys_forms_fraction_and_xroot():
 def test_forms_and_angle_setting():
     s = KS.run('sqrt(2){enter}{f4}{f3}{enter}{clear}')
     assert s.ans.startswith('1.414213562')
-    assert s.mods['run'].SET == {'deg': 1}              # no theme setting (v0.1.0)
+    assert s.mods['run'].SET == {'deg': 1}              # no theme setting (v1.0.0)
 
 
 def test_help_example_paste():

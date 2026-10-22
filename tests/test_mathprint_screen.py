@@ -347,7 +347,7 @@ def test_selection_band_and_scrolling():
         shown = TD.screen_text(0, 20, 320, 130)
         assert ('%d+%d' % (u.SEL + 1, u.SEL + 1)) in shown
         assert u.SEL <= u.VIEWEND < 8
-        # the band sits behind the selected entry's output cell, not its input (v0.1.0)
+        # the band sits behind the selected entry's output cell, not its input (v1.0.0)
         sel = [t for t in TD.texts() if t[2] == '%d+%d' % (u.SEL + 1, u.SEL + 1)][0]
         res = [t for t in TD.texts() if t[2] == str(2 * (u.SEL + 1)) and t[1] == sel[1]][0]
         assert TD.pixel(res[0] - 2, res[1]) == band and TD.pixel(1, sel[1]) != band

@@ -83,7 +83,7 @@ ENTER on an empty line repeats the last input. Repeated 2nd ENTER walks older
 inputs until the recalled line is edited. Empty template slots move the caret
 instead of starting calculation. History paste wraps compound results in parentheses.
 
-History scroll (v0.1.0, as on the TI-Nspire CX II CAS): F2 or up from the edit line
+History scroll (v1.0.0, as on the TI-Nspire CX II CAS): F2 or up from the edit line
 selects the newest answer; up/down move between entries, left selects the input
 cell and right the answer cell, with the band behind that cell only. A selected
 answer wider than the view scrolls with right/left before left moves to the input.
@@ -105,7 +105,7 @@ and `taylor` wrap an existing line when the caret is at its end; an empty line
 uses `ans()` when available. Other entries insert at the caret.
 
 VARS contains Ans, stored variables, and stored functions (the history scrolls on
-the page itself). F3 toggles RAD/DEG immediately; v0.1.0 removed the theme and
+the page itself). F3 toggles RAD/DEG immediately; v1.0.0 removed the theme and
 Classic entry settings. Clearing history or
 definitions requires local confirmation; CLEAR cancels that confirmation. About
 shows the version, available heap, and loaded runtime families. F5 shows the

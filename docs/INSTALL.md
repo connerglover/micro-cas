@@ -1,8 +1,8 @@
 # Install cas-evo on the TI-84 EVO
 
-Use **cas-evo-calculator.zip**, the compiled EVO package: **cas-evo 0.1.0**
+Use **cas-evo-calculator.zip**, the compiled EVO package: **cas-evo 1.0.0**
 (format `packs-v1`). On a GitHub Release the same file is named
-`cas-evo-v0.1.0.zip`.
+`cas-evo-v1.0.0.zip`.
 It preserves all v1 features with **21 compiled library packs in archive**
 (`CAS*.8mp2`) and **one launcher in RAM** (`CAS.8xpy2`): 22 files, well below the 3.5 MB storage allowance. `archive.json` in the ZIP
 lists each file's size. Runtime Python heap is a separate, smaller budget.

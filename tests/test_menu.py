@@ -132,4 +132,4 @@ def test_setup_rows():
     TS.load([34, 34, 34, 105])                        # row 4 opens About
     with pytest.raises(TS.StopScript):
         R.need('menu').open('setup')
-    assert 'Free heap' in TD.screen_text() and 'cas-evo 0.1.0' in TD.screen_text()
+    assert 'Free heap' in TD.screen_text() and 'cas-evo 1.0.0' in TD.screen_text()
