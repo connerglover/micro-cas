@@ -55,10 +55,14 @@ them as current.
   `EVDICT` excluded). Compiled archive 203,965 → 188,805 B (CASK1 22,177 → 20,852,
   CASK2 17,963 → 16,647, CASALG 19,076 → 17,263, CASPR 11,925 → 10,569, CASIN 12,128 →
   10,688, CASLIM 10,845 → 9,200; CASUI/CASUX unchanged), `release.py` estimates 184,332 →
-  175,324 B, ZIP 142,596 → 136,777 B. Native cas32: startup 95,000 leaves 20,672 B free
-  (18,768 before); result heap `ui` 34,112 → 38,864 B, `ui_edit` 30,896 → 35,712 B,
-  `ui_calculus` 47,968 → 52,784 B (189,776) and 43,936 → 48,752 B (185,680); probe 212,000
-  and cas64 500,000 at 55/55; every native transcript identical apart from heap readings.
+  175,324 B, ZIP 142,596 → 136,777 B. Native cas32 (both builds run through the same
+  `dist/archive-smoke` path; heap readings depend on that path's length): startup 95,000
+  leaves 19,936 → 21,840 B free; result heap `ui` 33,456 → 38,208 B, `ui_edit` 30,496 →
+  35,248 B, `ui_calculus` 47,744 → 52,496 B (189,776) and 43,712 → 48,464 B (185,680); probe
+  212,000 at 55/55, final heap 68,032 → 63,376 B only because the loader, with more room,
+  now keeps CASLIM resident at the end (with CASLIM cleared: about 71,800 B); cas64 500,000
+  at 55/55, final heap 264,064 → 267,072 B. Every native transcript is identical apart from
+  heap readings.
   Differential: the 4,987 distinct inputs of the tests, corpora and golden files in RAD and
   DEG (9,974 evaluations) plus three F5 forms of each answer (19,863), run through the
   packed release, give the same 29,837 result records before and after. Speed unchanged:
@@ -76,6 +80,15 @@ them as current.
   every changed AST node of the merged packs (2,473, 167 names) is a reference replaced by its
   own value; the differential (29,837 records) and the native suites were rerun with the same
   results.
+  Final acceptance at a71ee7f (engine constants): lint, framelint, the not-slow suite in
+  source and bundled tiers with `--strict-depth -n 6` (4,342 passed each), the slow suite
+  (65 passed), `release.py`, `transfer.py`, `check_release.py` (strict depth 8/8),
+  `archive.py` (22 files, 188,805 B), `tests/test_archive_release.py` (86), every native
+  heap above, `build/linemap.py` on engine-pack lines and tracebacks, `package_archive.mjs`
+  (22 objects, 191,113 B), `archive_zip.py` (136,777 B zipped, copied to
+  `cas-evo-v1.0.1.zip`, SHA-256
+  `56252014b93109d5d075f55be0fe15e9feb5a5b6524be7cc4975e28717612b74`), `SHA256SUMS` and the
+  Node installer tests (31).
   **Pending:** an EVO run of v1.0.1, and the user's merge and `v1.0.1` tag to deliver it
   (INSTALL.md ships in the ZIP).
 - **Hardware acceptance (user report, 2026-10-22).** The user ran the MathPrint
