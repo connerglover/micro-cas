@@ -15,11 +15,9 @@ ASC = 11            # text cell rows above the baseline
 DESC = 4            # and below: 15 rows of ink
 TY = 17             # draw_text(x, top + TY, s) puts the first ink row at top
 AXIS = 4            # fraction bars, above the baseline
-PALETTES = (
-    ((247,248,250),(17,20,25),(108,117,129),(219,224,231),(36,92,204),(226,234,250),(255,255,255),(255,255,255),(78,86,98)),
-    ((12,15,20),(234,238,243),(134,145,158),(38,46,58),(100,165,255),(24,40,64),(22,28,36),(16,21,28),(150,160,173)))
-SLOTS = ('BG','INK','SUB','LINE','ACC','ACCSOFT','CARD','BAR','BARINK')
-COLORS = {}
+# The one light palette: background, ink, gray, rules and empty boxes, accent, accent tint.
+COLORS = {'BG': (247, 248, 250), 'INK': (17, 20, 25), 'SUB': (108, 117, 129),
+          'LINE': (219, 224, 231), 'ACC': (36, 92, 204), 'ACCSOFT': (226, 234, 250)}
 CURRENT = None      # the color set_color last received
 CACHE = []
 CACHE_BYTES = 0
@@ -33,7 +31,7 @@ TPL = {'sqrt': (1,), 'abs': (1,), 'exp': (1,), 'surd': (2,), 'log': (2,), 'integ
 TGAP = 3
 # The argument table (QPL Q4, Q5; MATHPRINT.md 3.3, 7.5): ;name[#count]:<required><boxed><codes>;
 # required: the arguments ENTER needs (an empty box after them is optional: mshut flags it, tidy
-# drops it); boxed: the boxes a menu inserts in MathPrint (Classic: required); codes: one
+# drops it); boxed: the boxes a menu inserts (menub.insertion); codes: one
 # ui.ARGPH phrase per argument (A-Z a-z 0-9), * after the last one repeats it. #count: the form
 # with that many arguments. / and ^ are the fraction and exponent slots.
 ARGS = (';simplify:11C;expand:11D;factor:11EF;solve:12GH;together:11I;partfrac:11JF;diff:22KLM;'
@@ -66,11 +64,6 @@ GLYPHS = {
 
 
 # -- the screen ----------------------------------------------------------------------------------
-
-def theme(n):                                                  #@L 3
-    for j in range(len(SLOTS)):
-        COLORS[SLOTS[j]] = PALETTES[1 if n else 0][j]
-
 
 def reset():                                                   #@L 3
     """Forget the cached color: the next color() call sets it."""
@@ -432,7 +425,7 @@ def layout(s, width=300, height=92):                            #@L 3
 
 
 def render(dl, dx=0, clip=SCREEN, dy=0):                        #@L 4
-    color(COLORS.get('INK',PALETTES[0][1]))
+    color(COLORS['INK'])
     for item in dl:
         x,y = item[1]+dx,item[2]+dy
         if item[0]=='l':

@@ -1,6 +1,8 @@
 # Install cas-evo on the TI-84 EVO
 
-Use **cas-evo-calculator.zip**, the compiled EVO package (format `packs-v1`).
+Use **cas-evo-calculator.zip**, the compiled EVO package: **cas-evo 0.1.0**
+(format `packs-v1`). On a GitHub Release the same file is named
+`cas-evo-v0.1.0.zip`.
 It preserves all v1 features with **21 compiled library packs in archive**
 (`CAS*.8mp2`) and **one launcher in RAM** (`CAS.8xpy2`): 22 files, well below the 3.5 MB storage allowance. `archive.json` in the ZIP
 lists each file's size. Runtime Python heap is a separate, smaller budget.
@@ -38,13 +40,14 @@ input, not the calculator download. Do not mix files from different packages.
    launcher CAS to RAM, and verifies their locations. Wait for completion.
 4. Start a fresh **Python** session, select **CAS**, and run it.
 5. The screen should show `RAD` and `ready` with the start time in seconds in
-   the top row, the title `cas-evo`, an empty edit line, and the five bottom
-   labels `menu`, `recall`, `setup`, `forms`, and `help`. Without a calculator
-   clock the top row shows only `ready`.
+   the top row, `Press math or menu` in the middle, an empty edit line, and the
+   five bottom labels `menu`, `hist`, `setup`, `forms`, and `help`. Without a
+   calculator clock the top row shows only `ready`.
 6. Type `2+3` and press **ENTER**. The first ENTER loads the engine: the top row
    shows `Loading engine...`, then `Calculating...`, and the answer `5` appears
-   with `engine` and the engine load time in seconds. Opening a menu first also
-   loads the engine. Later commands reuse it.
+   with `engine` and the engine load time in seconds; the top right shows the
+   answer's form, `exact`. Opening a menu first also loads the engine. Later
+   commands reuse it.
 
 For manual transfer, use [WebTILP](https://adriweb.github.io/tilibs/). Send every
 `.8mp2` library from the ZIP to **Archive**, then send `CAS.8xpy2` to **RAM**.
@@ -142,37 +145,40 @@ opens command templates; **MATH** opens the Calculus tab. Type letters with
 | `grad(x*y,[x,y])` | `[y,x]` |
 | `integrate(1/(2+cos(x)),x,0,2*pi)` | `2*sqrt(3)*pi/3`; one of the heaviest commands for memory |
 
-Then try `sqrt(2)` and press **F4** to request its decimal form. Open **F3**,
-switch to Night, and check that the editor and menus remain readable. While a
-longer calculation is running, press **CLEAR** to cancel, then check that `2+3`
-still returns `5`.
+Then try `sqrt(2)` and press **F4** to request its decimal form: the label at
+the top right changes from `exact` to `decimal`. Press **F2** (or up): the last
+answer is highlighted; press left to highlight its input, then **ENTER** to copy
+it into the edit line. While a longer calculation is running, press **CLEAR** to
+cancel, then check that `2+3` still returns `5`.
 
 ## Everyday controls
 
 | Key | Action |
 |---|---|
 | F1 / Y= | Command menu; left/right changes tabs |
-| F2 / WINDOW / VARS | Recall Ans, recent results, variables, and functions |
-| F3 / ZOOM / MODE | Angle mode, theme, session clearing, About |
-| F4 / TRACE, < > | Next available form of the displayed answer (exact, decimal, ...) |
+| F2 / WINDOW | Scroll the history (F2 again or CLEAR returns to the edit line) |
+| VARS | Ans, stored variables, and functions |
+| F3 / ZOOM / MODE | Angle mode, session clearing, About |
+| F4 / TRACE, < > | Next available form of the highlighted or last answer (exact, decimal, ...); its name is shown at the top right |
 | F5 / GRAPH | Help for the command around the caret; ENTER inserts its example |
-| Up/down | Browse history; ENTER inserts the selected result |
-| 2nd ENTER | Recall earlier input; in history, insert the selected input |
+| Up/down | Up from the edit line scrolls the history; in the history, up/down move between entries (2nd: 5 at a time) |
+| Left/right in the history | Left highlights the input, right the answer; a wide answer scrolls first |
+| ENTER in the history | Copy the highlighted input or answer into the edit line at the caret |
+| 2nd ENTER | Recall earlier inputs into the edit line |
 | Left/right | Move the caret; with an empty editor, scroll the answer |
 | DEL | Backspace; `ans()` is removed as one unit |
 | CLEAR | Clear input, leave history/menu, or cancel a calculation |
 | 2nd MATH | Relation picker: `= != < <= > >= !` |
 | 2nd 0 | All commands |
-| Fraction key | Stacked fraction: numerator box over denominator box (Classic entry: `/`) |
+| Fraction key | Stacked fraction: numerator box over denominator box |
 | 2nd fraction key | Template picker: square and nth root, e^x, 10^x, log base b, absolute value, integral, d/dx, nth derivative, sum, limit. Every box starts empty; optional boxes (log base, derivative order, limit direction, both integral bounds) may stay empty |
-| 2nd x^n | nth root template, index box first (Classic entry: `surd(`; `surd(8,3)` is `2`) |
+| 2nd x^n | nth root template, index box first (`surd(8,3)` is `2`) |
 | 2nd MODE | Quit to Python |
 
 Menus and the catalog list commands by the names the TI-Nspire CX II CAS uses
 (Simplify, Solve, Derivative, Integral, Taylor Polynomial, Convert to Decimal,
 ...); ALPHA find matches the name or the command itself (`diff` finds
-Derivative). A command arrives with an empty box for each argument (Classic
-entry: the required ones, as text), and the row above the edit line explains
+Derivative). A command arrives with an empty box for each argument, and the row above the edit line explains
 the box the caret is in and whether it is required, for example `Expr. to
 simplify (required)` or `Order (optional: empty = 1)`. Optional boxes may stay
 empty; ENTER moves to an empty required box and shows `fill in the empty slot`.

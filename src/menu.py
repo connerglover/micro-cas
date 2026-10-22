@@ -1,5 +1,5 @@
 #@L 2
-# Modal catalog, TEST, recall, settings and command help. All state is text-only.
+# Modal catalog, TEST, variables, settings and command help. All state is text-only.
 # Loaded through R.need('menu') after ui.engine(); the engine is read from U.R at call time.
 import ti_system as TS
 import ui as U
@@ -36,17 +36,14 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
         if kind in TABS:
             rows = R.MODS['menub'].entries(cat, tab, prefix)
             title = TABS[tab][0].upper() + TABS[tab][1:] + (' / ' + prefix if prefix else '')
-        elif kind == 'recall':
-            rows = R.MODS['menub'].recall()
-            title = 'Recall'
+        elif kind == 'vars':
+            rows = R.MODS['menub'].varrows()
+            title = 'Vars'
         elif kind == 'setup':
             rows = [('Angle: ' + ('DEG' if R.SET['deg'] else 'RAD'), 'ENTER or arrows toggle'),
-                    ('Theme: ' + ('Night' if R.SET['theme'] else 'Paper'), 'ENTER or arrows toggle'),
                     ('Clear history', 'Remove past inputs and results'),
                     ('Clear variables', 'Remove stored variables and functions'),
-                    ('About cas-evo', 'Version, timing, memory and loaded modules'),
-                    ('Entry: ' + ('Classic' if U.CLASSIC else 'MathPrint'),
-                     'ENTER or arrows toggle')]
+                    ('About cas-evo', 'Version, timing, memory and loaded modules')]
             title = 'Setup'
         elif kind == 'test':
             rows, title = [], 'TEST'
@@ -62,10 +59,10 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
         notes = []
         notetop = NOTE
         if confirmation is not None:
-            D.text('Clear history?' if confirmation == 2 else 'Clear variables and functions?', 5, 40)
+            D.text('Clear history?' if confirmation == 1 else 'Clear variables and functions?', 5, 40)
             notes = ['ENTER clears; CLEAR keeps them.']
         elif about:
-            D.text('cas-evo v1 / TI-84 EVO', 5, 40)
+            D.text('cas-evo 0.1.0 / TI-84 EVO', 5, 40)
             free = R.MEMFREE() if R.MEMFREE is not None else 0
             D.text('Free heap: ' + str(free) + ' bytes', 5, 57)
             D.text('Boot ' + U.secs(U.BOOT_MS) + ', engine ' + U.secs(U.ENGINE_MS), 5, 74)
@@ -82,8 +79,8 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
                 notes, notetop = D.wrap(helpentry[2], 31), TOP + 17
             else:
                 tips = ('ENTER calculate, CLEAR cancel', '2nd ENTER: previous input',
-                        'Up/down: browse history', 'F1 menu  F2 recall  F3 setup',
-                        'F4 forms of the answer', 'F5 help  2nd MODE quit',
+                        'F2 or up: scroll the history', '<- input, -> result; ENTER copy',
+                        'F1 menu  F3 setup  F4 forms', 'F5 help  2nd MODE quit',
                         'STO: store a result')
                 for j in range(len(tips)):
                     D.text(tips[j], 5, TOP + 17*j)
@@ -107,7 +104,7 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
         key = TS.wait_key()
         if confirmation is not None:
             if key == 105:
-                if confirmation == 2:
+                if confirmation == 1:
                     del R.HIST[:]
                 else:
                     R.VARS.clear()
@@ -148,24 +145,20 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
         elif key in (24, 26) and kind in TABS:
             tab = (tab + (1 if key == 26 else -1)) % len(TABS)
             prefix, selected = '', 0
-        elif key == 105 or key in DIGITS or (kind == 'setup' and key in (24, 26)):
+        elif key == 105 or key in DIGITS or kind == 'setup' and key in (24, 26) and not selected:
             if key in DIGITS:
                 selected = selected // PAGE * PAGE + DIGITS[key] - 1
             if selected >= len(rows):
                 selected = max(0, len(rows)-1)
                 continue
             if kind == 'setup':
-                if selected < 2:
-                    setting = 'deg' if selected == 0 else 'theme'
-                    R.SET[setting] = 1 - R.SET[setting]
-                    D.theme(R.SET['theme'])
-                elif selected in (2, 3):
-                    confirmation = selected
-                elif selected == 4:
+                if not selected:
+                    R.SET['deg'] = 1 - R.SET['deg']
+                elif selected < 3:
+                    confirmation = selected     # 1 history, 2 variables
+                else:
                     about = True
-                else:                   # the editor: MathPrint or Classic (a ui global)
-                    U.CLASSIC = not U.CLASSIC
-            elif kind == 'recall':
+            elif kind == 'vars':
                 text = rows[selected][2]
                 return (text, False, len(text))
             elif rows:

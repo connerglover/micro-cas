@@ -1,7 +1,7 @@
 #@L 2
 # Calculator editor, history and the 320x210 application shell. The engine (node, alg, parse,
 # printer, run) is imported by engine() on first use; until then the shell runs with an empty
-# history, theme 0 and radians (docs/notes/FASTBOOT.md). All drawing goes through draw.py.
+# history and radians (docs/notes/FASTBOOT.md). All drawing goes through draw.py.
 import gc
 import sys
 import time
@@ -26,6 +26,7 @@ XOFF = 0
 MOD = 0
 MODE = 0
 SEL = -1
+SELC = 1            # MODE's selected cell: 0 the input (left column), 1 the output (right)
 HERO = True
 DX = 0
 ENTRYPOS = -1
@@ -35,18 +36,17 @@ NOTE = ''           # shown in the status bar with the next answer (the engine l
 FULL = True         # the next redraw repaints everything, not only the status and edit rows
 VIEW = None         # what the stage showed at the last redraw
 # The MathPrint editor model (docs/notes/MATHPRINT.md 1.1, 6.5): LINE and CUR stay the state, in
-# engine syntax; emodel() derives the rest from (LINE, CLASSIC) and the keys read it.
+# engine syntax; emodel() derives the rest from LINE and the keys read it.
 EXOFF = 0           # pixel scroll of a 2D entry (XOFF scrolls a flat one, in characters)
 EH = 20             # entry box height: 20, 40, 60 or 80
 EDMAP = None        # the caret map of the last 2D layout of LINE (draw.mlayout mode 2), or None
 EDL = None          # the last painted entry: EDMAP's display list (as laid out) and key
 EKEY = None
-EMODEL = None       # (LINE, CLASSIC) of the model; None: rebuild at the next emodel()
+EMODEL = None       # the LINE of the model; None: rebuild at the next emodel()
 EFLAT = True        # LINE is drawn and edited as a flat (1D) line
 PENDING = None      # (a, b): put the caret in the first empty slot of LINE[a:b] (emodel)
 ED1D = False        # LINE is 2D but over the layout caps (or out of memory): edited flat
 EFAIL = None        # the LINE a panic (reason 0 or 3) ran on: edited flat until it changes
-CLASSIC = False     # F3 setup: Entry Classic, today's 1D editor
 VIEWEND = -1        # the bottom history entry shown in MODE
 STATVIEW = None     # what the status row last showed (repainted only when it changes)
 HINTVIEW = None     # what the hint row last showed
@@ -58,15 +58,15 @@ PAGEMAX = 5         # history entries shown at most
 
 # Screen rows (MATHPRINT.md 6.1). A text cell is 15 rows of ink starting at its top (draw.py);
 # EY = 190 - EH is the entry box's top (170 at EH 20, when every row is today's).
-#   0..18      status: angle, status text, modifier chip; a rule at 19
+#   0..18      status: angle, status text, the focused answer's form, modifier chip; rule at 19
 #  20..EY-21   history: entries stacked upwards from EY-20, input left, result right-aligned
-# EY-19..EY-2  hint, or the focused entry's footer (text at EY-17); a rule at EY-1
+# EY-19..EY-2  hint, or the focused answer's decimal (text at EY-17); a rule at EY-1
 #  EY..189     entry: content centred, view x 10..309, scroll markers at x 0 and 310, caret
 # 190..209     F-key tabs (191..209), labels at 193
 VIEWW = 300
 HEROH = 92
 LISTH = 60
-FKEYS = ('menu', 'recall', 'setup', 'forms', 'help')
+FKEYS = ('menu', 'hist', 'setup', 'forms', 'help')
 CHIPS = ('', '2nd', 'a', 'a-lock', 'A-LOCK')
 # The TI-84 Evo keypad (TI's Evo key map and keypad notes): x^n left of sin (51; 2nd xRoot),
 # the fraction template on the CE's apps key (42), / * - + one row up (55 65 75 85), and < >
@@ -145,7 +145,8 @@ def secs(ms):                                                  #@L 3
 
 
 def room():                                                    #@L 4
-    """Columns for the status text: from x 45 to the modifier chip (or the right edge)."""
+    """Columns for the status text and the form label: from x 45 to the modifier chip (or the
+    right edge)."""
     chip = CHIPS[MOD]
     return (270 - 10*len(chip) - (10 if chip else 0)) // 10
 
@@ -164,7 +165,7 @@ def argpos(outer=False):                                       #@L 3
     """(command, argument index, argument count) of the slot at the caret, for the hint row
     and help (QPL Q5, MATHPRINT.md 7.5): '/' for a fraction slot, '^' for an exponent, a call's
     name through ALIAS; a group or list slot gives the slot it sits in (a group after ^ is an
-    exponent: Classic). outer (help): a fraction or exponent slot gives the slot it sits in too.
+    exponent: a flat line). outer (help): a fraction or exponent slot gives the slot it sits in too.
     edslot reads the fresh caret map of a 2D line (no layout), else scans the flat line. None
     outside any call."""
     r = edslot(CUR)
@@ -220,11 +221,6 @@ def arghelp(nm, j, n):                                         #@L 4
     return t + (' (required)' if j < r else ' (optional)')
 
 
-def insert(text, offset=None):                                  #@L 3
-    """Insert text at the caret (offset: the caret's move, default len(text)); False past 256."""
-    return put(LINE[:CUR] + text + LINE[CUR:], CUR + (len(text) if offset is None else offset))
-
-
 def tput(t):                                                   #@L 3
     """Insert the template text t at the caret, the caret in its first box in drawn order
     (PENDING; on a flat or degraded line, its first argument)."""
@@ -270,7 +266,7 @@ def tidy(s, back=0):                                           #@L 3
     r = None
     try:
         r = D.mparse(s, D.mlex(s), 1) if s else None
-    except MemoryError:                     # the 1D text, as Classic sends it
+    except MemoryError:                     # the 1D text as it is
         gc.collect()
     if r is None:
         return s
@@ -366,7 +362,7 @@ def empty_slot():                                              #@L 3
     call f() is one when f is a command (draw.ARGS) or a function of the engine."""
     ok = []
     try:
-        r = None if CLASSIC or LINE == EFAIL else D.mparse(LINE, D.mlex(LINE), 1)
+        r = None if LINE == EFAIL else D.mparse(LINE, D.mlex(LINE), 1)
     except MemoryError:                 # then every box counts
         r = None
         gc.collect()
@@ -390,13 +386,12 @@ def empty_slot():                                              #@L 3
             return i + 1
         while j < i and LINE[j].isdigit():
             j += 1
-        if j == i and not CLASSIC:
+        if j == i:
             return i + 1                    # an empty group: 2*()
         i = LINE.find('()', i + 2)
-    if not CLASSIC:                         # an operator before an autoclosed closer: sin(2+)
-        for i in range(1, len(LINE)):
-            if LINE[i] in ')]}' and LINE[i-1] in '+-*/^=<>' and i not in ok:
-                return i
+    for i in range(1, len(LINE)):           # an operator before an autoclosed closer: sin(2+)
+        if LINE[i] in ')]}' and LINE[i-1] in '+-*/^=<>' and i not in ok:
+            return i
     if LINE and LINE[-1] in '+-*/^,(=':
         return len(LINE)
     return -1
@@ -423,16 +418,16 @@ def empty_map():                                               #@L 3
 def emodel():                                                  #@L 2
     """The editor model of LINE (MATHPRINT.md 6.5): flat or 2D and its caret map, the pending
     caret, the caret snapped to a stop, the entry height and scroll. It draws nothing. Rebuilt
-    only when (LINE, CLASSIC) changed, so a degraded line (over the caps, out of memory, or the
+    only when LINE changed, so a degraded line (over the caps, out of memory, or the
     line a panic ran on) is not laid out again until its text changes."""
     global EMODEL, EFLAT, EDMAP, ED1D, PENDING, CUR, EH, EXOFF
     s = LINE
     n = len(s)
-    if EMODEL != (s, CLASSIC):
-        EMODEL = (s, CLASSIC)
+    if EMODEL != s:
+        EMODEL = s
         EDMAP = None
         ED1D = False
-        EFLAT = CLASSIC or s == EFAIL or n > 160 or D.mflat(s)
+        EFLAT = s == EFAIL or n > 160 or D.mflat(s)
         if not EFLAT:
             try:
                 EDMAP = D.mlayout(s, 2)
@@ -453,8 +448,8 @@ def emodel():                                                  #@L 2
         PENDING = None
     CUR = max(0, min(CUR, n))
     if M is None:
-        while not CLASSIC and CUR < n and not D.mstop(s, CUR):
-            CUR += 1                        # Classic: every index is a stop (8)
+        while CUR < n and not D.mstop(s, CUR):
+            CUR += 1
         EXOFF = 0
         if not n:
             EH = 20
@@ -939,7 +934,7 @@ def paste(text, bare):                                         #@L 3
 def edkey(k, mod):                                             #@L 2
     """A MathPrint editing key (MATHPRINT.md 2): DEL, the arrows, up and down, the template
     keys and the keys that insert text."""
-    global MODE, SEL, DX
+    global MODE, SEL, SELC, DX
     if k == 23:
         if eddel():
             edmove(-1, 0)
@@ -950,7 +945,7 @@ def edkey(k, mod):                                             #@L 2
     if k == 25:
         if not LINE or mod == 1 or not edvert(-1):
             if R is not None and R.HIST:
-                MODE, SEL, DX = 1, len(R.HIST) - 1, 0
+                MODE, SEL, SELC, DX = 1, len(R.HIST) - 1, 1, 0
         return
     if k == 34:
         edvert(1)
@@ -1118,17 +1113,15 @@ def epaint(full):                                              #@L 3
 
 
 def redraw():                                                  #@L 2
-    """Repaint the shell (MATHPRINT.md 6.4). A full redraw (FULL, or the view changed: theme,
-    MODE, selection, page, answer scroll, history length, entry height) paints everything in
+    """Repaint the shell (MATHPRINT.md 6.4). A full redraw (FULL, or the view changed: MODE,
+    selection and its cell, page, answer scroll, history length, entry height) paints everything in
     six color batches: background, accent tint (tabs, selection band), rules and empty boxes,
     ink, gray, accent. Otherwise only the rows whose contents changed: the status row
     (STATVIEW), the hint row (HINTVIEW) and the entry (epaint); nothing at all when nothing
     changed. emodel() ran before: redraw never lays out the entry."""
     global XOFF, DX, FULL, VIEW, VIEWEND, STATVIEW, HINTVIEW, HKEY, HTEXT
-    theme = R.SET['theme'] if R is not None else 0
     hist = R.HIST if R is not None else []
     n = len(hist)
-    D.theme(theme)
     C = D.COLORS
     ey = 190 - EH
     sb = ey - 20
@@ -1136,14 +1129,15 @@ def redraw():                                                  #@L 2
     if CUR - XOFF > 29:
         XOFF = CUR - 29
     fi = (SEL if MODE else n - 1) if n else -1
-    left = right = ''
-    if n and (MODE or not LINE and HERO):           # the focused entry's footer
+    left = lab = ''
+    col = 0
+    if n and (MODE or not LINE and HERO):           # the focused answer: form label, decimal
         e = hist[fi]
         if e[2] == R.R_ANS:
-            label = e[5][-1][0] if e[5] else 'exact'
-            right = label + '  F4'
-            if e[3] is not None and label == 'exact':
-                left = ('~ ' + str(e[3]))[:29 - len(right)]
+            col = SELC if MODE else 0
+            lab = e[5][-1][0] if e[5] else 'exact'
+            if e[3] is not None and lab == 'exact':
+                left = ('~ ' + str(e[3]))[:31]
     else:                                           # the argument help (QPL Q5)
         k = argpos()
         if k != HKEY:
@@ -1151,13 +1145,17 @@ def redraw():                                                  #@L 2
             HTEXT = arghelp(k[0], k[1], k[2])[:31] if k is not None else ''
         left = HTEXT
     deg = R is not None and R.SET['deg']
-    sv = (STATUS[:room()], MOD, deg)
-    hv = (left, right, ey)
+    r = room()
+    if len(STATUS) + len(lab) >= r:     # a status message that needs the room hides the label
+        lab = ''
+    sv = (STATUS[:r], MOD, deg, lab)
+    hv = (left, ey)
     chip = CHIPS[MOD]
+    lx = 305 - 10*(len(chip) + len(lab)) + (0 if chip else 10)
     span = VIEW[7] if VIEW is not None else DX
     if DX > span:                   # the focused answer's overflow at the last full redraw:
         DX = span                   # <-/-> past it is a no-op key, not a full redraw
-    if not FULL and VIEW == (theme, MODE, SEL, VIEWEND, DX, n, EH, span):
+    if not FULL and VIEW == (MODE, SEL, col, VIEWEND, DX, n, EH, span):
         st = sv != STATVIEW
         ht = hv != HINTVIEW
         if st:
@@ -1170,8 +1168,8 @@ def redraw():                                                  #@L 2
             D.text(sv[0], 45, 2)
         if ht and left:
             D.text(left, 5, ey - 17, C['SUB'])
-        if ht and right:
-            D.text(right, 315 - 10*len(right), ey - 17, C['ACC'])
+        if st and lab:
+            D.text(lab, lx, 2, C['SUB'])
         if st and chip:
             D.text(chip, 315 - 10*len(chip), 2, C['ACC'])
         STATVIEW = sv
@@ -1247,7 +1245,7 @@ def redraw():                                                  #@L 2
                 if plan and y - h < 21:
                     break
                 y -= h
-                plan.append((y, h, i, inp, it, b, lines, rt, rw, rh))
+                plan.append((y, h, i, inp, it, b, lines, rt, rw, rh, iw, ih))
                 y -= 3
             i += d
         if d > 0:
@@ -1265,10 +1263,18 @@ def redraw():                                                  #@L 2
     D.color(C['ACCSOFT'])
     for i in range(5):
         D.rect(64*i, 191, 63, 19)
-    for p in plan:
+    for p in plan:                      # the band behind the selected cell (7.2)
         if MODE and p[2] == SEL:
-            y = max(20, p[0] - 1)
-            D.rect(0, y, 320, min(sb, p[0] + p[1] + 1) - y)
+            if col:
+                x = 305 - p[8] if p[8] <= VIEWW else 0
+                y = p[0] + p[7]
+                h = p[9]
+            else:
+                x = 0
+                y = p[0] + p[4]
+                h = p[11]
+            t = max(20, y - 1)
+            D.rect(x, t, 320 - x if col else p[10] + 10, min(sb, y + h + 1) - t)
     D.line(0, 19, 319, 19, C['LINE'])
     D.line(0, ey - 1, 319, ey - 1)
     epaint(True)
@@ -1299,14 +1305,14 @@ def redraw():                                                  #@L 2
             for j in range(len(p[6])):
                 D.text(p[6][j], 310 - 10*len(p[6][j]), p[0] + p[7] + 17*j, None, clip)
     D.text(left, 5, ey - 17)
+    D.text(lab, lx, 2)
     if not n and 118 < ey - 21:
-        D.text('Type math, or press menu', 40, 104)
+        D.text('Press math or menu', 70, 104)
     D.color(C['ACC'])
     D.text(chip, 315 - 10*len(chip), 2)
     for i in range(5):
         D.text(FKEYS[i], 64*i + (63 - 10*len(FKEYS[i])) // 2, 193)
-    D.text(right, 315 - 10*len(right), ey - 17)
-    VIEW = (theme, MODE, SEL, VIEWEND, DX, n, EH, span)
+    VIEW = (MODE, SEL, col, VIEWEND, DX, n, EH, span)
     FULL = False
     STATVIEW = sv
     HINTVIEW = hv
@@ -1369,10 +1375,11 @@ def busy(steps):                                               #@L 2
 
 
 def key(k):                                                    #@L 1
-    """One key (MATHPRINT.md 2: dispatch order). MathPrint editing keys go to edkey; Classic
-    keeps the 1D editor. The editor model is refreshed before dispatch and before every redraw;
-    a job (ENTER, F4) frees it before the computation."""
-    global LINE, CUR, MOD, MODE, SEL, HERO, DX, ENTRYPOS, LASTENTRY, STATUS, FULL, XOFF, EXOFF
+    """One key (MATHPRINT.md 2: dispatch order). The editing keys go to edkey; F2, UP and the
+    arrows in MODE scroll and select the history (7.2). The editor model is refreshed before
+    dispatch and before every redraw; a job (ENTER, F4) frees it before the computation."""
+    global LINE, CUR, MOD, MODE, SEL, SELC, HERO, DX, ENTRYPOS, LASTENTRY, STATUS, FULL, XOFF
+    global EXOFF
     global PENDING, VIEWEND, EDMAP, EDL, EKEY, EMODEL, ED1D
     job = None
     if k == 21 or k == 31:
@@ -1383,7 +1390,7 @@ def key(k):                                                    #@L 1
         emodel()
         redraw()
         return None
-    if EMODEL != (LINE, CLASSIC):
+    if EMODEL != LINE:
         emodel()
     mod = MOD
     if MOD < 3:
@@ -1392,7 +1399,7 @@ def key(k):                                                    #@L 1
     al = kmap(ALPHA, k) if mod >= 2 else None
     if al is not None:
         line, at = LINE, CUR
-        if k == 103 and not CLASSIC:
+        if k == 103:
             line, at = wrapend(line, at, 0)     # the prime, like !: (x^(2))'
         t = al.upper() if mod == 4 else al
         put(line[:at] + t + line[at:], at + len(t))
@@ -1407,6 +1414,15 @@ def key(k):                                                    #@L 1
             HERO = False
         STATUS = ''
         TS.escape()
+    elif k == 12:                       # F2: the history's scroll mode, or out of it
+        if MODE:
+            MODE = 0
+        elif hist:
+            MODE, SEL, SELC, DX = 1, len(hist) - 1, 1, 0
+    elif k == 26 and MODE and not SELC:
+        SELC, DX = 1, 0
+    elif k == 24 and MODE and not DX:   # a wide output scrolls back first
+        SELC = 0
     elif k in (24, 26) and (MODE or not LINE):
         DX = max(0, DX + (-24 if k == 24 else 24))
     elif k in (25, 34) and MODE:
@@ -1416,25 +1432,21 @@ def key(k):                                                    #@L 1
             MODE, SEL = 0, len(hist)-1
         DX = 0
     elif k == 105:
-        if MODE:
+        if MODE:                        # the selected cell, at the caret (7.4)
             e = hist[SEL]
-            if CLASSIC:
-                insert(e[0] if mod == 1 else wrapped(e[1]))
-            elif mod == 1:
-                paste(tidy(e[0], 1), None)
-            else:
+            if SELC and e[2] == R.R_ANS:
                 paste(wrapped(e[1]), e[1])
+            else:
+                paste(tidy(e[0], 1), None)
         elif mod == 1:
             if hist:
                 ENTRYPOS = min(ENTRYPOS+1, len(hist)-1) if LINE == LASTENTRY else 0
-                LINE = hist[-1-ENTRYPOS][0]
-                if not CLASSIC:
-                    LINE = tidy(LINE, 1)
+                LINE = tidy(hist[-1-ENTRYPOS][0], 1)
                 CUR = len(LINE)
                 LASTENTRY = LINE
         else:
             pos = -1
-            if LINE and not CLASSIC:
+            if LINE:
                 pos = empty_map()       # engine-free: the model is fresh
             if pos < 0 and LINE:
                 engine()                # the first ENTER loads the engine
@@ -1442,16 +1454,16 @@ def key(k):                                                    #@L 1
             if pos >= 0:
                 CUR, STATUS = pos, 'fill in the empty slot'
             elif LINE or hist:
-                job = ('eval', (LINE if CLASSIC or LINE == EFAIL else tidy(LINE)) or
+                job = ('eval', (LINE if LINE == EFAIL else tidy(LINE)) or
                        hist[-1][0])     # a failed line is not parsed again (EFAIL)
     elif (k == 14 or k == 95) and hist:
         idx = SEL if MODE else len(hist)-1
         if hist[idx][2] == R.R_ANS:
             job = ('form', idx)
-    elif k in (11, 12, 13, 15, 22, 41, 44) or (k == 102 and mod == 1):
+    elif k in (11, 13, 15, 22, 41, 44) or (k == 102 and mod == 1):
         kind = 'algebra'
-        if k in (12, 44):
-            kind = 'recall'
+        if k == 44:
+            kind = 'vars'
         elif k in (13, 22):
             kind = 'setup'
         elif k == 15:
@@ -1469,11 +1481,9 @@ def key(k):                                                    #@L 1
         elif SEL >= len(R.HIST):
             SEL = len(R.HIST) - 1
         VIEWEND = min(VIEWEND, len(R.HIST) - 1)
-        if EMODEL != (LINE, CLASSIC):
-            emodel()                    # the menu may have switched Classic
         if choice is not None:
             R.need('menub').apply(choice)   # CASMNU is loaded: the menu just ran
-    elif k == 42 and mod == 1 and not CLASSIC:
+    elif k == 42 and mod == 1:
         row = picker()
         FULL = True
         if row == 0:
@@ -1482,32 +1492,8 @@ def key(k):                                                    #@L 1
             edins('pow')
         elif row is not None:
             tput(tmpl(row)[1])
-    elif not CLASSIC:
-        edkey(k, mod)
-    elif k == 23:
-        at = LINE.rfind('ans()', 0, CUR + 4)
-        if at >= 0 and at < CUR <= at + 5:
-            LINE = LINE[:at] + LINE[at+5:]
-            CUR = at
-        elif CUR:
-            LINE = LINE[:CUR-1] + LINE[CUR:]
-            CUR -= 1
-    elif k in (24, 26):
-        if mod == 1:
-            CUR = 0 if k == 24 else len(LINE)
-        else:
-            CUR = max(0, min(len(LINE), CUR + (-1 if k == 24 else 1)))
-    elif k in (25, 34) and hist:
-        if k == 25:
-            MODE, SEL = 1, len(hist)-1
-        DX = 0
     else:
-        text = kmap(SECOND if mod == 1 else PLAIN, k)
-        if text is not None:
-            if not LINE and R is not None and R.ANS is not None and \
-                    k in (51, 55, 61, 65, 75, 85, 91, 95) and mod == 0:
-                insert('ans()')
-            insert(text)
+        edkey(k, mod)
     if job is not None:
         STATUS = 'Calculating...'
         D.clear_cache()
@@ -1536,7 +1522,7 @@ def show(job, rec):                                             #@L 1
     STATUS = rec[1] if rec[0] == R.R_MSG else NOTE
     NOTE = ''
     if rec[3] & R.F_PURGEHINT:
-        STATUS = 'Stored; purge(name) clears it'
+        STATUS = 'Stored; purge(name) clears'
     FULL = True
     emodel()
     redraw()
@@ -1574,7 +1560,6 @@ def panic(reason):                                             #@L 1
     gc.collect()
     STATUS = ('Out of memory', 'Interrupted', 'Expression too complex', 'Display error')[reason]
     D.reset()
-    D.theme(R.SET['theme'] if R is not None else 0)
     C = D.COLORS
     hist = R.HIST if R is not None else []
     e = None

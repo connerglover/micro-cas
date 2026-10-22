@@ -56,7 +56,7 @@ def sess(monkeypatch):
     product check (FACTBUG == 0)."""
     for name, make in FRESH:
         monkeypatch.setattr(R, name, make() if make is not None else None)
-    monkeypatch.setattr(R, 'SET', {'deg': 0, 'theme': 0})
+    monkeypatch.setattr(R, 'SET', {'deg': 0})
     monkeypatch.setattr(R, 'CLOCK', [0])
     monkeypatch.setattr(P, 'SESS', R)
     R.need('fact')

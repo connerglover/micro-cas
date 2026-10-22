@@ -110,8 +110,8 @@ def test_first_enter_loads_the_engine_once():
 
 
 def test_a_menu_loads_the_engine_when_it_needs_it():
-    s = KS.run('{f2}{snap:recall}{clear}1+1{enter}')
-    assert 'Recall' in s.snap('recall')
+    s = KS.run('{vars}{snap:vars}{clear}1+1{enter}')
+    assert 'Vars' in s.snap('vars')
     assert sum(1 for c in s.calls if c[0] == 'draw_text' and c[3] == 'Loading engine...') == 1
     assert s.ans == '2'
 
@@ -128,7 +128,8 @@ SCREENS = [
     '{f1}{right}' + '{down}' * 8 + '{alpha}s{del}{clear}',
     '{2nd,0}{snap}{clear}{2nd,math}{clear}diff({f5}{clear}{f5}{clear}',
     '{f3}{down}{down}{down}{down}{enter}{clear}{clear}',
-    '{f3}{down}{enter}{clear}2/3{enter}x^2{enter}{up}',
+    '{f3}{enter}{clear}2/3{enter}x^2{enter}{up}{left}{right}',
+    '2/3{enter}expand((x+1)^12){enter}{f2}' + '{right}' * 14 + '{left}' * 16 + '{up}{enter}',
     '2{enter}sqrt(8){enter}{up}{up}{f4}{f4}{down}{down}{down}',
     'sqrt(2){enter}{f4}',
     '1/0{enter}solve(x^2+1,x){enter}',
@@ -197,11 +198,6 @@ def test_full_redraw_uses_few_colors():
     assert [c for c in TD.CALLS if c[0] == 'fill_rect'] == [('fill_rect', -1, 169, 321, 21)]
     assert TD.COUNTS['set_color'] <= 2
     assert TD.COUNTS['draw_text'] == 1 and TD.COUNTS['draw_line'] == 1
-    d.theme(1)
-    TD.reset()
-    u.FULL = True
-    u.redraw()
-    assert TD.COUNTS['set_color'] <= 6
 
 
 def test_typing_costs_few_colors_per_key():
@@ -352,7 +348,7 @@ print(json.dumps([u.BOOT_MS, u.ENGINE_MS, s.snap('boot').splitlines()[0],
                   s.snap('answer').splitlines()[0], s.ans]))
 ''')
     assert got[:2] == [None, None]
-    assert got[2] == 'RAD ready' and got[3] == 'RAD engine loaded' and got[4] == '2'
+    assert got[2] == 'RAD ready' and got[3] == 'RAD engine loaded exact' and got[4] == '2'
 
 
 def test_timing_with_ticks_ms_only():

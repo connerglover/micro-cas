@@ -23,7 +23,7 @@ STATE = (('LINE', ''), ('CUR', 0), ('XOFF', 0), ('MOD', 0), ('MODE', 0), ('SEL',
          ('HERO', True), ('DX', 0), ('ENTRYPOS', -1), ('LASTENTRY', ''), ('STATUS', ''),
          ('NOTE', ''), ('FULL', True), ('VIEW', None), ('EXOFF', 0), ('EH', 20),
          ('EDMAP', None), ('EMODEL', None), ('EFLAT', True), ('PENDING', None),
-         ('ED1D', False), ('EFAIL', None), ('CLASSIC', False), ('VIEWEND', -1),
+         ('ED1D', False), ('EFAIL', None), ('VIEWEND', -1),
          ('EDL', None), ('EKEY', None), ('STATVIEW', None), ('HINTVIEW', None),
          ('EDIFF', True), ('CARETC', 'INK'), ('PAGEMAX', 5))
 
@@ -39,7 +39,6 @@ def editor(monkeypatch):
     TD.reset()
     D.reset()
     D.clear_cache()
-    D.theme(0)
     U.emodel()
     U.redraw()
     return U
@@ -317,19 +316,22 @@ def test_two_rows_when_the_result_is_wide():
 
 
 def test_footer_is_in_the_hint_row_and_typing_repaints_only_that_row():
+    # the decimal stays in the hint row; the form label is in the status row (top right)
     s = KS.run('sqrt(2){enter}')
     u, d = s.mods['ui'], s.mods['draw']
-    assert ('exact  F4' in s.screen) and ('~ 1.414213562' in s.screen)
-    foot = [t for t in s.texts if t[2] == 'exact  F4'][0]
-    assert foot[0] == 315 - 90 and foot[1] == 153
+    assert ('exact' in s.screen) and ('~ 1.414213562' in s.screen) and 'F4' not in s.screen
+    foot = [t for t in s.texts if t[2].startswith('~ 1.414')][0]
+    assert foot[0] == 5 and foot[1] == 153
+    lab = [t for t in s.texts if t[2] == 'exact'][0]
+    assert lab[0] == 315 - 50 and lab[1] == 2
     TD.reset()
     u.key(92)
     assert all(c[2] >= 150 or c[2] == -1 and c[4] == 20 for c in fills())
     assert ('fill_rect', -1, 150, 321, 19) in fills()
-    assert 'exact  F4' not in TD.screen_text()
+    assert 'exact' not in TD.screen_text() and '~ 1.414' not in TD.screen_text()
     TD.reset()
     u.key(DEL)                                                  # empty again: the footer
-    assert 'exact  F4' in TD.screen_text()
+    assert 'exact' in TD.screen_text() and '~ 1.414' in TD.screen_text()
     assert not [c for c in fills() if c[2] < 150 and c[2] != -1]
 
 
@@ -345,9 +347,10 @@ def test_selection_band_and_scrolling():
         shown = TD.screen_text(0, 20, 320, 130)
         assert ('%d+%d' % (u.SEL + 1, u.SEL + 1)) in shown
         assert u.SEL <= u.VIEWEND < 8
-        # the band sits behind the selected entry
+        # the band sits behind the selected entry's output cell, not its input (v0.1.0)
         sel = [t for t in TD.texts() if t[2] == '%d+%d' % (u.SEL + 1, u.SEL + 1)][0]
-        assert TD.pixel(1, sel[1]) == band
+        res = [t for t in TD.texts() if t[2] == str(2 * (u.SEL + 1)) and t[1] == sel[1]][0]
+        assert TD.pixel(res[0] - 2, res[1]) == band and TD.pixel(1, sel[1]) != band
     assert u.SEL == 0
     top = u.VIEWEND
     for j in range(7):
@@ -478,5 +481,5 @@ def test_empty_page_is_plain(editor):
     U.redraw()
     colors = dict((t[2], t[3]) for t in TD.texts())
     assert 'cas-evo' not in colors and 'Exact algebra and calculus' not in colors
-    assert colors['Type math, or press menu'] == D.COLORS['SUB']
+    assert colors['Press math or menu'] == D.COLORS['SUB']
     assert TD.COUNTS['set_color'] <= 6

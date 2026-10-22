@@ -146,7 +146,7 @@ PACKS = (
     # The interactive UI: keys, screens and 2D layout. A 'view' pack is unloaded only while a
     # computation runs (run.go), since menus load families from inside key(). busy, status,
     # panic and the drawing primitives stay in CASUI for use during and after a computation.
-    ('CASUX', ('ui.key', 'ui.show', 'ui.redraw', 'ui.boot', 'ui.engine', 'ui.insert',
+    ('CASUX', ('ui.key', 'ui.show', 'ui.redraw', 'ui.boot', 'ui.engine',
                'ui.argpos', 'ui.arghelp', 'ui.ARGPH', 'draw.ARGS', 'ui.empty_slot', 'ui.wrapped', 'draw.leaf', 'draw.row',
                'draw.frame', 'draw.large', 'draw.tree', 'draw.measure', 'draw.place',
                'draw.layout', 'draw.render', 'draw.glyph', 'ui.PLAIN', 'ui.SECOND', 'ui.ALPHA', 'ui.kmap',

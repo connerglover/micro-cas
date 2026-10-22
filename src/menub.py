@@ -41,32 +41,26 @@ def insertion(row):                                           #@L 3
     # box empty (diff(,), log(,), integrate(,,,), limit(,,,)); any other one its boxed count
     # from draw.ARGS (the required arguments and the optional ones worth filling, QPL Q4:
     # solve(,), taylor(,,), riemann(,,,,,)), never prefilled; apply puts the caret in the
-    # first box in drawn order. Classic (8) keeps the required boxes only: diff(,), log().
-    for j in range(0 if U.CLASSIC else U.TN):
+    # first box in drawn order.
+    for j in range(U.TN):
         t = U.tmpl(j)[1]
         if t.startswith(prefix):
             return (t, act, len(prefix))
     n = 1
     i = D.ARGS.find(';' + prefix[:-1] + ':')
     if i >= 0:
-        n = int(D.ARGS[i + len(prefix) + (1 if U.CLASSIC else 2)])
+        n = int(D.ARGS[i + len(prefix) + 2])
     return (prefix + ',' * (n - 1) + ')', act, len(prefix))
 
 
 
-def recall():                                                 #@L 3
+def varrows():                                                 #@L 3
+    """The vars key's rows: Ans, the stored variables and the functions (the history scrolls
+    on the page itself: F2 or up)."""
     R = U.R
     rows = []
     if R.ANS is not None:
         rows.append(('Ans', 'Last result: ' + R.ANS, 'ans()'))
-    count = 0
-    for j in range(len(R.HIST) - 1, -1, -1):
-        row = R.HIST[j]
-        if row[2] == R.R_ANS:
-            rows.append((row[1], row[0], '(' + row[1] + ')'))
-            count += 1
-            if count == 10:
-                break
     for name in sorted(R.VARS):
         rows.append((name + ' = ' + R.VARS[name], 'Stored variable', name))
     for name in sorted(R.FUNCS):
@@ -78,12 +72,11 @@ def recall():                                                 #@L 3
 def apply(choice):                                             #@L 3
     """Put a menu's choice (text, wrap, offset) in the entry (ui.key, MATHPRINT.md 3): a
     wrapping command takes the line (or ans()) as its first argument when only closers follow
-    the caret in MathPrint (Classic: the caret at the end); a relation leaves its group first
+    the caret; a relation leaves its group first
     and ! wraps a power before it; a call's text is PENDING until its slots are filled."""
     text, wrap, offset = choice
     line, at = U.LINE, U.CUR
-    if wrap and (at == len(line) or not U.CLASSIC and not line[at:].strip(')]}')) and \
-            (line or U.R.ANS is not None):
+    if wrap and not line[at:].strip(')]}') and (line or U.R.ANS is not None):
         first = line or 'ans()'
         j = text.find('(') + 1
         text = text[:j] + first + text[j:]
@@ -92,10 +85,10 @@ def apply(choice):                                             #@L 3
             U.STATUS = 'Input limit: 256 characters'
             return
         U.LINE, U.CUR = '', 0
-    if not U.CLASSIC and not wrap and text in ('=', '!=', '<', '<=', '>', '>='):
+    if not wrap and text in ('=', '!=', '<', '<=', '>', '>='):
         U.leave(0)
     line, at = U.LINE, U.CUR
-    if not U.CLASSIC and text == '!':
+    if text == '!':
         line, at = U.wrapend(line, at, 0)   # x^(2)|! is (x^(2))!
-    if U.put(line[:at] + text + line[at:], at + offset) and not U.CLASSIC and '(' in text:
+    if U.put(line[:at] + text + line[at:], at + offset) and '(' in text:
         U.PENDING = (at, at + len(text))

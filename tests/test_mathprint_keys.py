@@ -27,7 +27,7 @@ STATE = (('LINE', ''), ('CUR', 0), ('XOFF', 0), ('MOD', 0), ('MODE', 0), ('SEL',
          ('HERO', True), ('DX', 0), ('ENTRYPOS', -1), ('LASTENTRY', ''), ('STATUS', ''),
          ('NOTE', ''), ('FULL', True), ('VIEW', None), ('EXOFF', 0), ('EH', 20),
          ('EDMAP', None), ('EMODEL', None), ('EFLAT', True), ('PENDING', None),
-         ('ED1D', False), ('EFAIL', None), ('CLASSIC', False), ('VIEWEND', -1))
+         ('ED1D', False), ('EFAIL', None), ('VIEWEND', -1))
 
 
 @pytest.fixture(autouse=True)
@@ -41,7 +41,6 @@ def editor(monkeypatch):
     TD.reset()
     D.reset()
     D.clear_cache()
-    D.theme(0)
 
 
 def setline(before):
@@ -196,13 +195,13 @@ def test_stale_map_capture_gives_the_same_text():
     # then treats every bracket as visible and gives the same text as the fresh map
     setline('(a)/(b)|')
     U.EDMAP = None
-    U.EMODEL = (U.LINE, U.CLASSIC)
+    U.EMODEL = U.LINE
     U.key(FRAC)
     assert shown() == '((a)/(b))/(|)' or shown() == '(a)/(b)/(|)'
     for before, after in TERMS[:12]:
         setline(before)
         U.EDMAP = None
-        U.EMODEL = (U.LINE, U.CLASSIC)
+        U.EMODEL = U.LINE
         U.key(FRAC)
         assert shown() == after, before
 
@@ -545,7 +544,7 @@ def test_history_paste():
     assert s.mods['ui'].LINE == 'x^(2/3)'
     s = KS.run('2/3{enter}x+{up}{enter}')
     assert s.mods['ui'].LINE == 'x+(2/3)'
-    s = KS.run('1{frac}4{enter}{up}{2nd,enter}')
+    s = KS.run('1{frac}4{enter}{up}{left}{enter}')
     u = s.mods['ui']
     assert u.LINE == '(1)/(4)' and u.MODE == 0
     s = KS.run('2/3{enter}{frac}{up}{enter}')       # bare into the empty numerator
@@ -655,7 +654,7 @@ def test_model_is_fresh_after_every_key():
         setline('|')
         for _ in range(25):
             U.key(rnd.choice(keys))
-            assert U.EMODEL == (U.LINE, U.CLASSIC)
+            assert U.EMODEL == U.LINE
             assert U.EFLAT == (U.EDMAP is None)
             if U.EDMAP is not None:
                 assert U.EDMAP[0] == U.LINE and U.EDMAP[5][U.CUR] >= 0
@@ -664,40 +663,14 @@ def test_model_is_fresh_after_every_key():
             assert U.MODE == 0 and len(U.LINE) <= 256
 
 
-# -- section 8: Classic --------------------------------------------------------------------------
+# -- MathPrint is the only editor (v0.1.0) ---------------------------------------------------
 
-def test_classic_is_the_old_editor():
-    U.CLASSIC = True
-    assert ed('x|', [FRAC, 93]) == 'x/2|'
-    assert ed('x|', [POW, 93]) == 'x^2|'
-    assert ed('x|', [SQ]) == 'x^2|'
-    assert ed('|', [52, 32]) == 'sin(x|'
-    assert ed('(a)/(b|)', [RIGHT, DEL, DEL]) == '(a)/(|'
-    assert ed('x|', [SECOND, POW]) == 'xsurd(|'
-    assert ed('x|', [SECOND, FRAC]) == 'x|'
-    assert U.EDMAP is None and U.EFLAT
-
-
-def test_classic_toggle_rebuilds_the_model():
-    setline('(1)/(2|)')
-    U.key(33)
-    assert U.EDMAP is not None
-    U.CLASSIC = True
-    U.key(33)
-    assert U.EDMAP is None and U.EFLAT
-    U.CLASSIC = False
-    U.key(33)
-    assert U.EDMAP is not None and not U.EFLAT
-
-
-def test_setup_row_toggles_classic():
-    s = KS.run('{f3}' + '{down}' * 5 + '{enter}{clear}1{frac}2')
-    u = s.mods['ui']
-    assert u.CLASSIC and u.LINE == '1/2'
-    s = KS.run('{f3}6{right}{clear}1{frac}2')
-    assert s.mods['ui'].CLASSIC is False and s.mods['ui'].LINE == '(1)/(2)'
-    s = KS.run('{f3}' + '{down}' * 4 + '{enter}{snap:about}{clear}{clear}')
-    assert 'Free heap' in s.snap('about') and s.mods['ui'].CLASSIC is False
+def test_mathprint_is_the_only_entry():
+    assert not hasattr(U, 'CLASSIC')
+    s = KS.run('{f3}{snap:setup}' + '{down}' * 3 + '{enter}{snap:about}{clear}{clear}1{frac}2')
+    shown = s.snap('setup')
+    assert 'Entry' not in shown and 'Classic' not in shown and 'Theme' not in shown
+    assert 'Free heap' in s.snap('about') and s.mods['ui'].LINE == '(1)/(2)'
 
 
 # -- typed MathPrint input evaluates like the 1D text -------------------------------------------
@@ -787,8 +760,8 @@ def test_close_never_crosses_a_comma(before, keys, after):
 
 def test_forms_key_without_history_inserts_nothing():
     # < > (95) with an answer but no history (Clear history keeps Ans) has no action: the
-    # leading-operator rule must not leave a stray ans() (Classic inserts nothing either)
-    s = KS.run('2{enter}{f3}{down}{down}{enter}{enter}{clear}{<>}')
+    # leading-operator rule must not leave a stray ans()
+    s = KS.run('2{enter}{f3}{down}{enter}{enter}{clear}{<>}')
     assert not s.hist and s.ans is not None
     assert s.mods['ui'].LINE == ''
 

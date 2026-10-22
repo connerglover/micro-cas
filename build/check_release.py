@@ -171,7 +171,7 @@ class Release:
             self.get('run', 'evict_all')()
             self.get('node', 'reset')()
         for name, value in (('ANS', None), ('HIST', []), ('VARS', {}), ('FUNCS', {}),
-                            ('SET', {'deg': 0, 'theme': 0})):
+                            ('SET', {'deg': 0})):
             self.set('run', name, value)
 
     def go(self, text):

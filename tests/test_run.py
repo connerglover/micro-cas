@@ -316,7 +316,7 @@ def env(monkeypatch):
     sys.meta_path.insert(0, fk)
     for name, make in FRESH:
         monkeypatch.setattr(R, name, make() if make is not None else None)
-    monkeypatch.setattr(R, 'SET', {'deg': 0, 'theme': 0})
+    monkeypatch.setattr(R, 'SET', {'deg': 0})
     monkeypatch.setattr(R, 'CLOCK', [0])
     dev = {}
     for k in R.DEV:

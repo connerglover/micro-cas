@@ -31,7 +31,7 @@ def sess(monkeypatch):
     """A fresh session with the real lazy modules; P.SESS = R (as tests/test_norm.py)."""
     for name, make in FRESH:
         monkeypatch.setattr(R, name, make() if make is not None else None)
-    monkeypatch.setattr(R, 'SET', {'deg': 0, 'theme': 0})
+    monkeypatch.setattr(R, 'SET', {'deg': 0})
     monkeypatch.setattr(R, 'CLOCK', [0])
     monkeypatch.setattr(P, 'SESS', R)
     R.need('norm')

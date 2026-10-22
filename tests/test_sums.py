@@ -15,7 +15,7 @@ def session(monkeypatch):
                         ('MODS', {}), ('LOADED', []), ('USE', {}), ('PINNED', []),
                         ('LIVE', {}), ('NEEDED', []), ('CLOCK', [0])):
         monkeypatch.setattr(R, name, value)
-    monkeypatch.setattr(R, 'SET', {'deg': 0, 'theme': 0})
+    monkeypatch.setattr(R, 'SET', {'deg': 0})
     monkeypatch.setattr(P, 'SESS', R)
     R.need('sum')
 

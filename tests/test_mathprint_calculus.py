@@ -2,9 +2,9 @@
 7.1), the user's rules applied to every template:
 
 R1  nothing is prefilled: every parameter is a visible empty box (picker, menus, catalog,
-    the menu's wrap of the line); Classic keeps its old texts;
+    the menu's wrap of the line);
 R2  each 2D command is entered and drawn as its template, the caret starting in the first box in
-    drawn order on every path (key, picker, menu, catalog, recall);
+    drawn order on every path (key, picker, menu, catalog, ENTRY and history copies);
 R3  optional parameters are optional boxes: left empty they take the engine default (log base,
     derivative order, limit direction, both integral bounds), tidy drops them, and ENTER stops
     only on an empty required box or a half-filled pair of bounds;
@@ -23,13 +23,12 @@ import ui as U
 
 SECOND, DEL, LEFT, UP, RIGHT, DOWN = 21, 23, 24, 25, 26, 34
 FRAC, POW, COMMA, PLUS, MINUS, CLEAR_KEY, ENTER = 42, 51, 62, 85, 75, 45, 105
-CLASSIC = '{f3}' + '{down}' * 5 + '{enter}{clear}'  # F3 setup row 6 (Entry): Classic
 
 STATE = (('LINE', ''), ('CUR', 0), ('XOFF', 0), ('MOD', 0), ('MODE', 0), ('SEL', -1),
          ('HERO', True), ('DX', 0), ('ENTRYPOS', -1), ('LASTENTRY', ''), ('STATUS', ''),
          ('NOTE', ''), ('FULL', True), ('VIEW', None), ('EXOFF', 0), ('EH', 20),
          ('EDMAP', None), ('EMODEL', None), ('EFLAT', True), ('PENDING', None),
-         ('ED1D', False), ('EFAIL', None), ('CLASSIC', False), ('VIEWEND', -1))
+         ('ED1D', False), ('EFAIL', None), ('VIEWEND', -1))
 
 # the picker's digit keys: page 1 (1-7) and page 2 (after RIGHT, 1-6)
 P1 = {'sqrt': 94, 'root': 82, 'e^': 83, '10^': 84, 'log': 72}
@@ -46,7 +45,6 @@ def editor(monkeypatch):
     TD.reset()
     D.reset()
     D.clear_cache()
-    D.theme(0)
 
 
 def setline(before):
@@ -195,11 +193,6 @@ def test_menub_insertion_has_no_prefill():
     for sig, (text, offset) in want.items():
         got = MB.insertion(rows[sig.split('(')[0]])
         assert (got[0], got[2]) == (text, offset), sig
-    U.CLASSIC = True                                    # Classic: as before MathPrint
-    assert MB.insertion(rows['integrate'])[0] == 'integrate(,)'
-    assert MB.insertion(rows['diff'])[0] == 'diff(,)'
-    assert MB.insertion(rows['limit'])[0] == 'limit(,,)'
-    assert MB.insertion(rows['log'])[0] == 'log()'
 
 
 # -- R2: drawn order, the visiting order of the arrows ------------------------------------------
@@ -358,13 +351,6 @@ def test_stage_two_on_a_line_too_long_for_the_layout():
     assert U.empty_slot() == len(text) - 2              # every box counts
 
 
-def test_classic_keeps_the_old_stage_two():
-    U.CLASSIC = True
-    for text, pos in (('integrate(x^2,x,,)', 16), ('log(8,)', 6), ('limit(x,x,0,)', 12)):
-        U.LINE = text
-        assert U.empty_slot() == pos, text
-
-
 TIDY = [
     ('integrate(x^(2),x,,)', 'integrate(x^2,x)'),
     ('integrate(x^(2),x,0,1)', 'integrate(x^2,x,0,1)'),
@@ -517,7 +503,7 @@ def test_recall_shows_the_templates():
     assert s.hist[1][:2] == ['integrate(x^2,x)', 'x^3/3']
     s = KS.run('integrate(x^2,x,0,1){enter}{2nd,enter}{enter}')
     assert s.hist[1][:2] == ['integrate(x^2,x,0,1)', '1/3']
-    s = KS.run('integrate(x^2,x){enter}{up}{2nd,enter}')
+    s = KS.run('integrate(x^2,x){enter}{up}{left}{enter}')   # the selected input cell
     assert s.mods['ui'].LINE == 'integrate(x^(2),x,,)'
     s = KS.run(script('lim') + 'x{right}0{right}+{right}abs(x{right}/x{enter}{2nd,enter}')
     assert s.mods['ui'].LINE == 'limit((abs(x))/(x),x,0,+)'
@@ -544,7 +530,8 @@ def test_plus_c_is_drawn_inline_and_right_aligned():
     assert plus[0][1] == 310 - 24 + 2                   # 2 px after the answer's box
     assert min(t[1] for t in texts if t[0] == '3') == 310 - 24 - w + (w - 10) // 2
     footer = [t.text for t in TD.TEXTS if t.y == 153]
-    assert footer == ['exact  F4']                      # no + C in the hint row any more
+    assert footer == []                                 # no + C (nor a form) in the hint row
+    assert [t.text for t in TD.TEXTS if t.y == 2 and t.x == 265] == ['exact']
     assert s.hist[0][1] == 'x^3/3'                      # the history text is unchanged
     assert TD.OFFSCREEN == [] and TD.OVERDRAW == []
 
@@ -610,18 +597,3 @@ def test_plus_c_on_the_panic_screen():
     TD.reset()
     s.mods['ui'].panic(0)
     assert '+ C' not in TD.screen_text()
-
-
-# -- Classic -------------------------------------------------------------------------------------
-
-def test_classic_is_unchanged():
-    s = KS.run(CLASSIC + '{math}{down}{enter}')
-    assert s.mods['ui'].CLASSIC and line(s) == ('integrate(,)', 10)
-    s = KS.run(CLASSIC + '{math}{down}{enter}x^2{right}x{enter}')
-    assert s.hist[0][:2] == ['integrate(x^2,x)', 'x^3/3']
-    s = KS.run(CLASSIC + '{2nd,frac}')
-    assert line(s) == ('', 0)                           # no picker in Classic
-    s = KS.run(CLASSIC + '{2nd,x^n}')
-    assert line(s) == ('surd(', 5)
-    s = KS.run(CLASSIC + 'integrate(x^2,x){enter}{2nd,enter}')
-    assert line(s) == ('integrate(x^2,x)', 16)          # recall: the text as typed

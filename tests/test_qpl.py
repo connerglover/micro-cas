@@ -17,7 +17,7 @@ STATE = (('LINE', ''), ('CUR', 0), ('XOFF', 0), ('MOD', 0), ('MODE', 0), ('SEL',
          ('HERO', True), ('DX', 0), ('ENTRYPOS', -1), ('LASTENTRY', ''), ('STATUS', ''),
          ('NOTE', ''), ('FULL', True), ('VIEW', None), ('EXOFF', 0), ('EH', 20),
          ('EDMAP', None), ('EMODEL', None), ('EFLAT', True), ('PENDING', None),
-         ('ED1D', False), ('EFAIL', None), ('CLASSIC', False), ('VIEWEND', -1),
+         ('ED1D', False), ('EFAIL', None), ('VIEWEND', -1),
          ('EDL', None), ('EKEY', None), ('STATVIEW', None), ('HINTVIEW', None),
          ('EDIFF', True), ('CARETC', 'INK'), ('PAGEMAX', 5), ('HKEY', None), ('HTEXT', ''))
 
@@ -33,7 +33,6 @@ def editor(monkeypatch):
     TD.reset()
     D.reset()
     D.clear_cache()
-    D.theme(0)
 
 
 def setline(before):
@@ -218,16 +217,9 @@ def test_menu_insertion_boxes_and_the_first_box(engine):
             'arclen(': 'arclen(,,,)', 'purge(': 'purge()', 'sin(': 'sin()', 'ln(': 'ln()',
             'sign(': 'sign()', 'diff(': 'diff(,)', 'integrate(': 'integrate(,,,)',
             'limit(': 'limit(,,,)', 'log(': 'log(,)', 'sum(': 'sum(,,,)', 'pi': 'pi'}
-    classic = {'solve(': 'solve()', 'taylor(': 'taylor(,)', 'riemann(': 'riemann(,,,,)',
-               'desolve(': 'desolve()', 'diff(': 'diff(,)', 'integrate(': 'integrate(,)',
-               'limit(': 'limit(,,)', 'log(': 'log()', 'sum(': 'sum(,,,)'}
     for prefix, text in want.items():
         got = mb.insertion(by[prefix])
         assert got[0] == text and got[2] == len(prefix), prefix
-    U.CLASSIC = True
-    for prefix, text in classic.items():
-        assert mb.insertion(by[prefix])[0] == text, prefix
-    U.CLASSIC = False
     setline('|')
     mb.apply(mb.insertion(by['solve(']))
     U.emodel()
@@ -267,8 +259,8 @@ def test_engine_empty_slot_check_on_a_flat_line(engine):
         assert U.empty_slot() == pos, line
 
 
-def test_classic_stays_1d():
-    U.CLASSIC = True
+def test_a_failed_line_stays_1d():
+    U.EFAIL = 'solve(,)'                    # a line a panic ran on (the 1D fallback)
     setline('solve(|,)')
     assert U.EFLAT and U.EDMAP is None
 
@@ -360,13 +352,14 @@ def test_hint_for_the_slot_at_the_caret(before, text):
     assert hint() == text
 
 
-def test_classic_hint_uses_the_back_scan():
-    U.CLASSIC = True
+def test_flat_line_hint_uses_the_back_scan():
+    # a degraded (flat) line has no caret map: argpos scans the brackets instead
     for before, text in (('x^(2+|)', 'Exponent (required)'), ('solve(x=1,|)',
                                                                'Unknown(s), e.g. x (optional)'),
                          ('diff(x,|)', 'With respect to (required)')):
+        U.EFAIL = before.replace('|', '')
         setline(before)
-        assert hint() == text, before
+        assert U.EDMAP is None and hint() == text, before
 
 
 def test_hint_row_on_screen_before_the_engine_loads():

@@ -59,7 +59,7 @@ ON = TS.ON
 KEY = {
     'f1': 11, 'f2': 12, 'f3': 13, 'f4': 14, 'f5': 15,
     'y=': 11, 'window': 12, 'zoom': 13, 'trace': 14, 'graph': 15,
-    'menu': 11, 'recall': 12, 'setup': 13, 'forms': 14, 'help': 15,
+    'menu': 11, 'hist': 12, 'history': 12, 'setup': 13, 'forms': 14, 'help': 15,
     '2nd': 21, 'mode': 22, 'del': 23, 'left': 24, 'up': 25, 'right': 26,
     'alpha': 31, 'xttn': 32, 'xt': 32, 'stat': 33, 'down': 34,
     'math': 41, 'frac': 42, 'apps': 42, 'prgm': 43, 'vars': 44, 'clear': 45,
@@ -90,7 +90,7 @@ ALPHA = 31
 # string starting with '@' is an action; None means the key does nothing in that state.
 KEYTEXT = {
     11: ('@menu', None, None),
-    12: ('@recall', None, None),
+    12: ('@history', None, None),
     13: ('@setup', None, None),
     14: ('@forms', None, None),
     15: ('@help', None, None),
@@ -105,7 +105,7 @@ KEYTEXT = {
     41: ('@menu:calculus', '@test', 'a'),
     42: ('@frac', '@templates', 'b'),
     43: (None, None, 'c'),
-    44: ('@recall', None, None),
+    44: ('@vars', None, None),
     45: ('@clear', None, None),
     51: ('^', '@surd', 'd'),
     52: ('sin(', 'asin(', 'e'),

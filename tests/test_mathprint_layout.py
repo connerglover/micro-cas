@@ -20,7 +20,6 @@ def engine_free(monkeypatch):
     TD.reset()
     D.reset()
     D.clear_cache()
-    D.theme(0)
 
 
 def lay(s):

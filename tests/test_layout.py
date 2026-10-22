@@ -40,7 +40,6 @@ def screen(monkeypatch):
     TD.reset()
     D.reset()
     D.clear_cache()
-    D.theme(0)
 
 
 def cells(calls):
@@ -138,12 +137,12 @@ def test_cache_bounds():
 
 
 def test_palette_and_native_calls():
-    D.theme(1)
     box = lay('sqrt(2)/pi')
     paint(box, 10, 20)
     assert set(TD.COUNTS) <= ON_EVO
     assert all(a[0] != 'draw_text' or all(ord(c) < 128 for c in a[3]) for a in TD.CALLS)
-    assert D.COLORS['BG'] == (12, 15, 20)
+    assert D.COLORS['BG'] == (247, 248, 250)            # the one light palette (v0.1.0)
+    assert not hasattr(D, 'theme') and not hasattr(D, 'PALETTES')
     assert TD.COUNTS['set_color'] == 1                  # one color for a whole answer
 
 

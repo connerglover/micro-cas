@@ -17,7 +17,7 @@ def fresh():
     R.LIVE = {}
     R.NEEDED = []
     R.CLOCK = [0]
-    R.SET = {'deg': 0, 'theme': 0}
+    R.SET = {'deg': 0}
     P.SESS = R
     K.reset()
 

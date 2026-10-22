@@ -2,29 +2,13 @@
 post-implementation review, through the real entry program (tests/support/keyscript.py)."""
 import keyscript as KS
 
-CLASSIC = '{f3}' + '{down}' * 5 + '{enter}{clear}'
-
 
 def line(s):
     u = s.mods['ui']
     return u.LINE, u.CUR
 
 
-# -- Classic is the old editor ------------------------------------------------------------------
-
-def test_classic_left_moves_into_a_call_name():
-    s = KS.run(CLASSIC + '{52}{32}{24}{24}')
-    assert s.mods['ui'].CLASSIC and line(s) == ('sin(x', 3)
-    assert line(KS.run(CLASSIC + '{52}{32}{24}{24}{24}{23}')) == ('sn(x', 1)
-    assert line(KS.run(CLASSIC + '{85}{52}{32}{24}{24}{24}{23}')) == ('+sn(x', 2)
-
-
-def test_classic_menu_templates_have_no_prefill():
-    s = KS.run(CLASSIC + '{41}{105}')
-    assert line(s) == ('diff(,)', 5)
-    s = KS.run(CLASSIC + '{41}{105}t^2{right}t{enter}')
-    assert s.hist[0][:2] == ['diff(t^2,t)', '2*t']
-
+# -- menu templates ------------------------------------------------------------------------------
 
 def test_mathprint_menu_templates_have_empty_boxes():
     assert line(KS.run('{41}{105}')) == ('diff(,)', 6)  # d/d[]([]): the variable box first
@@ -75,9 +59,8 @@ def test_parse_memory_error_degrades_tidy_structure_and_paste():
         assert u.tidy('(1)/(4)') == '(1)/(4)'
         assert u.tidy('1/4', 1) == '1/4'
         d.ICACHE[:] = []
-        u.LINE, u.CUR, u.MODE, u.SEL, u.EMODEL = '', 0, 1, 0, None
-        u.key(21)
-        u.key(105)                      # 2nd ENTER in MODE: paste the input
+        u.LINE, u.CUR, u.MODE, u.SEL, u.SELC, u.EMODEL = '', 0, 1, 0, 0, None
+        u.key(105)                      # ENTER on the selected input: paste it
         assert u.LINE == '1/4' and u.MODE == 0
         u.LINE, u.CUR, u.EMODEL = '', 0, None
         u.key(21)
@@ -344,8 +327,8 @@ def _contrast(a, b):
     return (y + 0.05) / (x + 0.05)
 
 
-def test_empty_slots_are_visible_in_both_themes():
-    for pre in ('', '{f3}{down}{enter}{clear}'):
+def test_empty_slots_are_visible():
+    for pre in ('', '2+3{enter}'):
         s = KS.run(pre + '{frac}')
         u, d = s.mods['ui'], s.mods['draw']
         bg = d.COLORS['BG']

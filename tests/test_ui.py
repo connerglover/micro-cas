@@ -49,10 +49,10 @@ def test_evo_keys_forms_fraction_and_xroot():
     assert KS.run('{2nd,x^n}3,8{enter}').ans == '2'   # the index box first, as drawn
 
 
-def test_forms_recall_and_theme():
-    s = KS.run('sqrt(2){enter}{f4}{f3}{down}{enter}{clear}')
+def test_forms_and_angle_setting():
+    s = KS.run('sqrt(2){enter}{f4}{f3}{enter}{clear}')
     assert s.ans.startswith('1.414213562')
-    assert s.mods['run'].SET['theme'] == 1
+    assert s.mods['run'].SET == {'deg': 1}              # no theme setting (v0.1.0)
 
 
 def test_help_example_paste():
@@ -72,7 +72,7 @@ def test_quit():
 
 
 def test_clear_history_while_selected():
-    s = KS.run('2{enter}{up}{f3}{down}{down}{enter}{enter}{clear}{enter}')
+    s = KS.run('2{enter}{up}{f3}{down}{enter}{enter}{clear}{enter}')
     assert s.hist == [] and s.mods['ui'].MODE == 0
     assert 'Display error' not in s.screen
 
@@ -113,8 +113,9 @@ def test_ans_without_arguments_remains_valid():
 def test_decimal_form_hides_approximation_until_exact_returns():
     s = KS.run('sqrt(2){enter}{snap:exact}{f4}{snap:decimal}{f4}{snap:restored}')
     assert '~ 1.414213562' in s.snap('exact')
-    assert 'decimal  F4' in s.snap('decimal') and '~ ' not in s.snap('decimal')
-    assert 'exact  F4' in s.snap('restored') and '~ 1.414213562' in s.snap('restored')
+    assert 'decimal' in s.snap('decimal') and '~ ' not in s.snap('decimal')
+    assert 'exact' in s.snap('restored') and '~ 1.414213562' in s.snap('restored')
+    assert 'F4' not in s.snap('exact')                  # the label alone, at the top right
 
 
 @pytest.mark.parametrize('reason, message', ((0, 'Out of memory'), (1, 'Interrupted'),
@@ -127,7 +128,7 @@ def test_panic_works_without_ui_or_layout_phase(monkeypatch, reason, message):
         for module, names in ((u, ('redraw', 'argpos', 'arghelp', 'wrapped', 'empty_slot', 'tidy',
                                    'emodel', 'edkey', 'picker', 'edins', 'eddel',
                                    'edmove', 'edvert', 'paste', 'empty_map', 'edslot', 'edterm',
-                                   'leave', 'put', 'tput', 'bmatch', 'spans', 'keep', 'insert',
+                                   'leave', 'put', 'tput', 'bmatch', 'spans', 'keep',
                                    'epaint', 'TMPL', 'PLAIN', 'SECOND', 'ALPHA', 'ARGPH',
                                    'ALIAS', 'kmap', 'tmpl', 'TN')),
                               (d, ('layout', 'glyph', 'tree', 'measure', 'place', 'render',
