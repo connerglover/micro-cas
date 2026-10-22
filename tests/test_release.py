@@ -512,12 +512,12 @@ def test_tight_packs_bind_hot_builtins_and_keep_their_globals_table_off_full():
 
 
 def test_release_version_is_recorded(release_module):
-    # v1.0.0: build/manifest.py VERSION is the release's version; release.json records it and
+    # v1.0.0, v1.0.1: build/manifest.py VERSION is the release's version; release.json records it and
     # the About screen (src/menu.py) shows the same text; tags are v<VERSION> (docs/HOSTING.md)
     man = importlib.util.spec_from_file_location('manifest_v', ROOT / 'build/manifest.py')
     module = importlib.util.module_from_spec(man)
     man.loader.exec_module(module)
     meta = json.loads((ROOT / 'dist/release.json').read_text('ascii'))
-    assert meta['release'] == module.VERSION == '1.0.0'
+    assert meta['release'] == module.VERSION == '1.0.1'
     assert ("'cas-evo %s / TI-84 EVO'" % module.VERSION) in (ROOT / 'src/menu.py').read_text()
     assert ('cas-evo ' + module.VERSION) in (ROOT / 'docs/INSTALL.md').read_text('utf-8')

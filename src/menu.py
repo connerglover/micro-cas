@@ -66,7 +66,7 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
             D.text('Clear history?' if confirmation == 1 else 'Clear variables and functions?', 5, 40)
             notes = ['ENTER deletes; CLEAR cancels']
         elif about:
-            D.text('cas-evo 1.0.0 / TI-84 EVO', 5, 40)
+            D.text('cas-evo 1.0.1 / TI-84 EVO', 5, 40)
             free = R.MEMFREE() if R.MEMFREE is not None else 0
             D.text('Free heap: ' + str(free) + ' bytes', 5, 57)
             D.text('Start ' + U.secs(U.BOOT_MS) + ', engine ' + U.secs(U.ENGINE_MS), 5, 74)

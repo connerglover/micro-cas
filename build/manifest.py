@@ -15,7 +15,7 @@ The numbers are provisional. The M0.5 memory gate sets FACTOR, PEAKB, LAZYMAX an
 
 # The release version (release.json and archive.json 'release'; the About screen in src/menu.py
 # repeats it, tests/test_release.py keeps the two equal). Tags are v<VERSION> (docs/HOSTING.md).
-VERSION = '1.0.0'
+VERSION = '1.0.1'
 
 # The entry program (DESIGN 0.6): the RAM launcher CAS (src/casevo.py), which the user runs
 # from the Python app; a program runs as ``from CAS import *``. No pack may share its name.

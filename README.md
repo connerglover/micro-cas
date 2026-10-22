@@ -17,7 +17,8 @@ start on the EVO and then stopped at a `ti_graphics.setColor` call; see
 
 ## Download and run
 
-The current release is **cas-evo 1.0.0** (tag `v1.0.0`). Download
+The current release is **cas-evo 1.0.0** (tag `v1.0.0`); the source is at
+1.0.1, not yet tagged (history CLEAR, polished texts). Download
 **cas-evo-v1.0.0.zip** from its GitHub Release; it is the calculator ZIP
 (`cas-evo-calculator.zip`) of the tag's **Build calculator app** run, whose
 artifact **cas-evo-v1** (the artifact name is unchanged) holds the same file.
