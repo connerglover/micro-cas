@@ -1,4 +1,4 @@
-# cas-evo installer
+# MicroCAS installer
 
 <!-- impeccable:product-schema 1 -->
 
@@ -18,14 +18,14 @@ remains available. See docs/HOSTING.md and docs/STATUS.md for deployment status.
 
 ## Users
 
-TI-84 EVO owners installing cas-evo, beginning with Conner. The current package
+TI-84 EVO owners installing MicroCAS, beginning with Conner. The current package
 has 21 compiled library packs and two Python launchers, and replaces a v1 install
 of 236 libraries. Selecting their destinations manually is difficult, and
 sending all files to RAM produces a memory error on the user's calculator.
 
 ## Product Purpose
 
-Connect a calculator in the browser and install the complete, verified cas-evo
+Connect a calculator in the browser and install the complete, verified MicroCAS
 package with one explicit installation action and visible progress: compiled
 libraries in archive, two source launchers in RAM.
 
@@ -49,8 +49,8 @@ browser transfer experience. Browser permission still requires a user gesture.
 
 ## Brand Commitments
 
-Name: cas-evo. Clear, direct language. This is an installation utility; CalcPlex
-is a functional reference, not a request to copy its identity.
+Name: MicroCAS (the repository keeps the name cas-evo). Clear, direct language.
+This is an installation utility; CalcPlex is a functional reference, not a request to copy its identity.
 
 ## Evidence on Hand
 

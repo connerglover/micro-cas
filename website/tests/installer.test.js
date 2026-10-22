@@ -211,7 +211,7 @@ test('same-name objects are replaced only when they match the earlier release or
   // An unreadable same-name object is not overwritten either.
   const pkg = await fixture(), transport = fakeTransport();
   transport.vars.push({ ...await object('CVNODE', 18, 3, 'v1'), unreadable: true });
-  await assert.rejects(new Installer(transport).install(pkg, await legacyFixture()), /CVNODE on the calculator could not be confirmed/);
+  await assert.rejects(new Installer(transport).install(pkg, await legacyFixture()), /CVNODE on the calculator could not be confirmed as a MicroCAS file/);
   assert.deepEqual(transport.sent, []);
 });
 

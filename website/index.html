@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#edf0f4">
-  <meta name="description" content="Install cas-evo on your TI-84 EVO over USB. Compiled libraries in archive, a tiny launcher in RAM.">
-  <title>Install cas-evo · TI-84 EVO</title>
+  <meta name="description" content="Install MicroCAS on your TI-84 EVO over USB. Compiled libraries in archive, a tiny launcher in RAM.">
+  <title>Install MicroCAS · TI-84 EVO</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232144ad'/%3E%3Cpath d='M23 9H11l7 7-7 7h12' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
   <link rel="preload" href="fonts/public-sans.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="styles.css">
@@ -16,20 +16,20 @@
 <body>
   <a class="skip" href="#main">Skip to installer</a>
   <header class="site-header">
-    <a class="brand" href="./" aria-label="cas-evo installer home">
+    <a class="brand" href="./" aria-label="MicroCAS installer home">
       <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="5" fill="currentColor"/><path d="M21 8H10l7 7-7 7h11" fill="none" stroke="white" stroke-width="2.3" stroke-linejoin="round"/></svg>
-      <span>cas-evo</span>
+      <span>MicroCAS</span>
     </a>
-    <nav aria-label="Main"><a href="#help">Installation help</a><a href="cas-evo-calculator.zip" download>Download ZIP</a></nav>
+    <nav aria-label="Main"><a href="#help">Installation help</a><a href="microcas-calculator.zip" download>Download ZIP</a></nav>
   </header>
   <main id="main">
     <div class="workspace">
       <section class="setup" aria-labelledby="title">
         <h1 id="title">Your calculator.<br>A little more capable.</h1>
-        <p class="intro">Install cas-evo on your TI-84 EVO.<br>Compiled libraries in archive. A tiny launcher in RAM.</p>
+        <p class="intro">Install MicroCAS on your TI-84 EVO.<br>Compiled libraries in archive. A tiny launcher in RAM.</p>
         <ol class="stages" aria-label="Installation stages">
           <li id="stage-connect" class="current" aria-current="step"><span class="stage-number">1</span><div><h2>Connect your EVO</h2><p>Use a USB data cable. Close TI Connect and other calculator tabs first.</p></div></li>
-          <li id="stage-install"><span class="stage-number">2</span><div><h2>Install the complete package</h2><p>Earlier cas-evo files are checked first. Every new file goes to its correct location. Keep your calculator connected.</p></div></li>
+          <li id="stage-install"><span class="stage-number">2</span><div><h2>Install the complete package</h2><p>Earlier MicroCAS files are checked first. Every new file goes to its correct location. Keep your calculator connected.</p></div></li>
           <li id="stage-open"><span class="stage-number">3</span><div><h2>Open CAS</h2><p>On your calculator, open Python, select CAS, and run it.</p></div></li>
         </ol>
         <div id="notice" class="notice" role="alert" hidden></div>
@@ -44,7 +44,7 @@
       </section>
 
       <section class="package" aria-labelledby="package-title">
-        <div class="package-heading"><div class="package-name"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 7h18v14H3zM2 3h20v4H2zM9 11h6" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><h2 id="package-title">cas-evo <span id="package-version"></span></h2></div><span class="destination">Compiled for EVO</span></div>
+        <div class="package-heading"><div class="package-name"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 7h18v14H3zM2 3h20v4H2zM9 11h6" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><h2 id="package-title">MicroCAS <span id="package-version"></span></h2></div><span class="destination">Compiled for EVO</span></div>
         <div class="package-description"><p>Exact answers. On your EVO.</p><p>Algebra, calculus, series and differential equations, with an editor and typeset results.</p></div>
         <dl class="package-facts"><div><dt>Package</dt><dd id="file-count">Loading…</dd></div><div><dt>Transfer size</dt><dd id="source-size">Checking…</dd></div><div><dt>Launchers only</dt><dd id="ram-size">Checking…</dd></div></dl>
         <div class="transfer">
@@ -55,21 +55,21 @@
         </div>
         <div class="device-line"><span class="connection-dot" id="connection-dot" aria-hidden="true"></span><span id="device-name">No calculator connected</span><span id="archive-free" class="numeric"></span></div>
         <details class="manifest"><summary>View package files <span id="manifest-count"></span></summary><div class="manifest-toolbar"><label for="file-search">Find a file</label><input id="file-search" type="search" placeholder="For example, CASUI" autocomplete="off" spellcheck="false"></div><div class="file-list-wrap" tabindex="0" aria-label="Scrollable package file list"><table><thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">Location</th><th scope="col">Status</th></tr></thead><tbody id="file-list"></tbody></table><p id="no-files" hidden>No matching files.</p></div></details>
-        <p class="package-footnote">Earlier cas-evo files are removed or replaced only when their contents match a recorded release. Other files are left alone.</p>
+        <p class="package-footnote">Earlier MicroCAS files are removed or replaced only when their contents match a recorded release. Other files are left alone.</p>
       </section>
     </div>
 
     <section class="help" id="help" aria-labelledby="help-title">
-      <div><h2 id="help-title">A smoother way in.</h2><p>The installer selects every file and its location. Only the launcher CAS needs to appear in your Python program list.</p><a href="cas-evo-calculator.zip" download>Prefer a manual install? Download the ZIP.</a></div>
+      <div><h2 id="help-title">A smoother way in.</h2><p>The installer selects every file and its location. Only the launcher CAS needs to appear in your Python program list.</p><a href="microcas-calculator.zip" download>Prefer a manual install? Download the ZIP.</a></div>
       <div class="questions">
         <details><summary>Why use two storage locations?</summary><p>CAS is a small source launcher, so it goes to RAM and appears in Python. The libraries are compiled EVO modules (.8mp2), stored in archive and imported as needed. This avoids compiling the engine on the calculator. Imported code still needs working memory; archive is not extra RAM. Ordinary archived .py files are not a substitute.</p></details>
         <details><summary>My calculator isn’t in the list.</summary><p>Turn it on and use a USB cable that supports data. Close TI Connect and other calculator tabs. In Chrome or Edge, select the TI-84 EVO serial port when prompted. This installer supports the EVO and EVO-T, not the TI-84 Plus CE.</p></details>
-        <details><summary>A transfer stopped. What now?</summary><p>Keep any files that arrived. Reconnect, then install again: earlier files are checked again and the same cas-evo filenames are replaced. If you stopped the transfer yourself, choose Install again. If the connection timed out, reload this page first. Wait for archive verification before running CAS.</p></details>
-        <details><summary>What happens to an earlier cas-evo?</summary><p>The new version uses far fewer files. Before sending it, the installer reads back each calculator file that has the name of an earlier cas-evo file and compares its contents with the recorded release. Exact matches are deleted or replaced. A file that differs is kept, listed for you, and never overwritten; if it would block the new version, nothing is changed until you remove it. Your other programs stay untouched.</p></details>
+        <details><summary>A transfer stopped. What now?</summary><p>Keep any files that arrived. Reconnect, then install again: earlier files are checked again and the same MicroCAS filenames are replaced. If you stopped the transfer yourself, choose Install again. If the connection timed out, reload this page first. Wait for archive verification before running CAS.</p></details>
+        <details><summary>What happens to an earlier version?</summary><p>Earlier versions, including those released as cas-evo, are recognized. The new version uses far fewer files. Before sending it, the installer reads back each calculator file that has the name of an earlier MicroCAS file and compares its contents with the recorded release. Exact matches are deleted or replaced. A file that differs is kept, listed for you, and never overwritten; if it would block the new version, nothing is changed until you remove it. Your other programs stay untouched.</p></details>
       </div>
     </section>
     <details class="diagnostics"><summary>Connection details</summary><p>These details stay in this browser. Copy them if a transfer fails.</p><button id="copy-log" class="secondary">Copy details</button><pre id="log" tabindex="0" aria-label="Connection log">Waiting for a connection.</pre></details>
   </main>
-  <footer><span>cas-evo / calculator installer</span><span>Powered by <a href="https://github.com/adriweb/tilibs" target="_blank" rel="noreferrer">WebTILP</a><span class="footer-separator">·</span><a href="licenses.html">Credits &amp; source</a></span></footer>
+  <footer><span>MicroCAS / calculator installer</span><span>Powered by <a href="https://github.com/adriweb/tilibs" target="_blank" rel="noreferrer">WebTILP</a><span class="footer-separator">·</span><a href="licenses.html">Credits &amp; source</a></span></footer>
 </body>
 </html>

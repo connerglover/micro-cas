@@ -37,7 +37,7 @@ function controls() {
   $('primary').disabled = working || !pkg || !supported || transport?.dead;
   $('primary-label').textContent = transport?.dead ? 'Reload to reconnect'
     : working ? (installer?.busy ? 'Installing…' : 'Connecting…')
-      : connected ? (installed ? 'Install again' : 'Install cas-evo') : 'Connect your EVO';
+      : connected ? (installed ? 'Install again' : 'Install MicroCAS') : 'Connect your EVO';
   $('stop').hidden = !installer?.busy;
   $('stop').disabled = !!installer?.stopRequested;
   $('disconnect').hidden = !connected || working;
@@ -89,7 +89,7 @@ function cleanupSummary(event) {
   // Removed and kept files are reported once per run, in the log and on screen.
   const removed = event.removed || [], kept = event.preserved || [];
   // One line each: the log is bounded and must keep the connection details.
-  if (removed.length) log(`Removed ${removed.length} earlier cas-evo file(s) after exact content checks: ${removed.map(item => item.name).join(', ')}.`);
+  if (removed.length) log(`Removed ${removed.length} earlier MicroCAS file(s) after exact content checks: ${removed.map(item => item.name).join(', ')}.`);
   if (kept.length) {
     log(`Kept ${kept.length} file(s) unchanged: ${kept.map(item => `${item.name} (type ${item.type}, ${item.reason === 'unreadable' ? 'could not be read back' : 'contents differ from every recorded release'}${item.detail ? `: ${item.detail}` : ''})`).join(', ')}.`);
   }
@@ -97,24 +97,24 @@ function cleanupSummary(event) {
   const names = kept.map(item => item.name);
   const shown = names.length > 6 ? `${names.slice(0, 6).join(', ')} and ${names.length - 6} more` : names.join(', ');
   return kept.length === 1
-    ? `Kept ${shown}: it has an earlier cas-evo name, but its contents could not be matched to a cas-evo release. It was not changed; delete it yourself only if you know it is an old cas-evo file.`
-    : `Kept ${kept.length} files with earlier cas-evo names because their contents could not be matched to a cas-evo release: ${shown}. They were not changed; delete them yourself only if you know they are old cas-evo files.`;
+    ? `Kept ${shown}: it has an earlier MicroCAS name, but its contents could not be matched to a MicroCAS release. It was not changed; delete it yourself only if you know it is an old MicroCAS file.`
+    : `Kept ${kept.length} files with earlier MicroCAS names because their contents could not be matched to a MicroCAS release: ${shown}. They were not changed; delete them yourself only if you know they are old MicroCAS files.`;
 }
 
 function onProgress(event) {
   $('progress').value = event.completed;
   $('progress-count').textContent = `${event.completed} / ${pkg.files.length}`;
   const statuses = {
-    checking: 'Checking calculator storage', inspecting: 'Checking earlier cas-evo files',
-    removing: 'Removing earlier cas-evo files', removed: 'Removing earlier cas-evo files',
-    cleaned: 'Earlier cas-evo files checked',
-    sending: 'Installing cas-evo', sent: 'Installing cas-evo', verifying: 'Checking file locations',
+    checking: 'Checking calculator storage', inspecting: 'Checking earlier MicroCAS files',
+    removing: 'Removing earlier MicroCAS files', removed: 'Removing earlier MicroCAS files',
+    cleaned: 'Earlier MicroCAS files checked',
+    sending: 'Installing MicroCAS', sent: 'Installing MicroCAS', verifying: 'Checking file locations',
     complete: 'Installation complete. File locations verified.', stopped: 'Stopped after the current file', error: 'Installation needs attention'
   };
   $('status-text').textContent = statuses[event.phase];
   if (event.file) $('current-file').textContent = event.total ? `${event.file} · ${event.index} of ${event.total}` : event.file;
   if (event.phase === 'cleaned') {
-    log(`Earlier cas-evo files: ${(event.removed || []).length} removed, ${(event.preserved || []).length} kept unchanged.`);
+    log(`Earlier MicroCAS files: ${(event.removed || []).length} removed, ${(event.preserved || []).length} kept unchanged.`);
   }
   if (event.phase === 'sending') fileState(event.file, 'sending');
   if (event.phase === 'sent') fileState(event.file, 'sent');
@@ -132,11 +132,11 @@ function onProgress(event) {
     cleanupSummary(event);
   }
   if (event.phase === 'stopped') {
-    $('current-file').textContent = 'Choose Install cas-evo to retry the complete package.';
+    $('current-file').textContent = 'Choose Install MicroCAS to retry the complete package.';
     $('action-note').textContent = 'The partial installation is not ready to run. Install again to finish.';
     notice(cleanupSummary(event));
     const removed = (event.removed || []).length;
-    log(`Stopped safely after ${event.completed} new file(s)${removed ? `; ${removed} earlier cas-evo file(s) were removed` : ''}.`);
+    log(`Stopped safely after ${event.completed} new file(s)${removed ? `; ${removed} earlier MicroCAS file(s) were removed` : ''}.`);
   }
   controls();
 }
@@ -158,7 +158,7 @@ $('primary').addEventListener('click', async () => {
       $('device-name').textContent = device.model === 49 ? 'TI-84 EVO-T connected' : 'TI-84 EVO connected';
       $('archive-free').textContent = device.listing.memory?.ok ? `${bytes(device.listing.memory.flash_free)} free in archive` : '';
       $('status-text').textContent = 'Connected. Ready to install.';
-      $('action-note').textContent = 'Libraries go to archive; CAS goes to RAM. Earlier cas-evo files are removed or replaced only after an exact content check.';
+      $('action-note').textContent = 'Libraries go to archive; CAS goes to RAM. Earlier MicroCAS files are removed or replaced only after an exact content check.';
       stage(1);
     } else {
       installed = false;
@@ -264,7 +264,7 @@ try {
     $('action-note').textContent = 'The ZIP and installation help remain available.';
   }
   log(`Verified ${pkg.files.length} transfer files; ${pkg.totalBytes} bytes. Libraries use MPY v5.3.`);
-  for (const record of legacy) log(`Loaded the record of ${record.files.length} earlier cas-evo ${record.release} files for exact-match cleanup.`);
+  for (const record of legacy) log(`Loaded the record of ${record.files.length} earlier MicroCAS ${record.release} files for exact-match cleanup.`);
 } catch (error) {
   pkg = undefined;
   legacy = undefined;

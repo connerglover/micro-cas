@@ -21,5 +21,5 @@ if __name__ == '__main__':
     if not (args.directory / 'index.html').is_file():
         parser.error('Build the website first: python build/website.py')
     server = ThreadingHTTPServer(('127.0.0.1', args.port), partial(Handler, directory=str(args.directory)))
-    print('cas-evo installer: http://localhost:%d' % args.port, flush=True)
+    print('MicroCAS installer: http://localhost:%d' % args.port, flush=True)
     server.serve_forever()

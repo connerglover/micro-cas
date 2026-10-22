@@ -177,3 +177,14 @@ def test_release_versions():
     assert publish_site.version('refs/tags/v1.2.3-rc1') == (1, 2, 3)
     assert publish_site.version('refs/heads/main') is None
     assert publish_site.version('refs/tags/vnext') is None
+
+
+def test_the_site_offers_the_microcas_download_by_its_published_name():
+    # v1.0.2: the product is MicroCAS; build/website.py writes the ZIP the page links to.
+    root = Path(__file__).resolve().parents[1]
+    assert 'microcas-calculator.zip' in REQUIRED and 'cas-evo-calculator.zip' not in REQUIRED
+    assert "'microcas-calculator.zip'" in (root / 'build/website.py').read_text('utf-8')
+    page = (root / 'website/index.html').read_text('utf-8')
+    assert page.count('href="microcas-calculator.zip"') == 2
+    assert page.count('cas-evo') == 1 and 'released as cas-evo' in page     # the former name
+    assert '<title>Install MicroCAS' in page

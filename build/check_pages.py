@@ -13,7 +13,7 @@ LEGACY = ('legacy-v1.json', 'legacy-packs-v1.json', 'legacy-mathprint-da7f036.js
 REQUIRED = (
     'index.html', 'app.js', 'installer.js', 'transport.js', 'isolation.js',
     'styles.css', 'sw.js', '_headers', 'package.json', 'package-meta.json',
-    'cas-evo-calculator.zip', 'licenses.html', 'webtilp-source.zip',
+    'microcas-calculator.zip', 'licenses.html', 'webtilp-source.zip',
     'installer-source.zip', 'vendor/COPYING', 'vendor/TIVarsLib-LICENSE',
     'vendor/assets.lock.json', 'fonts/OFL.txt',
 ) + LEGACY

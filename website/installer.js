@@ -47,7 +47,7 @@ export async function validatePackage(pkg, launchers = LAUNCHERS) {
 // sourceSha256 is the source companion the earlier installer recognized.
 // One manifest or a list of them; the result maps each module to its records.
 export function validateLegacy(manifests) {
-  const invalid = () => new Error('This installer has an invalid record of earlier cas-evo files. Reload the page to get a fresh copy.');
+  const invalid = () => new Error('This installer has an invalid record of earlier MicroCAS files. Reload the page to get a fresh copy.');
   const list = Array.isArray(manifests) ? manifests : [manifests];
   if (!list.length || list.length > 16) throw invalid();
   const modules = new Map();
@@ -100,7 +100,7 @@ export function requiredSpace(files, listing, moduleType = 18) {
     + Math.max(...objects.map(item => item.bytes), 0) + 16384;
 }
 
-// Content fingerprints that prove a calculator object came from cas-evo:
+// Content fingerprints that prove a calculator object came from MicroCAS:
 // the current package, an earlier release, or a source companion either recorded.
 export function knownObjects(pkg, digests, legacy) {
   const known = new Map();
@@ -128,7 +128,7 @@ export function identify(entry, object, known) {
     item.compiled === object.compiled && item.sha256 === object.sha256) || null;
 }
 
-// Classify listed Python objects that carry a cas-evo name. Same-slot objects are
+// Classify listed Python objects that carry a MicroCAS name. Same-slot objects are
 // overwritten by the send; everything else is a leftover to remove or preserve.
 export function cleanupPlan(pkg, legacy, listing, moduleType = 18) {
   const current = new Map(pkg.files.map(file => [file.module, file]));
@@ -235,10 +235,10 @@ export class Installer {
         else preserved.push(keep(entry, object));
       }
       if (blockers.length) {
-        throw new Error(`${describeList(blockers)} on the calculator could not be confirmed as ${blockers.length === 1 ? 'a cas-evo file' : 'cas-evo files'}, so nothing was changed. Back up and delete ${blockers.length === 1 ? 'it' : 'them'} with TI Connect Evo, then install again.`);
+        throw new Error(`${describeList(blockers)} on the calculator could not be confirmed as ${blockers.length === 1 ? 'a MicroCAS file' : 'MicroCAS files'}, so nothing was changed. Back up and delete ${blockers.length === 1 ? 'it' : 'them'} with TI Connect Evo, then install again.`);
       }
 
-      // 2. Remove earlier cas-evo objects the new package does not replace, one
+      // 2. Remove earlier MicroCAS objects the new package does not replace, one
       //    exact content match at a time. Modified or unreadable files stay.
       const rest = leftovers.filter(entry => !current.has(entry.name));
       const total = queued.length + rest.length;
@@ -275,7 +275,7 @@ export class Installer {
       }
       const requiredNow = requiredSpace(pkg.files, afterCleanup, moduleType);
       if (freeNow < requiredNow) {
-        throw new Error(`Archive needs about ${Math.ceil(requiredNow / 1024)} KB free; the calculator reports ${Math.floor(freeNow / 1024)} KB${removed.length ? ` after removing ${removed.length} earlier cas-evo file(s)` : ''}. Free some archive space, then install again.`);
+        throw new Error(`Archive needs about ${Math.ceil(requiredNow / 1024)} KB free; the calculator reports ${Math.floor(freeNow / 1024)} KB${removed.length ? ` after removing ${removed.length} earlier MicroCAS file(s)` : ''}. Free some archive space, then install again.`);
       }
       const ramNeeded = pkg.files.filter(file => file.destination === 'ram')
         .reduce((sum, file) => sum + file.bytes + 64, 4096);
@@ -297,7 +297,7 @@ export class Installer {
         throw new Error(`${missing.length} file(s) could not be confirmed in their required location, starting with ${missing[0].name}. Reconnect and install again.`);
       }
       if (finalListing.vars.some(entry => shadows(entry, pkg))) {
-        throw new Error('Some old cas-evo source companions are still in RAM. Move them to archive before opening Python.');
+        throw new Error('Some old MicroCAS source companions are still in RAM. Move them to archive before opening Python.');
       }
       this.onChange(report({ phase: 'complete', completed: this.completed.size }));
       return report({ stopped: false, completed: this.completed.size });

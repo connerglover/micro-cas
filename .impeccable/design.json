@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-11T20:07:36.042885+00:00",
-  "title": "Design System: cas-evo installer",
+  "title": "Design System: MicroCAS installer",
   "extensions": {
     "colorMeta": {
       "ground": {
@@ -507,7 +507,7 @@
       "kind": "nav",
       "refersTo": "navigation",
       "description": "Plain links keep help and the offline package accessible.",
-      "html": "<nav class=\"ds-nav\" aria-label=\"Main\"><a href=\"#help\">Installation help</a><a href=\"cas-evo-calculator.zip\" download>Download ZIP</a></nav>",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Main\"><a href=\"#help\">Installation help</a><a href=\"microcas-calculator.zip\" download>Download ZIP</a></nav>",
       "css": ".ds-nav{display:flex;gap:28px}.ds-nav a{font-size:13px;color:var(--muted,#586579);text-decoration:none}.ds-nav a:hover{color:var(--blue,#2144ad);text-decoration:underline}.ds-nav{font-family:var(--font,\"Public Sans\",sans-serif);font-size:15px;line-height:1.55;}.ds-nav a{text-underline-offset:4px;text-decoration-thickness:1px}.ds-nav a:hover{text-decoration-thickness:2px}.ds-nav a:focus-visible{outline:3px solid var(--blue,#2144ad);outline-offset:4px}@media(max-width:700px){.ds-nav{gap:15px}.ds-nav a{font-size:12px}.ds-nav a:first-child{display:none}}",
       "sourcePaths": [
         "website/index.html",
@@ -542,7 +542,7 @@
       "kind": "card",
       "refersTo": "card-package",
       "description": "One white file workspace, separated internally with rules.",
-      "html": "<section class=\"ds-package\" aria-label=\"cas-evo package\"><div class=\"ds-package-heading\"><div class=\"ds-package-name\"><svg width=\"25\" height=\"25\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden=\"true\"><path d=\"M3 7h18v14H3zM2 3h20v4H2zM9 11h6\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/></svg><h2>cas-evo <span>v1</span></h2></div><span class=\"ds-destination\">Compiled for EVO</span></div><div class=\"ds-package-description\"><p>Exact answers. On your EVO.</p><p>Algebra, calculus, series and differential equations, with an editor and typeset results.</p></div></section>",
+      "html": "<section class=\"ds-package\" aria-label=\"MicroCAS package\"><div class=\"ds-package-heading\"><div class=\"ds-package-name\"><svg width=\"25\" height=\"25\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden=\"true\"><path d=\"M3 7h18v14H3zM2 3h20v4H2zM9 11h6\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/></svg><h2>MicroCAS <span>v1</span></h2></div><span class=\"ds-destination\">Compiled for EVO</span></div><div class=\"ds-package-description\"><p>Exact answers. On your EVO.</p><p>Algebra, calculus, series and differential equations, with an editor and typeset results.</p></div></section>",
       "css": ".ds-package-heading{padding:23px 26px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line,#d4dbe5);gap:12px}.ds-package-name{display:flex;gap:12px;align-items:center}.ds-package-name svg{color:var(--blue,#2144ad)}.ds-package-heading h2{font-size:18px;letter-spacing:-.025em;margin:0;font-weight:600}.ds-package-heading h2 span{font-size:12px;font-weight:450;color:var(--muted,#586579);margin-left:4px;letter-spacing:0}.ds-destination{display:inline-flex;align-items:center;background:var(--blue-pale,#e8eefb);color:var(--blue,#2144ad);border-radius:4px;padding:4px 9px;font-size:12px;font-weight:600}.ds-package-description{padding:25px 26px 20px}.ds-package-description p:first-child{font-weight:600;margin-bottom:5px;font-size:17px;letter-spacing:-.02em}.ds-package-description p:last-child{color:var(--muted,#586579);font-size:13px;max-width:46ch}.ds-package{font-family:var(--font,\"Public Sans\",sans-serif);font-size:15px;line-height:1.55;color:var(--ink,#202a3b);background:var(--paper,#fff);border:1px solid var(--line,#d4dbe5);border-radius:12px;overflow:hidden}.ds-package p{margin:0}.ds-package svg{flex-shrink:0}@media(max-width:700px){.ds-package-heading{padding:20px}.ds-package-description{padding:21px 20px 18px}}",
       "sourcePaths": [
         "website/index.html",

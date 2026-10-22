@@ -43,7 +43,8 @@ def build(package, output):
         sha256=hashlib.sha256(encoded).hexdigest(), count=len(files), totalBytes=data['totalBytes'],
         legacy=legacy
     )) + '\n', 'ascii')
-    archive_zip.build(package.parent, output / 'cas-evo-calculator.zip')
+    (output / 'cas-evo-calculator.zip').unlink(missing_ok=True)    # its name before v1.0.2
+    archive_zip.build(package.parent, output / 'microcas-calculator.zip')
     shutil.copyfile(vendor_sources.build(), output / 'webtilp-source.zip')
     # Corresponding source for our browser integration and its build tooling.
     # Product/direction briefs and review artifacts never enter the served site.

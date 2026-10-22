@@ -1,6 +1,6 @@
 ---
-name: cas-evo installer
-description: A clear file workspace for installing cas-evo on a TI-84 EVO.
+name: MicroCAS installer
+description: A clear file workspace for installing MicroCAS on a TI-84 EVO.
 colors:
   ground: "#edf0f4"
   paper: "#fff"
@@ -128,7 +128,7 @@ components:
     typography: "{typography.label}"
 ---
 
-# Design System: cas-evo installer
+# Design System: MicroCAS installer
 
 ## Overview
 
