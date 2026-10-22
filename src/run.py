@@ -719,10 +719,11 @@ def drop(keys, cache=False):                                    #@L 3
             sl.remove(f)
             for c in CLOSURE.get(f, (f,)):
                 LIVE[c] -= 1
-        if not cache and f in PINNED:
-            PINNED.remove(f)
-        if not cache and f in LOADED and not LIVE.get(f, 0):
-            evict(f)
+        if not cache:
+            if f in PINNED:
+                PINNED.remove(f)
+            if f in LOADED and not LIVE.get(f, 0):
+                evict(f)
 
 
 def evict(f):                                                   #@L 4
