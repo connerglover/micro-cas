@@ -36,6 +36,14 @@ them as current.
   11,925 B, archive 206,030 → 203,960 B; native cas32 result heap after shedding `ui`
   58,976 B, `ui_edit` 56,016 B, `ui_calculus` (185,680) 69,232 B; T1-T3 corpus CPU time
   unchanged (19.65 s v1.0.0, 19.39 s v1.0.1, three interleaved rounds).
+  Review: about 8,000 inputs collected from the tests, corpora and golden files, run through
+  `run.go` in RAD and DEG with four F5 forms each, give identical records, history, Ans and
+  variables on v1.0.0 (22b0464) and v1.0.1 apart from the intended message texts. It found
+  one bug that was already in v1.0.0: F5 on an answer whose form is too long to print, for
+  example `(x+1)^150`, showed `Internal error: TypeError`. That form is now skipped (archive
+  203,965 B; native heaps unchanged). Not checked on hardware: whether a CLEAR pressed to
+  cancel a computation also reaches `wait_key` afterwards. If it did, cancelling an F5 started
+  in the history would also delete the selected entry.
   `package_archive.mjs`, `archive_zip.py`, the Node installer tests and the website build
   were not rerun. **Pending:** an EVO run of
   v1.0.1, and the user's merge and `v1.0.1` tag to deliver it (INSTALL.md ships in the ZIP).
