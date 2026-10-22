@@ -10,8 +10,6 @@
 import math
 
 import node as K
-import alg as A
-import parse as P
 import run as R
 
 TWOPI = 2.0 * math.pi

@@ -2,7 +2,6 @@
 # Bounded integration by parts and polynomial quadratic-radical reduction.
 import node as K
 import alg as A
-import parse as P
 import run as R
 
 

@@ -1,9 +1,7 @@
 #@L 2
 # Definite/improper integration: singularity splitting, exact primitives and tanh-sinh.
-import math
 import node as K
 import alg as A
-import parse as P
 import run as R
 
 MAXEVAL = 400

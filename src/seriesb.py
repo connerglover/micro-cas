@@ -1,7 +1,6 @@
 #@L 2
 # series family: seriesb helpers.
 import node as K
-import alg as A
 import run as R
 
 def pack(v, cs):                                                #@L 7

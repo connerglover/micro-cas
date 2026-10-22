@@ -427,44 +427,6 @@ def test_gjsolve_random_vs_sympy():
             assert [Rational(v, row[c]) for v in row] == list(R.row(k))
 
 
-def test_bezout_basic():
-    # (x^2+1) s + (x-1) t = 1: s = 1/2, t = -(x+1)/2
-    s, t, d = POB.bezout([1, 0, 1], [-1, 1], [1])
-    assert (s, t, d) == ([1], [-1, -1], 2)
-    assert POB.bezout([-1, 0, 1], [1, 1], [1]) is None     # common factor x+1
-    assert POB.bezout([3], [2], [1]) == ([], [1], 2)         # 0*3 + (1/2)*2 = 1
-    assert POB.bezout([3], [2], []) == ([], [], 1)
-    assert POB.bezout([], [1, 1], [1]) is None
-    s, t, d = POB.bezout([1, 1], [2], [5, 0, 7])             # b constant: t = c/2
-    assert (s, t, d) == ([], [5, 0, 7], 2)
-
-
-def test_bezout_random_vs_sympy():
-    r = random.Random(1209)
-    done = 0
-    while done < 150:
-        a = rpoly(r, r.randint(0, 5), 6)
-        b = rpoly(r, r.randint(0, 5), 6)
-        c = rpoly(r, r.randint(-1, 9), 6)
-        coprime = sp(a).gcd(sp(b)).degree() == 0
-        res = POB.bezout(a, b, c)
-        if not coprime:
-            assert res is None
-            continue
-        done += 1
-        s, t, d = res
-        assert isnorm(s) and isnorm(t) and d > 0
-        assert len(s) < len(b)                               # deg s < deg b
-        lhs = PO.padd(PO.pmul(s, a), PO.pmul(t, b))
-        assert lhs == PO.padd([], c, d)
-        assert gcd(gcd(d, cont(s)), cont(t)) == 1
-        s1, t1, h = sympy.gcdex(sp(a).to_field(), sp(b).to_field())
-        want = (s1 * sp(c).to_field()).rem(sp(b).to_field()) * (1 / h.LC())
-        assert Poly(sp(s).as_expr() / d, X, domain=QQ) == want
-
-
-# -- part C: sparse multivariate ----------------------------------------------------------------
-
 def test_sparse_basic():
     a = {(1, 0): 1, (0, 1): 1}                               # x + y
     b = {(1, 0): 1, (0, 1): -1}                              # x - y
@@ -551,28 +513,6 @@ def test_kronecker_roundtrip_and_homomorphism():
     assert POC.mkron({}, [2, 2]) == [] and POC.munkron([], [2, 2]) == {}
 
 
-def test_mrel():
-    # i as a variable: (x + i)^2 with i^2 = -1  ->  x^2 + 2 i x - 1
-    xi = {(1, 0): 1, (0, 1): 1}
-    sq = POC.mrel(POC.mmul(xi, xi), 1, 2, -1)
-    assert sq == {(2, 0): 1, (1, 1): 2, (0, 0): -1}
-    # t = 2^(1/3): t^5 = 2 t^2
-    assert POC.mrel({(5,): 3}, 0, 3, 2) == {(2,): 6}
-    assert POC.mrel({(4,): 1, (1,): -2}, 0, 3, 2) == {}       # t^4 - 2t = 0
-    r = random.Random(1213)
-    for _ in range(60):
-        nv = r.randint(1, 3)
-        a = rsparse(r, nv, r.randint(0, 6), 6)
-        k = r.randrange(nv)
-        q = r.randint(2, 4)
-        c = r.choice((-1, 2, 3, -5))
-        got = POC.mrel(a, k, q, c)
-        assert wellformed(got, nv) and all(e[k] < q for e in got)
-        g = GENS[:nv]
-        R = sympy.rem(msp(a, nv).as_expr(), g[k] ** q - c, g[k])
-        assert msp(got, nv) == Poly(R, *g, domain=ZZ)
-
-
 def test_mcoef():
     a = {(2, 1): 3, (0, 1): 1, (2, 0): -1, (0, 0): 4}       # (3y - 1) x^2 + (y + 4)
     assert POC.mcoef(a, 0) == [{(0, 1): 1, (0, 0): 4}, {}, {(0, 1): 3, (0, 0): -1}]
@@ -649,13 +589,11 @@ def test_inputs_never_mutated():
         PO.yun(a)
         POB.ratroots(a)
         POB.gjsolve(m, 3)
-        POB.bezout(a, b, c)
         POC.madd(sa, sb, -1)
         POC.mmul(sa, sb)
         POC.mpow(sb, 2, 2)
         POC.mdivex(POC.mmul(sa, sb), sb)
         POC.mdivex(sa, sb)
-        POC.mrel(sa, 1, 1, 3)
         POC.mcoef(sa, 0)
         POC.mkron(sa, [2, 4])
         assert args == keep
@@ -705,19 +643,6 @@ def test_gjsolve_square_and_wide():
     assert piv == list(sp_piv)
     for k, row in enumerate(out):
         assert [Rational(v, row[piv[k]]) for v in row] == list(R.row(k))
-
-
-def test_bezout_high_degree_target():
-    r = random.Random(1219)
-    for _ in range(20):
-        a = rpoly(r, 2, 5)
-        b = rpoly(r, 3, 5)
-        if sp(a).gcd(sp(b)).degree():
-            continue
-        c = rpoly(r, 9, 5)                                   # deg c >= deg a + deg b
-        s, t, d = POB.bezout(a, b, c)
-        assert len(s) < len(b)
-        assert PO.padd(PO.pmul(s, a), PO.pmul(t, b)) == PO.padd([], c, d)
 
 
 # -- device constraints -------------------------------------------------------------------------
@@ -780,9 +705,9 @@ def test_levels_declared():
     the algorithm layer (L3) and the helper layer (L4)."""
     want = {'poly': {'padd': 7, 'pmul': 7, 'ppow': 6, 'pderiv': 7, 'peval': 7, 'pcont': 7,
                      'pprim': 6, 'pdivrem': 6, 'pdivex': 7, 'pgcd': 5, 'yun': 4},
-            'polyb': {'divisors': 7, 'ratroots': 6, 'gjsolve': 7, 'bezout': 6},
+            'polyb': {'divisors': 7, 'ratroots': 6, 'gjsolve': 7},
             'polyc': {'madd': 7, 'mmul': 7, 'mpow': 6, 'mcont': 7, 'mdeg': 7, 'mmono': 7,
-                      'mdivex': 6, 'mkron': 7, 'munkron': 7, 'mrel': 7, 'mcoef': 7}}
+                      'mdivex': 6, 'mkron': 7, 'munkron': 7, 'mcoef': 7}}
     an = framelint.analyze_dir(SRC)
     lv = an.levels()
     for mod in PARTS:
@@ -794,7 +719,7 @@ def test_depth_at_declared_levels(evodepth):
     a = PO.pmul(PO.ppow([1, 1], 3), PO.ppow([-2, 1], 2))
     _, d, _ = evodepth.measure(PO.yun, a)
     assert d == 7
-    _, d, _ = evodepth.measure(POB.bezout, [1, 0, 1], [-1, 1], [1])
+    _, d, _ = evodepth.measure(POB.ratroots, [-2, 1, 1])
     assert d == 7
     _, d, _ = evodepth.measure(POC.mpow, {(1, 1): 2, (0, 0): 1}, 3, 2)
     assert d == 7

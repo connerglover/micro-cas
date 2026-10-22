@@ -152,22 +152,6 @@ def munkron(p, D):                                              #@L 7
     return r
 
 
-def mrel(a, k, q, c):                                           #@L 7
-    # reduce with the relation x_k^q = c (int c, q >= 1): x_k = i (q 2, c -1) or a radical
-    r = {}
-    for e in a:                                     #@unordered-ok
-        s, t = divmod(e[k], q)
-        f = list(e)
-        f[k] = t
-        f = tuple(f)
-        v = r.get(f, 0) + a[e] * c ** s
-        if v:
-            r[f] = v
-        elif f in r:
-            del r[f]
-    return r
-
-
 def mcoef(a, k):                                                #@L 7
     # the coefficients in x_k: a list, by degree, of dicts with x_k's exponent set to 0
     out = []

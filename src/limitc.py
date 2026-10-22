@@ -1,8 +1,6 @@
 #@L 2
 # limit family: limitc helpers.
 import node as K
-import alg as A
-import parse as P
 import run as R
 
 def g_growth(f, x, a, side):                                   #@L 2

@@ -3,7 +3,6 @@
 import math
 import node as K
 import alg as A
-import parse as P
 import run as R
 
 # Positive and negative abscissae, with weights, on [-1,1].
