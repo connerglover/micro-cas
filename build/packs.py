@@ -125,12 +125,12 @@ def _immutable(v):
     return v is None or isinstance(v, (bool, int, float, complex, str, bytes))
 
 
-def _written(tree, client=False):
+def _written(tree, client=False, loader=False):
     """(names, computed): attribute names this code stores or deletes (A.NAME = v, A.NAME += v,
     del A.NAME, setattr/delattr with a literal name), and the computed stores it makes, which
-    could reach any module global. setattr(m, k, None) is run.unload's eviction clearing (EVDICT):
-    it empties a module that no code runs any more, so it is no store. A client's globals() is
-    its own namespace."""
+    could reach any module global. In the loader (run), setattr(m, k, None) is run.unload's
+    eviction clearing (EVDICT): it empties a module that no code runs any more, so it is no
+    store. A client's globals() is its own namespace."""
     names, computed = set(), []
     for node in ast.walk(tree):
         if isinstance(node, ast.Attribute):
@@ -144,7 +144,7 @@ def _written(tree, client=False):
                 key = node.args[1]
                 if isinstance(key, ast.Constant) and isinstance(key.value, str):
                     names.add(key.value)
-                elif not (f == 'setattr' and len(node.args) == 3 and
+                elif not (loader and f == 'setattr' and len(node.args) == 3 and
                           isinstance(node.args[2], ast.Constant) and node.args[2].value is None):
                     computed.append(f)
             elif f == 'vars' and node.args or f == 'globals' and not client:
@@ -153,6 +153,9 @@ def _written(tree, client=False):
 
 
 def _function_locals(fn):
+    if fn.args.kwonlyargs or getattr(fn.args, 'posonlyargs', None):
+        # locals the rewrite has no scope for (the device lint rejects them as well)
+        raise PackError('keyword-only or positional-only parameters in %s' % fn.name)
     names = {a.arg for a in fn.args.args}
     names.update(a.arg for a in (fn.args.vararg, fn.args.kwarg) if a)
     declared = set()
@@ -322,7 +325,7 @@ class Plan(object):
         trees = [(m.name, m.tree, False) for m in self.modules.values()]
         trees += [(c, ast.parse(clients[c]), True) for c in sorted(clients)]
         for where, tree, client in trees:
-            names, dyn = _written(tree, client)
+            names, dyn = _written(tree, client, where == run)
             self.written |= names
             computed += ['%s: %s' % (where, f) for f in dyn]
         for m in self.modules.values():
@@ -621,6 +624,7 @@ class Rewrite(ast.NodeTransformer):
         self.needs_global = set()
         self.drop_global = set()
         self.uses = set()               # resident packs this code reads by name
+        self.shadow = set()             # comprehension targets of the default being rewritten
         self.resolve = Resolver(plan, name, aliases)
 
     # -- references --------------------------------------------------------------------------
@@ -726,6 +730,8 @@ class Rewrite(ast.NodeTransformer):
         return m is not None and name in m.bindings and name not in m.aliases
 
     def visit_Name(self, node):
+        if node.id in self.shadow:
+            return node
         if self.fn is not None and node.id in self.locals:
             if node.id in self.resolve.local and isinstance(self.resolve.local[node.id], tuple):
                 device = self.resolve.local[node.id][1]
@@ -949,12 +955,13 @@ class Rewrite(ast.NodeTransformer):
         return node
 
     def visit_default(self, node):
-        saved = self.fn, self.locals
-        self.fn, self.locals = None, set()
+        """A default runs at module scope; a comprehension in it binds its targets locally."""
+        saved = self.fn, self.locals, self.shadow
+        self.fn, self.locals, self.shadow = None, set(), _comprehension_targets(node)
         try:
             return self.visit(node)
         finally:
-            self.fn, self.locals = saved
+            self.fn, self.locals, self.shadow = saved
 
     def visit_ClassDef(self, node):
         if self.fn is not None:

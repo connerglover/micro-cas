@@ -69,6 +69,13 @@ them as current.
   reads `dist/device`, not the packs), `check_release.py` (strict depth 8/8, as before),
   `tests/test_archive_release.py`, `build/linemap.py`, `package_archive.mjs` (22 objects),
   `archive_zip.py` (copied to `cas-evo-v1.0.1.zip`) and the Node installer tests (31).
+  Review of the inliner: two constructed cases compiled wrongly and now do not (a
+  comprehension in a default argument rebinding a constant's name; keyword-only and
+  positional-only parameters, which the device lint already rejects, now fail the build), and
+  the `setattr(m, k, None)` exemption holds only in run. The shipped packs are byte-identical;
+  every changed AST node of the merged packs (2,473, 167 names) is a reference replaced by its
+  own value; the differential (29,837 records) and the native suites were rerun with the same
+  results.
   **Pending:** an EVO run of v1.0.1, and the user's merge and `v1.0.1` tag to deliver it
   (INSTALL.md ships in the ZIP).
 - **Hardware acceptance (user report, 2026-10-22).** The user ran the MathPrint

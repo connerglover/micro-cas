@@ -530,3 +530,34 @@ def test_only_small_ints_become_literals(tmp_path, monkeypatch):
     import CASK
     assert CASK.neg() == (1, 1, 1, 3, 7)
     assert CASK.f() == (True, 1.5, 'x', None, -2 ** 30, 2 ** 30 - 1, 2 ** 30, -2 ** 30 - 1, 127, 0)
+
+
+def test_a_comprehension_in_a_default_binds_its_own_names(tmp_path, monkeypatch):
+    """A default runs at module scope, where a comprehension's target is its own local: the
+    module int of that name is not the value the comprehension reads."""
+    src = {'node': 'X = 1\ndef g(a=[X for X in (5, 6)], b=X):\n    return a + [b]\n',
+           'run': RUN, 'printer': '', 'fa': '', 'fb': ''}
+    out, _, _ = inlined(src)
+    assert _fn(out['CASK'], 'g') == 'def g(a=[X for X in (5, 6)], b=1):\n    return a + [b]'
+    load(out, tmp_path, monkeypatch)
+    import CASK
+    assert CASK.g() == [5, 6, 1]
+
+
+@pytest.mark.parametrize('code', ['def f(*, X=5):\n    return X\n',
+                                  'def f(X, /):\n    return X\n'])
+def test_parameters_the_rewrite_cannot_scope_fail_the_build(code):
+    """Keyword-only and positional-only parameters are locals the rewrite would not see (the
+    device lint rejects them too): a read of one must not become a module int."""
+    src = {'node': 'X = 1\n' + code, 'run': RUN, 'printer': '', 'fa': '', 'fb': ''}
+    with pytest.raises(packs.PackError, match='parameters'):
+        inlined(src)
+
+
+def test_only_the_loader_may_clear_a_module_by_a_computed_name():
+    """setattr(m, k, None) is run.unload's eviction clearing; elsewhere it could set a live
+    module's int to None behind a literal."""
+    src = {'node': 'X = 1\n', 'run': RUN + 'def f():\n    return K.X\n', 'printer': '',
+           'fa': 'import CVNODE as K\ndef w(n):\n    setattr(K, n, None)\n', 'fb': ''}
+    with pytest.raises(packs.PackError, match='computed'):
+        inlined(src)

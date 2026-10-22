@@ -71,8 +71,9 @@ the pack on demand.
   `EVDICT`, `SHEDAT`, `FRAG`, `PEAKB`, ...) never qualify, and `loader_tables`
   rejects any other table. An operand of `is` keeps its read. Computed stores
   (`setattr` with a computed name, `globals()`, `vars(m)`, `__dict__`) fail the
-  build, except `run.unload`'s `setattr(m, k, None)`, which empties an evicted
-  pack whose code no longer runs. The binding itself stays, so `getattr` and
+  build, except `run.unload`'s `setattr(m, k, None)` in the run module only, which
+  empties an evicted pack whose code no longer runs. A comprehension in a default
+  argument binds its own targets (it runs at module scope), so they stay names. The binding itself stays, so `getattr` and
   `MODS[...]` lookups by name still find it. A harness that changes such a
   constant on a pack (rather than in `src/`) no longer reaches the code.
 - Entry programs (the launcher CAS, and the developer probe CVTEST as an extra source) are
@@ -82,7 +83,8 @@ The packer raises `PackError` instead of emitting a pack it cannot prove
 correct: dynamic dispatch to a renamed or placed name, module code that would
 hold a soft pack, aux code that could reach the loader or is a generator, a
 soft-pack module that assigns its own globals, nested functions, classes or
-lambdas, `from` imports, comprehension targets that rebind a rewritten name, and
+lambdas, `from` imports, comprehension targets that rebind a rewritten name,
+keyword-only or positional-only parameters (locals the rewrite cannot scope), and
 computed stores that could change an inlined int.
 
 ### Loader tables
