@@ -169,10 +169,12 @@ def test_large_exact_accumulators_stay_formal_and_recover(text, monkeypatch):
     def timeout(*args):
         raise AssertionError('exact accumulation exceeded its work budget')
 
+    # CPU time, not wall time: the budget is the work done, and an oversubscribed
+    # parallel run (pytest -n 6 on fewer cores) stretched wall time past 5 s
     polls = []
-    monkeypatch.setattr(K, 'ESC', lambda: polls.append(time.monotonic()) or False)
-    old = signal.signal(signal.SIGALRM, timeout)
-    signal.alarm(5)
+    monkeypatch.setattr(K, 'ESC', lambda: polls.append(time.process_time()) or False)
+    old = signal.signal(signal.SIGVTALRM, timeout)
+    signal.setitimer(signal.ITIMER_VIRTUAL, 5)
     try:
         result = R.go(('eval', text))
         assert result[0] == 'ans' and text.split('(')[0] + '(' in result[1], result
@@ -181,5 +183,5 @@ def test_large_exact_accumulators_stay_formal_and_recover(text, monkeypatch):
         assert max(b - a for a, b in zip(polls, polls[1:])) < 0.1
         assert R.go(('eval', '2+3'))[1] == '5'
     finally:
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old)
+        signal.setitimer(signal.ITIMER_VIRTUAL, 0)
+        signal.signal(signal.SIGVTALRM, old)
