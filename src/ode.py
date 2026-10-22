@@ -124,9 +124,8 @@ def g_desolve(args, ctx):                                       #@L 2
             higher = True
             break
     if higher:
-        yield K.mk(tuple([K.CALL, K.sym('desolve')] + list(args)))
-        return
-    if not K.free_of(f, ypp):
+        pass                            # third order or more: formal
+    elif not K.free_of(f, ypp):
         out = yield R.MODS['odec'].g_second(f, x, y, yp, ypp, c1, c2)
         constants = (c1, c2)
     elif not K.free_of(f, yp):

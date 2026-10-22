@@ -103,23 +103,22 @@ def g_sum(args, ctx):                                           #@L 2
     f, x = args[:2]
     if K.N[x][0] != K.SYM:
         raise K.CasError('Sum index must be a variable')
-    if len(args) != 4:
-        yield K.mk(tuple([K.CALL, K.sym('sum')] + list(args)))
-        return
-    a, b = args[2:]
-    if not K.free_of(a, x) or not K.free_of(b, x):
-        raise K.CasError('Sum bounds depend on the index')
-    lo, hi = integer(a), integer(b)
-    if K.N[a][0] == K.NUM and lo is None or K.N[b][0] == K.NUM and hi is None:
-        raise K.CasError('Sum bounds must be integers')
-    if f == K.ZERO or lo is not None and hi is not None and hi < lo:
-        out = K.ZERO
-    elif lo is not None and hi is not None and hi - lo < MAXTERMS:
-        out = yield R.MODS['sumb'].g_loop(f, x, lo, hi)
-    elif b == K.OO:
-        out = yield R.MODS['sumc'].g_infinite(f, x, a)
-    else:
-        out = yield R.MODS['sumb'].g_finite(f, x, a, b)
+    out = None
+    if len(args) == 4:
+        a, b = args[2:]
+        if not K.free_of(a, x) or not K.free_of(b, x):
+            raise K.CasError('Sum bounds depend on the index')
+        lo, hi = integer(a), integer(b)
+        if K.N[a][0] == K.NUM and lo is None or K.N[b][0] == K.NUM and hi is None:
+            raise K.CasError('Sum bounds must be integers')
+        if f == K.ZERO or lo is not None and hi is not None and hi < lo:
+            out = K.ZERO
+        elif lo is not None and hi is not None and hi - lo < MAXTERMS:
+            out = yield R.MODS['sumb'].g_loop(f, x, lo, hi)
+        elif b == K.OO:
+            out = yield R.MODS['sumc'].g_infinite(f, x, a)
+        else:
+            out = yield R.MODS['sumb'].g_finite(f, x, a, b)
     if out is None:
         out = K.mk(tuple([K.CALL, K.sym('sum')] + list(args)))
     yield out
