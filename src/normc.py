@@ -25,22 +25,21 @@ def tonode(n, d, ks, ex):                                       #@L 4
     if not n:
         return K.ZERO
     nv = len(ks)
-    PC = R.MODS['polyc']
     if ex:
         for z in d:                                             #@unordered-ok (one term)
             cn = cd = d[z]
     else:
-        a = PC.mmono(n, nv)
-        b = PC.mmono(d, nv)
+        a = R.MODS['polyc'].mmono(n, nv)
+        b = R.MODS['polyc'].mmono(d, nv)
         u = []
         v = []
         for i in range(nv):
             u.append(-a[i])
             v.append(-b[i])
-        n = PC.mmul(n, {tuple(u): 1})
-        d = PC.mmul(d, {tuple(v): 1})
-        u = PC.mdeg(n, nv)
-        v = PC.mdeg(d, nv)
+        n = R.MODS['polyc'].mmul(n, {tuple(u): 1})
+        d = R.MODS['polyc'].mmul(d, {tuple(v): 1})
+        u = R.MODS['polyc'].mdeg(n, nv)
+        v = R.MODS['polyc'].mdeg(d, nv)
         D = []
         s = 1
         for i in range(nv):
@@ -50,18 +49,18 @@ def tonode(n, d, ks, ex):                                       #@L 4
             D.append((u[i] if u[i] > v[i] else v[i]) + 1)
             s *= D[i]
         if s <= R.MODS['norm'].KRONMAX:
-            g = R.MODS['poly'].pgcd(PC.mkron(n, D), PC.mkron(d, D))
+            g = R.MODS['poly'].pgcd(R.MODS['polyc'].mkron(n, D), R.MODS['polyc'].mkron(d, D))
             if len(g) > 1:
-                g = PC.munkron(g, D)
-                u = PC.mdivex(n, g)
-                v = PC.mdivex(d, g)
+                g = R.MODS['polyc'].munkron(g, D)
+                u = R.MODS['polyc'].mdivex(n, g)
+                v = R.MODS['polyc'].mdivex(d, g)
                 if u is not None and v is not None:
                     n = u
                     d = v
-        n = PC.mmul(n, {tuple(a): 1})
-        d = PC.mmul(d, {tuple(b): 1})
-        cn = PC.mcont(n)
-        cd = PC.mcont(d)
+        n = R.MODS['polyc'].mmul(n, {tuple(a): 1})
+        d = R.MODS['polyc'].mmul(d, {tuple(b): 1})
+        cn = R.MODS['polyc'].mcont(n)
+        cd = R.MODS['polyc'].mcont(d)
     out = []
     for p, q in ((n, cn), (d, cd)):
         ts = []

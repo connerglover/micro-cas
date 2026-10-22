@@ -134,7 +134,6 @@ def g_rewrite(root, rs, x, budget):                             #@L 2
     # the matcher's order. Each pass keeps only its result. Stops at a fixpoint, a repeated
     # root or MAXPASS passes; more than budget fires in one pass is a soft failure. Yields
     # TICK after each pass that changed the root, then the result.
-    MT = R.MODS['rulesb']
     if type(rs) is str:
         rs = rset(rs)
     if not x:
@@ -151,7 +150,7 @@ def g_rewrite(root, rs, x, budget):                             #@L 2
             for p, rhs, guard in rs.get(K.N[m][0], rs[VIEW]):
                 r = m
                 k = 0
-                while r == m and k < MAXALT and MT.match(p, m, env, x, k):
+                while r == m and k < MAXALT and R.MODS['rulesb'].match(p, m, env, x, k):
                     ok = guard_ok(guard, env)
                     if type(ok) is tuple:       # constant and near 0: the exact test (L2)
                         ok = R.MODS['norm'].normal(ok[2]) == K.ZERO and (

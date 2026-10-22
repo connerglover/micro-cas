@@ -42,7 +42,6 @@ def match(p, s, env, x, alt=0):                                 #@L 3
     # subject pairs, next pair, rest slot, constant); choice points (goals, trail length, AC
     # goal to resume); the bottom one fails.
     N = K.N
-    RA = R.MODS['rules']
     goals = [(p, s)]
     trail = []
     cps = [((), 0, None)]
@@ -72,7 +71,7 @@ def match(p, s, env, x, alt=0):                                 #@L 3
                     if env[sl]:
                         ok = env[sl] == ss
                     else:
-                        ok = RA.check(tp[2], ss, env, x, trail)
+                        ok = R.MODS['rules'].check(tp[2], ss, env, x, trail)
                         if ok:
                             env[sl] = ss
                             trail.append(sl)
