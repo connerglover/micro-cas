@@ -40,8 +40,11 @@ A tag run builds and tests everything, then:
 Creating the release in the GitHub UI with a new tag also works: the
 `release: published` event builds and attaches the ZIP. When a tag push and its
 Release both start a run, the runs for one tag queue (a concurrency group per
-tag) and the later one finds `cas-evo-<tag>.zip` attached and skips the build.
-A Release created by the workflow's own token starts no further run. A manual
+tag). A Release run that finds `cas-evo-<tag>.zip` already attached skips the
+build; a tag-push run that comes second builds again and replaces the ZIP
+(`--clobber`), which is harmless. A Release published for a tag that does not
+start with `v` builds nothing. A Release created by the workflow's own token
+starts no further run. A manual
 run on a branch only builds and tests (artifacts on the run page); run it on a
 tag to release.
 

@@ -68,3 +68,10 @@ def test_actions_are_pinned_to_full_commits():
         if 'uses:' in line:
             ref = line.split('@', 1)[1].split()[0]
             assert len(ref) == 40 and all(c in '0123456789abcdef' for c in ref), line
+
+
+def test_a_release_for_a_non_v_tag_builds_nothing():
+    # release: published fires for every tag; only v* tags are releases of the calculator.
+    check = block('check')
+    assert "startsWith(github.event.release.tag_name, 'v')" in check
+    assert "github.event_name != 'release'" in check

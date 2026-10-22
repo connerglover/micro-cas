@@ -252,8 +252,8 @@ Artifact-dependent skips before packaging do not establish artifact acceptance.
 
 ## Branches, commits and Cloudflare
 
-`main` owns source. The build workflow runs only for pushed `v*` tags, published
-GitHub Releases and manual dispatch, not for ordinary pushes or pull requests, so
+`main` owns source. The build workflow runs only for pushed `v*` tags, GitHub
+Releases published for `v*` tags and manual dispatch, not for ordinary pushes or pull requests, so
 run the local acceptance commands before committing. A successful tag run
 attaches `cas-evo-<tag>.zip` to the tag's GitHub Release (creating it if
 missing) and updates `pages` with the exact `cas-evo-web-installer` artifact;

@@ -397,7 +397,7 @@ CASUX 29,436 → 29,031 B and CASUI 3,759 → 3,417 B of bytecode (mpy-cross est
 | `EDMAP` | `None` | Caret map of the last 2D layout of `LINE` (§5.2, "Result"), or `None` for a flat/1D line. |
 | `EMODEL` | `None` | The `LINE` for which `emodel()` last built the model (until §0.12 `(LINE, CLASSIC)`). The model is rebuilt only when this differs, so a degraded line (`ED1D`, `EFAIL`) is not laid out again until the text changes. Set to `None` before every job and in `panic`. |
 | `EFLAT` | `True` | The current line is drawn and edited flat/1D (§5.1, §5.3). Set by `emodel()`. |
-| `EDL`, `EKEY` | `None` | Last painted entry: `EDMAP`'s display list (layout coordinates, drawn at `10 - EXOFF`, content top; the trailing box at the caret is skipped when drawn) and `(LINE, CUR, geometry, caret column, caret top)`, geometry `(flat, XOFF, EXOFF, EH, theme, content top, ascent)` (§0.6); `XOFF` counts only for a flat line (it is 0 in a 2D key, §0.8). Used by the diff paint. |
+| `EDL`, `EKEY` | `None` | Last painted entry: `EDMAP`'s display list (layout coordinates, drawn at `10 - EXOFF`, content top; the trailing box at the caret is skipped when drawn) and `(LINE, CUR, geometry, caret column, caret top)`, geometry `(flat, XOFF, EXOFF, EH, BG color, content top, ascent)` (§0.6); `XOFF` counts only for a flat line (it is 0 in a 2D key, §0.8). Used by the diff paint. |
 | `PENDING` | `None` | `(a, b)`: put the caret in the first empty slot (drawn order) inside `LINE[a:b]`. Resolved in `emodel()` (§6.5). |
 | `ED1D` | `False` | The current line is drawn 1D because the layout is over its caps or raised `MemoryError`. |
 | `EFAIL` | `None` | The `LINE` for which `panic` (reason 0 or 3) ran. While `LINE == EFAIL`, it is drawn 1D, so a failing layout is never retried in a loop. |
@@ -1516,7 +1516,7 @@ guard: one `mlayout` of a dense 160-character line < 400 µs. The EVO run times 
 
 | Test | Pin |
 |---|---|
-| `test_full_redraw_uses_few_colors` | Full ≤ 6 colors in both themes (kept). The second bare `u.redraw()` now makes **no** ti_draw call (`TD.CALLS == []`). Then `u.key(92)` gives fills `== [('fill_rect', -1, 169, 321, 21)]`, `set_color ≤ 2`, `draw_text == 1`, `draw_line == 1`. |
+| `test_full_redraw_uses_few_colors` | Full ≤ 6 colors (one palette since v0.1.0, §0.12). The second bare `u.redraw()` now makes **no** ti_draw call (`TD.CALLS == []`). Then `u.key(92)` gives fills `== [('fill_rect', -1, 169, 321, 21)]`, `set_color ≤ 2`, `draw_text == 1`, `draw_line == 1`. |
 | `test_typing_costs_few_colors_per_key` | `typing.colors <= 2*30 + 6*2` (was `4*31 + 6*2`). The first assertion is kept. |
 | New `test_first_key_after_answer_keeps_stage` | After `2/3{enter}`, key `1` makes no `fill_rect` with `y < 150` other than the status row. |
 | New `test_modifier_repaints_status_only` | `u.key(21)`: fills `== [('fill_rect', -1, -1, 321, 20)]`, `set_color ≤ 3`. |
@@ -1655,8 +1655,7 @@ and half-filled, `tidy`/`structure` round trips, sessions, inline `+ C`, Classic
    - `VIEWEND` scrolling.
    - Footer strings.
    - Same-row width guard.
-   - Classic toggle: old behaviour, same LINE as the 1D editor; toggling with a 2D LINE
-     rebuilds the model at once (`EMODEL`), in both directions.
+   - (Classic toggle: removed in v0.1.0, §0.12, §8.)
    - `HERO` changes (first key after an answer, DEL to an empty line) repaint only the hint
      row, never the stage.
    - ENTER on `log(8,)` (picker 1.7 with the base left empty) evaluates `log(8)`; ENTER on
@@ -1691,13 +1690,13 @@ When it ships, update DESIGN §16 (16.1, 16.4, 16.5, 16.6, 16.9), `docs/notes/UI
 | Risk | Mitigation |
 |---|---|
 | CASUX ~+10 KB (measured +19.8 KB bytecode, `room('layout')` +27.7 KB; §9.2) raises reload pressure; `ui_calculus` at 189,776 had under 2 KB spare | Measure first in CI (not yet run: the open gate of §0.7). Phase 3 option: lay answers out with `mparse(mode 1)` and drop `draw.tree/measure` (~−1.7 KB). Picker rows and menu code stay small. |
-| EVO cost of `draw_text`/`draw_line`/`set_color` is unknown | Flat fast path; the diff paint; INK caret. `EDIFF`, `CARETC` and Classic are switches. Time keys on the device. |
+| EVO cost of `draw_text`/`draw_line`/`set_color` is unknown | Flat fast path; the diff paint; INK caret. `EDIFF` and `CARETC` are switches (Classic was one until v0.1.0). Time keys on the device. |
 | Diff paint leaves stale pixels | The pixel-equivalence property test (§12.7); full repaint on any geometry change; kill switch. |
 | The display disagrees with the engine (`ti_rewrite` notation such as `sin^2(x)`, `xy`) | It is drawn as typed; the value is the engine's. Precedence-agreement test. |
 | `tidy` or `structure` changes the meaning | One-token rule with neighbour checks; engine-equality round trips (§12.4). |
 | The entry `(..)/(..)` rule flips when typing `(a)/(` with ÷ | Documented: identical text means an identical picture. 42 is the fraction key. |
 | Heap spike on long 2D lines | 160 characters / 192 nodes / h 76 caps; `MemoryError` → 1D; rows built in place; `EFAIL`. |
-| Key-semantics surprise (autoclose, `(` wraps to the slot end, ↑ moves inside a fraction first) | Nspire/FlowCE conventions; worked-example tests; Classic. |
+| Key-semantics surprise (autoclose, `(` wraps to the slot end, ↑ moves inside a fraction first) | Nspire/FlowCE conventions; worked-example tests (Classic, the 1D editor, was removed in v0.1.0). |
 | keyscript and native streams drift | Streams are generated from keyscript. The typist emits only real keys (26 for leaving an exponent). The round-trip and linear-typing tests (§12.6). |
 
 **Not reproduced:** the Nspire gray temporary paren; Tab cycling (→ follows drawn order and
