@@ -7,6 +7,23 @@ them as current.
 
 ## Current delivery
 
+- **Faster installer cleanup and website README link (on `main`, 2026-10-22; not tagged).**
+  User request: the installer reads the calculator's directory listing once, deletes every
+  Python object named in a recorded release (`website/legacy-*.json`) or the current package
+  that the send would not overwrite in place, then sends the package. It no longer reads
+  each same-name file back over USB and hashes it (one `calc_recv_var` per file, 22 on an
+  upgrade from packs-v1 and up to 238 from v1), and no longer loads TIVarsLib in the
+  browser to fingerprint the package. Trade-off the user chose: a user's own program
+  named `CAS` or with a recorded `CAS*`/`CV*` name is overwritten or deleted instead of
+  kept; the help text and INSTALL.md say to rename such a program first. The site copy
+  matches; README links the installer at cas.connerglover.com. Evidence: `node --test
+  website/tests/installer.test.js` 29 passed, 1 skipped (on this Windows clone the four
+  legacy-record reproducibility tests need LF copies of `website/legacy-*.json`;
+  `core.autocrlf=true` makes them fail with or without this change);
+  `tests/test_publish_site.py` and `tests/test_workflow.py` (22 passed). Not run: the
+  website build and `check_pages.py` (no compiled archive in this clone) and a USB
+  install on an EVO. The live site (pages from v1.0.1) still says cas-evo until a tag
+  run publishes the MicroCAS site.
 - **v1.0.1 merged to `main` (2026-10-22).** `origin/main` is 880db52 (the v1.0.1 final
   acceptance below). `git ls-remote` shows a remote annotated tag `v1.0.1` naming 880db52;
   its tag run and Release asset (`cas-evo-v1.0.1.zip`) were not checked from this clone, so

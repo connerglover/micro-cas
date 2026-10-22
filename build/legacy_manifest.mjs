@@ -8,8 +8,8 @@
 //
 // The input is a published installer package (package.json) or a delivered calculator ZIP;
 // RELEASES names each recorded one by its sha256, and its default output file. Every transfer
-// object is decoded with the pinned TIVarsLib through the same function the browser installer
-// applies to objects read back from an EVO. --archive cross-checks the per-file hashes recorded
+// object is decoded with the pinned TIVarsLib (website/transport.js describePythonObject); the
+// browser installer itself uses only the recorded names. --archive cross-checks the per-file hashes recorded
 // by build/archive.py; --check compares with the committed manifest instead of writing it.
 import fs from 'node:fs';
 import crypto from 'node:crypto';

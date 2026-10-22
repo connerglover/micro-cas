@@ -34,10 +34,9 @@ input, not the calculator download. Do not mix files from different packages.
    open `http://127.0.0.1:4173` in desktop Chrome or Edge. For a repository build,
    build the website first and run `python build/serve_website.py`.
 3. Choose **Connect your EVO**, select the calculator's serial port, then
-   **Install MicroCAS**. The installer checks space and reads back every
-   calculator file that has the name of an earlier MicroCAS or cas-evo file.
-   It deletes or replaces only exact content matches of a recorded release and
-   lists any others it keeps. It then sends the compiled libraries to archive,
+   **Install MicroCAS**. The installer reads the calculator's file list once,
+   checks space, and deletes the files of earlier MicroCAS or cas-evo versions
+   that the new version no longer uses. It then sends the compiled libraries to archive,
    sends the launcher CAS to RAM, and verifies their locations. Wait for
    completion.
 4. Start a fresh **Python** session, select **CAS**, and run it.
@@ -61,17 +60,16 @@ WebTILP handles the older EVO 7.0 compiled-module container when needed.
 For a manual transfer, remove an earlier version first; see
 [Remove an earlier version](#remove-an-earlier-version).
 
-The browser installer removes an earlier version for you. It reads each file
-with an earlier MicroCAS or cas-evo name back from the calculator and compares
-the decoded module or source text with the recorded earlier releases (the `legacy-*.json`
-files on the installer site: v1, the first pack release and the MathPrint test
-builds), including the source companions that the v1 installer moved to
-archive. Only exact matches are deleted, or replaced by a new file with the same
-name. A file that differs or cannot be read is kept and listed. If such a file
-would be overwritten, or would hide a new library in Python, the installer
-changes nothing and asks you to remove it yourself; this includes a program of
-your own that is already called `CAS`. It does not erase RAM, unrelated
-programs, or firmware.
+The browser installer removes an earlier version for you. It reads the
+calculator's file list once and deletes every Python file whose name belongs to
+a recorded earlier release (the `legacy-*.json` files on the installer site: v1,
+the first pack release and the MathPrint test builds) and is not reused by the
+new version, including the source companions that the v1 installer moved to
+archive and any RAM copy that would hide a new library. Files with a current
+name are overwritten by the new ones. It does not read files back, so a program
+of your own with one of these names (`CAS`, or a name starting with `CAS` or
+`CV`) is deleted or overwritten too: rename it before installing. It does not
+erase RAM, unrelated programs, or firmware.
 
 Only CAS should appear as a launchable program. The compiled
 libraries stay in archive and load on demand. Ordinary archived `.py` files
@@ -93,7 +91,7 @@ The first pack release and the MathPrint test builds had 23 files: the same
 `CAS*` library names and two RAM launchers, `CASEVO` and the diagnostic
 `CVTEST`. The launcher is now called `CAS`, and the diagnostic no longer ships
 (it only took calculator memory). The browser installer replaces each library
-and removes `CASEVO` and `CVTEST` when their contents match a recorded release.
+and removes `CASEVO` and `CVTEST`.
 After a manual transfer, delete `CASEVO` and `CVTEST` from RAM yourself with
 TI Connect Evo; the new libraries replace the old ones of the same name.
 

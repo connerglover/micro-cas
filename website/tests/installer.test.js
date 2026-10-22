@@ -47,26 +47,13 @@ async function object(name, type, attr, origin, { size = 1000, compiled } = {}) 
 }
 
 function fakeTransport({ flash = 3000000, ram = 100000, reclaim = true } = {}) {
-  const vars = [], sent = [], removed = [], inspected = [], calls = [];
+  const vars = [], sent = [], removed = [], calls = [];
   const memory = { flash };
-  const transport = { vars, sent, removed, inspected, calls, memory, moduleType: 18, connected: true,
-    async describe(bytes) {
-      const value = new TextDecoder().decode(bytes);
-      const name = value.split(':')[1];
-      const launcher = ['CAS', 'CASEVO', 'CVTEST'].includes(name);
-      return { name, type: launcher ? 15 : 18, compiled: !launcher, bytes: bytes.length, sha256: await digest(value) };
-    },
+  const transport = { vars, sent, removed, calls, memory, moduleType: 18, connected: true,
     async list() {
       calls.push('list');
       return { vars: vars.map(({ content, unreadable, ...entry }) => structuredClone(entry)),
         memory: { ok: true, flash_free: memory.flash, ram_free: ram } };
-    },
-    async inspect(entry) {
-      calls.push('inspect ' + entry.name);
-      inspected.push(entry.name);
-      const found = vars.find(v => v.name === entry.name && v.type === entry.type);
-      if (!found || found.unreadable) throw new Error('calculator error 42');
-      return { name: found.name, type: found.type, ...found.content };
     },
     async remove(entry) {
       calls.push('remove ' + entry.name);
@@ -83,7 +70,7 @@ function fakeTransport({ flash = 3000000, ram = 100000, reclaim = true } = {}) {
       const index = vars.findIndex(v => v.name === file.module && v.type === type);
       if (index >= 0) vars.splice(index, 1);
       vars.push({ name: file.module, type, attr: file.destination === 'ram' ? 0 : 3, size: file.bytes,
-        content: await transport.describe(decode(file.data)) });
+        content: { sha256: await sha256(decode(file.data)) } });
     }
   };
   return transport;
@@ -92,7 +79,7 @@ function fakeTransport({ flash = 3000000, ram = 100000, reclaim = true } = {}) {
 const names = list => list.map(item => item.name).sort();
 
 test('corrupt packages, wrong destinations and an invalid legacy record fail before any device access', async () => {
-  const device = { describe() { assert.fail('package objects were decoded'); }, list() { assert.fail('device was accessed'); } };
+  const device = { list() { assert.fail('device was accessed'); } };
   for (const mutation of [p => p.files[1].data = btoa('wrong'), p => p.files[1].destination = 'ram', p => p.files.push(p.files[0]),
     p => p.files[1].sourceSha256 = 'nothex']) {
     const pkg = await fixture(); mutation(pkg);
@@ -106,13 +93,6 @@ test('corrupt packages, wrong destinations and an invalid legacy record fail bef
     await assert.rejects(new Installer(device).install(await fixture(), legacy), /record of earlier/);
   }
   await assert.rejects(new Installer(device).install(await fixture()), /record of earlier/);
-});
-
-test('a package object that does not decode as its named module is rejected before device access', async () => {
-  const pkg = await fixture(), transport = fakeTransport();
-  transport.describe = async () => ({ name: 'OTHER', type: 18, compiled: true, sha256: '0'.repeat(64) });
-  await assert.rejects(new Installer(transport).install(pkg, await legacyFixture()), /does not contain the module/);
-  assert.deepEqual(transport.calls, []);
 });
 
 test('the new package shape: arbitrary pack names, launchers required, everything else archive bytecode', async () => {
@@ -139,7 +119,7 @@ test('libraries install first, launchers last, and every destination is verified
   assert.deepEqual(checkInstalled(pkg.files, await transport.list()), []);
 });
 
-test('exactly matching earlier files are removed before the new package is sent', async () => {
+test('earlier files are removed before the new package is sent', async () => {
   for (const moduleType of [18, 15]) {
     const pkg = await fixture(), transport = fakeTransport(), events = [];
     transport.moduleType = moduleType;
@@ -149,7 +129,6 @@ test('exactly matching earlier files are removed before the new package is sent'
     const result = await new Installer(transport, e => events.push(e)).install(pkg, await legacyFixture());
     assert.equal(result.stopped, false);
     assert.deepEqual(transport.removed.sort(), moduleType === 18 ? ['CVOLD', 'CVP00001', 'CVP00001'] : ['CVOLD', 'CVP00001']);
-    assert.deepEqual(result.preserved, []);
     assert.ok(transport.calls.lastIndexOf('remove CVOLD') < transport.calls.indexOf('send CVNODE'));
     assert.ok(!transport.vars.some(v => ['CVOLD', 'CVP00001'].includes(v.name)));
     const phases = events.map(e => e.phase);
@@ -158,22 +137,16 @@ test('exactly matching earlier files are removed before the new package is sent'
   }
 });
 
-test('modified or unreadable earlier files are preserved and reported, and the install continues', async () => {
-  const pkg = await fixture(), transport = fakeTransport();
-  const modified = await object('CVOLD', 18, 3, 'edited');
-  const unreadable = { ...await object('CVP00001', 18, 3, 'v1'), unreadable: true };
-  const compiledWithSourceHash = await object('CVP00001', 15, 3, 'v1', { compiled: false });
-  transport.vars.push(modified, unreadable, compiledWithSourceHash);
-  const events = [];
+test('outdated files are deleted without reading them back, whatever their contents', async () => {
+  const pkg = await fixture(), transport = fakeTransport(), events = [];
+  transport.vars.push(await object('CVOLD', 18, 3, 'edited'), { ...await object('CVP00001', 18, 3, 'v1'), unreadable: true },
+    await object('CVP00001', 15, 3, 'user'));
   const result = await new Installer(transport, e => events.push(e)).install(pkg, await legacyFixture());
   assert.equal(result.stopped, false);
-  assert.deepEqual(transport.removed, []);
-  assert.deepEqual(result.preserved.map(p => [p.name, p.type, p.reason]).sort(),
-    [['CVOLD', 18, 'different'], ['CVP00001', 15, 'different'], ['CVP00001', 18, 'unreadable']]);
-  assert.match(result.preserved.find(p => p.reason === 'unreadable').detail, /calculator error 42/);
-  assert.ok(transport.vars.includes(modified) && transport.vars.includes(unreadable) && transport.vars.includes(compiledWithSourceHash));
+  assert.deepEqual(transport.removed.sort(), ['CVOLD', 'CVP00001', 'CVP00001']);
+  assert.deepEqual(transport.calls.slice(0, 4), ['list', 'remove CVOLD', 'remove CVP00001', 'remove CVP00001']);
   assert.equal(events.at(-1).phase, 'complete');
-  assert.equal(events.at(-1).preserved.length, 3);
+  assert.deepEqual(names(events.at(-1).removed), names(result.removed));
 });
 
 test('unrelated files are never read or removed', async () => {
@@ -183,54 +156,30 @@ test('unrelated files are never read or removed', async () => {
     { name: 'CVNODE', type: 21, attr: 3, size: 20 });
   const before = structuredClone(transport.vars);
   await new Installer(transport).install(pkg, await legacyFixture());
-  assert.deepEqual(transport.inspected, []);
   assert.deepEqual(transport.removed, []);
   for (const entry of before) assert.ok(transport.vars.some(v => v.name === entry.name && v.type === entry.type));
 });
 
-test('same-name objects are replaced only when they match the earlier release or the new package', async () => {
-  for (const [name, type, attr, origin] of [['CVNODE', 18, 3, 'v1'], ['CVNODE', 18, 3, 'new'], ['CAS', 15, 0, 'new']]) {
+test('same-name objects in the package slots are overwritten by the send, not read or deleted', async () => {
+  for (const [name, type, attr, origin] of [['CVNODE', 18, 3, 'v1'], ['CVNODE', 18, 3, 'user'], ['CAS', 15, 0, 'user']]) {
     const pkg = await fixture(), transport = fakeTransport();
     transport.vars.push(await object(name, type, attr, origin));
     const result = await new Installer(transport).install(pkg, await legacyFixture());
     assert.equal(result.completed, 2, `${name} from ${origin}`);
-    assert.deepEqual(transport.inspected, [name]);
     assert.deepEqual(transport.removed, []);
+    assert.deepEqual(transport.calls.filter(c => !c.startsWith('send')), ['list', 'list', 'list']);
   }
-  // A RAM program the user called CAS is not overwritten either.
-  for (const [name, type, attr] of [['CVNODE', 18, 3], ['CAS', 15, 0], ['CAS', 15, 3]]) {
-    const pkg = await fixture(), transport = fakeTransport();
-    const foreign = await object(name, type, attr, 'user');
-    transport.vars.push(foreign, await object('CVOLD', 18, 3, 'v1'));
-    await assert.rejects(new Installer(transport).install(pkg, await legacyFixture()),
-      new RegExp(`${name} on the calculator could not be confirmed.*nothing was changed`));
-    assert.deepEqual(transport.sent, []);
-    assert.deepEqual(transport.removed, []);
-    assert.ok(transport.vars.includes(foreign));
-  }
-  // An unreadable same-name object is not overwritten either.
-  const pkg = await fixture(), transport = fakeTransport();
-  transport.vars.push({ ...await object('CVNODE', 18, 3, 'v1'), unreadable: true });
-  await assert.rejects(new Installer(transport).install(pkg, await legacyFixture()), /CVNODE on the calculator could not be confirmed as a MicroCAS file/);
-  assert.deepEqual(transport.sent, []);
 });
 
-test('a RAM source that would shadow a new library is removed only on an exact match', async () => {
-  const pkg = await fixture(), transport = fakeTransport();
-  transport.vars.push(await object('CVNODE', 15, 0, 'v0'));
-  await new Installer(transport).install(pkg, await legacyFixture());
-  assert.deepEqual(transport.removed, ['CVNODE']);
-  assert.ok(transport.calls.indexOf('remove CVNODE') < transport.calls.indexOf('send CVNODE'));
-  const blocked = fakeTransport();
-  blocked.vars.push(await object('CVNODE', 15, 0, 'user'));
-  await assert.rejects(new Installer(blocked).install(pkg, await legacyFixture()), /CVNODE on the calculator could not be confirmed/);
-  assert.deepEqual(blocked.sent, []);
-  // A modified archived source does not shadow anything; it is kept and reported.
-  const archived = fakeTransport();
-  archived.vars.push(await object('CVNODE', 15, 3, 'user'));
-  const result = await new Installer(archived).install(pkg, await legacyFixture());
-  assert.deepEqual(result.preserved.map(p => p.name), ['CVNODE']);
-  assert.ok(archived.vars.some(v => v.name === 'CVNODE' && v.type === 15));
+test('a copy of a library in the wrong slot is deleted before the library is sent', async () => {
+  for (const [type, attr] of [[15, 0], [15, 3]]) {
+    const pkg = await fixture(), transport = fakeTransport();
+    transport.vars.push(await object('CVNODE', type, attr, 'user'));
+    await new Installer(transport).install(pkg, await legacyFixture());
+    assert.deepEqual(transport.removed, ['CVNODE']);
+    assert.ok(transport.calls.indexOf('remove CVNODE') < transport.calls.indexOf('send CVNODE'));
+    assert.deepEqual(transport.vars.filter(v => v.name === 'CVNODE').map(v => v.type), [18]);
+  }
 });
 
 test('stop during cleanup waits for the active removal and sends nothing', async () => {
@@ -244,20 +193,13 @@ test('stop during cleanup waits for the active removal and sends nothing', async
   assert.equal(transport.removed.length, 1);
   assert.deepEqual(names(result.removed), transport.removed);
   assert.deepEqual(transport.sent, []);
-  // Stopping while same-name files are being read changes nothing.
-  const reading = fakeTransport();
-  reading.vars.push(await object('CVNODE', 18, 3, 'v1'), await object('CVOLD', 18, 3, 'v1'));
-  installer = new Installer(reading, e => { if (e.phase === 'inspecting') installer.stop(); });
-  assert.deepEqual(await installer.install(pkg, await legacyFixture()), { removed: [], preserved: [], stopped: true, completed: 0 });
-  assert.deepEqual(reading.removed, []);
-  assert.deepEqual(reading.sent, []);
-  // Stopping while an earlier file is read back does not remove it afterwards.
+  // Stopping while the calculator is listed changes nothing.
   const checking = fakeTransport();
   checking.vars.push(await object('CVOLD', 18, 3, 'v1'));
-  installer = new Installer(checking, e => { if (e.phase === 'inspecting') installer.stop(); });
-  assert.deepEqual(await installer.install(pkg, await legacyFixture()), { removed: [], preserved: [], stopped: true, completed: 0 });
-  assert.deepEqual(checking.inspected, ['CVOLD']);
+  installer = new Installer(checking, e => { if (e.phase === 'checking') installer.stop(); });
+  assert.deepEqual(await installer.install(pkg, await legacyFixture()), { removed: [], stopped: true, completed: 0 });
   assert.deepEqual(checking.removed, []);
+  assert.deepEqual(checking.sent, []);
 });
 
 test('archive space freed by removals counts only after the calculator confirms it', async () => {
@@ -302,7 +244,7 @@ test('stop waits for the current file and never starts the next', async () => {
   let installer;
   installer = new Installer(transport, e => { if (e.phase === 'sending') installer.stop(); });
   const result = await installer.install(pkg, await legacyFixture());
-  assert.deepEqual(result, { removed: [], preserved: [], stopped: true, completed: 1 });
+  assert.deepEqual(result, { removed: [], stopped: true, completed: 1 });
   assert.equal(transport.sent.length, 1);
 });
 
@@ -334,12 +276,11 @@ test('native calls are serialized and timeout permanently retires WASM', async (
   assert.equal(calls, 3);
 });
 
-test('a timed-out read ends the run instead of being treated as an unreadable file', async () => {
+test('a timed-out removal ends the run before anything is sent', async () => {
   const pkg = await fixture(), transport = fakeTransport();
-  transport.vars.push(await object('CVOLD', 18, 3, 'v1'));
-  transport.inspect = async () => { transport.dead = true; throw new Error('The calculator stopped responding.'); };
+  transport.vars.push(await object('CVOLD', 18, 3, 'v1'), await object('CVP00001', 18, 3, 'v1'));
+  transport.remove = async () => { transport.dead = true; throw new Error('The calculator stopped responding.'); };
   await assert.rejects(new Installer(transport).install(pkg, await legacyFixture()), /stopped responding/);
-  assert.deepEqual(transport.removed, []);
   assert.deepEqual(transport.sent, []);
 });
 
@@ -407,34 +348,11 @@ async function evoObject(name, compiled, payload) {
   } finally { variable.delete(); }
 }
 
-test('inspect reads real EVO objects back and remove uses the exact WebTILP calc_del_var call', async () => {
-  const body = Uint8Array.from([0x4d, 0x05, 0x03, 0x1f, 1, 2, 3, 4, 250]);
-  const source = 'value=42\nprint(value)\n';
-  const objects = { CVPACK: await evoObject('CVPACK', true, body), CASEVO: await evoObject('CASEVO', false, source) };
-  const calls = [], unlinked = [];
-  let pending;
-  const transport = new WebTilpTransport({ gap: 0, converterFactory: converter });
+test('remove uses the exact WebTILP calc_del_var call', async () => {
+  const calls = [];
+  const transport = new WebTilpTransport({ gap: 0 });
   transport.connected = true; transport.handle = 9;
-  transport.module = { FS: {
-    analyzePath: () => ({ exists: true }),
-    readFile: path => path === '/last_recv_path.txt' ? pending : objects[path.split('/').pop().split('.')[0]] ?? Uint8Array.from([1, 2, 3]),
-    unlink: path => unlinked.push(path)
-  }, ccall(name, type, types, args) {
-    calls.push({ name, type, types, args });
-    if (name === 'calc_recv_var') pending = `/casevo-old/${args[2]}.${args[3] === 18 ? '8mp2' : '8xpy2'}`;
-    return 0;
-  } };
-  assert.deepEqual(await transport.inspect({ name: 'CVPACK', type: 18 }),
-    { name: 'CVPACK', type: 18, compiled: true, bytes: body.length, sha256: await sha256(body) });
-  assert.deepEqual(await transport.inspect({ name: 'CASEVO', type: 15 }),
-    { name: 'CASEVO', type: 15, compiled: false, bytes: source.length, sha256: await digest(source) });
-  assert.equal(await transport.inspect({ name: 'JUNK', type: 18 }), null);
-  assert.deepEqual(calls.map(c => [c.name, c.types, c.args]), [
-    ['calc_recv_var', ['number', 'string', 'string', 'number', 'string'], [9, '', 'CVPACK', 18, '/casevo-old']],
-    ['calc_recv_var', ['number', 'string', 'string', 'number', 'string'], [9, '', 'CASEVO', 15, '/casevo-old']],
-    ['calc_recv_var', ['number', 'string', 'string', 'number', 'string'], [9, '', 'JUNK', 18, '/casevo-old']]]);
-  assert.deepEqual(unlinked, ['/casevo-old/CVPACK.8mp2', '/casevo-old/CASEVO.8xpy2', '/casevo-old/JUNK.8mp2']);
-  calls.length = 0;
+  transport.module = { ccall(name, type, types, args) { calls.push({ name, type, types, args }); return 0; } };
   await transport.remove({ name: 'CVPACK', type: 18, folder: '' });
   await transport.remove({ name: 'CVOLD', type: 15, folder: '' });
   assert.deepEqual(calls, [
@@ -532,10 +450,9 @@ test('a calculator holding the complete v1 install is reduced to the new packs',
     } };
   const result = await new Installer(transport).install(pkg, JSON.parse(fs.readFileSync(LEGACY_PATH, 'utf8')));
   assert.equal(result.completed, 3);
-  assert.equal(removed.length, 237);
-  assert.ok(!removed.includes('CVUI') && removed.includes('CASEVO') && removed.includes('CVTEST'));
-  assert.deepEqual(result.preserved.map(p => [p.name, p.type, p.reason]), [['CVF00007', 15, 'different']]);
-  assert.deepEqual(vars.map(v => `${v.name}/${v.type}`).sort(), ['CAS/15', 'CVENG/18', 'CVF00007/15', 'CVUI/18', 'NOTES/15']);
+  assert.equal(removed.length, 238);
+  assert.ok(!removed.includes('CVUI') && removed.includes('CASEVO') && removed.includes('CVTEST') && removed.includes('CVF00007'));
+  assert.deepEqual(vars.map(v => `${v.name}/${v.type}`).sort(), ['CAS/15', 'CVENG/18', 'CVUI/18', 'NOTES/15']);
 });
 
 test('every recorded earlier release is served and validates, one record per file', async () => {
@@ -578,15 +495,13 @@ test('the MathPrint test-build records are reproducible from the delivered calcu
   }
 });
 
-test('an earlier CASEVO or CVTEST is removed on an exact match and kept when modified', async () => {
-  for (const [name, origin, removed] of [['CASEVO', 'v1', ['CASEVO']], ['CASEVO', 'edited', []],
-    ['CVTEST', 'v1', ['CVTEST']], ['CVTEST', 'edited', []], ['CVTEST', 'v0', ['CVTEST']]]) {
+test('an earlier CASEVO or CVTEST is removed whatever its contents', async () => {
+  for (const [name, origin] of [['CASEVO', 'v1'], ['CASEVO', 'edited'], ['CVTEST', 'v1'], ['CVTEST', 'edited'], ['CVTEST', 'v0']]) {
     const pkg = await fixture(), transport = fakeTransport();
     transport.vars.push(await object(name, 15, origin === 'v0' ? 3 : 0, origin));
     const result = await new Installer(transport).install(pkg, await legacyFixture());
     assert.equal(result.completed, 2);
-    assert.deepEqual(transport.removed, removed);
-    assert.deepEqual(result.preserved.map(p => p.name), removed.length ? [] : [name]);
+    assert.deepEqual(transport.removed, [name]);
     assert.ok(transport.vars.some(v => v.name === 'CAS' && v.type === 15 && v.attr === 0));
   }
 });
@@ -600,7 +515,7 @@ test('validatePackage requires the launcher it is given', async () => {
   await assert.rejects(validatePackage(old), /invalid or repeated|incomplete/);
 });
 
-test('a calculator holding the published packs-v1 install is upgraded without a blocker', async t => {
+test('a calculator holding the published packs-v1 install is upgraded', async t => {
   const bytes = pagesPackage(PACKS_V1);
   if (!bytes) return t.skip('published packs-v1 package unavailable; fetch the pages history');
   const old = JSON.parse(Buffer.from(bytes).toString('utf8'));
@@ -642,14 +557,14 @@ test('a calculator holding the published packs-v1 install is upgraded without a 
   const result = await new Installer(transport).install(pkg, LEGACY.map(record));
   assert.equal(result.stopped, false);
   assert.deepEqual(removed.sort(), ['CASEVO', 'CVTEST']);
-  assert.deepEqual(result.preserved, []);
   assert.equal(sent.length, 22);
   assert.equal(sent.at(-1), 'CAS');
   assert.deepEqual(vars.filter(v => v.type === 15).map(v => v.name).sort(), ['CAS', 'NOTES']);
-  // Without the packs-v1 record the same calculator is blocked: its packs are unconfirmed.
+  // The pack names are current names, so the v1 record alone upgrades it the same way.
   const fresh = old.files.map(file => ({ name: file.module, type: file.destination === 'ram' ? 15 : 18,
     attr: file.destination === 'ram' ? 0 : 3, size: file.bytes, folder: '', data: decode(file.data) }));
-  vars.length = 0; vars.push(...fresh); sent.length = 0;
-  await assert.rejects(new Installer(transport).install(pkg, record('legacy-v1.json')), /could not be confirmed/);
-  assert.deepEqual(sent, []);
+  vars.length = 0; vars.push(...fresh); sent.length = 0; removed.length = 0;
+  await new Installer(transport).install(pkg, record('legacy-v1.json'));
+  assert.deepEqual(removed.sort(), ['CASEVO', 'CVTEST']);
+  assert.equal(sent.length, 22);
 });

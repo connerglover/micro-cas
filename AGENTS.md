@@ -232,12 +232,12 @@ Artifact-dependent skips before packaging do not establish artifact acceptance.
   telemetry is required for installation. Desktop Chrome/Edge are the target.
 - Validate all transfer-object hashes before device access. Install compiled
   libraries to Archive before the RAM launcher, then verify their types/locations.
-  Delete or replace an earlier MicroCAS (or cas-evo) file only when its decoded
-  contents match a recorded release (`website/legacy-*.json`, built by
-  `build/legacy_manifest.mjs`
-  from the published v1 and packs-v1 packages and the delivered MathPrint test
-  ZIPs) or the current package. Keep and
-  list modified or unreadable files, and leave unrelated calculator content alone.
+  Cleanup reads the calculator's directory listing once and reads no file back
+  (user decision, 2026-10-22, for speed): every Python object named in a recorded
+  release (`website/legacy-*.json`, built by `build/legacy_manifest.mjs` from the
+  published v1 and packs-v1 packages and the delivered MathPrint test ZIPs) or in
+  the current package is deleted, except one in a current file's own slot, which
+  the send overwrites. Leave every other calculator file alone.
 - Serialize native transport calls. Stop waits for an active transfer to finish.
   A timed-out Asyncify/WASM instance is retired rather than reused; JavaScript
   cannot safely cancel its native operation. WebTILP `init()` returning 1 is

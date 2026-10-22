@@ -29,7 +29,7 @@
         <p class="intro">Install MicroCAS on your TI-84 EVO.<br>Compiled libraries in archive. A tiny launcher in RAM.</p>
         <ol class="stages" aria-label="Installation stages">
           <li id="stage-connect" class="current" aria-current="step"><span class="stage-number">1</span><div><h2>Connect your EVO</h2><p>Use a USB data cable. Close TI Connect and other calculator tabs first.</p></div></li>
-          <li id="stage-install"><span class="stage-number">2</span><div><h2>Install the complete package</h2><p>Earlier MicroCAS files are checked first. Every new file goes to its correct location. Keep your calculator connected.</p></div></li>
+          <li id="stage-install"><span class="stage-number">2</span><div><h2>Install the complete package</h2><p>Outdated MicroCAS files are deleted first. Every new file goes to its correct location. Keep your calculator connected.</p></div></li>
           <li id="stage-open"><span class="stage-number">3</span><div><h2>Open CAS</h2><p>On your calculator, open Python, select CAS, and run it.</p></div></li>
         </ol>
         <div id="notice" class="notice" role="alert" hidden></div>
@@ -55,7 +55,7 @@
         </div>
         <div class="device-line"><span class="connection-dot" id="connection-dot" aria-hidden="true"></span><span id="device-name">No calculator connected</span><span id="archive-free" class="numeric"></span></div>
         <details class="manifest"><summary>View package files <span id="manifest-count"></span></summary><div class="manifest-toolbar"><label for="file-search">Find a file</label><input id="file-search" type="search" placeholder="For example, CASUI" autocomplete="off" spellcheck="false"></div><div class="file-list-wrap" tabindex="0" aria-label="Scrollable package file list"><table><thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">Location</th><th scope="col">Status</th></tr></thead><tbody id="file-list"></tbody></table><p id="no-files" hidden>No matching files.</p></div></details>
-        <p class="package-footnote">Earlier MicroCAS files are removed or replaced only when their contents match a recorded release. Other files are left alone.</p>
+        <p class="package-footnote">Outdated MicroCAS files are deleted and the rest replaced. Other files are left alone.</p>
       </section>
     </div>
 
@@ -64,8 +64,8 @@
       <div class="questions">
         <details><summary>Why use two storage locations?</summary><p>CAS is a small source launcher, so it goes to RAM and appears in Python. The libraries are compiled EVO modules (.8mp2), stored in archive and imported as needed. This avoids compiling the engine on the calculator. Imported code still needs working memory; archive is not extra RAM. Ordinary archived .py files are not a substitute.</p></details>
         <details><summary>My calculator isn’t in the list.</summary><p>Turn it on and use a USB cable that supports data. Close TI Connect and other calculator tabs. In Chrome or Edge, select the TI-84 EVO serial port when prompted. This installer supports the EVO and EVO-T, not the TI-84 Plus CE.</p></details>
-        <details><summary>A transfer stopped. What now?</summary><p>Keep any files that arrived. Reconnect, then install again: earlier files are checked again and the same MicroCAS filenames are replaced. If you stopped the transfer yourself, choose Install again. If the connection timed out, reload this page first. Wait for archive verification before running CAS.</p></details>
-        <details><summary>What happens to an earlier version?</summary><p>Earlier versions, including those released as cas-evo, are recognized. The new version uses far fewer files. Before sending it, the installer reads back each calculator file that has the name of an earlier MicroCAS file and compares its contents with the recorded release. Exact matches are deleted or replaced. A file that differs is kept, listed for you, and never overwritten; if it would block the new version, nothing is changed until you remove it. Your other programs stay untouched.</p></details>
+        <details><summary>A transfer stopped. What now?</summary><p>Keep any files that arrived. Reconnect, then install again: the same MicroCAS filenames are replaced. If you stopped the transfer yourself, choose Install again. If the connection timed out, reload this page first. Wait for archive verification before running CAS.</p></details>
+        <details><summary>What happens to an earlier version?</summary><p>Earlier versions, including those released as cas-evo, are recognized. The new version uses far fewer files. The installer reads the calculator’s file list once, deletes every Python file named after an earlier MicroCAS file that the new version no longer uses, and replaces the rest. Rename your own programs first if one shares a MicroCAS name (CAS, or a name starting with CAS or CV). Your other programs stay untouched.</p></details>
       </div>
     </section>
     <details class="diagnostics"><summary>Connection details</summary><p>These details stay in this browser. Copy them if a transfer fails.</p><button id="copy-log" class="secondary">Copy details</button><pre id="log" tabindex="0" aria-label="Connection log">Waiting for a connection.</pre></details>

@@ -25,10 +25,15 @@
 
 ## 📦 Installation
 
-1. Download `microcas-<tag>.zip` from the latest GitHub Release and extract it.
+The easiest way is the browser installer at **[cas.connerglover.com](https://cas.connerglover.com)**:
+open it in desktop Chrome or Edge, connect your EVO with a USB data cable and choose
+**Install MicroCAS**. It removes an earlier version and sends every file to the right place.
+
+To install by hand:
+
+1. Download `microcas-<tag>.zip` from the latest GitHub Release (or the ZIP link on
+   [cas.connerglover.com](https://cas.connerglover.com)) and extract it.
 2. With [WebTILP](https://adriweb.github.io/tilibs/), send every `.8mp2` file to **Archive** and `CAS.8xpy2` to **RAM**.
-   Or use the browser installer: download `microcas-web-installer` from the release's
-   **Build calculator app** run and run `python serve_installer.py --directory website`.
 3. Open the **Python** app and run **CAS**.
 
 [docs/INSTALL.md](docs/INSTALL.md) covers the browser installer, removing an earlier version and first checks.
@@ -61,7 +66,8 @@ python build/archive_zip.py        # dist/microcas-calculator.zip
 ```
 
 Pushing a `v*` tag runs the [build workflow](.github/workflows/build.yml), which tests the
-compiled packs on native MicroPython and attaches `microcas-<tag>.zip` to the tag's Release.
+compiled packs on native MicroPython, attaches `microcas-<tag>.zip` to the tag's Release and
+publishes the installer to [cas.connerglover.com](https://cas.connerglover.com).
 
 ## 🤝 Contributing
 
