@@ -77,7 +77,9 @@ PREC = {'=>': 1, ':=': 1, '=': 3, '!=': 3, '<': 3, '<=': 3, '>': 3, '>=': 3, '+'
         '*': 5, '/': 5, 'neg': 6, '^': 7}
 PAIR = {'(': ')', '[': ']', '{': '}'}
 OP2 = ('!=', '<=', '>=', '=>', ':=')
-OP1 = '+-*/^=<>'
+CH1 = "+-*/^=<>()[]{},!'"              # the one-character tokens, and their kinds
+CHK = (K_OP, K_OP, K_OP, K_OP, K_OP, K_OP, K_OP, K_OP, K_LP, K_RP, K_LB, K_RB, K_LB, K_RB,
+       K_COMMA, K_POST, K_POST)
 
 # -- builder tables (DESIGN 7.6, 7.8, 9.2) --------------------------------------------------------
 # ctx, the evaluation context: the list [deg, mainvar, approx, inert]. g_eval sets X_APPROX when
@@ -244,20 +246,8 @@ def lex(s):                                                     #@L 6
         elif s[i:i + 2] in OP2:
             j = i + 2
             toks.append((K_OP, s[i:j], i, j, 0))
-        elif c in OP1:
-            toks.append((K_OP, c, i, j, 0))
-        elif c == '(':
-            toks.append((K_LP, c, i, j, 0))
-        elif c == ')':
-            toks.append((K_RP, c, i, j, 0))
-        elif c == '[' or c == '{':
-            toks.append((K_LB, c, i, j, 0))
-        elif c == ']' or c == '}':
-            toks.append((K_RB, c, i, j, 0))
-        elif c == ',':
-            toks.append((K_COMMA, c, i, j, 0))
-        elif c == '!' or c == "'":
-            toks.append((K_POST, c, i, j, 0))
+        elif c in CH1:
+            toks.append((CHK[CH1.index(c)], c, i, j, 0))
         else:
             raise K.CasError('Invalid character', i)
         i = j
@@ -465,8 +455,7 @@ def ti_rewrite(toks):                                           #@L 6
                     elif nx and nx[0] == K_OP and nx[1] == '^':
                         e, ec = scan(w, p + 2, cm, 0)
                         if e > p + 2 or ec:
-                            for u in w[p + 1:e]:
-                                seg.append(u)
+                            seg.extend(w[p + 1:e])
                             q = e
                             if ec:
                                 a, rest = cutname(w[e], ec)
@@ -520,8 +509,7 @@ def ti_rewrite(toks):                                           #@L 6
                             z = zo[2]
                         seg.append((K_RP, ')', z, zo[3] if zo is not None else z, 0))
                         if not inv:
-                            for u in w[p + 1:e]:
-                                seg.append(u)       # the power goes after the argument
+                            seg.extend(w[p + 1:e])  # the power goes after the argument
             elif not (nx and nx[0] == K_LP):
                 # rule 4: sin x, sin 2x, sin x^2, sin x+1
                 r, rc = scan(w, p + 1, cm, 1)
@@ -950,8 +938,7 @@ def expand_names(toks):                                         #@L 5
                         seg.append((u[0], u[1], t[2], t[3], u[4]))
                     else:
                         seg.append((K_LP, '(', t[2], t[3], 0))
-                        for x in args[j]:
-                            seg.append(x)
+                        seg.extend(args[j])
                         seg.append((K_RP, ')', t[2], t[3], 0))
                 q = m + 1
             elif v in MS:
@@ -969,8 +956,7 @@ def expand_names(toks):                                         #@L 5
                     s = pcs[c]
                     if c:
                         seg.append((K_LP, '(', t[2], t[3], 0))
-                        for x in args[ord(s[0]) - 49]:
-                            seg.append(x)
+                        seg.extend(args[ord(s[0]) - 49])
                         seg.append((K_RP, ')', t[2], t[3], 0))
                         s = s[1:]
                     for u in lex(s):
@@ -992,8 +978,7 @@ def expand_names(toks):                                         #@L 5
         ends.append(len(w) - q)
         seg.insert(0, (K_LP, '(', t[2], t[3], 0))
         seg.append((K_RP, ')', t[2], t[3], 0))
-        for u in w[q:]:
-            seg.append(u)
+        seg.extend(w[q:])
         w = seg
         p = 0
     return out
@@ -1155,23 +1140,27 @@ def fnb(f, a, deg):                                             #@L 4
         if deg and K.ASIN <= op <= K.ATAN:
             r = K.mul_(R180, [(r, K.ONE), (K.PI, K.MONE)])
         return r
-    if f == 'sqrt':
-        return K.mul_(K.ONE, [(u, K.HALF)])
-    if f == 'exp':
-        return K.mul_(K.ONE, [(K.E, u)])
-    if f == 'log' or f == 'log10':
-        b = K.LN10 if len(a) == 1 else K.fn_(K.LN, a[1])
-        return K.mul_(K.ONE, [(K.fn_(K.LN, u), K.ONE), (b, K.MONE)])
-    if f == 'surd':
-        return K.mul_(K.ONE, [(u, K.mul_(K.ONE, [(a[1], K.MONE)]))])
     if f == 'O':
         K.chk(u)
         return K.mk((K.BIGO, u))
-    if f == 'atanh':                    # ln((1+u)/(1-u))/2
+    k = K.ONE                           # the result is k * prod(ps)
+    if f == 'sqrt':
+        ps = [(u, K.HALF)]
+    elif f == 'exp':
+        ps = [(K.E, u)]
+    elif f == 'log' or f == 'log10':
+        r = K.LN10 if len(a) == 1 else K.fn_(K.LN, a[1])
+        ps = [(K.fn_(K.LN, u), K.ONE), (r, K.MONE)]
+    elif f == 'surd':
+        ps = [(u, K.mul_(K.ONE, [(a[1], K.MONE)]))]
+    elif f == 'atanh':                  # ln((1+u)/(1-u))/2
         r = K.mul_(K.ONE, [(K.add_([K.ONE, u]), K.ONE), (K.add_([K.ONE, K.neg_(u)]), K.MONE)])
-        return K.mul_(K.HALF, [(K.fn_(K.LN, r), K.ONE)])
-    r = K.add_([K.mul_(K.ONE, [(u, K.TWO)]), K.ONE if f == 'asinh' else K.MONE])
-    return K.fn_(K.LN, K.add_([u, K.mul_(K.ONE, [(r, K.HALF)])]))   # ln(u+sqrt(u^2+-1))
+        k = K.HALF
+        ps = [(K.fn_(K.LN, r), K.ONE)]
+    else:                               # ln(u+sqrt(u^2+-1))
+        r = K.add_([K.mul_(K.ONE, [(u, K.TWO)]), K.ONE if f == 'asinh' else K.MONE])
+        return K.fn_(K.LN, K.add_([u, K.mul_(K.ONE, [(r, K.HALF)])]))
+    return K.mul_(k, ps)
 
 
 def issent(x):                                                  #@L 7
@@ -1186,11 +1175,12 @@ def approx(e):                                                  #@L 3
     exponent (2^x, e^x), the coefficients 1 and -1, a zero constant term, the sentinels, and a
     constant that does not evaluate (Undefined, overflow). So 1/2+x -> 0.5+x, sqrt(2)*x ->
     1.41421356237*x, x^2/3 -> 0.333333333333*x^2, 1/3 -> 0.333333333333."""
+    N = K.N
     ev = {}                             # id -> a constant that nrun can evaluate
     nw = {}                             # id -> its image, for the other ids
     fv = {}                             # constant id -> its FLT (or itself)
     for n in A.postorder(e):
-        t = K.N[n]
+        t = N[n]
         op = t[0]
         if op < K.COMP:
             c = op <= K.FLT or n == K.PI or n == K.E
@@ -1218,9 +1208,9 @@ def approx(e):                                                  #@L 3
                 if ev[b] and ev[x]:
                     cp.append((b, x))
                     continue
-                if ev[x] and not (K.N[x][0] == K.NUM and not K.N[x][2]):
+                if ev[x] and not (N[x][0] == K.NUM and not N[x][2]):
                     todo.append(x)
-                if ev[b] and not ev[x] and K.N[b][0] != K.NUM and b != K.E:
+                if ev[b] and not ev[x] and N[b][0] != K.NUM and b != K.E:
                     todo.append(b)
             cn = K.mul_(t[1], cp) if cp else t[1]
             if cn != K.ONE and cn != K.MONE:
@@ -1240,7 +1230,7 @@ def approx(e):                                                  #@L 3
         for x in todo:
             if x not in fv:
                 y = x
-                if K.N[x][0] != K.FLT:
+                if N[x][0] != K.FLT:
                     try:
                         v = A.nrun(A.nprog(x, ()), ())
                         if type(v) is complex:
@@ -1268,15 +1258,15 @@ def approx(e):                                                  #@L 3
                     continue
                 if not ev[b]:
                     b = nw[b]
-                elif K.N[b][0] != K.NUM and b != K.E:
+                elif N[b][0] != K.NUM and b != K.E:
                     b = fv[b]                   # (a constant base: x is not constant)
                 if not ev[x]:
                     x = nw[x]
-                elif not (K.N[x][0] == K.NUM and not K.N[x][2]):
+                elif not (N[x][0] == K.NUM and not N[x][2]):
                     x = fv[x]
                 pr.append((b, x))
             cn = fv[cn] if cn in fv else cn
-            if K.N[cn][0] > K.FLT:              # a constant that stayed exact (2^100000)
+            if N[cn][0] > K.FLT:              # a constant that stayed exact (2^100000)
                 pr.append((cn, K.ONE))
                 cn = K.ONE
             r = K.mul_(cn, pr)

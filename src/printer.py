@@ -57,8 +57,8 @@ CNAME = ('pi', 'e', 'oo', 'undef', 'true', 'false')
 RNAME = ('=', '!=', '<', '<=')
 TRIGORD = (0, 1, 4, 2, 3, 5)       # by op - SIN: sin < cos < sec < csc < tan < cot (12.3)
 MVPREF = {'x': 0, 't': 1, 'theta': 2}
-R180 = (K.NUM, 180, 0, 1)          # degree mode (6.5): an argument v prints as v*180/pi
-D180 = (K.NUM, 1, 0, 180)
+R180 = P.R180                      # degree mode (6.5): an argument v prints as v*180/pi
+D180 = P.D180
 Q1 = K.Q1
 
 
@@ -623,8 +623,7 @@ def pdisp(n, k, c):                                             #@L 5
         seq.append('/')
         if nd > 1:
             seq.append('(')
-        for x in dseq:
-            seq.append(x)
+        seq.extend(dseq)
         if nd > 1:
             seq.append(')')
         prec = Q_MUL
@@ -716,8 +715,7 @@ def items(n, need, c):                                          #@L 4
                 seq.append('-')
             elif j:
                 seq.append('+')
-            for x in ps[j][1]:
-                seq.append(x)
+            seq.extend(ps[j][1])
         p = Q_ADD
     elif op == K.MUL:
         d = pdisp(n, None, c)
@@ -968,13 +966,13 @@ def record(val, job):                                           #@L 2
         if t[1] == K.UNDEF or t[2] == K.UNDEF:
             m = M_OSC
         else:
-            a = text(t[1], ctx)
-            b = text(t[2], ctx)
-            if a is None or len(a) > SIDE:
-                a = (a or '')[:SIDE] + '...'
-            if b is None or len(b) > SIDE:
-                b = (b or '')[:SIDE] + '...'
-            m = M_DNE % (a, b)
+            m = []
+            for a in t[1:]:
+                a = text(a, ctx)
+                if a is None or len(a) > SIDE:
+                    a = (a or '')[:SIDE] + '...'
+                m.append(a)
+            m = M_DNE % tuple(m)
     elif op == K.DIVG:
         w = N[t[1]]
         m = M_DIVG[w[1] if w[0] == K.NUM and not w[2] and w[3] == 1 and 0 <= w[1] <= 2
