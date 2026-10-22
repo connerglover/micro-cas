@@ -397,7 +397,7 @@ def empty_slot():                                              #@L 3
         if j == i:
             return i + 1                    # an empty group: 2*()
         i = s.find('()', i + 2)
-    for i in range(1, len(s)):           # an operator before an autoclosed closer: sin(2+)
+    for i in range(1, len(s)):              # an operator before an autoclosed closer: sin(2+)
         if s[i] in ')]}' and s[i-1] in '+-*/^=<>' and i not in ok:
             return i
     if s and s[-1] in '+-*/^,(=':
