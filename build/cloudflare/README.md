@@ -2,8 +2,8 @@
 
 This generated `pages` branch contains the tested web installer in `public/` and
 its Cloudflare Worker configuration. Application and website source live on
-`main`. Make changes there: each successful main build updates this branch.
-`deployment.json` identifies the source commit and successful build.
+`main`. Make changes there: each successful build of a `v*` release tag updates
+this branch. `deployment.json` identifies the source commit, tag and successful build.
 
 In Cloudflare Workers & Pages, create a Worker by connecting this GitHub repository:
 

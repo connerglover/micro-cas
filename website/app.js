@@ -57,7 +57,8 @@ function fileState(name, state) {
 }
 
 function showPackage() {
-  if (typeof pkg.version === 'string') $('package-version').textContent = pkg.version;
+  if (typeof pkg.release === 'string') $('package-version').textContent = `v${pkg.release}`;
+  else if (typeof pkg.version === 'string') $('package-version').textContent = pkg.version;
   $('file-count').textContent = `${pkg.files.length} files`;
   $('source-size').textContent = bytes(pkg.totalBytes);
   $('ram-size').textContent = `${bytes(pkg.files.filter(file => file.destination === 'ram').reduce((sum, file) => sum + file.bytes, 0))} in RAM`;

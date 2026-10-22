@@ -1,22 +1,51 @@
 name: Build calculator app
 
+# A release build: only a pushed v* tag (or a GitHub Release published for one) builds, tests,
+# attaches cas-evo-<tag>.zip to that tag's Release and updates the website (docs/HOSTING.md).
+# workflow_dispatch builds any ref; it releases and publishes only when run on a v* tag.
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    tags: ['v*']
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# One run per tag at a time: a tag push and the Release published for it queue behind each
+# other instead of racing, and the later one finds the ZIP already attached (check job).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
+  check:
+    name: Skip a Release already built by its tag push
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+    steps:
+      - name: Look for this tag's calculator ZIP
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = release ] &&
+             gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' |
+             grep -qx "cas-evo-$TAG.zip"; then
+            echo "cas-evo-$TAG.zip is already attached (the tag push built it); nothing to do."
+            echo build=false >> "$GITHUB_OUTPUT"
+          else
+            echo build=true >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Test and package calculator app
+    needs: check
+    if: needs.check.outputs.build == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -157,13 +186,42 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  release:
+    name: Attach the calculator ZIP to the tag's GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download this run's tested calculator ZIP
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cas-evo-v1
+          path: dist
+
+      - name: Create the Release if missing and upload cas-evo-<tag>.zip
+        # A Release created in the GitHub UI is used as it is; a Release this token creates
+        # starts no further workflow run.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cp dist/cas-evo-calculator.zip "cas-evo-$TAG.zip"
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "cas-evo $TAG" \
+              --notes "Calculator package for the TI-84 EVO: unzip cas-evo-$TAG.zip and follow INSTALL.md, or use the web installer." ||
+              gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
+          fi
+          gh release upload "$TAG" "cas-evo-$TAG.zip" --repo "$GITHUB_REPOSITORY" --clobber
+
   publish:
     name: Update website deployment branch
     needs: build
-    # Cloudflare Workers watches pages. Only successful main builds may update it.
-    if: >-
-      github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    # Cloudflare Workers watches pages. Only successful v* tag builds may update it.
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -187,4 +245,4 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          python3 build/publish_site.py dist/pages/website --run-url "$RUN_URL"
+          python3 build/publish_site.py dist/pages/website --run-url "$RUN_URL" --ref "$GITHUB_REF"

@@ -160,6 +160,7 @@ def prepare(dist, man=None):
         ast.parse(text, filename=name, feature_version=(3, 4))
     meta.update({
         'format': 'packs-v1',
+        'release': man.VERSION,
         'names': mapping,
         'modules': dict((r[0], r[1]) for r in man.MODULES if r[1] in meta['owner']),
         'levels': _levels(man, meta, mapping, dist),

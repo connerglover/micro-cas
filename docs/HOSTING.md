@@ -14,11 +14,41 @@ Wrangler login and Cloudflare secrets in GitHub are not needed.
   license sources. The root contains the Worker config and deployment provenance.
 - `v1`: retained for history; it no longer drives production publication.
 
-After every successful main build, GitHub Actions updates pages with the exact
-installer artifact from that run. Cloudflare watches pages and deploys it. A
-failed build leaves the previous website intact. The publishing job needs only
-GitHub's built-in token with contents-write permission; PRs and stale builds
-cannot publish. Updates preserve history and never force push. Do not edit or
+## Releases
+
+The **Build calculator app** workflow runs only for a pushed tag that starts
+with `v` (for example `v0.1.0`), for a GitHub Release published in the UI, and
+by hand (**Run workflow**). Ordinary pushes and pull requests do not run it.
+To release, set `VERSION` in `build/manifest.py` (and the About text in
+`src/menu.py`, which a test keeps equal), commit on main, then tag and push:
+
+```text
+git tag -a v0.1.0 -m "cas-evo 0.1.0"
+git push origin v0.1.0
+```
+
+A tag run builds and tests everything, then:
+
+- **Attach the calculator ZIP**: creates the GitHub Release for the tag if it
+  does not exist yet (or uses the one created in the UI) and uploads
+  `dist/cas-evo-calculator.zip` as `cas-evo-<tag>.zip` (`--clobber` replaces a
+  previous upload). Only this job and the publish job have contents-write
+  permission, from GitHub's built-in token.
+- **Update website deployment branch**: updates pages with the exact installer
+  artifact from that run. Cloudflare watches pages and deploys it.
+
+Creating the release in the GitHub UI with a new tag also works: the
+`release: published` event builds and attaches the ZIP. When a tag push and its
+Release both start a run, the runs for one tag queue (a concurrency group per
+tag) and the later one finds `cas-evo-<tag>.zip` attached and skips the build.
+A Release created by the workflow's own token starts no further run. A manual
+run on a branch only builds and tests (artifacts on the run page); run it on a
+tag to release.
+
+A failed build leaves the previous website and Release assets intact. The
+publisher only publishes while the tag still names the built commit, and never
+replaces a newer release on pages with an older one (`deployment.json` records
+`source_ref`). Updates preserve history and never force push. Do not edit or
 merge the generated pages branch into main.
 
 ## One-time dashboard setup
@@ -54,12 +84,15 @@ not enable GitHub Pages. See [STATUS.md](STATUS.md) for what has actually been v
 
 ## Verification and maintenance
 
-- Check GitHub's **Build calculator app** run. Both the build and **Update website
-  deployment branch** jobs should succeed. `pages/deployment.json` records the
-  source commit and run URL. Then check the Worker build in Cloudflare.
-- To retry publication, rerun the workflow on main. If the publisher says main
-  advanced, use the latest main build. If GitHub rejects a pages push, inspect
-  repository rules; do not disable protections or force push.
+- Check GitHub's **Build calculator app** run for the tag. The build,
+  **Attach the calculator ZIP** and **Update website deployment branch** jobs
+  should succeed, and the Release should list `cas-evo-<tag>.zip`.
+  `pages/deployment.json` records the source commit, tag and run URL. Then check
+  the Worker build in Cloudflare.
+- To retry, rerun the tag's workflow run (or **Run workflow** on the tag). If the
+  publisher says the tag moved or pages holds a newer release, publish from the
+  newest tag instead. If GitHub rejects a pages push, inspect repository rules;
+  do not disable protections or force push.
 - The publisher calls `build/check_pages.py` to validate required assets,
   source archives, manifest/vendor hashes and Cloudflare file-size limits.
   Its historical filename applies to Workers static assets too.

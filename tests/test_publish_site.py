@@ -122,3 +122,58 @@ def test_altered_legacy_record_cannot_publish(publication, name):
     with pytest.raises(ValueError, match='legacy manifest checksum mismatch'):
         publish_site.publish(site, 'https://example.invalid/build/1', repo)
     assert publish_site.remote_head(repo, 'pages') is None
+
+
+# -- v0.1.0: the workflow publishes from v* tags (docs/HOSTING.md) --------------------------------
+
+def tag(git, name, annotated=True):
+    if annotated:
+        git('tag', '-a', name, '-m', 'release ' + name)
+    else:
+        git('tag', name)
+    git('push', 'origin', 'refs/tags/' + name)
+
+
+@pytest.mark.parametrize('annotated', [True, False])
+def test_a_tag_build_publishes_and_records_its_ref(publication, annotated):
+    repo, site, git = publication
+    tag(git, 'v0.1.0', annotated)
+    commit = publish_site.publish(site, 'https://example.invalid/build/1', repo,
+                                  'refs/tags/v0.1.0')
+    assert commit and publish_site.remote_head(repo, 'pages') == commit
+    meta = json.loads(git('show', commit + ':deployment.json'))
+    assert meta['source_ref'] == 'refs/tags/v0.1.0'
+    assert meta['source_commit'] == git('rev-parse', 'HEAD')
+
+
+def test_a_moved_or_missing_tag_cannot_publish(publication):
+    repo, site, git = publication
+    assert publish_site.publish(site, 'https://example.invalid/b/1', repo,
+                                'refs/tags/v0.1.0') is None           # no such tag
+    old = git('rev-parse', 'HEAD')
+    git('commit', '--allow-empty', '-m', 'later')
+    tag(git, 'v0.1.0')
+    git('checkout', '--detach', old)                                  # a build of the old commit
+    assert publish_site.publish(site, 'https://example.invalid/b/2', repo,
+                                'refs/tags/v0.1.0') is None
+    assert publish_site.remote_head(repo, 'pages') is None
+
+
+def test_an_older_release_never_replaces_a_newer_one(publication):
+    repo, site, git = publication
+    tag(git, 'v0.1.0')
+    tag(git, 'v0.2.0')
+    newer = publish_site.publish(site, 'https://example.invalid/b/1', repo, 'refs/tags/v0.2.0')
+    (site / 'index.html').write_bytes(b'rebuilt\n')
+    assert publish_site.publish(site, 'https://example.invalid/b/2', repo,
+                                'refs/tags/v0.1.0') is None
+    assert publish_site.remote_head(repo, 'pages') == newer
+    tag(git, 'v0.10.0')                                               # numeric, not text, order
+    assert publish_site.publish(site, 'https://example.invalid/b/3', repo, 'refs/tags/v0.10.0')
+
+
+def test_release_versions():
+    assert publish_site.version('refs/tags/v0.1.0') == (0, 1, 0)
+    assert publish_site.version('refs/tags/v1.2.3-rc1') == (1, 2, 3)
+    assert publish_site.version('refs/heads/main') is None
+    assert publish_site.version('refs/tags/vnext') is None

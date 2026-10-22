@@ -41,6 +41,7 @@ def compile_archive(package, output, compiler):
         meta = json.loads(archive.read('release.json'))
         if meta.get('format') != 'packs-v1':
             raise ValueError('not a pack release: ' + str(meta.get('format')))
+        result['release'] = meta['release']
         for name, info in sorted(meta['files'].items()):
             source = archive.read(name)
             if len(source) != info['bytes'] or hashlib.sha256(source).hexdigest() != info['sha256']:
