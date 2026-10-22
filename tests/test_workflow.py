@@ -1,5 +1,5 @@
 """The release workflow (.github/workflows/build.yml, docs/HOSTING.md): it runs only for v* tags
-(and by hand), attaches cas-evo-<tag>.zip to the tag's GitHub Release with the built-in token,
+(and by hand), attaches microcas-<tag>.zip to the tag's GitHub Release with the built-in token,
 and publishes the website from tags. Text checks: the suite has no YAML parser."""
 from pathlib import Path
 
@@ -35,7 +35,7 @@ def test_one_run_per_tag_at_a_time():
     assert 'github.event.release.tag_name || github.ref_name' in head
     assert 'cancel-in-progress: false' in head
     check = block('check')
-    assert 'cas-evo-$TAG.zip' in check and 'build=false' in check
+    assert 'microcas-$TAG.zip' in check and 'build=false' in check
     assert "needs.check.outputs.build == 'true'" in block('build')
 
 
@@ -54,9 +54,9 @@ def test_release_job_creates_or_reuses_the_release_and_uploads_the_zip():
     text = block('release')
     assert 'gh release view "$TAG"' in text and 'gh release create "$TAG"' in text
     assert '--verify-tag' in text
-    assert 'gh release upload "$TAG" "cas-evo-$TAG.zip"' in text and '--clobber' in text
+    assert 'gh release upload "$TAG" "microcas-$TAG.zip"' in text and '--clobber' in text
     assert 'GH_TOKEN: ${{ github.token }}' in text
-    assert 'name: cas-evo-v1' in text
+    assert 'name: microcas-calculator' in text and 'cas-evo' not in text
 
 
 def test_publish_job_checks_the_tag():

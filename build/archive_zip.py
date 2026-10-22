@@ -58,6 +58,6 @@ def build(directory, output):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--input', type=Path, default=ROOT / 'dist/archive-transfer')
-    parser.add_argument('--out', type=Path, default=ROOT / 'dist/cas-evo-calculator.zip')
+    parser.add_argument('--out', type=Path, default=ROOT / 'dist/microcas-calculator.zip')
     args = parser.parse_args()
     build(args.input, args.out)

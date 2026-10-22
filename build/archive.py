@@ -80,7 +80,7 @@ def compile_archive(package, output, compiler):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--package', type=Path, default=ROOT / 'dist/cas-evo-packs.zip')
+    parser.add_argument('--package', type=Path, default=ROOT / 'dist/microcas-packs.zip')
     parser.add_argument('--out', type=Path, default=ROOT / 'dist/archive')
     parser.add_argument('--mpy-cross', type=Path, required=True)
     args = parser.parse_args()

@@ -87,7 +87,7 @@ def test_release_gate_runs_before_artifact_write(tmp_path, monkeypatch, stale):
     if stale:
         (tmp_path / 'dev').mkdir()
         for name in ('CAS.py', 'CASEVO.py', 'CVTEST.py', 'dev/CVTEST.py', 'cas-evo-v1.zip',
-                     'cas-evo-development.zip', 'cas-evo-packs.zip', 'SHA256SUMS', 'INSTALL.md',
+                     'cas-evo-development.zip', 'cas-evo-packs.zip', 'microcas-packs.zip', 'SHA256SUMS', 'INSTALL.md',
                      'CVOLD.py'):
             (tmp_path / name).write_text('old')
         (tmp_path / 'release.json').write_text('{"files":{"CVOLD.py":{}}}')
@@ -100,6 +100,7 @@ def test_release_gate_runs_before_artifact_write(tmp_path, monkeypatch, stale):
     assert not (tmp_path / 'dev/CVTEST.py').exists()
     assert not (tmp_path / 'cas-evo-v1.zip').exists()
     assert not (tmp_path / 'cas-evo-packs.zip').exists()
+    assert not (tmp_path / 'microcas-packs.zip').exists()
     assert not (tmp_path / 'CASK1.py').exists()
     assert not (tmp_path / 'cas-evo-development.zip').exists()
     assert not (tmp_path / 'CVOLD.py').exists()

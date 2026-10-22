@@ -127,9 +127,9 @@ def test_setup_rows():
     TS.load([45])
     R.need('menu').open('setup')
     shown = TD.screen_text()
-    assert 'Angle: RAD' in shown and 'About cas-evo' in shown
+    assert 'Angle: RAD' in shown and 'About MicroCAS' in shown
     assert 'Theme' not in shown and 'Entry' not in shown
     TS.load([34, 34, 34, 105])                        # row 4 opens About
     with pytest.raises(TS.StopScript):
         R.need('menu').open('setup')
-    assert 'Free heap' in TD.screen_text() and 'cas-evo 1.0.1' in TD.screen_text()
+    assert 'Free heap' in TD.screen_text() and 'MicroCAS 1.0.2 / TI-84 EVO' in TD.screen_text()

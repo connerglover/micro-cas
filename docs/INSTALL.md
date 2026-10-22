@@ -1,8 +1,9 @@
-# Install cas-evo on the TI-84 EVO
+# Install MicroCAS on the TI-84 EVO
 
-Use **cas-evo-calculator.zip**, the compiled EVO package: **cas-evo 1.0.1**
+Use **microcas-calculator.zip**, the compiled EVO package: **MicroCAS 1.0.2**
 (format `packs-v1`). On a GitHub Release the same file is named
-`cas-evo-v1.0.1.zip`.
+`microcas-v1.0.2.zip`. Releases before 1.0.2 were named cas-evo
+(`cas-evo-calculator.zip`, `cas-evo-<tag>.zip`); they are the same program.
 It preserves all v1 features with **21 compiled library packs in archive**
 (`CAS*.8mp2`) and **one launcher in RAM** (`CAS.8xpy2`): 22 files, well below the 3.5 MB storage allowance. `archive.json` in the ZIP
 lists each file's size. Runtime Python heap is a separate, smaller budget.
@@ -19,25 +20,26 @@ Python source program so it appears in the Python app.
 ## Get the program
 
 From a successful **Build calculator app** GitHub Actions run, download the
-**cas-evo-v1** artifact. Extract the download, then extract
-`cas-evo-calculator.zip` inside it into a new folder. For local builds, use
-`dist/cas-evo-calculator.zip`. `dist/cas-evo-packs.zip` is an internal build
+**microcas-calculator** artifact. Extract the download, then extract
+`microcas-calculator.zip` inside it into a new folder. For local builds, use
+`dist/microcas-calculator.zip`. `dist/microcas-packs.zip` is an internal build
 input, not the calculator download. Do not mix files from different packages.
 
 ## Transfer and launch
 
 1. Exit Python, turn on the EVO, and connect a USB data cable. Close TI Connect
    and any other calculator connection tabs.
-2. Download and extract **cas-evo-web-installer** from the same successful Actions
+2. Download and extract **microcas-web-installer** from the same successful Actions
    run. In that folder, run `python serve_installer.py --directory website`, then
    open `http://127.0.0.1:4173` in desktop Chrome or Edge. For a repository build,
    build the website first and run `python build/serve_website.py`.
 3. Choose **Connect your EVO**, select the calculator's serial port, then
-   **Install cas-evo**. The installer checks space and reads back every
-   calculator file that has the name of an earlier cas-evo file. It deletes or
-   replaces only exact content matches of a recorded release and lists any
-   others it keeps. It then sends the compiled libraries to archive, sends the
-   launcher CAS to RAM, and verifies their locations. Wait for completion.
+   **Install MicroCAS**. The installer checks space and reads back every
+   calculator file that has the name of an earlier MicroCAS or cas-evo file.
+   It deletes or replaces only exact content matches of a recorded release and
+   lists any others it keeps. It then sends the compiled libraries to archive,
+   sends the launcher CAS to RAM, and verifies their locations. Wait for
+   completion.
 4. Start a fresh **Python** session, select **CAS**, and run it.
 5. The screen should show `RAD` and `Ready` with the start time in seconds in
    the top row, `Press math` in the middle, an empty edit line, and the
@@ -56,12 +58,12 @@ For manual transfer, use [WebTILP](https://adriweb.github.io/tilibs/). Send ever
 Keep the names unchanged. Do not send JSON, Markdown,
 checksum files, raw `.mpy`, or source files from `src/` or `dist/device/`.
 WebTILP handles the older EVO 7.0 compiled-module container when needed.
-For a manual transfer, remove an earlier cas-evo first; see
+For a manual transfer, remove an earlier version first; see
 [Remove an earlier version](#remove-an-earlier-version).
 
 The browser installer removes an earlier version for you. It reads each file
-with an earlier cas-evo name back from the calculator and compares the decoded
-module or source text with the recorded earlier releases (the `legacy-*.json`
+with an earlier MicroCAS or cas-evo name back from the calculator and compares
+the decoded module or source text with the recorded earlier releases (the `legacy-*.json`
 files on the installer site: v1, the first pack release and the MathPrint test
 builds), including the source companions that the v1 installer moved to
 archive. Only exact matches are deleted, or replaced by a new file with the same
@@ -80,7 +82,7 @@ Reinstall the complete package if a library is missing.
 The EVO format and archive behavior come from
 [WebTILP's EVO implementation](https://github.com/adriweb/tilibs) and the
 [EVO Python transfer implementation](https://github.com/Evo-Programming/evo_usb_py).
-Physical USB transfer and execution of this cas-evo package still need hardware
+Physical USB transfer and execution of this MicroCAS package still need hardware
 acceptance; native tests are not an EVO emulator.
 
 ## Remove an earlier version
@@ -120,12 +122,12 @@ files with the same names, in RAM or archive. Remove them the same way.
 - **Before installing the new release:** delete every file in the table,
   including `CASEVO` and `CVTEST`, then send the new package.
 - **After installing the new release:** first compare the table with the file
-  names in the new `cas-evo-calculator.zip`. Keep `CAS` and every file that is
+  names in the new `microcas-calculator.zip`. Keep `CAS` and every file that is
   part of the new package, even when a new library reuses a v1 name. Delete
   the remaining names from the table, `CASEVO` and `CVTEST` included.
 
 Only delete names that appear in the table. Other programs that start with `CV`
-are not cas-evo files. If you edited a cas-evo file yourself, keep a copy before
+are not MicroCAS files. If you edited a MicroCAS file yourself, keep a copy before
 deleting it.
 
 ## First checks
@@ -212,11 +214,11 @@ giant powers return `Number too large`; ordinary exact and complex arithmetic ar
 
 The EVO probes measured **185,296 bytes of free Python heap** at the start of a
 small program and 173,360 bytes after importing `ti_plotlib`, `ti_graphics`,
-`ti_image` and more, which cas-evo does not import. The build runs the compiled
+`ti_image` and more, which MicroCAS does not import. The build runs the compiled
 packs on native 32-bit MicroPython v1.12: startup on a 95,000-byte total heap,
 `2+3` and long 2D lines at 173,360 bytes, seven calculus commands at 189,776
 bytes, and 55 diagnostic calculations at 212,000 bytes. Graphics are stubbed, so
-these are not calculator measurements. **MODE > About cas-evo** shows the free
+these are not calculator measurements. **MODE > About MicroCAS** shows the free
 heap, and a calculation that runs out of memory shows `Out of memory`; the next
 command should still work. The 55-case diagnostic program (`CVTEST`) is a
 developer tool built and run in CI; it is not part of the package.

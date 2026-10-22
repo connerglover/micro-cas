@@ -1,7 +1,7 @@
 name: Build calculator app
 
 # A release build: only a pushed v* tag (or a GitHub Release published for one) builds, tests,
-# attaches cas-evo-<tag>.zip to that tag's Release and updates the website (docs/HOSTING.md).
+# attaches microcas-<tag>.zip to that tag's Release and updates the website (docs/HOSTING.md).
 # workflow_dispatch builds any ref; it releases and publishes only when run on a v* tag.
 on:
   push:
@@ -38,8 +38,8 @@ jobs:
         run: |
           if [ "$GITHUB_EVENT_NAME" = release ] &&
              gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' |
-             grep -qx "cas-evo-$TAG.zip"; then
-            echo "cas-evo-$TAG.zip is already attached (the tag push built it); nothing to do."
+             grep -qx "microcas-$TAG.zip"; then
+            echo "microcas-$TAG.zip is already attached (the tag push built it); nothing to do."
             echo build=false >> "$GITHUB_OUTPUT"
           else
             echo build=true >> "$GITHUB_OUTPUT"
@@ -171,7 +171,7 @@ jobs:
       - name: Upload local web installer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: cas-evo-web-installer
+          name: microcas-web-installer
           path: |
             dist/website/
             dist/serve_installer.py
@@ -183,9 +183,9 @@ jobs:
       - name: Upload calculator app and documentation
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: cas-evo-v1
+          name: microcas-calculator
           path: |
-            dist/cas-evo-calculator.zip
+            dist/microcas-calculator.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -201,24 +201,24 @@ jobs:
       - name: Download this run's tested calculator ZIP
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: cas-evo-v1
+          name: microcas-calculator
           path: dist
 
-      - name: Create the Release if missing and upload cas-evo-<tag>.zip
+      - name: Create the Release if missing and upload microcas-<tag>.zip
         # A Release created in the GitHub UI is used as it is; a Release this token creates
         # starts no further workflow run.
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          cp dist/cas-evo-calculator.zip "cas-evo-$TAG.zip"
+          cp dist/microcas-calculator.zip "microcas-$TAG.zip"
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
-              --title "cas-evo $TAG" \
-              --notes "Calculator package for the TI-84 EVO: unzip cas-evo-$TAG.zip and follow INSTALL.md, or use the web installer." ||
+              --title "MicroCAS $TAG" \
+              --notes "Calculator package for the TI-84 EVO: unzip microcas-$TAG.zip and follow INSTALL.md, or use the web installer." ||
               gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
           fi
-          gh release upload "$TAG" "cas-evo-$TAG.zip" --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$TAG" "microcas-$TAG.zip" --repo "$GITHUB_REPOSITORY" --clobber
 
   publish:
     name: Update website deployment branch
@@ -239,7 +239,7 @@ jobs:
       - name: Download this run's tested installer
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: cas-evo-web-installer
+          name: microcas-web-installer
           path: dist/pages
 
       - name: Publish the tested website to pages

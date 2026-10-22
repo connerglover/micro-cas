@@ -7,7 +7,7 @@ every runtime key, the soft/view/aux packs, and heap estimates measured from com
 
 Outputs in DIST: the pack sources (CAS*.py), the RAM launcher CAS.py, release.json (names,
 packs, levels and a source line map), SHA256SUMS, INSTALL.md and the build input
-cas-evo-packs.zip for build/archive.py. The diagnostic probe CVTEST (probe/CVTEST.py, shrunk
+microcas-packs.zip for build/archive.py. The diagnostic probe CVTEST (probe/CVTEST.py, shrunk
 with the same mapping) goes to DIST/dev/CVTEST.py for the native CI checks only: it is not a
 release file and never ships (release.json records it under devtools). Nothing here runs on
 the calculator.
@@ -34,15 +34,15 @@ import transfer
 
 
 RESERVED = ('MODS', 'need', 'DEV')
-PACKAGE = 'cas-evo-packs.zip'
+PACKAGE = 'microcas-packs.zip'
 PROBE_PREFIX = "import gc\nprint('CVTEST startup heap',gc.mem_free())\n"
 DEVPROBE = 'dev/CVTEST.py'          # developer/CI only; not in files, launchers or any ZIP
 
 
 def invalidate(dist):
     """Discard only known generated release outputs; never leave a stale download."""
-    names = {'CAS.py', 'CASEVO.py', 'CVTEST.py', DEVPROBE, PACKAGE, 'cas-evo-v1.zip',
-             'cas-evo-development.zip', 'release.json', 'SHA256SUMS', 'INSTALL.md',
+    names = {'CAS.py', 'CASEVO.py', 'CVTEST.py', DEVPROBE, PACKAGE, 'cas-evo-packs.zip',
+             'cas-evo-v1.zip', 'cas-evo-development.zip', 'release.json', 'SHA256SUMS', 'INSTALL.md',
              'transfer-check.json'}
     previous = dist / 'release.json'
     if previous.is_file():
@@ -68,7 +68,7 @@ def _shrunk(pack_sources, clients, entry, seeds=None):
 
 
 def _sizes(sources, sizer, man):
-    with tempfile.TemporaryDirectory(prefix='cas-evo-packs-') as temp:
+    with tempfile.TemporaryDirectory(prefix='microcas-packs-') as temp:
         out = {}
         for name in sorted(sources):
             path = Path(temp) / (name + '.py')
@@ -225,7 +225,7 @@ def build(dist=ROOT / 'dist'):
             summary.write('## Pack build\n\n')
             summary.write('- %d packs and 1 launcher; packs compile to %d bytes (mpy-cross '
                           'estimate).\n' % (len(meta['mpy_estimate']), sum(meta['mpy_estimate'].values())))
-            summary.write('- Download `cas-evo-calculator.zip` or use `cas-evo-web-installer`; '
+            summary.write('- Download `microcas-calculator.zip` or use `microcas-web-installer`; '
                           'this intermediate source build is not installed directly.\n')
             summary.write('- Physical calculator validation pending. See `INSTALL.md`.\n')
     return dist / (man.ENTRY[1] + '.py')
