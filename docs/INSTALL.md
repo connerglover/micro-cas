@@ -1,8 +1,8 @@
 # Install MicroCAS on the TI-84 EVO
 
-Use **microcas-calculator.zip**, the compiled EVO package: **MicroCAS 1.0.2**
+Use **microcas-calculator.zip**, the compiled EVO package: **MicroCAS 1.0.3**
 (format `packs-v1`). On a GitHub Release the same file is named
-`microcas-v1.0.2.zip`. Releases before 1.0.2 were named cas-evo
+`microcas-v1.0.3.zip`. Releases before 1.0.2 were named cas-evo
 (`cas-evo-calculator.zip`, `cas-evo-<tag>.zip`); they are the same program.
 It preserves all v1 features with **21 compiled library packs in archive**
 (`CAS*.8mp2`) and **one launcher in RAM** (`CAS.8xpy2`): 22 files, well below the 3.5 MB storage allowance. `archive.json` in the ZIP

@@ -7,7 +7,7 @@ them as current.
 
 ## Current delivery
 
-- **Discontinuous calculus and choice boxes (on `main`, 2026-11-05; pushed, not tagged).**
+- **v1.0.3: discontinuous calculus and choice boxes (on `main`, 2026-11-05; tagged at the user's request).**
   User requests. (1) A derivative or integral of a discontinuous function no longer repeats the
   input. Definite integrals of floor, ceil and sign are split at their jumps (`src/defintd.py`,
   in the CASDEF pack) and answered as flagged approximations; `sign` has an exact primitive;
