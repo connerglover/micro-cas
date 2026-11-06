@@ -7,7 +7,7 @@ them as current.
 
 ## Current delivery
 
-- **Discontinuous calculus and choice boxes (on `main`, 2026-11-05; local, not pushed or tagged).**
+- **Discontinuous calculus and choice boxes (on `main`, 2026-11-05; pushed, not tagged).**
   User requests. (1) A derivative or integral of a discontinuous function no longer repeats the
   input. Definite integrals of floor, ceil and sign are split at their jumps (`src/defintd.py`,
   in the CASDEF pack) and answered as flagged approximations; `sign` has an exact primitive;
@@ -26,7 +26,7 @@ them as current.
   cas32 startup 95,000 (21,776 B free), `ui` 173,360 (60,048), `ui_edit` 173,360 (56,928),
   `ui_calculus` 189,776 (69,040) and 185,680 (65,008), probe 212,000 (55/55, 72,240 final), cas64
   500,000 (55/55, 264,736 final). Not run: `package_archive.mjs`, `archive_zip.py`, the Node tests
-  and the website build (no installer change). **Pending:** the user's push and tag, and an EVO run.
+  and the website build (no installer change). **Accepted on the user's EVO (user report, 2026-11-05)** from the locally built installer; no device timings or transcripts were recorded. **Pending:** a release tag, if the user wants one.
 - **Faster installer cleanup and website README link (on `main`, 2026-10-22; not tagged).**
   User request: the installer reads the calculator's directory listing once, deletes every
   Python object named in a recorded release (`website/legacy-*.json`) or the current package
