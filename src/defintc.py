@@ -13,6 +13,8 @@ def safe_quad(f, x):                                          #@L 4
                 base, power = t[j], t[j + 1]
                 p = K.N[power]
                 u = power if base == K.E else base if p[0] == K.NUM and not p[2] and p[1] < 0 else None
+                if u is not None and K.N[u][0] == K.ABS:
+                    u = K.N[u][1]      # abs folds a pole, it adds no narrow feature
                 if u is not None and not K.free_of(u, x) and A.quadratic(u, x) is None:
                     return False       # unresolved narrow features cannot certify sampling
     return True

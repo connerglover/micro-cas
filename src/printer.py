@@ -31,6 +31,7 @@ F_DEG = 8                   # degree mode
 F_SOLN = 16                 # the result of solve: [] and true are messages
 M_DONE = 'Done'
 M_UNDEF = 'Undefined'
+M_GAP = 'No closed form: the function has jumps or gaps'
 M_NOSOL = 'No solution'
 M_EVERY = 'Every %s is a solution'
 M_DNE = 'Does not exist: %s from the left, %s from the right'
@@ -919,6 +920,20 @@ def dline(e):                                                   #@L 3
         return None
 
 
+def gap(val):                                                  #@L 3
+    """True when val keeps an integral or derivative of a step function or a factorial: the
+    engine can neither finish one nor approximate it (a formal call of a smooth or unknown
+    function stays: integrate(e^(-x^2),x), diff(g(x),x))."""
+    N = K.N
+    for x in A.postorder(val):
+        t = N[x]
+        if t[0] == K.CALL and N[t[1]][1] in ('integrate', 'diff'):
+            for y in A.postorder(x):
+                if K.SIGN <= N[y][0] <= K.FACT:
+                    return True
+    return False
+
+
 def record(val, job):                                           #@L 2
     # The result record (kind, text, approx, flags) of the value val (10.4, 12.1). job is
     # (kind, input text, ctx, flags) as R.go passes it; ctx and flags may be left out. A
@@ -956,6 +971,8 @@ def record(val, job):                                           #@L 2
         w = N[t[1]]
         m = M_DIVG[w[1] if w[0] == K.NUM and not w[2] and w[3] == 1 and 0 <= w[1] <= 2
                    else 0]
+    if m is None and job[0] == 'eval' and gap(val):
+        m = M_GAP
     if m is not None:
         return (R_MSG, m, None, 0)
     s = text(val, ctx)

@@ -63,8 +63,11 @@ def g_defint(args, ctx):                                      #@L 2
         a, b, lo, hi, direction = b, a, hi, lo, K.MONE
     numeric = lo is not None and hi is not None and not (K.V[f] & ~K.V[x])
     points = ()
+    steps = None
     if numeric:
         points = yield R.MODS['defc'].g_points(f, x, lo, hi)
+        if -float('inf') < lo and hi < float('inf'):
+            steps = yield R.MODS['defd'].g_steps(f, x, lo, hi)
     integrand = R.MODS['norm'].normal(f, 1)
     integrator = R.need('int')
     primitive = yield R.scoped(integrator.g_int(integrand, x, 0))
@@ -112,20 +115,20 @@ def g_defint(args, ctx):                                      #@L 2
             if divergent is not None:
                 yield divergent
                 return
-        edges = [a]
-        for p in points:
-            if lo < R.MODS['defb'].number(p) < hi:
-                edges.append(p)
-        edges.append(b)
+        edges = yield R.MODS['defd'].g_edges(a, b, lo, hi, points + (steps or ()))
         values = []
-        for j in range(len(edges) - 1) if R.MODS['defc'].safe_quad(f, x) else ():
-            value = yield R.MODS['defb'].g_quad(f, x, edges[j], edges[j + 1], max(32, MAXEVAL // (len(edges) - 1)))
+        step = steps is not None
+        floor = 64 if step else 32      # a linear piece between jumps converges at level 3
+        for j in range(len(edges) - 1) if step or R.MODS['defc'].safe_quad(f, x) else ():
+            value = yield R.MODS['defb'].g_quad(f, x, edges[j], edges[j + 1], max(floor, MAXEVAL // (len(edges) - 1)), step)
             if value is None:
                 values = []
                 break
             values.append(value)
         if values:
             estimate = K.add_(values)
+            if step:                    # the bisected jumps leave noise far below QTOL
+                estimate = K.flt(round(R.MODS['defb'].number(estimate), 10))    #@float-ok
     if exact is not None:
         ev, qv = R.MODS['defb'].number(exact), R.MODS['defb'].number(estimate) if estimate is not None else None
         if ev is not None and qv is not None and abs(ev - qv) > CHECKTOL * (1 + abs(qv)):
@@ -139,5 +142,7 @@ def g_defint(args, ctx):                                      #@L 2
         if result is not None:
             R.FLAGS |= R.F_APPROX
     if result is None:
+        if numeric:
+            yield R.MODS['defd'].g_broken(f, x, points)
         result = K.mk((K.CALL, K.sym('integrate'), f, x, a, b))
     yield K.mul_(direction, [(result, K.ONE)])

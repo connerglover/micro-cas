@@ -118,6 +118,8 @@ UI_CASES = (
     ('polararea(2*cos(t),t,0,pi)', 'pi'),
     ('paramarea(t-sin(t),1-cos(t),t,0,2*pi)', '3*pi'),
     ('arclen(x^(3/2),x,0,4)', '8*(10*sqrt(10)-1)/27'),
+    ('integrate(floor(x),x,0,25)', '300.0'),
+    ('integrate(floor(x^2),x,0,2)', '1.8537356301'),
     ('2+3', '5'),
 )
 
@@ -141,7 +143,7 @@ assert len(history)==len(expected),history
 for row,want in zip(history,expected):
  assert row[2]=='ans' and row[1]==want,row
 assert getattr(CAS.R,{ans})=='5'
-print('UI CALCULUS PASS: 7 commands; normal quit')
+print('UI CALCULUS PASS: 9 commands; normal quit')
 '''.format(keys=repr(keys), hist=repr(names.get('HIST', 'HIST')),
            ans=repr(names.get('ANS', 'ANS')), expected=repr(tuple(value for _, value in UI_CASES)))
 

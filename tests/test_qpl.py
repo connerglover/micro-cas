@@ -275,13 +275,13 @@ def test_a_failed_line_stays_1d():
     ('diff', 1, 2, 'With respect to (required)'),
     ('diff', 2, 3, 'Order (empty: 1)'),
     ('integrate', 2, 4, 'Lower bound (empty: indefinite)'),
-    ('limit', 3, 4, 'Side + or - (empty: both)'),
+    ('limit', 3, 4, 'Side: 1 + 2 - (empty: both)'),
     ('limit', 1, 2, 'Variable or x=a (required)'),
     ('taylor', 1, 3, 'Center, e.g. x=0 (required)'),
     ('taylor', 1, 4, 'Variable (required)'),
     ('taylor', 3, 4, 'Order (empty: 5)'),
     ('sum', 3, 4, 'End value or oo (required)'),
-    ('riemann', 5, 6, 'left, mid, trap (empty: right)'),
+    ('riemann', 5, 6, '1 left 2 right 3 mid 4 trap'),
     ('desolve', 1, 2, 'Function, e.g. y (optional)'),
     ('desolve', 1, 3, 'Independent var. (optional)'),
     ('arclen', 1, 4, 'Variable (required)'),
@@ -331,7 +331,7 @@ def test_every_argument_text_fits_the_hint_row():
     ('integrate(x^(2),|)', 'Integration var. (required)'),
     ('diff(x^(3),x,|)', 'Order (empty: 1)'),
     ('sum(k,k,1,|)', 'End value or oo (required)'),
-    ('limit(x,x,0,|)', 'Side + or - (empty: both)'),
+    ('limit(x,x,0,|)', 'Side: 1 + 2 - (empty: both)'),
     ('limit(sin(x)/x,x=0|)', 'Variable or x=a (required)'),
     ('log(8,|)', 'Base (empty: 10)'),
     ('surd(8,|)', 'Root index (required)'),
@@ -407,3 +407,140 @@ def test_help_names_the_command_around_a_fraction_or_exponent(engine, monkeypatc
     U.key(21)
     U.key(15)
     assert seen == [command]
+
+
+# -- choice boxes (MATHPRINT.md 0.15): the number keys fill them, nothing else can be typed ------
+
+ALPHA, ONE, TWO, THREE, FOUR, FIVE, ZERO, SIN, X, FRACTION, F1, F2 = (31, 92, 93, 94, 82, 83, 102,
+                                                                      52, 32, 42, 11, 12)
+BOX = 'riemann(x^2,x,0,1,4,|)'
+
+
+@pytest.mark.parametrize('key, value', [(ONE, 'left'), (TWO, 'right'), (THREE, 'mid'),
+                                        (FOUR, 'trap')])
+def test_a_number_picks_in_list_order(key, value):
+    setline(BOX)
+    U.key(key)
+    assert shown() == 'riemann(x^2,x,0,1,4,' + value + '|)'
+
+
+@pytest.mark.parametrize('key', [FIVE, ZERO, SIN, X, FRACTION, 55, 63, 64, 65, 75, 85, 91, 103, 104])
+def test_every_other_key_is_refused_in_a_choice_box(key):
+    setline(BOX)
+    U.key(key)
+    assert shown() == BOX and U.STATUS == 'Press 1-4 to choose'
+
+
+def test_letters_and_templates_are_refused_in_a_choice_box():
+    setline(BOX)
+    U.key(ALPHA)
+    U.key(SIN)
+    assert shown() == BOX
+    U.key(SECOND)
+    U.key(F2)
+    assert shown() == BOX and U.STATUS == 'Press 1-4 to choose'
+
+
+def test_a_number_picks_under_alpha_lock():
+    setline(BOX)
+    U.key(ALPHA)
+    U.key(ALPHA)
+    U.key(ONE)
+    assert shown() == 'riemann(x^2,x,0,1,4,left|)'
+
+
+def test_a_number_replaces_the_value_and_del_empties_the_box():
+    setline(BOX)
+    U.key(ONE)
+    U.key(THREE)
+    assert shown() == 'riemann(x^2,x,0,1,4,mid|)'
+    U.key(LEFT)
+    U.key(TWO)                                                # from inside the value too
+    assert shown() == 'riemann(x^2,x,0,1,4,right|)'
+    U.key(DEL)
+    assert shown() == BOX
+
+
+def test_the_other_boxes_of_the_command_stay_free():
+    setline('riemann(x^2,x,0,|,4,)')
+    U.key(FIVE)
+    assert shown() == 'riemann(x^2,x,0,5|,4,)'
+    setline('riemann(x,x,0,1,|,)')
+    U.key(ZERO)
+    assert shown() == 'riemann(x,x,0,1,0|,)'
+
+
+def test_arrows_leave_a_choice_box():
+    setline(BOX)
+    U.key(LEFT)
+    assert U.choices() is None
+    U.key(FIVE)
+    assert shown() == 'riemann(x^2,x,0,1,45|,)'
+
+
+def test_limit_side_is_a_choice_box():
+    setline('limit(1/x,x,0,|)')
+    assert hint() == 'Side: 1 + 2 - (empty: both)'
+    U.key(TWO)
+    assert shown() == 'limit(1/x,x,0,-|)'
+    U.key(ONE)
+    assert shown() == 'limit(1/x,x,0,+|)'
+    U.key(75)                                                 # the - key picks its value too
+    assert shown() == 'limit(1/x,x,0,-|)'
+    U.key(THREE)
+    assert shown() == 'limit(1/x,x,0,-|)' and U.STATUS == 'Press 1-2 to choose'
+    setline('limit(1/x,x,|,)')
+    U.key(TWO)
+    assert shown() == 'limit(1/x,x,2|,)'                      # the point is not a choice
+
+
+@pytest.mark.parametrize('key, answer', [('1', 'oo'), ('2', '-oo')])
+def test_a_picked_limit_side_runs_from_the_keys(key, answer):
+    s = KS.run('limit(1/x,x,0,' + key + '{enter}')
+    assert s.mods['run'].HIST[-1][1] == answer
+
+
+def test_comma_adds_no_argument_to_the_last_riemann_box():
+    setline(BOX)
+    U.key(COMMA)
+    assert shown() == BOX and U.STATUS == 'Press 1-4 to choose'
+
+
+def test_a_menu_choice_is_refused_in_a_choice_box(engine, monkeypatch):
+    setline(BOX)
+    monkeypatch.setattr(engine.need('menu'), 'open', lambda *a: ('sin(', False, 4))
+    U.key(F1)
+    assert shown() == BOX and U.STATUS == 'Press 1-4 to choose'
+
+
+def test_a_history_paste_is_refused_in_a_choice_box(engine):
+    engine.HIST.append(['1+1', '2', engine.R_ANS, None, 0, None])
+    setline(BOX)
+    U.key(UP)
+    assert U.MODE
+    U.key(ENTER)
+    assert U.LINE == 'riemann(x^2,x,0,1,4,)' and U.STATUS == 'Press 1-4 to choose'
+
+
+def test_a_picked_riemann_sum_runs_from_the_keys():
+    s = KS.run('riemann(x^2,x,0,1,4,{3}{enter}')
+    assert s.mods['run'].HIST[-1][:2] == ['riemann(x^2,x,0,1,4,mid)', '21/64']
+
+
+# -- the warning under an approximation ----------------------------------------------------------
+
+def test_an_approximate_answer_says_so():
+    s = KS.run('integrate(floor(x),x,0,5/2{enter}')
+    top = s.screen.splitlines()[0]
+    assert 'Approximation, not exact' in s.screen and top.endswith(' approx')
+    assert s.mods['run'].HIST[-1][1] == '2.0'
+
+
+def test_an_exact_answer_keeps_its_decimal():
+    s = KS.run('integrate(x^2,x,0,1{enter}')
+    assert 'Approximation' not in s.screen and '~ 0.33333' in s.screen
+
+
+def test_a_gap_without_a_value_is_a_message_on_the_screen():
+    s = KS.run('integrate(floor(x),x{enter}')
+    assert s.mods['run'].HIST[-1][1].startswith('No closed form')

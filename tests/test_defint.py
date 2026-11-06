@@ -175,3 +175,83 @@ def test_whole_double_integral_numeric_fallback(command, value):
     record = R.go(('eval', command))
     assert record[0] == 'ans' and record[3] & R.F_APPROX
     assert float(C.sx(record[1])) == pytest.approx(value, abs=2e-8)
+
+
+# -- step functions and gaps: an approximation, an exact primitive or a message, never the input -
+
+def pieces(g, cuts):
+    """The exact integral of g, constant between the sorted cuts, from its midpoint values."""
+    return sum(g((p + q) / 2) * (q - p) for p, q in zip(cuts, cuts[1:]))
+
+
+@pytest.mark.parametrize('command, value', [
+    ('integrate(floor(x),x,0,5/2)', 2),
+    ('integrate(ceil(x),x,0,5/2)', 4.5),
+    ('integrate(floor(x),x,5/2,0)', -2),
+    ('integrate(1/floor(x),x,1,7/2)', 1 + 1 / 2 + 1 / 6),
+    ('integrate(floor(x),x,0,25)', 300),
+    ('integrate(x*floor(x),x,0,17)', 1564),
+    ('integrate(x*floor(x),x,0,2)', 1.5),
+    ('integrate(floor(x)^2,x,1/2,5/2)', 1 + 2),
+    ('integrate(floor(x^2),x,0,2)', pieces(lambda x: math.floor(x * x),
+                                           [0, 1, 2 ** .5, 3 ** .5, 2])),
+    ('integrate(floor(1/x),x,1/10,1)', pieces(lambda x: math.floor(1 / x),
+                                              [1 / k for k in range(10, 0, -1)])),
+    ('integrate(sign(sin(x)),x,0,4)', 2 * math.pi - 4),
+    ('integrate(sign(x-1/3)*x^2,x,0,1)', (1 - 2 / 27) / 3),
+    ('integrate(sqrt(x)*sign(x-1/2),x,0,1)', 2 / 3 * (1 - 2 * .5 ** 1.5)),
+    ('integrate(1/sqrt(abs(x)),x,-1,1)', 4),
+])
+def test_integrals_across_jumps_are_flagged_approximations(command, value):
+    r = R.go(('eval', command))
+    assert r[0] == R.R_ANS and r[3] & R.F_APPROX, r
+    assert float(r[1]) == pytest.approx(value, abs=1e-7), r
+
+
+@pytest.mark.parametrize('command, value', [('integrate(floor(x),x,0,1)', 0),
+                                            ('integrate(floor(x),x,3/2,7/4)', .25)])
+def test_step_function_without_a_jump_on_the_interval(command, value):
+    r = R.go(('eval', command))
+    assert r[0] == R.R_ANS and float(r[1]) == pytest.approx(value), r
+
+
+@pytest.mark.parametrize('command, text', [
+    ('integrate(sign(x),x)', 'abs(x)'),
+    ('integrate(sign(2*x+1),x)', 'abs(2*x+1)/2'),
+    ('integrate(sign(x),x,-1,2)', '1'),
+])
+def test_sign_has_an_exact_primitive(command, text):
+    r = R.go(('eval', command))
+    assert r[:2] == (R.R_ANS, text) and not r[3] & R.F_APPROX
+
+
+@pytest.mark.parametrize('command', [
+    'integrate(floor(x),x)', 'integrate(ceil(x),x)', 'integrate(x*sign(x),x)',
+    'integrate(x+floor(x),x)', 'integrate(x!,x)', 'diff(x!,x)', 'diff(x*x!,x)',
+    'integrate(floor(x),x,a,b)', 'integrate(floor(x)*y,x,0,5/2)',
+    'integrate(sign(x-1)*e^(-x^2),x,-oo,oo)'])
+def test_a_gap_without_a_value_is_a_message(command):
+    r = R.go(('eval', command))
+    assert r[:2] == (R.R_MSG, 'No closed form: the function has jumps or gaps'), r
+    assert R.go(('eval', '1+1'))[1] == '2'              # the next command runs
+
+
+@pytest.mark.parametrize('command, text', [
+    ('integrate(1/abs(x),x,-1,1)', 'No result: the integrand is not continuous'),
+    ('integrate(sin(1/x),x,0,1)', 'No result: the integrand is not continuous'),
+    ('integrate(floor(x),x,0,26)', 'Too many break points'),
+    ('integrate(floor(x),x,0,1000)', 'Too many break points'),
+    ('integrate(floor(1/x),x,0,1)', 'Too many break points'),
+])
+def test_a_failed_approximation_is_a_message(command, text):
+    assert R.go(('eval', command))[:2] == (R.R_MSG, text)
+
+
+@pytest.mark.parametrize('command, text', [
+    ('integrate(e^(-x^2),x)', 'integrate(e^(-x^2),x)'),
+    ('integrate(x^x,x)', 'integrate(x^x,x)'),
+    ('diff(g(x),x)', 'diff(g(x),x)'),
+    ('diff(integrate(floor(x),x),x)', 'floor(x)'),
+])
+def test_formal_results_of_other_functions_stay(command, text):
+    assert R.go(('eval', command))[:2] == (R.R_ANS, text)

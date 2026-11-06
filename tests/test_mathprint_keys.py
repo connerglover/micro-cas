@@ -825,7 +825,7 @@ HINTS = {'simplify': (1, 1, ('Expr. to simplify (required)',)),
                               'Lower bound (empty: indefinite)', 'Upper bound (empty: indefinite)')),
          'riemann': (5, 6, ('f to approximate (required)', 'Variable (required)',
                             'Left end (required)', 'Right end (required)',
-                            'Number of strips (required)', 'left, mid, trap (empty: right)')),
+                            'Number of strips (required)', '1 left 2 right 3 mid 4 trap')),
          'purge': (1, 1, ('Variable to delete (required)', 'More variables (optional)',
                           'More variables (optional)'))}
 TEMPLATES = (('Fraction', ''), ('Exponent', ''), ('Square root', 'sqrt()'),

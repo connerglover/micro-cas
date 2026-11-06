@@ -25,6 +25,7 @@ ITAB = (
     'cosh(L)', 'sinh(L)/A', '',
     'tanh(L)', 'ln(cosh(L))/A', '',
     'abs(L)', 'L*abs(L)/(2*A)', '',
+    'sign(L)', 'abs(L)/A', '',
     'Q^(-1)', '2*atan((2*A*x+B)/sqrt(4*A*C-B^2))/sqrt(4*A*C-B^2)', '4*A*C-B^2>0',
     'Q^(-1)', 'ln(abs((2*A*x+B-sqrt(B^2-4*A*C))/(2*A*x+B+sqrt(B^2-4*A*C))))/sqrt(B^2-4*A*C)', 'B^2-4*A*C>0',
     'L', 'L^2/(2*A)', '')

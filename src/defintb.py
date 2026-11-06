@@ -53,7 +53,8 @@ def sample(program, z, dz, a, b, mode):                        #@L 3
 
 
 
-def g_quad(f, x, a, b, budget=R.MODS['def'].MAXEVAL):                        #@L 2
+def g_quad(f, x, a, b, budget=R.MODS['def'].MAXEVAL, zero=False):            #@L 2
+    # zero: f may vanish here (a piece between two jumps): all-zero samples are then evidence.
     lo, hi = number(a), number(b)
     if lo is None or hi is None:
         yield None
@@ -112,7 +113,7 @@ def g_quad(f, x, a, b, budget=R.MODS['def'].MAXEVAL):                        #@L
             largest = max(largest, abs(value))
         current = total * h
         if previous is not None and level >= 2 and abs(current - previous) <= R.MODS['def'].QTOL * (1 + abs(current)):
-            if largest < 1e-14:
+            if largest < 1e-14 and not zero:
                 yield None             # no sampled evidence: a narrow peak may be missed
                 return
             yield K.flt(direction * current)

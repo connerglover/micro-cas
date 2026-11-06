@@ -73,6 +73,7 @@ MODULES = (
     ('defint',    'CVDEF',     'L',   149,       5),
     ('defintb',   'CVDEFB',    'L',   150,       6),
     ('defintc',   'CVDEFC',    'L',   128,       4),
+    ('defintd',   'CVDEFD',    'L',   80,        3),
     ('sums',      'CVSUM',     'L',   139,       5),
     ('sumsb',     'CVSUMB',    'L',   94,        3),
     ('sumsc',     'CVSUMC',    'L',   108,       4),
@@ -93,7 +94,7 @@ KEYS = {
     'ser': 'series', 'serb': 'seriesb',
     'lim': 'limit', 'limb': 'limitb', 'limc': 'limitc', 'int': 'integ',
     'int2': 'integ2', 'int2b': 'integ2b', 'int3': 'integ3', 'int3b': 'integ3b',
-    'def': 'defint', 'defb': 'defintb', 'defc': 'defintc', 'sum': 'sums', 'sumb': 'sumsb', 'sumc': 'sumsc',
+    'def': 'defint', 'defb': 'defintb', 'defc': 'defintc', 'defd': 'defintd', 'sum': 'sums', 'sumb': 'sumsb', 'sumc': 'sumsc',
     'form': 'forms', 'cat': 'catalog', 'catb': 'catalogb',
 }
 
@@ -108,7 +109,7 @@ PARTS = {
     'solve': ('solve', 'solveb', 'solvec', 'solved', 'solvee'),
     'int': ('int', 'itab'),   # strategies load one at a time (integ.EXTRA: need, then drop)
     'lim': ('lim', 'limb', 'limc', 'ser', 'serb'),
-    'def': ('def', 'defb', 'defc'),
+    'def': ('def', 'defb', 'defc', 'defd'),
     'sum': ('sum', 'sumb', 'sumc'),
     'ode': ('ode', 'odeb', 'odec', 'oded'),
     'menu': ('menu', 'menub', 'cat'),
@@ -177,7 +178,7 @@ PACKS = (
     ('CASIN3', ('integ3',), 'family'),
     ('CASIN3B', ('integ3b',), 'family'),
     ('CASLIM', ('series', 'seriesb', 'limit', 'limitb', 'limitc'), 'family'),
-    ('CASDEF', ('defint', 'defintb', 'defintc'), 'family'),
+    ('CASDEF', ('defint', 'defintb', 'defintc', 'defintd'), 'family'),
     ('CASSUM', ('sums', 'sumsb', 'sumsc'), 'family'),
     ('CASODE', ('ode', 'odeb', 'odec', 'oded'), 'family'),
     ('CASMNU', ('catalog', 'menu', 'menub'), 'family'),

@@ -1,12 +1,32 @@
 # Delivery status and evidence
 
-Last reviewed: 2026-10-22. Repository: connerglover/cas-evo (private).
+Last reviewed: 2026-11-05. Repository: connerglover/cas-evo (private).
 Use [AGENTS.md](../AGENTS.md) for operating instructions. This file records a
 dated snapshot; verify remote heads, build results and hosting before reporting
 them as current.
 
 ## Current delivery
 
+- **Discontinuous calculus and choice boxes (on `main`, 2026-11-05; local, not pushed or tagged).**
+  User requests. (1) A derivative or integral of a discontinuous function no longer repeats the
+  input. Definite integrals of floor, ceil and sign are split at their jumps (`src/defintd.py`,
+  in the CASDEF pack) and answered as flagged approximations; `sign` has an exact primitive;
+  anything with no value is a message (`No closed form: the function has jumps or gaps`, `No
+  result: the integrand is not continuous`, `Too many break points`). Formal results of smooth
+  or unknown functions stay (`integrate(e^(-x^2),x)`, `diff(g(x),x)`). The answer row now reads
+  `Approximation, not exact` with the label `approx` for every F_APPROX answer, which the UI
+  never showed before. (2) Choice boxes (`ui.CHOICE`, MATHPRINT.md): the Riemann method and the
+  limit side take number keys only. `MAXJUMPS` is 24: 32 jumps fit the native 185,680 and 189,776
+  heaps and 40 ran out of memory, so `ui_calculus` now runs a 24-jump integral (9 commands).
+  **Evidence** (host and native, not hardware): lint, framelint, not-slow `--strict-depth` source
+  and `--bundled` (4,420 passed, 6 failed; the same 6 in `test_hugepow`, `test_norm` and `test_sums`
+  fail on the unchanged commit on this Windows clone, `test_sums` for want of `signal.SIGVTALRM`),
+  44 slow tests before the `MAXJUMPS` change, `check_release.py` (8/8), `archive.py` (22 files,
+  191,164 B), `tests/test_archive_release.py` (86), and with the pinned 1f37194 runtime under WSL:
+  cas32 startup 95,000 (21,776 B free), `ui` 173,360 (60,048), `ui_edit` 173,360 (56,928),
+  `ui_calculus` 189,776 (69,040) and 185,680 (65,008), probe 212,000 (55/55, 72,240 final), cas64
+  500,000 (55/55, 264,736 final). Not run: `package_archive.mjs`, `archive_zip.py`, the Node tests
+  and the website build (no installer change). **Pending:** the user's push and tag, and an EVO run.
 - **Faster installer cleanup and website README link (on `main`, 2026-10-22; not tagged).**
   User request: the installer reads the calculator's directory listing once, deletes every
   Python object named in a recorded release (`website/legacy-*.json`) or the current package

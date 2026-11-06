@@ -454,9 +454,14 @@ row (31 columns for the status and hint rows), and none is longer than needed.
   others: `Ready 0.8s`, `Engine 1.2s`, `Fill in the empty box` (the UI calls them boxes).
   The panic footer reads `Press a key; 2nd MODE quits` (the next key redraws everything).
 - **Argument help.** An optional argument with a default says what an empty box means, in
-  one pattern: `Order (empty: 1)`, `Lower bound (empty: indefinite)`, `Side + or - (empty:
-  both)`, `left, mid, trap (empty: right)`, `Base (empty: 10)`; `arghelp` appends nothing to a
+  one pattern: `Order (empty: 1)`, `Lower bound (empty: indefinite)`, `Base (empty: 10)`; `arghelp` appends nothing to a
   phrase containing `(empty`. `End value or oo` replaces `End value, oo ok`.
+- **Choice boxes.** A box that takes only listed values (`ui.CHOICE`: the Riemann method, the
+  limit side) numbers them in its hint: `1 left 2 right 3 mid 4 trap`, `Side: 1 + 2 - (empty:
+  both)`. A number key fills the box, replacing its value, under any modifier, as do the + and
+  - keys in the limit side; DEL empties it; the keys that move, run or leave work as usual
+  (comma too in a template, where it moves on); anything else, a history paste, menu choice or
+  template included, is refused with `Press 1-4 to choose`.
 - **Menus (CASMNU).** Help tips match the F-key row and the history keys: `ENTER calculates;
   CLEAR cancels`, `Up: history, <- input -> answer`, `ENTER copies it, CLEAR deletes`,
   `F1-F4 menus, F5 next form`, `2nd: All Tmpl Test Setup Help`, `2nd ENTER: earlier inputs`,

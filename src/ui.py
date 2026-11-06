@@ -83,6 +83,9 @@ SECOND = (b' 34567=>?@AGKQUgh',
          't|surd(|asin(|acos(|atan(|pi|sqrt(|E|{|}|e|10^(|[|e^(|]|i|ans()')
 ALPHA = (b' )*+34567=>?@AGHIJKQRSTU[\\]^fg',
          "theta|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z|theta| |'")
+# The keys a choice box lets through: DEL (an empty box), the arrows, ENTER, CLEAR, mode, F5, < >,
+# and the menu keys (ui.pick).
+PASSKEYS = (11, 12, 13, 14, 15, 22, 23, 24, 25, 26, 34, 41, 44, 45, 95, 105)
 # The hint row's argument phrases (QPL Q5, MATHPRINT.md 7.5; UI data, available before the
 # engine loads): draw.ARGS names one per argument by its letter (A the first); arghelp adds
 # (required) or (optional) unless the phrase names its empty default, (empty: ...); each text
@@ -92,14 +95,17 @@ ARGPH = ('Argument|Angle|Expr. to simplify|Expr. to expand|Expr. or integer|Vari
          'Equation or system|Unknown(s), e.g. x|Expr. to combine|Rational expr.|'
          'f to differentiate|With respect to|Order (empty: 1)|Integrand|'
          'Integration var.|Lower bound (empty: indefinite)|Upper bound (empty: indefinite)|'
-         'f to take limit of|Value it approaches|Side + or - (empty: both)|Variable or x=a|'
+         'f to take limit of|Value it approaches|Side: 1 + 2 - (empty: both)|Variable or x=a|'
          'f to expand|Center, e.g. x=0|Order (empty: 5)|Center point|Term to add|'
          'Index variable|Start value|End value or oo|f to approximate|Left end|Right end|'
-         'Number of strips|left, mid, trap (empty: right)|ODE or [ODE,y(0)=..]|Function, e.g. y|'
+         'Number of strips|1 left 2 right 3 mid 4 trap|ODE or [ODE,y(0)=..]|Function, e.g. y|'
          'Independent var.|Function|Vars, e.g. [x,y,z]|Radius r(t)|Angle variable|Start angle|'
          'End angle|x(t)|y(t)|Parameter t|End value|Curve f(x)|Expr. to evaluate|'
          'Variable to delete|More variables|Base (empty: 10)|Radicand|Root index|'
          'Exponent|Expression|Numerator|Denominator|')
+# The choice boxes: command, argument index and the values that argument takes. Its ARGPH phrase
+# numbers them; the number keys pick one and nothing else can be typed there (choices, pick).
+CHOICE = {'riemann': (5, ('left', 'right', 'mid', 'trap')), 'limit': (3, ('+', '-'))}
 ALIAS = {'int': 'integrate', 'd': 'diff', 'deriv': 'diff', 'lim': 'limit', 'series': 'taylor',
          'ratnormal': 'together', 'dsolve': 'desolve', 'gradient': 'grad'}
 # The template picker (MATHPRINT.md 3.2): (label, text), labelled with the Nspire's template
@@ -223,9 +229,42 @@ def arghelp(nm, j, n):                                         #@L 4
     for q in range(k):
         i = ARGPH.find('|', i) + 1
     t = ARGPH[i:ARGPH.find('|', i)]
-    if '(empty' in t:
+    if '(empty' in t or t[:2] == '1 ':                          # a default, or a choice box
         return t
     return t + (' (required)' if j < r else ' (optional)')
+
+
+def choices():                                                 #@L 2
+    """The values of the choice box at the caret, or None."""
+    k = argpos()
+    c = CHOICE.get(k[0]) if k is not None else None
+    return c[1] if c is not None and c[0] == k[1] else None
+
+
+def pick(values, k, mod):                                      #@L 2
+    """Key k in a choice box: True when the key is spent here. A number, or a key that types a
+    value (the limit side's + and -), picks it, replacing what the box holds; DEL empties the
+    box; the keys that only move, run or leave go on (False, as do the menus: key refuses their
+    choice), with comma in a template, where it moves on; any other key is refused, the template
+    picker (2nd F2) with them, and 0 is a digit unless 2nd makes it the All menu."""
+    t = kmap(PLAIN, k)
+    r = edslot(CUR)
+    if t is not None and t.isdigit() and 0 < int(t) <= len(values):
+        t = values[int(t) - 1]
+    if t in values:
+        put(LINE[:r[0]] + t + LINE[r[1]:], r[0] + len(t))
+    elif k == 23 and r[0] < r[1]:
+        put(LINE[:r[0]] + LINE[r[1]:], r[0])
+    elif k in PASSKEYS and not (k == 12 and mod == 1) or k == 102 and mod == 1 or             k == 62 and argpos()[0] in D.TPL:
+        return False
+    else:
+        refuse(values)
+    return True
+
+
+def refuse(values):                                            #@L 4
+    global STATUS
+    STATUS = 'Press 1-' + str(len(values)) + ' to choose'
 
 
 def tput(t):                                                   #@L 3
@@ -1147,7 +1186,10 @@ def redraw():                                                  #@L 2
         if e[2] == R.R_ANS:
             col = SELC if mode else 0
             lab = e[5][-1][0] if e[5] else 'exact'
-            if e[3] is not None and lab == 'exact':
+            if e[4] & R.F_APPROX:
+                left = 'Approximation, not exact'
+                lab = 'approx' if lab == 'exact' else lab
+            elif e[3] is not None and lab == 'exact':
                 left = ('~ ' + str(e[3]))[:31]
     else:                                           # the argument help (QPL Q5)
         k = argpos()
@@ -1431,7 +1473,10 @@ def key(k):                                                    #@L 1
         MOD = 0
     hist = R.HIST if R is not None else []
     al = kmap(ALPHA, k) if mod >= 2 else None
-    if al is not None:
+    box = choices()
+    if not MODE and box is not None and pick(box, k, mod):
+        pass
+    elif al is not None:
         line, at = s, CUR
         if k == 103:
             line, at = wrapend(line, at, 0)     # the prime, like !: (x^(2))'
@@ -1470,7 +1515,9 @@ def key(k):                                                    #@L 1
     elif k == 105:
         if MODE:                        # the selected cell, at the caret (7.4)
             e = hist[SEL]
-            if SELC and e[2] == R.R_ANS:
+            if box is not None:
+                refuse(box)
+            elif SELC and e[2] == R.R_ANS:
                 paste(wrapped(e[1]), e[1])
             else:
                 paste(tidy(e[0], 1), None)
@@ -1528,7 +1575,9 @@ def key(k):                                                    #@L 1
         elif SEL >= len(R.HIST):
             SEL = len(R.HIST) - 1
         VIEWEND = min(VIEWEND, len(R.HIST) - 1)
-        if choice is not None:
+        if choice is not None and box is not None:
+            refuse(box)
+        elif choice is not None:
             R.need('menub').apply(choice)   # CASMNU is loaded: the menu just ran
     else:
         edkey(k, mod)
