@@ -287,6 +287,65 @@ instrumented driver's traceback reporting itself can exhaust the wasm runtime;
 a brief error reporter recovered at 150,000. This does not establish universal
 recovery below the measured device heap.
 
+### Definite integrals (2026-11-06)
+
+User report: on the EVO, definite integrals answered `Out of memory` while the antiderivative of
+the same function passed. Reproduced natively: at 173,360 B the v1.0.3 packs failed 7 of 8 everyday
+definite integrals in one session, and `2+3` still worked.
+
+**Cause.** Not exhaustion but fragmentation. At each failure 15-30 KB was free, nearly all in runs
+under 240 B, and the failing allocation was one function's bytecode (792-1,127 B), usually in a
+reload of CASAX or a family pack. Live data peaks near 143 KB. A definite integral churned the heap
+more than its antiderivative: CASFAC and CASSOL loaded twice to look for singularities (once on f,
+once on F), CASDEF stayed resident through the primitive search, the quadrature kept every sample
+as a boxed float, and the vertex of `e^(-x^2)` pulled in CASLIM as a suspected pole.
+
+**Two routes.** What an integrand costs now depends on whether it can be shown continuous.
+
+- *Continuous on [a, b]*: `integ.g_prim` finds F with CASDEF not yet loaded, and `defintd.g_clear`
+  proves by interval arithmetic that no candidate vanishes. No solver or limits pack loads, and
+  the integral costs what its antiderivative costs. The quadrature cross-check still runs: it is
+  what rejects a wrong primitive.
+- *Bounded, with finitely many discontinuities*: a floor or ceil integrand skips the primitive
+  search, the only code it could not use, and is split at its jumps. A candidate that survives the
+  exclusion goes to the solver as before. CASLIM loads only for a real pole or an infinite bound.
+
+`g_clear` may fail to prove a true statement, which costs memory, never correctness. It must not
+prove a false one: bounds only widen, and the zero test keeps a margin of 1e-9 of the largest bound
+met anywhere in the expression, so cancellation between huge terms cannot hide a zero. `g_quad` now
+keeps a running sum, since each level's new nodes are the odd multiples of h: no table, O(1) memory.
+
+**Measured**, pinned 1f37194 cas32, typed through the UI, one fresh process per case. "Floor" is the
+lowest heap with every 1,024 B step above it passing; a single bisection can be off by up to 6 KB,
+because need is not monotonic in the heap.
+
+| Case | v1.0.3 floor | now |
+| --- | ---: | ---: |
+| `integrate(x^2,x)` (for comparison; path unchanged) | 158,112 | 161,184 |
+| `integrate(1/x,x,1,2)` | 175,520 | 156,064 |
+| `integrate(1/x^2,x,1,2)` | 176,544 | 157,088 |
+| `integrate(ln(x),x,1,2)` | 174,496 | 157,088 |
+| `integrate(1/(x^2-1),x,2,3)` | 179,616 | 161,184 |
+| `integrate(floor(x),x,0,3)` | 175,520 | 136,608 |
+| `integrate(sqrt(1-x^2),x,0,1)` | 178,592 | 165,280 |
+| `integrate(e^(-x^2),x,0,1)` | 178,592 | 164,256 |
+| `integrate(sqrt(x^2+1),x,0,1)` | 183,712 | 166,304 |
+| `integrate(1/(2+cos(x)),x,0,2*pi)` | 177,568 | 169,376 |
+| `integrate(sin(x)/x,x,0,1)` | 175,520 | 169,376 |
+| worst of 23 single commands | 183,712 | 169,376-172,448 |
+| worst of 7 multi-command sessions | 185,664 | 172,352-174,400 |
+| `ui_definite` (8 integrals back to back) | 184,640 | 170,304 |
+
+Floors move by about 3 KB with the length of the run's path, which is why the two "worst" rows are
+ranges. `ui_definite` over 24 path lengths: 21 of 24 pass at 173,360, 22 at 174,384, all at 175,408
+and 177,456; CI runs it at 177,456. So a long session of heavy integrals can still fragment
+below 175 KB. 1,531 definite-integral inputs give identical records before and after (host), and
+14,659 `g_clear` proofs on random expressions met no sign change under dense sampling.
+
+Tried and rejected: importing CASAX before the family packs so that it sits low. 1-2 KB, inside
+the path noise, for an eager load on every calculus command. The remaining gap between the live
+peak and the floor is layout, and closing it would take a different allocation scheme.
+
 ### Next steps that need device data
 
 - The cost of one archive import (fixed, or growing with the number of files). If imports

@@ -186,6 +186,7 @@ python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke -
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 173360 --suite ui_edit
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 189776 --suite ui_calculus
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 185680 --suite ui_calculus
+python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 177456 --suite ui_definite
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 212000 --suite probe
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas64> --heap 500000
 node build/package_archive.mjs
@@ -199,9 +200,10 @@ The 32-bit heaps follow the device measurements: 173,360 bytes were free after
 a probe imported several `ti_*` modules, and 189,776 is PROBE3's 185,296 bytes
 free at program start plus the 4,480 bytes the harness uses; `ui_calculus` also
 runs 4,096 bytes below it, because native heap layout varies with the run's path
-and a pass at exactly the nominal heap can be luck. `ui_edit` types long 2D lines
+and a pass at exactly the nominal heap can be luck. `ui_definite` runs eight everyday
+definite integrals back to back at 177,456, 4,096 above the lower measured heap. `ui_edit` types long 2D lines
 after a result. The 64-bit run uses the default `all` suite (UI, UI calculus, UI
-edit and the 55 diagnostics of the developer probe `dist/dev/CVTEST.py`, which
+definite, UI edit and the 55 diagnostics of the developer probe `dist/dev/CVTEST.py`, which
 the `startup` and `probe` suites also run). FASTBOOT.md
 records why packs need more heap than v1 for the heaviest definite integrals.
 

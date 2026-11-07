@@ -53,10 +53,11 @@ def candidates(f, x, features=True):                          #@L 4
 
 
 
-def g_points(f, x, lo, hi):                                    #@L 2
+def g_points(f, x, lo, hi, features=True):                     #@L 2
+    # features False: only where f may be singular, not where a smooth f merely has a peak.
     points = []
     finite = lo != -float('inf') and hi != float('inf')
-    for u in candidates(f, x, finite):
+    for u in candidates(f, x, finite and features):
         if K.free_of(u, x):
             continue
         t = K.N[u]
@@ -78,6 +79,14 @@ def g_points(f, x, lo, hi):                                    #@L 2
                         angle = K.mul_(K.num(2*k + (1 if offset else 0), 0, 2), [(K.PI, K.ONE)])
                         root = K.mul_(K.ONE, [(K.add_([angle, K.neg_(linear[1])]), K.ONE), (linear[0], K.MONE)])
                         roots.append(root)
+        if roots is None:               # the solver's packs are the dearest step: last resort
+            linear = A.linear(u, x)
+            if linear is not None and linear[0] != K.ZERO:
+                roots = (K.mul_(K.MONE, [(linear[1], K.ONE), (linear[0], K.MONE)]),)
+            elif finite:
+                clear = yield R.MODS['defd'].g_clear(u, x, lo, hi)
+                if clear:
+                    continue
         if roots is None:
             solver = R.need('solve')
             roots = yield solver.g_roots(u, x, 0)

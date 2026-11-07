@@ -680,13 +680,14 @@ def micro_cases():
                                                                                'micro_smoke.py'))
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
-    return m.UI_CASES
+    return m
 
 
-def test_micro_smoke_stream_types_the_same_input():
-    # the native ui_calculus suite's own key stream (build/micro_smoke.py, regenerated from
+@pytest.mark.parametrize('table', ['UI_CASES', 'DEFINITE_CASES'])
+def test_micro_smoke_stream_types_the_same_input(table):
+    # the native ui_calculus and ui_definite key streams (build/micro_smoke.py, regenerated from
     # keyscript): every command is typed back to its text and gives the asserted answer
-    cases = micro_cases()
+    cases = getattr(micro_cases(), table)
     script = ''.join(command + '{enter}' for command, _ in cases) + '{2nd,mode}'
     s = KS.run(script)
     assert s.ended == 'quit'

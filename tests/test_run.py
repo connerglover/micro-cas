@@ -140,9 +140,11 @@ def generic(key):
         out += ['import parse as P', 'def g_form(code, ctx):',
                 '    L.events.append(("form", list(ctx)))',
                 '    r = yield P.g_eval(code, ctx)', '    yield r']
+    if key == 'int':
+        out += ['def g_prim(args):', '    L.events.append(("prim", args))', '    yield None']
     if key == 'def':
-        out += ['def g_defint(args, ctx):',
-                '    L.events.append(("integrate", args, list(ctx), list(R.PINNED)))',
+        out += ['def g_defint(args, primitive):',
+                '    L.events.append(("integrate", args, primitive, list(R.PINNED)))',
                 '    yield K.mk((K.CALL, K.sym("integrate")) + tuple(args))']
     return '\n'.join(out) + '\n'
 
@@ -852,8 +854,10 @@ def test_preload_and_rule_sets(env):
     del env.log[:]
     ev('integrate(x,x,0,1)')
     assert 'def' in R.LOADED and 'int' not in R.LOADED
-    ((_, args, ctx, pinned),) = [e for e in env.log if e[0] == 'integrate']
-    assert 'def' in pinned and pinned[-1] == 'def'
+    ((_, args, primitive, pinned),) = [e for e in env.log if e[0] == 'integrate']
+    assert 'def' not in pinned and 'int' not in pinned and primitive is None
+    events = [e[0] if e[0] != 'import' else e[1] for e in env.log]
+    assert events.index('prim') < events.index('def') < events.index('integrate')
     assert ('rset', 'itab') not in env.log       # compiled during the soft integration phase
 
 

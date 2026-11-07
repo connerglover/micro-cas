@@ -115,6 +115,32 @@ def g_int(f, x, depth=0):                                       #@L 2
     yield (scale(c, r[0]), scale(c, r[1]))
 
 
+def stepped(f, x):                                              #@L 3
+    # f holds a floor or ceil of x: neither has a primitive, so no search can succeed
+    for n in A.postorder(f):
+        if (K.N[n][0] == K.FLOOR or K.N[n][0] == K.CEIL) and not K.free_of(n, x):
+            return True
+    return False
+
+
+def g_prim(args):                                               #@L 2
+    # The primitive for a definite integral: g_int's pair, or None when there is none to look
+    # for; defint.g_defint judges the arguments. A step integrand on finite numeric bounds skips
+    # the search; on any other bounds its failure is what words the message.
+    f, x, a, b = args
+    if (K.N[f][0] == K.DIVG or K.N[x][0] != K.SYM or a == b or K.LST <= K.N[a][0] <= K.GE or
+            K.LST <= K.N[b][0] <= K.GE or not K.free_of(a, x) or not K.free_of(b, x)):
+        yield None
+        return
+    finite = not (K.V[a] or K.V[b] or K.V[f] & ~K.V[x] or a == K.OO or b == K.OO or
+                  K.isninf(a) or K.isninf(b))
+    if finite and stepped(f, x):
+        yield None
+        return
+    r = yield R.scoped(g_int(R.MODS['norm'].normal(f, 1), x, 0))
+    yield r
+
+
 def g_integrate(args, ctx):                                     #@L 2
     f = args[0]
     if len(args) == 3:
@@ -123,10 +149,6 @@ def g_integrate(args, ctx):                                     #@L 2
     if K.N[x][0] != K.SYM:
         raise K.CasError('Invalid argument')
     ctx[P.X_MV] = x
-    if len(args) == 4:
-        r = yield R.need('def').g_defint(args, ctx)               #@calls 2
-        yield r
-        return
     r = yield g_int(f, x, 0)
     if r is None:
         r = (K.ZERO, f)

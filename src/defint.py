@@ -45,7 +45,8 @@ def g_endpoint(F, x, point, side):                             #@L 2
 
 
 
-def g_defint(args, ctx):                                      #@L 2
+def g_defint(args, primitive):                                 #@L 2
+    # primitive: integ.g_prim's result, found before this pack loaded
     f, x, a, b = args
     if K.LST <= K.N[a][0] <= K.GE or K.LST <= K.N[b][0] <= K.GE:
         raise K.CasError(M_ARG)
@@ -68,11 +69,6 @@ def g_defint(args, ctx):                                      #@L 2
         points = yield R.MODS['defc'].g_points(f, x, lo, hi)
         if -float('inf') < lo and hi < float('inf'):
             steps = yield R.MODS['defd'].g_steps(f, x, lo, hi)
-    integrand = R.MODS['norm'].normal(f, 1)
-    integrator = R.need('int')
-    primitive = yield R.scoped(integrator.g_int(integrand, x, 0))
-    integrator = None
-    R.drop(('int', 'int2b', 'int2', 'int3', 'int3b', 'fact'))
     exact = None
     if primitive is not None and primitive[1] == K.ZERO:
         F = primitive[0]
@@ -111,10 +107,14 @@ def g_defint(args, ctx):                                      #@L 2
     estimate = None
     if numeric:
         if exact is None:
-            divergent = yield R.MODS['defc'].g_divergence(f, x, a, b, points)
-            if divergent is not None:
-                yield divergent
-                return
+            poles = points
+            if points:                  # a peak of a smooth f cannot diverge: no limits pack
+                poles = yield R.MODS['defc'].g_points(f, x, lo, hi, False)
+            if poles or lo == -float('inf') or hi == float('inf'):
+                divergent = yield R.MODS['defc'].g_divergence(f, x, a, b, poles)
+                if divergent is not None:
+                    yield divergent
+                    return
         edges = yield R.MODS['defd'].g_edges(a, b, lo, hi, points + (steps or ()))
         values = []
         step = steps is not None

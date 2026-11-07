@@ -560,9 +560,8 @@ def start(job):                                                 #@L 2
                 e = CMDS.get(f)
                 if e is not None:
                     definite = f == 'integrate' and it[2] == 4 and e[1] == 'g_integrate'
-                    family = 'def' if definite else e[0]
-                    if family not in ks:
-                        ks.append(family)
+                    if e[0] not in ks:
+                        ks.append(e[0])
                     for r in (() if definite else e[5]):
                         if r not in rs:
                             rs.append(r)

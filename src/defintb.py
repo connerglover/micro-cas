@@ -71,44 +71,36 @@ def g_quad(f, x, a, b, budget=R.MODS['def'].MAXEVAL, zero=False):            #@L
     except K.CasSoft:
         yield None
         return
-    # Dyadic nodes share an integer grid; avoid float-key dict growth/fragmentation.
-    grid = 1 << R.MODS['def'].MAXLEVEL
-    # 64-slot rows: no single large list, which a fragmented heap may lack (FASTBOOT.md).
-    cache = []
-    for j in range((7 * grid) // 64 + 1):
-        cache.append([None] * 64)
+    # Each level halves h, so its new nodes are the odd multiples of h and a running sum carries
+    # the rest: no table of samples, whose boxed floats would shred the heap (FASTBOOT.md).
     count = 0
     largest = 0.0
     previous = None
+    total = 0.0
     for level in range(R.MODS['def'].MAXLEVEL + 1):
         h = 0.5 ** level
-        total = 0.0
-        for j in range(-int(3.5 / h), int(3.5 / h) + 1):
+        last = int(3.5 / h)
+        for j in range(-last | 1, last + 1, 2) if level else range(-last, last + 1):
+            if count >= budget:
+                yield None
+                return
             t = j * h
-            slot = 7 * grid // 2 + j * (1 << (R.MODS['def'].MAXLEVEL - level))
-            value = cache[slot >> 6][slot & 63]
+            et = math.exp(t)
+            u = math.pi * 0.25 * (et - 1 / et)
+            q = math.exp(-2 * abs(u))
+            z = (1 - q) / (1 + q)
+            if u < 0:
+                z = -z
+            if abs(z) >= 1.0:
+                continue
+            dz = math.pi * (et + 1 / et) * q / (1 + q) ** 2
+            value = sample(program, z, dz, lo, hi, mode)
+            count += 1
+            if count % 64 == 0:
+                yield R.TICK
             if value is None:
-                if count >= budget:
-                    yield None
-                    return
-                et = math.exp(t)
-                u = math.pi * 0.25 * (et - 1 / et)
-                q = math.exp(-2 * abs(u))
-                z = (1 - q) / (1 + q)
-                if u < 0:
-                    z = -z
-                if abs(z) >= 1.0:
-                    value = 0.0
-                else:
-                    dz = math.pi * (et + 1 / et) * q / (1 + q) ** 2
-                    value = sample(program, z, dz, lo, hi, mode)
-                    count += 1
-                    if count % 64 == 0:
-                        yield R.TICK
-                if value is None:
-                    yield None
-                    return
-                cache[slot >> 6][slot & 63] = value
+                yield None
+                return
             total += value
             largest = max(largest, abs(value))
         current = total * h

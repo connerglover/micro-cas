@@ -255,3 +255,120 @@ def test_a_failed_approximation_is_a_message(command, text):
 ])
 def test_formal_results_of_other_functions_stay(command, text):
     assert R.go(('eval', command))[:2] == (R.R_ANS, text)
+
+
+# -- memory: the two routes (docs/notes/FASTBOOT.md, "Definite integrals") ------------------------
+
+def needed(monkeypatch, command):
+    """The runtime keys a command asks the loader for, and its record."""
+    keys = []
+    original = R.need
+    def spy(key):
+        keys.append(key)
+        return original(key)
+    monkeypatch.setattr(R, 'need', spy)
+    return keys, R.go(('eval', command))
+
+
+@pytest.mark.parametrize('command, text', [
+    ('integrate(1/x,x,1,2)', 'ln(2)'),
+    ('integrate(ln(x),x,1,2)', '2*ln(2)-1'),
+    ('integrate(1/(1+x^2),x,0,1)', 'pi/4'),
+    ('integrate(x/(x^2+1),x,0,1)', 'ln(2)/2'),
+    ('integrate(1/(x^2-1),x,2,3)', '-(ln(2)-ln(3))/2'),
+    ('integrate(1/(2+cos(x)),x,0,2*pi)', '2*sqrt(3)*pi/3'),
+    ('integrate(sqrt(x^2+1),x,0,1)', '(sqrt(2)-ln(2)+ln(2*(sqrt(2)+1)))/2'),
+])
+def test_a_continuous_integrand_never_loads_the_solver(monkeypatch, command, text):
+    keys, r = needed(monkeypatch, command)
+    assert r[:2] == (R.R_ANS, text), r
+    assert 'solve' not in keys, keys
+
+
+@pytest.mark.parametrize('command', ['integrate(e^(-x^2),x,0,1)', 'integrate(e^(x^2),x,-1,2)'])
+def test_a_smooth_feature_is_not_tested_for_divergence(monkeypatch, command):
+    keys, r = needed(monkeypatch, command)
+    assert r[0] == R.R_ANS and r[3] & R.F_APPROX, r
+    assert 'lim' not in keys and 'solve' not in keys, keys
+
+
+@pytest.mark.parametrize('command, value', [('integrate(floor(x),x,0,3)', 3),
+                                            ('integrate(x*ceil(x),x,0,2)', 3.5)])
+def test_a_step_integrand_has_no_primitive_to_search_for(monkeypatch, command, value):
+    def no_search(f, x, depth=0):
+        raise AssertionError('searched for a primitive')
+        yield
+    monkeypatch.setattr(R.need('int'), 'g_int', no_search)
+    keys, r = needed(monkeypatch, command)
+    assert r[0] == R.R_ANS and float(r[1]) == pytest.approx(value), r
+    assert 'solve' not in keys, keys
+
+
+@pytest.mark.parametrize('command', ['integrate(e^(-x^2),x,0,1)', 'integrate(sqrt(x^2+1),x,0,1)'])
+def test_the_primitive_search_runs_before_the_definite_family_loads(monkeypatch, command):
+    R.drop(('def',))
+    original = R.need('int').g_int
+    resident = []
+    def watched(f, x, depth=0):
+        resident.append('def' in R.LOADED)
+        return original(f, x, depth)
+    monkeypatch.setattr(R.MODS['int'], 'g_int', watched)
+    R.go(('eval', command))
+    assert resident and not any(resident)
+
+
+def test_quadrature_keeps_no_table_of_samples():
+    import tracemalloc
+    module = R.MODS['defb']
+    f, x = nd('exp(x^2)'), K.sym('x')
+    tracemalloc.start()
+    result = drive(module.g_quad(f, x, K.ZERO, K.ONE))
+    peak = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+    assert float(K.N[result][1]) == pytest.approx(1.4626517459071816, abs=1e-9)
+    assert peak < 6000, peak
+
+
+def excludes(source, lo, hi):
+    return drive(R.MODS['defd'].g_clear(nd(source), K.sym('x'), lo, hi))
+
+
+@pytest.mark.parametrize('source, lo, hi', [
+    ('x^2+1', -5, 5), ('x^2-1', 2, 3), ('x^2-1', -.5, .5), ('2+cos(x)', 0, 100),
+    ('3+sin(2*x)', -9, 9), ('e^x+1', -3, 3), ('e^x-2', 1, 2), ('x+sqrt(x^2+1)', -1, 1),
+    ('x^3+1', 0, 1), ('x^4+x^2+1', -2, 2), ('x^2-2*x+2', 0, 2), ('abs(x)+1', -1, 1),
+    ('ln(x)+3', 1, 2), ('atan(x)+2', -9, 9), ('2^x+1', -1, 1), ('sqrt(x)+1', 0, 4),
+])
+def test_exclusion_proves_there_is_no_zero(source, lo, hi):
+    assert excludes(source, lo, hi)
+
+
+@pytest.mark.parametrize('source, lo, hi', [
+    ('x', -1, 1), ('x^2-1', 0, 2), ('x^2-2*x+1', 0, 2), ('(x-1/3)^2', 0, 1), ('x^3-x-1', 1, 2),
+    ('cos(x)', 0, 2), ('sin(x)', 3, 4), ('e^x-2', 0, 1), ('ln(x)', 1/2, 2), ('abs(x-1/2)', 0, 1),
+    ('x^2-1', 1, 2), ('x^2-1', 0, 1),                   # a zero exactly at an end counts
+    ('10000000000*x-10000000000*x^2-2500000000', 0, 1),     # a double root behind cancellation
+])
+def test_exclusion_never_claims_a_zero_away(source, lo, hi):
+    assert not excludes(source, lo, hi)
+
+
+@pytest.mark.parametrize('source', ['floor(x)+1', 'tan(x)+9', 'x!+1', 'f(x)+1', 'i*x+1', 'y+x'])
+def test_exclusion_gives_up_on_what_it_cannot_bound(source):
+    assert not excludes(source, 1, 2)
+
+
+def test_exclusion_is_sound_on_random_polynomials():
+    import random
+    rng = random.Random(84)
+    x = K.sym('x')
+    for _ in range(400):
+        r = [rng.randint(-40, 40) / 8 for _ in range(rng.randint(1, 4))]
+        spread = S.Poly(S.prod([S.Symbol('x') - S.Rational(v) for v in r]), S.Symbol('x'))
+        lo = rng.randint(-48, 40) / 8
+        hi = lo + rng.randint(1, 48) / 8
+        source = str(spread.as_expr()).replace('**', '^')
+        C.fresh()
+        R.need('def')
+        if excludes(source, lo, hi):
+            assert not [v for v in r if lo <= v <= hi], (source, lo, hi)

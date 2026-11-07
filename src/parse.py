@@ -1380,8 +1380,14 @@ def g_eval(code, ctx):                                          #@L 2
                     if n < ent[2] or n > ent[3]:
                         raise K.CasError(M_ARGS)
                     if nm == 'integrate' and n == 4 and ent[1] == 'g_integrate':
+                        # The primitive first, with the search as its only code: CASDEF
+                        # loads after the strategies leave (docs/notes/FASTBOOT.md).
+                        M = S.need('int')                               #@calls 3
+                        x = yield M.g_prim(tuple(a))                    #@calls 2
+                        M = None
+                        S.drop(('int', 'int2b', 'int2', 'int3', 'int3b', 'fact'))   #@calls 3
                         M = S.need('def')                               #@calls 3
-                        x = yield M.g_defint(tuple(a), ctx)             #@calls 2
+                        x = yield M.g_defint(tuple(a), x)               #@calls 2
                     else:
                         M = S.need(ent[0])                              #@calls 3
                         x = yield getattr(M, ent[1])(tuple(a), ctx)     #@calls 2

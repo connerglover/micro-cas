@@ -124,11 +124,27 @@ UI_CASES = (
 )
 
 
-def calculus_ui(names):
+# The everyday definite integrals, back to back in one session (docs/notes/FASTBOOT.md, "Definite
+# integrals"). CI runs them at 177,456: every layout tried passes from 175,408, the session needed
+# 184,640 before the two routes, and at 173,360 that build failed 7 of the 8 integrals.
+DEFINITE_CASES = (
+    ('integrate(1/x,x,1,2)', 'ln(2)'),
+    ('integrate(ln(x),x,1,2)', '2*ln(2)-1'),
+    ('integrate(1/(1+x^2),x,0,1)', 'pi/4'),
+    ('integrate(x/(x^2+1),x,0,1)', 'ln(2)/2'),
+    ('integrate(1/(x^2-1),x,2,3)', '-(ln(2)-ln(3))/2'),
+    ('integrate(sqrt(1-x^2),x,0,1)', 'pi/4'),
+    ('integrate(e^(-x^2),x,0,1)', '0.746824132812427'),
+    ('integrate(floor(x),x,0,3)', '3.0'),
+    ('2+3', '5'),
+)
+
+
+def calculus_ui(names, cases=UI_CASES, marker='UI CALCULUS'):
     """Replay the heap-sensitive cases through real editing and result drawing."""
     sys.path.insert(0, str(ROOT / 'tests/support'))
     import keyscript
-    script = ''.join(command + '{enter}' for command, _ in UI_CASES) + '{2nd,mode}'
+    script = ''.join(command + '{enter}' for command, _ in cases) + '{2nd,mode}'
     keys = tuple(keyscript.parse(script))
     assert all(type(key) is int for key in keys)
     return '''import ti_system as TS
@@ -143,9 +159,10 @@ assert len(history)==len(expected),history
 for row,want in zip(history,expected):
  assert row[2]=='ans' and row[1]==want,row
 assert getattr(CAS.R,{ans})=='5'
-print('UI CALCULUS PASS: 9 commands; normal quit')
+print({done})
 '''.format(keys=repr(keys), hist=repr(names.get('HIST', 'HIST')),
-           ans=repr(names.get('ANS', 'ANS')), expected=repr(tuple(value for _, value in UI_CASES)))
+           ans=repr(names.get('ANS', 'ANS')), expected=repr(tuple(value for _, value in cases)),
+           done=repr('%s PASS: %d commands; normal quit' % (marker, len(cases))))
 
 # MathPrint lines typed after a first result (docs/notes/MATHPRINT.md 0.8, 5.3): with the
 # engine loaded, a 2D layout that runs out of memory frees the idle families and soft packs and
@@ -262,6 +279,7 @@ def prepare(dist, output, archive=None):
         'probe.py': PROBE,
         'startup.py': STARTUP,
         'ui_calculus.py': calculus_ui(names),
+        'ui_definite.py': calculus_ui(names, DEFINITE_CASES, 'UI DEFINITE'),
         'ui_edit.py': edit_ui(names),
     }
     for name, source in scripts.items():
@@ -312,7 +330,8 @@ def main(argv=None):
     parser.add_argument('--run', metavar='MICROPYTHON', help='explicitly run this native executable')
     parser.add_argument('--heap', type=int, default=512000,
                         help='native MicroPython heap bytes (default 512000 = 500 KiB)')
-    parser.add_argument('--suite', choices=('all', 'ui', 'ui_calculus', 'ui_edit', 'probe', 'startup'),
+    parser.add_argument('--suite', choices=('all', 'ui', 'ui_calculus', 'ui_definite', 'ui_edit', 'probe',
+                                                'startup'),
                         default='all')
     args = parser.parse_args(argv)
     if args.heap <= 0:
@@ -321,7 +340,8 @@ def main(argv=None):
     print('Prepared ' + str(output))
     print('Not an EVO emulator; native object sizes and limits differ, especially on 64-bit hosts.')
     print('No framebuffer is allocated. Each script runs in its own process.')
-    scripts = (('ui.py', 'ui_calculus.py', 'ui_edit.py', 'probe.py') if args.suite == 'all' else
+    scripts = (('ui.py', 'ui_calculus.py', 'ui_definite.py', 'ui_edit.py', 'probe.py')
+               if args.suite == 'all' else
                (args.suite + '.py',))
     executable = args.run or 'micropython'
     if args.run and Path(executable).is_file():

@@ -1,12 +1,32 @@
 # Delivery status and evidence
 
-Last reviewed: 2026-11-05. Repository: connerglover/cas-evo (private).
+Last reviewed: 2026-11-06. Repository: connerglover/cas-evo (private).
 Use [AGENTS.md](../AGENTS.md) for operating instructions. This file records a
 dated snapshot; verify remote heads, build results and hosting before reporting
 them as current.
 
 ## Current delivery
 
+- **Definite integrals fit the heap (on `main`, local, 2026-11-06; not pushed, not tagged, version
+  still 1.0.3).** User report: definite integrals answered `Out of memory` on the EVO while the
+  antiderivative passed. Reproduced at 173,360 B on the pinned runtime: 7 of 8 everyday definite
+  integrals failed, by heap fragmentation rather than exhaustion. A continuous integrand is now
+  proved so by interval arithmetic (`defintd.g_clear`) and loads no solver or limits pack; the
+  primitive is found before CASDEF loads (`integ.g_prim`, called by the parser); floor and ceil
+  integrands skip the primitive search; quadrature keeps a running sum, not a table. Worst single
+  command 183,712 -> 169,376-172,448 B, worst session 185,664 -> 172,352-174,400 B; table and limits
+  in [FASTBOOT.md](notes/FASTBOOT.md). New native suite `ui_definite`, in `build.yml` at 177,456 B
+  (rejected by the old build). **Evidence** (host and native, not hardware), run under WSL with the
+  pinned 1f37194 runtime: lint, framelint, not-slow `--strict-depth` source (4,296 passed) and
+  `--bundled` (4,390 passed) with 1 failure each, `test_publish_site`, because that scratch copy
+  omitted `website/`; it passes in the repository (27 with `test_workflow` and `test_micro_smoke`).
+  65 slow tests, `check_release.py` (8/8), `archive.py` (22 files, 193,101 B),
+  `tests/test_archive_release.py` (86), cas32 startup 95,000 (21,776 B free), `ui` 173,360 (60,064),
+  `ui_edit` 173,360 (56,912), `ui_calculus` 189,776 (69,056) and 185,680 (65,024), `ui_definite`,
+  probe 212,000 (55/55, 70,272 final), cas64 500,000 (55/55, 262,400 final), `package_archive.mjs`
+  (22 objects, 195,409 B), `archive_zip.py` (143,854 B). 1,531 definite-integral inputs give
+  identical records to v1.0.3; 14,659 `g_clear` proofs on random expressions had no counterexample.
+  Not run: the website build. **Pending:** an EVO run, and the user's choice of push, version and tag.
 - **v1.0.3: discontinuous calculus and choice boxes (on `main`, 2026-11-05; tagged at the user's request).**
   User requests. (1) A derivative or integral of a discontinuous function no longer repeats the
   input. Definite integrals of floor, ceil and sign are split at their jumps (`src/defintd.py`,

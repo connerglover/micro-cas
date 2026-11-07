@@ -2330,7 +2330,7 @@ here.
 | limits | T2 | CVLIM (+SER, DIFF) | `g_limit` | strategy chain | growth-class data | numeric cross-check | budget, 5 L'Hôpital rounds | ≈ estimate; the `DNE` sentinel (§10.5) |
 | antiderivatives | T2 | CVINT, CVITAB, CVINT2, CVINT3 | `g_integrate` | strategy chain S0-S9 | `ITAB` | `d/dx F ≡ f` | depth guards, budget | unevaluated `∫ f dx` + C |
 | partial fractions | T2 | CVINT2 (`integ2b`) | `g_partfrac` | linear system | – | `together(result) ≡ input` | denominator degree <= 12 | unevaluated |
-| definite integrals | T2 | CVDEF | `g_defint` | singularities -> F -> limits + jumps | – | tanh-sinh cross-check | 400 evaluations | ≈ value |
+| definite integrals | T2 | CVINT, CVDEF | `g_prim`, `g_defint` | F -> singularities -> limits + jumps | – | tanh-sinh cross-check | 400 evaluations | ≈ value |
 | improper integrals | T3 | CVDEF | `g_defint` | split pieces | – | quadrature | – | the `DIVG` sentinel, ≈ |
 | sums and series | T3 | CVSUM | `g_sum` | closed forms + tests | known-series table | partial sums | 1,000 direct terms | ≈ / the `DIVG` sentinel |
 | Riemann sums | T3 | CVSUM | `g_riemann` | loop or symbolic sum + limit | – | equals ∫ in the limit | – | numeric table |
@@ -2469,15 +2469,21 @@ here.
     attempt.
   - **Output:** `ln|u|` in real mode, then `g_polish` (§8.8). `+C` is a view decoration (§13.6).
     `R != 0` prints `F + ∫R dx`. Total failure shows `∫f dx` (a `CALL`).
-- **definite integrals** (alg §3.5-§3.6). `g_defint` runs in three phases, so that only one
-  family set is loaded at a time (§18.5):
-  1. **Singularities** (soft `R.need('solve')`, dropped after): the singularities of f in `[a, b]`,
-     from `g_solve` on denominators, `ln` arguments and `cos` for tan/sec. An empty `LST` means
-     none (`1/(x^2+1)` on `[0, 1]`); a `TRUE` (an identically zero denominator) is an error. If
-     exact solving fails (`None`), isolate numerically.
-  2. An interior or endpoint singularity makes the integral improper (T3).
-  3. **Antiderivative** (the preloaded `int` family): get F from `g_int`. If `R != 0`, go numeric.
-     Then `R.drop(('int', 'int2', 'int2b', 'int3', 'int3b', 'itab'))`.
+- **definite integrals** (alg §3.5-§3.6). The parser runs these in phases, so that only one
+  family set is loaded at a time (§18.5; memory measurements in notes/FASTBOOT.md):
+  1. **Antiderivative** (the preloaded `int` family, before `def` loads): `integ.g_prim` gets F
+     from `g_int`, so this phase costs what an indefinite integral costs. A floor or ceil
+     integrand on finite numeric bounds has no primitive and skips the search. The parser then
+     drops `int`, `int2`, `int2b`, `int3`, `int3b` and `fact`, loads `def` and passes F to
+     `g_defint`.
+  2. **Singularities**: the candidates are denominators, `ln` arguments and `cos`/`sin` for
+     tan/sec/csc/cot. Each is settled by the cheapest sound step: a closed form for `sin`/`cos`
+     of a linear argument and for a linear candidate; then `defintd.g_clear`, interval arithmetic
+     that proves a candidate has no zero on the closed interval, so a continuous integrand never
+     loads a solver pack; only then the soft `R.need('solve')`, dropped after. `g_clear` returning
+     False proves nothing, and a `TRUE` (an identically zero denominator) is skipped.
+  3. An interior or endpoint singularity makes the integral improper (T3). Peaks of a smooth f
+     (the vertex of `e^(-x^2)`) split the quadrature but are never tested for divergence.
   4. **Limits** (soft `R.need('lim')`): total = `F(b⁻) - F(a⁺) + Σ jumps of F` inside. One-sided
      limits are used only where plain substitution fails. This catches Weierstrass jumps. A `DNE`
      or infinite one-sided value at a jump makes the result numeric (or `DIVG` for T3).
@@ -3676,9 +3682,9 @@ CPython: an LRU victim that is live is skipped, and the next one is evicted [M].
   `LIVE`), unpins them, and evicts each one whose `LIVE` count is now 0; a family that is still
   live is left for `need` to evict later. Phases load their next families as soft dependencies,
   so the earlier phase is gone first:
-  - `g_defint`: `solve` (singularities), dropped; the preloaded `int` set (antiderivative),
-    dropped with `int2`, `int2b`, `int3`, `int3b` and `itab`; then `lim` (limits and jumps)
-    (§11.3);
+  - a definite integral: the preloaded `int` set (antiderivative), dropped with `int2`, `int2b`,
+    `int3`, `int3b` and `fact`; then `def`, with `solve` only if a candidate survives the
+    exclusion, dropped; then `lim` (limits and jumps) (§11.3);
   - `g_desolve`: the `int` set, dropped; then `solve` for y (§11.4);
   - `g_int`: a strategy family (`int2`, `int2b`, `int3`, `int3b`) whose attempt failed is
     dropped before the next strategy's `need`.
