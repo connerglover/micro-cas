@@ -239,7 +239,7 @@ Three numbered stages provide a real sequence: connect, install, then open CAS. 
 
 ### File map and connection strip
 
-The map has one cell for each transfer file the package manifest lists: for packs-v1, 22 files, the 21 compiled packs going to archive and the tiny source launcher CAS going to RAM. There is no destination toggle. Pending, sending, sent, verified and failed cells use distinct fills. A 0.18s ease-out transition applies only to background and border color; it does not simulate progress. Cells are aria-hidden because the textual status, numeric count, progress element and manifest communicate the state accessibly.
+The map has one cell for each transfer file the package manifest lists: for packs-v1, 26 files, the 25 compiled packs going to archive and the tiny source launcher CAS going to RAM. There is no destination toggle. Pending, sending, sent, verified and failed cells use distinct fills. A 0.18s ease-out transition applies only to background and border color; it does not simulate progress. Cells are aria-hidden because the textual status, numeric count, progress element and manifest communicate the state accessibly.
 
 website/app.js advances file states from installer progress events. Sent and final verified states are distinct; final completion follows the file-location check. The connection strip separately reports the connected model and available archive space when provided. Package verification, transfer completion and calculator execution remain separate truths.
 

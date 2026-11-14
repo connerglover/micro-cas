@@ -104,7 +104,8 @@ and fail heavy commands, so the memory manager has to evict at pack granularity.
 ## Local package (packs-v1)
 
 Twenty-one packs and two launchers replaced 236 libraries and two launchers; since the QPL
-changes one launcher, CAS, ships and the diagnostic CVTEST is a developer build only (22 files).
+changes one launcher, CAS, ships and the diagnostic CVTEST is a developer build only (22 files;
+26 since the four steps packs of 2026-11-14, [STEPS.md](STEPS.md)).
 At the 2026-10-12 review the archive held
 191,697 bytes (compiled packs plus the 6,045 bytes of launcher source); the largest pack,
 CASK1, compiles to 22,121 bytes with the pinned v1.12 compiler. These are the
@@ -345,6 +346,47 @@ below 175 KB. 1,531 definite-integral inputs give identical records before and a
 Tried and rejected: importing CASAX before the family packs so that it sits low. 1-2 KB, inside
 the path noise, for an eager load on every calculus command. The remaining gap between the live
 peak and the floor is layout, and closing it would take a different allocation scheme.
+
+### Steps (2026-11-14)
+
+Step-by-step working ([STEPS.md](STEPS.md)) adds four packs that only a steps job imports:
+CASSTD 2,207 B, CASSTI 2,188 B, CASSTA 2,942 B and CASSTV 1,670 B of bytecode. The archive
+grows from 22 files and 193,101 B to 26 files and 203,690 B. Of the packs every session
+loads, CASK2 (resident) grows 16,756 -> 17,183 B, CASUX (view) 31,215 -> 31,500 B, CASIN
+10,671 -> 11,112 B and CASPR 10,803 -> 11,172 B (both soft). What an ordinary session pays,
+on the pinned 32-bit runtime, `main` at 8275dcc against this branch built at the same path
+length:
+
+| reading | `main` | `steps` |
+| --- | --- | --- |
+| startup at 95,000, free | 21,776 | 21,264 |
+| `ui` at 173,360: boot / result, idle packs shed | 120,720 / 60,064 | 120,496 / 59,312 |
+| `ui_edit` at 173,360: result, idle packs shed | 56,912 | 56,256 |
+| `ui_calculus` at 189,776 / 185,680: result, idle packs shed | 69,056 / 65,024 | 68,304 / 64,272 |
+| probe at 212,000: final heap | 70,272 | 69,392 |
+| the ten `ui_steps` commands typed without their steps, lowest passing heap (2 KB scan) | 176,000 | 176,000 |
+
+That is 224 B at boot and about 750 B with the engine loaded.
+
+The steps themselves (`ui_steps`: nine commands, each followed by ENTER for its steps, a walk
+through the screen and CLEAR, then the next command; the `=` of `solve` is typed through the
+TEST menu):
+
+- All nine open their steps at every heap tried from 188,000 to 198,000 in 1,000-byte steps.
+- From 180,000 to 187,000 one or two of them report `Out of memory` in the status row, the
+  session intact: the steps of `integrate((x+1)/(x^2-x),x)` (partial fractions) and of
+  `integrate(1/(2+cos(x)),x,0,2*pi)` (the tangent half-angle substitution). Alone in a
+  session (4 KB scan, an earlier build of this branch) their steps passed from about 186,000
+  and 174,000, the commands themselves from about 174,000 and 170,000. About 7 KB of that
+  difference is the name pool, the menu's names and the spare names that the first steps job
+  takes (STEPS.md); the rest is the walk's pack and its nodes. The other seven opened at every
+  heap tried down to 176,000.
+- 189,776 is PROBE3's 185,296 bytes free at program start plus the harness's 4,480: the gate
+  runs `ui_steps` there and 4,096 above it. The margin below the nominal heap is under 2 KB
+  for the two heaviest steps; only an EVO run can say which side the calculator is on.
+
+The measurements that led here (the printer loaded during the walk, one pack for every walk,
+evicting around the screen, the name pool) are in STEPS.md.
 
 ### Next steps that need device data
 

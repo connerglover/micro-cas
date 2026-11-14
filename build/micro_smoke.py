@@ -213,6 +213,73 @@ print('UI EDIT PASS: %d long 2D lines stay 2D; normal quit' % len(STATES))
            line=repr(names.get('LINE', 'LINE')), flat=repr(names.get('ED1D', 'ED1D')),
            ans=repr(names.get('ANS', 'ANS')), hist=repr(names.get('HIST', 'HIST')))
 
+# Step-by-step working (docs/notes/STEPS.md): each command, then ENTER on the empty line for
+# its steps, a walk through the steps screen and CLEAR. (command, answer, least number of steps)
+STEPS_CASES = (
+    ('diff(x^2*sin(x),x)', 'x^2*cos(x)+2*x*sin(x)', 4),
+    ('integrate(x*cos(x^2),x)', 'sin(x^2)/2', 6),
+    ('integrate((x+1)/(x^2-x),x)', '2*ln(abs(x-1))-ln(abs(x))', 4),
+    ('integrate(x*e^x,x)', 'x*e^x-e^x', 2),
+    ('integrate(x/(x^2+1),x,0,1)', 'ln(2)/2', 5),
+    ('integrate(1/(2+cos(x)),x,0,2*pi)', '2*sqrt(3)*pi/3', 2),
+    ('solve(x^2+x-1=0,x)', 'x=-(sqrt(5)+1)/2,x=(sqrt(5)-1)/2', 6),
+    ('limit((1-cos(x))/x^2,x,0)', '1/2', 4),
+    ('diff(sin(x^2)/x,x)', '2*cos(x^2)-sin(x^2)/x^2', 4),
+    ('2+3', '5', 0),
+)
+
+
+def steps_ui(names):
+    """Type each STEPS_CASES command, open its steps and record len(R.STEPS) on the screen."""
+    sys.path.insert(0, str(ROOT / 'tests/support'))
+    import keyscript
+    keys = []
+    watch = []
+    for command, _, n in STEPS_CASES:
+        keys.extend(keyscript.parse(command + '{enter}'))
+        if n:
+            keys.extend(keyscript.parse('{enter}'))
+            watch.append(len(keys))         # the steps screen waits for this key
+            keys.extend(keyscript.parse('{right}{right}{down}{up}{left}{clear}'))
+    keys.extend(keyscript.parse('{2nd,mode}'))
+    assert all(type(key) is int for key in keys)
+    return '''import sys
+import gc
+import ti_system as TS
+import ti_draw as G
+TS.KEYS={keys}
+WATCH={watch}
+SEEN=[]
+_wait=TS.wait_key
+def wait():
+    if TS.POS in WATCH:
+        r=getattr(sys.modules['CASUI'],{run})
+        SEEN.append(len(getattr(r,{steps}))-1)
+        gc.collect()
+        print('steps on screen: %d, heap %d' % (SEEN[-1], gc.mem_free()))
+    return _wait()
+TS.wait_key=wait
+import CAS
+assert TS.POS==len(TS.KEYS), 'key replay did not finish'
+assert G.ERROR is None,G.ERROR
+history=getattr(CAS.R,{hist})
+expected={expected}
+assert len(history)==len(expected),history
+for row,want in zip(history,expected):
+ assert row[2]=='ans' and row[1]==want,row
+least={least}
+assert len(SEEN)==len(least),SEEN
+for got,want in zip(SEEN,least):
+ assert got>=want,('steps missing',SEEN,least)
+assert getattr(CAS.R,{steps})==[]
+print('UI STEPS PASS: %d commands, %d with steps; normal quit' % (len(expected), len(SEEN)))
+'''.format(keys=repr(tuple(keys)), watch=repr(tuple(watch)),
+           run=repr(names.get('R', 'R')), steps=repr(names.get('STEPS', 'STEPS')),
+           hist=repr(names.get('HIST', 'HIST')),
+           expected=repr(tuple(value for _, value, _ in STEPS_CASES)),
+           least=repr(tuple(n for _, _, n in STEPS_CASES if n)))
+
+
 PROBE = '''# Import the unchanged self-contained release probe; auto-advance pages.
 import gc
 import ti_system as TS
@@ -281,6 +348,7 @@ def prepare(dist, output, archive=None):
         'ui_calculus.py': calculus_ui(names),
         'ui_definite.py': calculus_ui(names, DEFINITE_CASES, 'UI DEFINITE'),
         'ui_edit.py': edit_ui(names),
+        'ui_steps.py': steps_ui(names),
     }
     for name, source in scripts.items():
         ast.parse(source, filename=name, feature_version=(3, 4))
@@ -330,8 +398,8 @@ def main(argv=None):
     parser.add_argument('--run', metavar='MICROPYTHON', help='explicitly run this native executable')
     parser.add_argument('--heap', type=int, default=512000,
                         help='native MicroPython heap bytes (default 512000 = 500 KiB)')
-    parser.add_argument('--suite', choices=('all', 'ui', 'ui_calculus', 'ui_definite', 'ui_edit', 'probe',
-                                                'startup'),
+    parser.add_argument('--suite', choices=('all', 'ui', 'ui_calculus', 'ui_definite', 'ui_edit', 'ui_steps',
+                                                'probe', 'startup'),
                         default='all')
     args = parser.parse_args(argv)
     if args.heap <= 0:
@@ -340,7 +408,7 @@ def main(argv=None):
     print('Prepared ' + str(output))
     print('Not an EVO emulator; native object sizes and limits differ, especially on 64-bit hosts.')
     print('No framebuffer is allocated. Each script runs in its own process.')
-    scripts = (('ui.py', 'ui_calculus.py', 'ui_definite.py', 'ui_edit.py', 'probe.py')
+    scripts = (('ui.py', 'ui_calculus.py', 'ui_definite.py', 'ui_edit.py', 'ui_steps.py', 'probe.py')
                if args.suite == 'all' else
                (args.suite + '.py',))
     executable = args.run or 'micropython'

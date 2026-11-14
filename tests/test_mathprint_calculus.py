@@ -530,7 +530,7 @@ def test_plus_c_is_drawn_inline_and_right_aligned():
     assert plus[0][1] == 310 - 24 + 2                   # 2 px after the answer's box
     assert min(t[1] for t in texts if t[0] == '3') == 310 - 24 - w + (w - 10) // 2
     footer = [t.text for t in TD.TEXTS if t.y == 153]
-    assert footer == []                                 # no + C (nor a form) in the hint row
+    assert footer == ['ENTER: steps']                   # no + C (nor a form) in the hint row
     assert [t.text for t in TD.TEXTS if t.y == 2 and t.x == 265] == ['exact']
     assert s.hist[0][1] == 'x^3/3'                      # the history text is unchanged
     assert TD.OFFSCREEN == [] and TD.OVERDRAW == []

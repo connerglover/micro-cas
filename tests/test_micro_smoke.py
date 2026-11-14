@@ -38,3 +38,15 @@ def test_edit_suite_is_generated_and_named(monkeypatch, tmp_path):
     monkeypatch.setattr(MS.subprocess, 'run', lambda *a, **k:
                         subprocess.CompletedProcess(a[0], 0, 'UI EDIT PASS: 3 long\n', ''))
     MS.main(['--run', 'micropython', '--suite', 'ui_edit'])
+
+
+def test_steps_suite_is_generated_and_named(monkeypatch, tmp_path):
+    names = {'R': 'R', 'STEPS': 'STEPS', 'HIST': 'HIST'}
+    source = MS.steps_ui(names)
+    compile(source, 'ui_steps.py', 'exec')
+    assert 'UI STEPS PASS' in source
+    assert sum(1 for c in MS.STEPS_CASES if c[2]) == 9 and MS.STEPS_CASES[-1][2] == 0
+    monkeypatch.setattr(MS, 'prepare', lambda *a: tmp_path)
+    monkeypatch.setattr(MS.subprocess, 'run', lambda *a, **k:
+                        subprocess.CompletedProcess(a[0], 0, 'UI STEPS PASS: 10 commands\n', ''))
+    MS.main(['--run', 'micropython', '--suite', 'ui_steps'])

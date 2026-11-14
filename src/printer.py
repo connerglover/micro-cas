@@ -934,6 +934,37 @@ def gap(val):                                                  #@L 3
     return False
 
 
+def steps(val, e, ctx, S):                                      #@L 2
+    # The texts of a steps job (docs/notes/STEPS.md), made after the walk: val is LST(l1, r1,
+    # l2, r2, ...), e the history entry and S the command name, then one title per pair. Each
+    # title becomes (title, 'l=r'). UNDEF as l: r alone; as r: the entry's answer (with + C).
+    # An empty title is a check: its r must print as the entry's answer, or there are no
+    # steps. A line over 150 characters, or past 2,400 in all, is left out (the title stays).
+    # The answer is the entry's exact text, whatever form F5 shows now.
+    t = K.N[val]
+    ans = e[5][0][1] if e[5] else e[1]
+    n = 0
+    for j in range(1, len(t), 2):
+        k = (j + 1) >> 1
+        b = ans + ('+C' if e[4] & F_PLUSC else '') if t[j + 1] == K.UNDEF else text(t[j + 1], ctx)
+        if not S[k]:
+            if b != ans:
+                return (R_MSG, 'No steps for this one', None, 0)
+            continue
+        a = '' if t[j] == K.UNDEF else text(t[j], ctx)
+        line = ''
+        if a is not None and b is not None:
+            line = a + '=' + b if a else b
+        if len(line) > 150 or n + len(line) > 2400:
+            line = ''
+        n += len(line)
+        S[k] = (S[k], line)
+    for k in range(len(S) - 1, 0, -1):
+        if not S[k]:
+            del S[k]
+    return (R_ANS, '', None, 0)
+
+
 def record(val, job):                                           #@L 2
     # The result record (kind, text, approx, flags) of the value val (10.4, 12.1). job is
     # (kind, input text, ctx, flags) as R.go passes it; ctx and flags may be left out. A

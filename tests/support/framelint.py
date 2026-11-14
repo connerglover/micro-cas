@@ -70,6 +70,7 @@ KEYS = {
     'int2': 'integ2', 'int2b': 'integ2b', 'int3': 'integ3', 'int3b': 'integ3b',
     'def': 'defint', 'defb': 'defintb', 'defc': 'defintc', 'defd': 'defintd', 'sum': 'sums', 'sumb': 'sumsb', 'sumc': 'sumsc',
     'form': 'forms', 'cat': 'catalog', 'catb': 'catalogb',
+    'stepv': 'stepview',
 }
 
 DYN = 'dynamic module'      # a local bound to a module chosen at run time

@@ -152,6 +152,16 @@ jobs:
         # at 173360. Before the two routes this session needed 184640 (docs/notes/FASTBOOT.md).
         run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 177456 --suite ui_definite
 
+      - name: Open and page the steps of nine commands at the measured EVO start heap
+        # Each command, ENTER for its steps, a walk through the screen, CLEAR, the next command
+        # (docs/notes/STEPS.md). Every heap tried from 189000 to 196000 passes; below, the steps
+        # of the two heaviest integrals report Out of memory (docs/notes/FASTBOOT.md).
+        run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 189776 --suite ui_steps
+
+      - name: Open and page the steps of nine commands 4 KiB above the measured EVO start heap
+        # Native heap layout varies with the run's path: a pass at one heap alone could be luck.
+        run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 193872 --suite ui_steps
+
       - name: Run the 55-case diagnostic stress session (developer CVTEST) on a 212000-byte 32-bit heap
         run: python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run "$RUNNER_TEMP/evo-micropython/ports/unix/micropython-cas32" --heap 212000 --suite probe
 

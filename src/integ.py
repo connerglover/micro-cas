@@ -8,6 +8,7 @@ import run as R
 
 EXTRA = (('int2', 'g_tabular'), ('int2', 'g_trig'), ('int2b', 'g_rational'),
          ('int3', 'g_advanced'), ('int3b', 'g_substitutions'))
+USUB = [0]          # the u of the last successful g_usub (an id inside its f): read by steps
 
 
 def scale(c, f):                                                #@L 3
@@ -72,6 +73,7 @@ def g_usub(f, x, depth=0):                                      #@L 2
                 F = A.subst(v[0], temp, u)
                 good = yield g_check(F, K.ZERO, f, x)
                 if good:
+                    USUB[0] = u
                     yield K.keep(m, (F, K.ZERO))
                     return
         K.keep(m, None)

@@ -1,12 +1,52 @@
 # Delivery status and evidence
 
-Last reviewed: 2026-11-06. Repository: connerglover/cas-evo (private).
+Last reviewed: 2026-11-14. Repository: connerglover/cas-evo (private).
 Use [AGENTS.md](../AGENTS.md) for operating instructions. This file records a
 dated snapshot; verify remote heads, build results and hosting before reporting
 them as current.
 
 ## Current delivery
 
+- **Step-by-step working (branch `steps`, local, 2026-11-14; not pushed, not tagged, version
+  still 1.0.3).** User request: steps as FlowCE and CalcPlex show them, in FlowCE's manner, with
+  the heap as the first concern. ENTER on the empty line after an exact derivative, integral,
+  limit or solved equation (the hint row reads `ENTER: steps`) opens a steps screen: numbered
+  rule titles with 2D working, the entry's answer last. Design and everything measured on the
+  way: [notes/STEPS.md](notes/STEPS.md). In short: nothing is recorded while a command runs; a
+  `steps` job parses the history entry again and one walk per command (packs CASSTD, CASSTI,
+  CASSTA; the screen CASSTV) builds nodes only, printed after the families gave way; a
+  definite integral is not computed again. 26 files (25 packs and CAS), 203,690 B.
+  **Cost to a session that never asks for steps** (pinned 1f37194 runtime, same path length
+  as `main`): 224 B at boot, about 750 B with the engine loaded (table in
+  [FASTBOOT.md](notes/FASTBOOT.md#steps-2026-11-14)); the ten commands of the steps suite typed
+  without steps pass from 176,000 B on both builds.
+  **Found on the way, and true of `main` too:** MicroPython's pool for interned names 1,261 to
+  2,540 is one 5,136-byte block allocated when name 1,261 is interned, wherever it fits; its
+  failure reads `allocating 1280 bytes`. Every session of some length crosses that line. Met
+  while a menu is imported beside the view pack on a split heap it cannot be had, and the menu
+  then cannot open at all; on `main` the tested session missed that by ten names. The first
+  steps job of a session now crosses the line deliberately on an emptied heap
+  (`stepview.warm`). A session without steps is as exposed as before; crossing at engine load
+  would cost about 7 KB there and break the 177,456 gate, so that is left as a decision.
+  **Evidence** (host and native, not hardware), run under WSL with the pinned runtime: lint,
+  framelint, not-slow `--strict-depth` source (4,540 passed) and `--bundled` (4,453 passed, 86
+  artifact skips before the archive existed), 65 slow tests, `check_release.py` (8/8),
+  `archive.py` (26 files, 203,690 B), `tests/test_archive_release.py` (86), cas32 startup
+  95,000 (21,264 B free), `ui` 173,360 (59,312), `ui_edit` 173,360 (56,256), `ui_calculus`
+  189,776 (68,304) and 185,680 (64,272), `ui_definite` 177,456, the new `ui_steps` at 189,776
+  and 193,872 (nine commands with their steps opened and paged), probe 212,000 (55/55, 69,392
+  final), cas64 500,000 (all suites, 55/55, 260,672 final), `package_archive.mjs` (26 objects,
+  206,422 B) and `archive_zip.py` (153,081 B). `ui_steps` passes at every heap from 188,000 to
+  198,000 in 1,000-byte steps; from 180,000 to 187,000 the steps of the two heaviest integrals
+  report `Out of memory` and the session goes on. On this Windows clone the not-slow source
+  tier has the same 6 failures as the unchanged commit (`test_hugepow`, `test_norm`,
+  `test_sums`) and the Node installer tests the same 4 (CRLF copies of
+  `website/legacy-*.json`). Not run: the website build.
+  **Pending:** an EVO run, which alone can show the time of the first steps request of a
+  session (it imports CASSTV and CASMNU once and reloads the command's families), whether the
+  steps of the heaviest integrals fit, and how the steps screen reads on the device; and the
+  user's choice of merge, version and tag (INSTALL.md, which ships in the ZIP, describes the
+  steps key).
 - **Definite integrals fit the heap (on `main`, local, 2026-11-06; not pushed, not tagged, version
   still 1.0.3).** User report: definite integrals answered `Out of memory` on the EVO while the
   antiderivative passed. Reproduced at 173,360 B on the pinned runtime: 7 of 8 everyday definite

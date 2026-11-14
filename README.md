@@ -18,6 +18,7 @@
 - Exact arithmetic, radicals and complex numbers; huge powers stay exact (`3^(2^20)`)
 - Simplify, expand, factor, partial fractions and equation solving
 - Derivatives, limits, indefinite and definite integrals, Taylor series and sums
+- Step-by-step working for derivatives, integrals, limits and equations
 - Differential equations, gradients, arc length and polar/parametric areas
 - MathPrint 2D editor with fraction, root, integral, sum and limit templates
 - Scrollable history: copy any input or answer back, delete entries, switch answer forms
@@ -48,6 +49,7 @@ To install by hand:
 | math | Command menu on the tab used last |
 | 2nd + fraction | Template picker |
 | ENTER | Evaluate; in the history, copy the selected input or answer |
+| ENTER on the empty line | Steps of the answer above, when the hint reads `ENTER: steps` |
 | up | Scroll the history; left/right select the input or the answer |
 | CLEAR | Clear the line, cancel a calculation, or delete the selected history entry |
 

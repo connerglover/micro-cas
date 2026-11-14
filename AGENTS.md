@@ -45,6 +45,7 @@ acceptance clearly distinguished.
 | Engine algorithms, representation, parser, UI architecture | Relevant sections of [docs/DESIGN.md](docs/DESIGN.md), then the affected module and its tests |
 | Device syntax, builtins, stack limits, TI-specific assumptions | [docs/reference/device-python.md](docs/reference/device-python.md); retain its evidence tags |
 | Loader, packs, minification, heap, bytecode, transfer formats | [docs/notes/FASTBOOT.md](docs/notes/FASTBOOT.md), [docs/notes/PACKAGING.md](docs/notes/PACKAGING.md), relevant `build/` code and the build workflow |
+| Step-by-step working (the steps job, its walks, screen and name pool) | [docs/notes/STEPS.md](docs/notes/STEPS.md), `src/sdiff.py`, `src/sint.py`, `src/salg.py`, `src/stepview.py`, `tests/test_steps.py` |
 | Calculator installation or user-reported device failure | [docs/INSTALL.md](docs/INSTALL.md) and [docs/STATUS.md](docs/STATUS.md) |
 | Website layout, copy, interaction or visual review | [PRODUCT.md](PRODUCT.md), root [DESIGN.md](DESIGN.md), and [.impeccable/surfaces/website-index-html.md](.impeccable/surfaces/website-index-html.md) |
 | Browser transfer or package migration | `website/installer.js`, `website/transport.js`, `website/tests/installer.test.js`, vendor provenance and packaging notes |
@@ -112,14 +113,19 @@ Desktop build scripts can use the modern Python version pinned in CI.
   memory by itself while a stale C-stack word still points at it.
 - On MicroPython 1.12 a failed import leaves the half-run module in
   `sys.modules`. Remove it before retrying (`run.need`, `ui.engine`).
+- Interned names are permanent, and their pool for names 1,261 to 2,540 is one
+  5,136-byte block allocated where it happens to fit when name 1,261 is interned
+  ([docs/notes/STEPS.md](docs/notes/STEPS.md)). Count the names a change adds
+  (`micropython.qstr_info()` on the pinned runtime) before adding resident names
+  or a pack that loads outside a command.
 
 ## Calculator build and installation contract
 
 The user download is **`dist/microcas-calculator.zip`** (CI artifact
 `microcas-calculator`; on a GitHub Release `microcas-<tag>.zip`; the release version is
 `build/manifest.py` `VERSION`, recorded in `release.json` and `archive.json`). Its format is **packs-v1**
-([docs/notes/FASTBOOT.md](docs/notes/FASTBOOT.md)): **21 compiled `.8mp2`
-packs for Archive** and the **`CAS.8xpy2` launcher for RAM**, 22 files. The
+([docs/notes/FASTBOOT.md](docs/notes/FASTBOOT.md)): **25 compiled `.8mp2`
+packs for Archive** and the **`CAS.8xpy2` launcher for RAM**, 26 files. The
 user runs CAS from the Python app (source `src/casevo.py`; `manifest.ENTRY`
 names it, and no pack may share its name). `build/manifest.py` `PACKS` defines each pack and its kind (ui, core,
 family, soft, view, aux); `PACKMAX` caps a pack's bytecode at 60,000 bytes. Read
@@ -187,6 +193,7 @@ python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke -
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 189776 --suite ui_calculus
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 185680 --suite ui_calculus
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 177456 --suite ui_definite
+python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 189776 --suite ui_steps
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas32> --heap 212000 --suite probe
 python build/micro_smoke.py --archive dist/archive --output dist/archive-smoke --run <v1.12-cas64> --heap 500000
 node build/package_archive.mjs
@@ -201,9 +208,10 @@ a probe imported several `ti_*` modules, and 189,776 is PROBE3's 185,296 bytes
 free at program start plus the 4,480 bytes the harness uses; `ui_calculus` also
 runs 4,096 bytes below it, because native heap layout varies with the run's path
 and a pass at exactly the nominal heap can be luck. `ui_definite` runs eight everyday
-definite integrals back to back at 177,456, 4,096 above the lower measured heap. `ui_edit` types long 2D lines
+definite integrals back to back at 177,456, 4,096 above the lower measured heap. `ui_steps` opens and
+pages the steps of nine commands at the nominal start heap ([docs/notes/STEPS.md](docs/notes/STEPS.md)). `ui_edit` types long 2D lines
 after a result. The 64-bit run uses the default `all` suite (UI, UI calculus, UI
-definite, UI edit and the 55 diagnostics of the developer probe `dist/dev/CVTEST.py`, which
+definite, UI edit, UI steps and the 55 diagnostics of the developer probe `dist/dev/CVTEST.py`, which
 the `startup` and `probe` suites also run). FASTBOOT.md
 records why packs need more heap than v1 for the heaviest definite integrals.
 

@@ -4767,3 +4767,11 @@ The provisional stage subtotal is now 139,442 bytes before excluded runtime
 costs. The measured 173,360-byte heap remains the target. Physical acceptance
 remains unverified. Complete files, checksums and the installation guide ship in
 one deterministic ZIP, automatically built and tested by GitHub Actions.
+
+### Step-by-step working (2026-11-14)
+
+Steps are regenerated on demand from a history entry, as FlowCE does: a `steps` job of
+`run.go`, one walk per command in a pack of its own, the texts printed after the walk, and a
+modal steps screen. Design, the measured memory and the name-pool limit it met are in
+[notes/STEPS.md](notes/STEPS.md). Section 15.1's registry gains no typed command: the job
+writes the entry `'?'` for its walk and removes it.

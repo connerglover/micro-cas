@@ -85,4 +85,4 @@ def test_archive_holds_only_packs_and_launchers():
     # One launcher; the developer probe CVTEST never ships (QPL Q1).
     assert [f['module'] for f in manifest['files'] if f['destination'] == 'ram'] == ['CAS']
     assert not any(f['module'] in ('CVTEST', 'CASEVO') for f in manifest['files'])
-    assert len(manifest['files']) == 22
+    assert len(manifest['files']) == 26     # 25 packs (four of them the steps packs) and CAS

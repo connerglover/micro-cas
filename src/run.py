@@ -50,7 +50,8 @@ DEPS = {'norm': (),                     # poly, rules, ident and diff are parts 
         'def': ('norm',),               # integration, solve and limits are separate phases
         'sum': ('norm',),
         'ode': ('norm',),
-        'menu': ()}
+        'menu': ()}             # sdiff, sint, salg, stepv (docs/notes/STEPS.md) need nothing
+                                # here: a walk loads norm and its command's families itself
 DEV = {'cat': 'catalog',
  'catb': 'catalogb',
  'def': 'defint',
@@ -94,6 +95,10 @@ DEV = {'cat': 'catalog',
  'solvec': 'solvec',
  'solved': 'solved',
  'solvee': 'solvee',
+ 'salg': 'salg',
+ 'sdiff': 'sdiff',
+ 'sint': 'sint',
+ 'stepv': 'stepview',
  'sum': 'sums',
  'sumb': 'sumsb',
  'sumc': 'sumsc'}
@@ -151,6 +156,10 @@ CLOSURE = {'catb': ('catb',),
  'norm': ('norm',),
  'ode': ('norm', 'ode'),
  'solve': ('norm', 'fact', 'solve'),
+ 'salg': ('salg',),
+ 'sdiff': ('sdiff',),
+ 'sint': ('sint',),
+ 'stepv': ('stepv',),
  'sum': ('norm', 'sum')}
 COST = {}           # part key -> steady bytes; LINES: part key -> lines (the bundler's numbers)
 LINES = {}
@@ -211,6 +220,10 @@ FLAGS = 0           # the record flags found by start
 TARGET = None       # the variable that rules 2-3 store into
 FORMINDEX = 0
 FORMNAME = 'exact'
+# The working of the last steps job (docs/notes/STEPS.md): empty, or the explained command's
+# name and then one (title, line) per step. Text only; the UI empties it when the viewer closes.
+STEPS = []
+WARM = []           # not empty: stepview.warm has run (see go)
 
 # -- records: (kind, text, approx, flags) --------------------------------------------------------
 R_ANS = 'ans'
@@ -220,6 +233,7 @@ F_PURGEHINT = 2     # a store into a working variable (7.9)
 F_APPROX = 4        # the answer is a numeric fallback (13.6; set by the printer)
 F_DEG = 8           # evaluated in degree mode (F5 forms re-parse in the entry's mode)
 F_SOLN = P.F_SOLN   # 16: the result of solve (the printer's sentinel messages)
+F_STEPS = 32        # the last command is one a steps job explains (set by start; read by the UI)
 
 M_INTERRUPTED = 'Interrupted'
 M_OOM = 'Out of memory'
@@ -256,8 +270,9 @@ def okname(v):                                                  #@L 7
 # -- the runner ----------------------------------------------------------------------------------
 
 def go(job):                                                    #@L 1
-    """job: ('eval', text) or ('form', history index). Returns a record; never raises, except
-    KeyboardInterrupt, which is re-raised after the reset (10.4, 18.6)."""
+    """job: ('eval', text), ('form', history index) or ('steps', history index). Returns a
+    record; never raises, except KeyboardInterrupt, which is re-raised after the reset (10.4,
+    18.6). A steps job leaves its working in STEPS and changes nothing else in the session."""
     global LINE, CTX, FLAGS, TARGET, INGO
     INGO = True
     for attempt in (0, 1):   # an Out of memory with stale families loaded is retried once
@@ -266,12 +281,20 @@ def go(job):                                                    #@L 1
         err = None
         stack = g = val = None
         LASTSOFT[0] = None
+        del STEPS[:]
         LINE = job[1] if job[0] == 'eval' else ''
         CTX = None
         FLAGS = 0
         TARGET = None
         try:
             sweep()
+            if job[0] == 'steps' and not WARM:
+                # once a session, on a heap that holds nothing lazy: the names of the packs
+                # that load outside a command, and the next name pool (stepview.warm)
+                evict_all()
+                need('stepv').warm(need, evict, MEMFREE)
+                evict('stepv')
+                WARM.append(1)
             room('input')
             code, ctx, ks, rs = start(job)
             # parsed: the input code is idle until the next line. A command without families
@@ -290,7 +313,7 @@ def go(job):                                                    #@L 1
             if code is None:                 # purge or a definition: ctx is the message
                 rec = (R_MSG, ctx, None, 0)
             else:
-                if job[0] == 'eval':         # the root generator is created here, never in a helper
+                if job[0] != 'form':         # the root generator is created here, never in a helper
                     g = P.g_eval(code, ctx)
                 else:
                     g = MODS['form'].g_form(code, ctx)
@@ -350,7 +373,10 @@ def go(job):                                                    #@L 1
                 else:
                     del PINNED[:]            # computed: its families may give way to the printer
                     room('print')
-                    rec = PR.record(val, (job[0], LINE, ctx, FLAGS))   # text, decimal, sentinels
+                    if job[0] == 'steps':    # the texts of the walk's pairs, into STEPS
+                        rec = PR.steps(val, HIST[FORMINDEX], ctx, STEPS)
+                    else:
+                        rec = PR.record(val, (job[0], LINE, ctx, FLAGS))   # text, decimal, sentinels
         except K.Cancel:
             err = M_INTERRUPTED
         except K.CasError as e:
@@ -395,6 +421,8 @@ def go(job):                                                    #@L 1
             del LOADED[:]
         break
     INGO = False
+    if job[0] == 'steps':
+        CMDS.pop('?', None)
     if err is KBI:
         raise KeyboardInterrupt()
     try:
@@ -412,7 +440,7 @@ def start(job):                                                 #@L 2
     global LINE, CTX, FLAGS, TARGET, FORMINDEX
     ks = []                              # the families to preload, and the rule sets
     rs = []
-    if job[0] != 'eval':                 # F5 forms: the entry's original answer text, inert (14)
+    if job[0] == 'form':                 # F5 forms: the entry's original answer text, inert (14)
         FORMINDEX = job[1]
         e = HIST[job[1]]
         code = P.rpn(P.tokens(e[5][0][1] if e[5] else e[1], 0))
@@ -421,6 +449,11 @@ def start(job):                                                 #@L 2
         ks.append('form')
     else:
         s = job[1]
+        if job[0] != 'eval':             # steps: the entry's input again, in the entry's mode
+            FORMINDEX = s
+            s = HIST[s][0]
+            if 'ans()' in s:             # Ans has moved on since that entry
+                raise K.CasError('No steps for this one')
         st = []                          # 1. autoclose (FlowCE console_autoclose)
         for ch in s:
             if ch == '(' or ch == '[' or ch == '{':
@@ -443,6 +476,8 @@ def start(job):                                                 #@L 2
             s = s.replace('ans()', '(' + ANS + ')')
         tk = P.lex(s)                    # stage 3
         n = len(tk)
+        if job[0] != 'eval' and n and tk[0][1] == 'purge':
+            raise K.CasError(M_ERROR)    # never run a purge or a definition a second time
         if n and tk[0][1] == 'purge' and tk[0][4] & P.F_CALL:  # rule 0: purge(name, ...),
             if n < 4 or n & 1 or tk[n - 1][0] != P.K_RP:       # whole names (no cutting)
                 raise K.CasError(P.M_PURGE)
@@ -467,6 +502,8 @@ def start(job):                                                 #@L 2
             c += 1
         if call and c + 2 < n and tk[c + 1][0] == P.K_OP and tk[c + 1][1] == ':=':
             # rule 1: f(x, ...) := body (stage 4 wrote := for f(x)=body)
+            if job[0] != 'eval':
+                raise K.CasError(M_ERROR)
             f = t0[1]
             if not okname(f):
                 raise K.CasError(M_BADNAME)
@@ -531,6 +568,8 @@ def start(job):                                                 #@L 2
                 code.append(('s', u, code[-1][2]))
                 code.append(('F', 'solve', 2, code[-1][2]))
         FLAGS = F_DEG if SET['deg'] else 0
+        if job[0] != 'eval':
+            FLAGS = HIST[FORMINDEX][4] & F_DEG
         if call and ALIAS.get(t0[1], t0[1]) == 'integrate':      # rule 6: + C
             d = 0
             cm = 0
@@ -550,10 +589,20 @@ def start(job):                                                 #@L 2
         while i >= 0 and code[i][0] == 'P':
             i -= 1
         if i >= 0 and code[i][0] == 'F':
-            e = CMDS.get(ALIAS.get(code[i][1], code[i][1]))
+            f = ALIAS.get(code[i][1], code[i][1])
+            e = CMDS.get(f)
             if e is not None:
                 FLAGS |= e[4] & F_SOLN
-        ctx = [SET['deg'], None, 0, 0]
+            if f == 'diff' or f == 'integrate' or f == 'solve' or f == 'limit':
+                FLAGS |= F_STEPS
+                if job[0] != 'eval':     # the last command gives way to its walk: '?' cannot
+                    STEPS.append(f)      # be typed, and g_eval hands it the evaluated arguments
+                    CMDS['?'] = ({'diff': 'sdiff', 'integrate': 'sint'}.get(f, 'salg'), 'g_walk',
+                                 1, 6, P.F_NOAUTO, ())
+                    code[i] = ('F', '?') + tuple(code[i][2:])
+        if job[0] != 'eval' and not STEPS:
+            raise K.CasError('No steps for this one')
+        ctx = [1 if FLAGS & F_DEG else 0, None, 0, 0]
         for it in code:                  # the commands of the line
             if it[0] == 'F':
                 f = ALIAS.get(it[1], it[1])
@@ -573,6 +622,10 @@ def finish(job, rec):                                           #@L 2
     """After the reset: the store of rules 2-3, the history and Ans (eval jobs only). The
     history entry is made first, so a MemoryError there leaves VARS and ANS unchanged."""
     global ANS
+    if job[0] == 'steps':                # the session is untouched; a failure leaves no working
+        if rec is None or rec[0] != R_ANS:
+            del STEPS[:]
+        return rec
     if job[0] != 'eval':
         e = HIST[job[1]]
         if e[5] is None:

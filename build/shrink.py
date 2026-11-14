@@ -277,6 +277,8 @@ def make_mapping(sources, reserved=(), local_names=False, seeds=None):
             elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in REFLECT:
                 if _clears_every_name(node, parents):
                     continue                # names come from dir() at run time: any spelling
+                if node.args and isinstance(node.args[0], (ast.Tuple, ast.List)):
+                    continue                # a literal receiver: no module attribute is reached
                 if len(node.args) > 1 and not isinstance(node.args[1], ast.Constant):
                     lookup = node.args[1]
                     target = lookup.func if isinstance(lookup, ast.Call) else None

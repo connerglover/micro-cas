@@ -4,8 +4,8 @@ Use **microcas-calculator.zip**, the compiled EVO package: **MicroCAS 1.0.3**
 (format `packs-v1`). On a GitHub Release the same file is named
 `microcas-v1.0.3.zip`. Releases before 1.0.2 were named cas-evo
 (`cas-evo-calculator.zip`, `cas-evo-<tag>.zip`); they are the same program.
-It preserves all v1 features with **21 compiled library packs in archive**
-(`CAS*.8mp2`) and **one launcher in RAM** (`CAS.8xpy2`): 22 files, well below the 3.5 MB storage allowance. `archive.json` in the ZIP
+It preserves all v1 features with **25 compiled library packs in archive**
+(`CAS*.8mp2`) and **one launcher in RAM** (`CAS.8xpy2`): 26 files, well below the 3.5 MB storage allowance. `archive.json` in the ZIP
 lists each file's size. Runtime Python heap is a separate, smaller budget.
 
 This replaces the v1 package of 236 compiled libraries. On the EVO, v1 took
@@ -173,6 +173,7 @@ cancel, then check that `2+3` still returns `5`.
 | VARS | Ans, stored variables, and functions |
 | Up/down | Up from the edit line scrolls the history; in the history, up/down move between entries (2nd: 5 at a time). `Press up for earlier entries` at the top means older entries are hidden above |
 | Left/right in the history | Left highlights the input, right the answer; a wide answer scrolls first |
+| ENTER on the empty line | After a derivative, integral, limit or solved equation, while the row above the entry reads `ENTER: steps`: show the working step by step (up/down one step, right a page, CLEAR back). The first time in a session takes longer. `No steps for this one` means the method has no steps yet. After any other answer, or after CLEAR dismissed the answer, ENTER repeats the last input |
 | ENTER in the history | Copy the highlighted input or answer into the edit line at the caret |
 | CLEAR in the history | Delete the highlighted entry (input and answer); Ans and variables stay |
 | 2nd ENTER | Recall earlier inputs into the edit line |
@@ -215,7 +216,9 @@ small program and 173,360 bytes after importing `ti_plotlib`, `ti_graphics`,
 `ti_image` and more, which MicroCAS does not import. The build runs the compiled
 packs on native 32-bit MicroPython v1.12: startup on a 95,000-byte total heap,
 `2+3` and long 2D lines at 173,360 bytes, seven calculus commands at 189,776
-bytes, and 55 diagnostic calculations at 212,000 bytes. Graphics are stubbed, so
+bytes, the steps of nine commands at 189,776 bytes, and 55 diagnostic calculations
+at 212,000 bytes. Steps need more memory than the answer did: the steps of the
+heaviest integrals may show `Out of memory` where their answers fit. Graphics are stubbed, so
 these are not calculator measurements. **MODE > About MicroCAS** shows the free
 heap, and a calculation that runs out of memory shows `Out of memory`; the next
 command should still work. The 55-case diagnostic program (`CVTEST`) is a

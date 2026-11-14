@@ -33,17 +33,18 @@ ALIASES = {
     'ui': 'U', 'rules': 'RU', 'poly': 'PO', 'norm': 'NO', 'ident': 'ID', 'factor': 'FA',
     'solve': 'SO', 'forms': 'FO', 'diff': 'DF', 'series': 'SE', 'limit': 'LI',
     'integ': 'IN', 'itab': 'IT', 'integ2': 'I2', 'integ3': 'I3', 'defint': 'DI',
-    'sums': 'SU', 'ode': 'OD', 'menu': 'M', 'catalog': 'CA',
+    'sums': 'SU', 'ode': 'OD', 'menu': 'M', 'catalog': 'CA', 'sdiff': 'SD',
+    'sint': 'SI', 'salg': 'SA', 'stepview': 'SV',
 }
 ENTRY = ('casevo',)
 # Resident modules (class R); every other module of the map is lazy (L or U).
 RESIDENT = ('node', 'parse', 'printer', 'alg', 'run', 'draw', 'ui')
 # Only these import ti_* (section 4.2); parts of menu count as menu.
-UI_MODULES = ('ui', 'draw', 'menu', 'menub', 'casevo')
+UI_MODULES = ('ui', 'draw', 'menu', 'menub', 'stepview', 'casevo')
 # Modules where '/' is banned (exact arithmetic; section 17.4). Parts are included by family.
 EXACT_MODULES = ('node', 'parse', 'run', 'rules', 'poly', 'norm', 'ident', 'factor', 'solve',
                  'diff', 'series', 'integ', 'itab', 'integ2', 'integ3', 'forms', 'sums',
-                 'ode')
+                 'ode', 'sdiff', 'sint', 'salg')
 # Native modules device code may import (device-python section 4.2).
 NATIVE_MODULES = ('math', 'gc', 'sys', 'array', 'time', 'collections', 'random',
                   'ti_system', 'ti_graphics', 'ti_draw', 'ti_plotlib', 'ti_image')

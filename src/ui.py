@@ -1191,6 +1191,8 @@ def redraw():                                                  #@L 2
                 lab = 'approx' if lab == 'exact' else lab
             elif e[3] is not None and lab == 'exact':
                 left = ('~ ' + str(e[3]))[:31]
+            if not mode and e[4] & 36 == 32:        # F_STEPS, not F_APPROX: ENTER on the
+                left = (left[:17] + '  ' if left else '') + 'ENTER: steps'      # empty line
     else:                                           # the argument help (QPL Q5)
         k = argpos()
         if k != HKEY:
@@ -1536,6 +1538,8 @@ def key(k):                                                    #@L 1
                     pos = empty_slot()
             if pos >= 0:
                 CUR, STATUS = pos, 'Fill in the empty box'
+            elif not s and hist and HERO and hist[-1][2] == R.R_ANS and hist[-1][4] & 36 == 32:
+                job = ('steps', len(hist) - 1)      # the focused answer's working (STEPS.md)
             elif s or hist:
                 job = ('eval', (s if s == EFAIL else tidy(s)) or
                        hist[-1][0])     # a failed line is not parsed again (EFAIL)
@@ -1610,6 +1614,10 @@ def show(job, rec):                                             #@L 1
     NOTE = ''
     if rec[3] & R.F_PURGEHINT:
         STATUS = 'Stored; purge(name) deletes'
+    if job[0] == 'steps':               # the working is text in R.STEPS until the screen closes
+        if rec[0] == R.R_ANS and len(R.STEPS) > 1:
+            R.need('stepv').view()
+        del R.STEPS[:]
     FULL = True
     emodel()
     redraw()

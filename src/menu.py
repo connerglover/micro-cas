@@ -76,7 +76,8 @@ def open(kind, line='', cur=0, command=''):                     #@L 2
                     D.text(helpentry[3][j:j+31], 5, 114 + j//31*17)
                 notes, notetop = D.wrap(helpentry[2], 31), TOP + 17
             else:
-                tips = ('ENTER calculates; CLEAR cancels', 'Up: history, <- input -> answer',
+                tips = ('ENTER calculates; CLEAR cancels', 'ENTER after an answer: steps',
+                        'Up: history, <- input -> answer',
                         'ENTER copies it, CLEAR deletes', 'F1-F4 menus, F5 next form',
                         '2nd: All Tmpl Test Setup Help', '2nd ENTER: earlier inputs',
                         'STO: store; 2nd MODE: quit')

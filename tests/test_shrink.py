@@ -346,3 +346,22 @@ def test_clearing_every_attribute_from_dir_constrains_no_spelling():
     assert 'long_value' in mapping and 'long_method' in mapping
     computed = dict(inputs, shrun=inputs['shrun'].replace('setattr(m, k, None)', 'setattr(m, k, 1)'))
     assert 'long_method' not in shrink.make_mapping(computed)   # any other value: reflection
+
+
+def test_computed_lookup_on_a_literal_receiver_blocks_nothing():
+    # stepview.warm interns spare names with getattr((), '_%d' % j, None) (docs/notes/STEPS.md):
+    # a tuple or list literal has no module attribute, so every name stays eligible; the same
+    # lookup on a name could reach any attribute and still blocks them all.
+    body = '''
+        LONG_TABLE_NAME = [1, 2, 3]
+        def spare_names(count):
+            for j in range(count):
+                getattr(%s, '_%%d' %% j, None)
+            return LONG_TABLE_NAME
+        '''
+    names = shrink.shrink_sources({'shlit': source(body % '()')})[1]
+    assert 'LONG_TABLE_NAME' in names and 'spare_names' in names
+    names = shrink.shrink_sources({'shlit': source(body % '[]')})[1]
+    assert 'LONG_TABLE_NAME' in names
+    names = shrink.shrink_sources({'shlit': source(body % 'LONG_TABLE_NAME')})[1]
+    assert 'LONG_TABLE_NAME' not in names and 'spare_names' not in names

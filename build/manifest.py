@@ -35,9 +35,9 @@ MODULES = (
     ('alg',       'CVALG',     'R',   850,       19),
     ('parse',     'CVPARSE',   'R',   1250,       33),
     ('printer',   'CVPRINT',   'R',   900,       21),
-    ('run',       'CVRUN',     'R',   640,       22),   # + memory-failure recovery (sweep)
+    ('run',       'CVRUN',     'R',   655,       22),   # + memory-failure recovery (sweep), the steps job
     ('draw',      'CVDRAW',    'R',   1075,      28),   # + the MathPrint layout (MATHPRINT.md 5)
-    ('ui',        'CVUI',      'R',   1400,      37),   # + the MathPrint editor and screen (MATHPRINT.md 2-7)
+    ('ui',        'CVUI',      'R',   1405,      37),   # + the MathPrint editor and screen (MATHPRINT.md 2-7)
     # lazy (L) and lazy UI (U) modules and parts, DESIGN 4.1 and 4.3
     ('rules',     'CVRULE',    'L',   150,       4),
     ('rulesb',    'CVRULEB',   'L',   147,       4),
@@ -81,6 +81,10 @@ MODULES = (
     ('odeb',      'CVODEB',    'L',   135,       4),
     ('odec',      'CVODEC',    'L',   134,       6),
     ('oded',      'CVODED',    'L',   120,       4),
+    ('sdiff',     'CVSDIFF',   'L',   150,       5),   # step-by-step working (notes/STEPS.md)
+    ('sint',      'CVSINT',    'L',   140,       5),
+    ('salg',      'CVSALG',    'L',   190,       7),
+    ('stepview',  'CVSVIEW',   'U',   120,       4),   # the steps screen
     ('menu',      'CVMENU',    'U',   170,       7),
     ('menub',     'CVMENUB',   'U',   80,        3),
     ('catalog',   'CVCAT',     'U',   150,       8),
@@ -96,6 +100,7 @@ KEYS = {
     'int2': 'integ2', 'int2b': 'integ2b', 'int3': 'integ3', 'int3b': 'integ3b',
     'def': 'defint', 'defb': 'defintb', 'defc': 'defintc', 'defd': 'defintd', 'sum': 'sums', 'sumb': 'sumsb', 'sumc': 'sumsc',
     'form': 'forms', 'cat': 'catalog', 'catb': 'catalogb',
+    'stepv': 'stepview',
 }
 
 # Families of parts (runtime keys; DESIGN 4.3, 15.1, docs/notes/FASTBOOT.md). need() loads and
@@ -182,6 +187,14 @@ PACKS = (
     ('CASSUM', ('sums', 'sumsb', 'sumsc'), 'family'),
     ('CASODE', ('ode', 'odeb', 'odec', 'oded'), 'family'),
     ('CASMNU', ('catalog', 'menu', 'menub'), 'family'),
+    # Step-by-step working (docs/notes/STEPS.md): one walk per pack (derivatives; integrals;
+    # equations and limits), loaded only by a steps job, which loads the explained command's
+    # own families through run.need; and the steps screen. Small packs, so that a walk holds
+    # no code but its own beside the command's.
+    ('CASSTD', ('sdiff',), 'family'),
+    ('CASSTI', ('sint',), 'family'),
+    ('CASSTA', ('salg',), 'family'),
+    ('CASSTV', ('stepview',), 'family'),
 )
 PACKMAX = 60000
 # Packs built tight (build/packs.py, build/archive.py): a function that names a never-unloaded
