@@ -176,7 +176,7 @@ jobs:
           python build/check_pages.py dist/website
 
       - name: Upload local web installer
-        uses: https://code.forgejo.org/forgejo/upload-artifact@v5 # GitHub's v4+ refuses non-github.com servers
+        uses: https://code.forgejo.org/forgejo/upload-artifact@cb8afe72b42edc798abfb8fcb556cf660d894245 # v5 (GitHub's v4+ refuses non-github.com servers)
         with:
           name: microcas-web-installer
           path: |
@@ -188,7 +188,7 @@ jobs:
           retention-days: 14
 
       - name: Upload calculator app and documentation
-        uses: https://code.forgejo.org/forgejo/upload-artifact@v5 # GitHub's v4+ refuses non-github.com servers
+        uses: https://code.forgejo.org/forgejo/upload-artifact@cb8afe72b42edc798abfb8fcb556cf660d894245 # v5 (GitHub's v4+ refuses non-github.com servers)
         with:
           name: microcas-calculator
           path: |
@@ -206,7 +206,7 @@ jobs:
       contents: write
     steps:
       - name: Download this run's tested calculator ZIP
-        uses: https://code.forgejo.org/forgejo/download-artifact@v5
+        uses: https://code.forgejo.org/forgejo/download-artifact@1314311ddb542af343a82d478ac786ceada4143a # v5
         with:
           name: microcas-calculator
           path: dist
@@ -245,7 +245,7 @@ jobs:
           persist-credentials: true
 
       - name: Download this run's tested installer
-        uses: https://code.forgejo.org/forgejo/download-artifact@v5
+        uses: https://code.forgejo.org/forgejo/download-artifact@1314311ddb542af343a82d478ac786ceada4143a # v5
         with:
           name: microcas-web-installer
           path: dist/pages

@@ -48,7 +48,7 @@ acceptance clearly distinguished.
 | Calculator installation or user-reported device failure | [docs/INSTALL.md](docs/INSTALL.md) and [docs/STATUS.md](docs/STATUS.md) |
 | Website layout, copy, interaction or visual review | [PRODUCT.md](PRODUCT.md), root [DESIGN.md](DESIGN.md), and [.impeccable/surfaces/website-index-html.md](.impeccable/surfaces/website-index-html.md) |
 | Browser transfer or package migration | `website/installer.js`, `website/transport.js`, `website/tests/installer.test.js`, vendor provenance and packaging notes |
-| GitHub, branch publication, Cloudflare or domains | [docs/HOSTING.md](docs/HOSTING.md), `.github/workflows/build.yml`, `build/publish_site.py` and `build/cloudflare/` |
+| Forgejo/GitHub, branch publication, Cloudflare or domains | [docs/HOSTING.md](docs/HOSTING.md), `.forgejo/workflows/build.yml`, `tools/publish-release.sh`, `build/publish_site.py` and `build/cloudflare/` |
 
 Root `DESIGN.md` describes the website design system; `docs/DESIGN.md` describes
 the calculator engine. Earlier architecture estimates and milestone plans do not
@@ -164,7 +164,7 @@ Use the repository virtual environment and `requirements-dev.txt`. Locally on
 Windows its interpreter is `.venv/Scripts/python`; on Linux it is
 `.venv/bin/python`. The following commands assume the intended environment is
 active. Python/compiler/runtime versions and Linux build commands in
-`.github/workflows/build.yml` are the reproducible reference.
+`.forgejo/workflows/build.yml` are the reproducible reference.
 
 ```text
 python -m pip install -r requirements-dev.txt
@@ -259,7 +259,7 @@ Artifact-dependent skips before packaging do not establish artifact acceptance.
 `main` owns source. The build workflow runs only for pushed `v*` tags, GitHub
 Releases published for `v*` tags and manual dispatch, not for ordinary pushes or pull requests, so
 run the local acceptance commands before committing. A successful tag run
-attaches `microcas-<tag>.zip` to the tag's GitHub Release (creating it if
+attaches `microcas-<tag>.zip` to the tag's Release on Forgejo and GitHub (creating it if
 missing) and updates `pages` with the exact `microcas-web-installer` artifact;
 only those two jobs get contents-write permission from the built-in token, and a
 Release created by that token starts no run. The publisher requires the tag to
