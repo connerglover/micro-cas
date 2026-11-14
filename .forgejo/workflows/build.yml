@@ -225,8 +225,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           cp dist/microcas-calculator.zip "microcas-$TAG.zip"
-          printf 'Calculator package for the TI-84 EVO: unzip microcas-%s.zip and follow INSTALL.md, or use the web installer.
-' "$TAG" > notes.md
+          printf 'Calculator package for the TI-84 EVO: unzip microcas-%s.zip and follow INSTALL.md, or use the web installer.' "$TAG" > notes.md
           cd src && bash tools/publish-release.sh --notes-file ../notes.md "$TAG" "../microcas-$TAG.zip"
 
   publish:
