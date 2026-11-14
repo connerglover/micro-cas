@@ -1,7 +1,9 @@
 name: Build calculator app
 
-# A release build: only a pushed v* tag (or a GitHub Release published for one) builds, tests,
-# attaches microcas-<tag>.zip to that tag's Release and updates the website (docs/HOSTING.md).
+# A release build: only a pushed v* tag (or a Release published for one) builds, tests,
+# attaches microcas-<tag>.zip to that tag's Release on Forgejo and its GitHub mirror, updates
+# the pages branch and deploys it to the Cloudflare Worker `cas` (docs/HOSTING.md).
+# Forgejo (git.connerglover.com) is the main repository; this runs on its home runner.
 # workflow_dispatch builds any ref; it releases and publishes only when run on a v* tag.
 on:
   push:
@@ -33,12 +35,12 @@ jobs:
       - name: Look for this tag's calculator ZIP
         id: check
         env:
-          GH_TOKEN: ${{ github.token }}
+          TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = release ] &&
-             gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' |
-             grep -qx "microcas-$TAG.zip"; then
+             curl -fsS -H "Authorization: token $TOKEN"                "$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY/releases/tags/$TAG" |
+             jq -r '.assets[].name' | grep -qx "microcas-$TAG.zip"; then
             echo "microcas-$TAG.zip is already attached (the tag push built it); nothing to do."
             echo build=false >> "$GITHUB_OUTPUT"
           else
@@ -195,7 +197,7 @@ jobs:
           retention-days: 14
 
   release:
-    name: Attach the calculator ZIP to the tag's GitHub Release
+    name: Attach the calculator ZIP to the tag's Release (Forgejo and GitHub)
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
@@ -209,26 +211,28 @@ jobs:
           name: microcas-calculator
           path: dist
 
+      - name: Check out the publish script
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          path: src
+
       - name: Create the Release if missing and upload microcas-<tag>.zip
-        # A Release created in the GitHub UI is used as it is; a Release this token creates
-        # starts no further workflow run.
+        # A Release created in the UI is used as it is; an asset of the same name is replaced.
         env:
-          GH_TOKEN: ${{ github.token }}
+          FORGEJO_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
           cp dist/microcas-calculator.zip "microcas-$TAG.zip"
-          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
-              --title "MicroCAS $TAG" \
-              --notes "Calculator package for the TI-84 EVO: unzip microcas-$TAG.zip and follow INSTALL.md, or use the web installer." ||
-              gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
-          fi
-          gh release upload "$TAG" "microcas-$TAG.zip" --repo "$GITHUB_REPOSITORY" --clobber
+          printf 'Calculator package for the TI-84 EVO: unzip microcas-%s.zip and follow INSTALL.md, or use the web installer.
+' "$TAG" > notes.md
+          cd src && bash tools/publish-release.sh --notes-file ../notes.md "$TAG" "../microcas-$TAG.zip"
 
   publish:
     name: Update website deployment branch
     needs: build
-    # Cloudflare Workers watches pages. Only successful v* tag builds may update it.
+    # Only successful v* tag builds may update pages; the job then deploys pages to the Worker.
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -254,3 +258,14 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           python3 build/publish_site.py dist/pages/website --run-url "$RUN_URL" --ref "$GITHUB_REF"
+
+      - name: Deploy pages to the Cloudflare Worker cas
+        # The Worker serves the pages branch exactly as published (docs/HOSTING.md); the
+        # Wrangler version is the one the Cloudflare dashboard build used.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          git fetch --quiet origin pages
+          git worktree add --detach "$RUNNER_TEMP/pages" origin/pages
+          cd "$RUNNER_TEMP/pages" && npx --yes wrangler@4.149.0 deploy

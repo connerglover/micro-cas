@@ -1,8 +1,19 @@
-# Cloudflare Worker from GitHub
+# Cloudflare Worker deployed from Forgejo
 
 Use **cas.connerglover.com**, Worker **cas**, deployment branch **pages**.
-The repository stays private. Setup is entirely in dash.cloudflare.com; local
-Wrangler login and Cloudflare secrets in GitHub are not needed.
+The main repository is on Forgejo (https://git.connerglover.com/conner/micro-cas),
+which push-mirrors every branch and tag to the GitHub repository. Since
+2026-11-14 the release workflow (`.forgejo/workflows/build.yml`) runs on the home
+Forgejo runner and deploys the Worker itself with Wrangler; the Cloudflare
+dashboard no longer builds from GitHub (Settings → Builds is disconnected).
+
+Secrets on the Forgejo repository (or the `conner` user):
+
+| Secret | Use |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | Wrangler deploy of the `cas` Worker ("Edit Cloudflare Workers" token) |
+| `CLOUDFLARE_ACCOUNT_ID` | the Cloudflare account that owns the Worker |
+| `GH_RELEASE_TOKEN` | GitHub fine-grained token (Contents: write) so the Release is also published on the mirror |
 
 ## Branches
 
@@ -29,13 +40,14 @@ git push origin v1.0.2
 
 A tag run builds and tests everything, then:
 
-- **Attach the calculator ZIP**: creates the GitHub Release for the tag if it
-  does not exist yet (or uses the one created in the UI) and uploads
+- **Attach the calculator ZIP**: creates the Release for the tag on Forgejo and on
+  GitHub (`tools/publish-release.sh`) if it does not exist yet (or uses the one created in the UI) and uploads
   `dist/microcas-calculator.zip` as `microcas-<tag>.zip` (`--clobber` replaces a
   previous upload). Only this job and the publish job have contents-write
   permission, from GitHub's built-in token.
 - **Update website deployment branch**: updates pages with the exact installer
-  artifact from that run. Cloudflare watches pages and deploys it.
+  artifact from that run, then deploys pages to the Worker with
+  `npx --yes wrangler@4.149.0 deploy`.
 
 Creating the release in the GitHub UI with a new tag also works: the
 `release: published` event builds and attaches the ZIP. When a tag push and its
@@ -54,7 +66,9 @@ replaces a newer release on pages with an older one (`deployment.json` records
 `source_ref`). Updates preserve history and never force push. Do not edit or
 merge the generated pages branch into main.
 
-## One-time dashboard setup
+## Earlier setup (before 2026-11-14, kept for reference)
+
+The Worker used to build from GitHub through the Cloudflare dashboard:
 
 1. Open **Workers & Pages → Create application → Continue with GitHub**.
    Authorize the Cloudflare GitHub app for `connerglover/cas-evo` and select it.
