@@ -38,8 +38,9 @@ body=$(jq -n --arg t "$tag" --argjson d "$draft" --arg n "$notes" '{tag_name:$t,
 forgejo() {
   local api="$FORGEJO_URL/api/v1/repos/$FORGEJO_REPO" auth="Authorization: token $FORGEJO_TOKEN" id
   # Drafts are not found by tag, so search the newest releases (drafts included).
-  id=$(curl -fsS -H "$auth" "$api/releases?draft=true&limit=50" | jq -r --arg t "$tag" '[.[]|select(.tag_name==$t)][0].id // empty')
-  [ -n "$id" ] || id=$(curl -fsS -H "$auth" "$api/releases?limit=50" | jq -r --arg t "$tag" '[.[]|select(.tag_name==$t)][0].id // empty')
+  find_id() { curl -fsS -H "$auth" "$api/releases?limit=50" | jq -r --arg t "$tag" '[.[]|select(.tag_name==$t)|.id]|sort|.[0] // empty'; }
+  id=$(find_id)
+  for _ in 1 2 3; do [ -n "$id" ] && break; sleep 3; id=$(find_id); done
   if [ -z "$id" ]; then
     id=$(curl -fsS -X POST -H "$auth" -H 'Content-Type: application/json' -d "$body" "$api/releases" | jq -r .id)
     echo "Forgejo: created release $tag (#$id)"
@@ -58,10 +59,19 @@ forgejo() {
 github() {
   local api="https://api.github.com/repos/$GH_REPO" auth="Authorization: Bearer $GH_TOKEN" id
   local h=(-H "$auth" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28')
-  id=$(curl -fsS "${h[@]}" "$api/releases?per_page=50" | jq -r --arg t "$tag" '[.[]|select(.tag_name==$t)][0].id // empty')
+  # GitHub's release list lags a few seconds behind a create (drafts are not found by
+  # tag at all), so look again before creating, and fold away a duplicate afterwards.
+  find_ids() { curl -fsS "${h[@]}" "$api/releases?per_page=100" | jq -r --arg t "$tag" '[.[]|select(.tag_name==$t)|.id]|sort|.[]'; }
+  id=$(find_ids | head -1)
+  for _ in 1 2 3; do [ -n "$id" ] && break; sleep 3; id=$(find_ids | head -1); done
   if [ -z "$id" ]; then
-    id=$(curl -fsS -X POST "${h[@]}" -d "$body" "$api/releases" | jq -r .id)
-    echo "GitHub: created release $tag (#$id)"
+    local mine; mine=$(curl -fsS -X POST "${h[@]}" -d "$body" "$api/releases" | jq -r .id)
+    echo "GitHub: created release $tag (#$mine)"
+    sleep 5; id=$(find_ids | head -1); id=${id:-$mine}
+    if [ "$id" != "$mine" ]; then
+      curl -fsS -X DELETE "${h[@]}" "$api/releases/$mine" >/dev/null
+      echo "GitHub: another run created #$id first; removed the duplicate #$mine"
+    fi
   fi
   for f in "$@"; do
     local base; base=$(basename "$f")
