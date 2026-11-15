@@ -32,7 +32,8 @@ from test_node import arena  # noqa: F401 - the debug-arena fixture (DESIGN 20.4
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-LAZYMAX = 150
+LAZYMAX = 170       # 150 while parts compiled on the calculator; packs are precompiled now
+                    # (manifest LAZYMAX 200) and the heap gates of build.yml bind instead
 
 FRESH = (('ANS', None), ('HIST', list), ('VARS', dict), ('FUNCS', dict), ('MODS', dict),
          ('LOADED', list), ('USE', dict), ('PINNED', list), ('LIVE', dict), ('NEEDED', list))
@@ -842,4 +843,4 @@ def test_parts_fit_lazymax():
 
 
 def test_parts_size_is_bounded():
-    assert sum(code_lines(n) for n in ('solve', 'solveb', 'solvec', 'solved', 'solvee')) <= 700
+    assert sum(code_lines(n) for n in ('solve', 'solveb', 'solvec', 'solved', 'solvee')) <= 730

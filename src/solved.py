@@ -5,6 +5,9 @@ import alg as A
 import parse as P
 import run as R
 NS = 400
+NT = 160            # samples of each tail of a wide search (nsolve far), out to FAR times
+FAR = 1e5           # the window: -10..10 becomes -1e6..1e6
+SEARCH = [0]        # 1 once nsolve has run in this solve: an empty answer is then no proof
 
 
 def rkey(r):                                                    #@L 3
@@ -69,6 +72,8 @@ def g_fin(fs, ds, xs, ss):                                      #@L 2
             z.append(P.approx(w) if f == 1 else (w if f else NO.normal(w)))
         z = tuple(z)
         ok = yield R.scoped(g_ok(fs, ds, xs, z))    # 0 or 1: a region drops its nodes
+        if ok and real:
+            ok = R.MODS['solvee'].realat(fs, xs, z)
         k = []
         for w in z:
             k.extend(rkey(w)[:4])
@@ -123,22 +128,35 @@ def g_ok(fs, ds, xs, vs):                                       #@L 2
     yield 1
 
 
-def nsolve(g, x, lo, hi):                                       #@L 3
+def nsolve(g, x, lo, hi, far=0):                                #@L 3
     # the real roots of g in x in [lo, hi), ascending floats: sign changes over NS samples,
     # refined by Illinois regula falsi; a root is kept only if g vanishes there within its
     # propagated tolerance (A.ntol), which drops the poles of tan and 1/u. A soft failure
-    # when g has no numeric value (an unknown function f(x)) or vanishes on an interval
+    # when g has no numeric value (an unknown function f(x)) or vanishes on an interval.
+    # far: NT more samples on each side, geometrically out to FAR*lo and FAR*hi (x*ln(x) = 100
+    # has its root at 29.5). A root where g only touches zero (no sign change) is sought
+    # where a sample is nearer zero than both neighbours, by parabola vertices on a shrinking
+    # step; the tolerance test below decides, as for every root.
+    SEARCH[0] = 1
     try:
         p = A.nprog(g, (x,))
     except K.CasSoft:
         raise K.CasSoft('Cannot solve')
     r = [0.0] * len(p)
     out = []
-    a = fa = None
-    for i in range(NS + 1):
+    a = fa = a2 = f2 = None
+    nt = NT if far else 0
+    top = hi * FAR if far else hi
+    for i in range(NS + 1 + 2 * nt):
         if not i & 63 and K.ESC is not None and K.ESC():
             raise K.Cancel()
-        b = lo + (hi - lo) * i / NS                                     #@float-ok
+        j = i - nt
+        if j < 0:
+            b = lo * FAR ** (-j / nt)                                   #@float-ok
+        elif j <= NS:
+            b = lo + (hi - lo) * j / NS                                 #@float-ok
+        else:
+            b = hi * FAR ** ((j - NS) / nt)                             #@float-ok
         try:
             fb = A.nrun(p, (b,), r)
             if type(fb) is complex or A.LEFTREAL[0]:
@@ -163,12 +181,26 @@ def nsolve(g, x, lo, hi):                                       #@L 3
                 else:
                     fu *= 0.5
                 w, fw = z, v
-        if z is not None and z < hi and len(out) <= 24:
+        elif fb and fa and f2 and abs(fa) < abs(f2) and abs(fa) < abs(fb) and fa * fb > 0.0                 and fa * f2 > 0.0:
+            z = a
+            w = min(a - a2, b - a)
+            for k in range(5):          # the vertex of the parabola through z-w, z, z+w
+                try:
+                    u = A.nrun(p, (z - w,), r)
+                    v = A.nrun(p, (z + w,), r)
+                    d = u + v - 2.0 * A.nrun(p, (z,), r)
+                except K.CasSoft:
+                    d = 0.0
+                if type(d) is not float or not d:
+                    break
+                z -= 0.5 * w * (v - u) / d                              #@float-ok
+                w /= 20.0                                               #@float-ok
+        if z is not None and z < top and len(out) <= 24:
             try:
                 v = A.nrun(p, (z,), r)
                 if abs(v) <= A.ntol(p, r, [0.0] * len(p)):
                     out.append(z)
             except K.CasSoft:
                 pass
-        a, fa = b, fb
+        a2, f2, a, fa = a, fa, b, fb
     return out

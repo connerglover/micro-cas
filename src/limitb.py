@@ -22,6 +22,27 @@ def signval(e):                                                #@L 3
 
 
 
+def held(r):                                                    #@L 3
+    # A value that g_direct rebuilt. K.mul_ folds only a rational coefficient into oo, so
+    # ln(3)*oo, pi*oo - oo or tanh(pi*oo) come back as expressions that still hold oo and
+    # would pass for finite values (2^x/x gave 0). (0, r): r holds no infinity or is one;
+    # (1, c): r is c*oo with c free of oo, +-oo by the sign of c; None: no value at all.
+    if r == K.OO or r == K.UNDEF or K.isninf(r) or K.OO not in A.postorder(r):
+        return (0, r)
+    t = K.N[r]
+    if t[0] != K.MUL:
+        return None
+    rest = []
+    n = 0
+    for j in range(2, len(t), 2):
+        if t[j] == K.OO:
+            n += 1 if t[j + 1] == K.ONE else 2
+        else:
+            rest.append((t[j], t[j + 1]))
+    c = K.mul_(t[1], rest)
+    return (1, c) if n == 1 and K.OO not in A.postorder(c) else None
+
+
 def g_lead(f, x, a, side):                                     #@L 2
     s = yield R.MODS['ser'].g_series(f, x, a, R.MODS['lim'].SERORDER, side)
     if s is None or len(s) < 2:
@@ -108,6 +129,12 @@ def g_direct(f, x, a, side):                                   #@L 2
                 if valid:
                     try:
                         r = A.rebuild(n, values)
+                        h = held(r)
+                        if h is None:
+                            r = None
+                        elif h[0]:
+                            sg = signval(h[1])
+                            r = (K.OO if sg > 0 else K.neg_(K.OO)) if sg else None
                     except K.CasSoft:
                         pass
         values[n] = None if r == K.UNDEF else r

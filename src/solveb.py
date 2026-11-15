@@ -127,6 +127,8 @@ def g_fac(G, ks, x, dep, md):                                   #@L 2
                 E = K.add_([K.mul_(K.ONE, [(E, K.TWO)]), K.mul_(K.MONE, [(a, K.ONE), (
                     FA.mkpoly(O, k2, 1), K.TWO)])])
             v = yield R.scoped(SO.g_eq(E, x, dep + 1, md))
+            if v == K.TRUE and O:       # the square is an identity, G is not (abs(x) = x):
+                raise K.CasSoft(SO.M_CANT)      # true on part of the line, which no list says
             yield v
             return
     g = FA.mkpoly(G, ks, 1)
@@ -142,6 +144,6 @@ def g_fac(G, ks, x, dep, md):                                   #@L 2
         raise K.CasSoft(SO.M_CANT)
     w = 360.0 if md & 1 else R.MODS['solvee'].TWOPI
     out = []
-    for v in R.MODS['solved'].nsolve(g, x, 0.0 if trig else -10.0, w if trig else 10.0):
+    for v in R.MODS['solved'].nsolve(g, x, 0.0 if trig else -10.0, w if trig else 10.0, not trig):
         out.append(K.flt(v))
     yield tuple(out)

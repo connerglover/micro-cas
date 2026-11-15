@@ -13,6 +13,7 @@ import run as R
 MAXDEP = 8          # nested sub-solves (kernel inverses, squaring, rewrites, elimination)
 MAXROOTS = 24       # roots of one equation, solutions of one system
 M_CANT = 'Cannot solve'
+M_NONE = 'No root found (searched -1E6 to 1E6)'
 M_MANY = 'Too many solutions'
 M_ARG = 'Invalid argument'
 
@@ -78,10 +79,13 @@ def g_solve(args, ctx):                                         #@L 2
     if e == K.FALSE or e == K.TRUE:
         yield e if e == K.TRUE else K.mk((K.LST,))
         return
+    R.MODS['solved'].SEARCH[0] = 0
     r = yield g_roots(f, v, md)
     if r is None or r == K.TRUE:
         yield r
         return
+    if not r and R.MODS['solved'].SEARCH[0]:    # a numeric search that found nothing
+        raise K.CasSoft(M_NONE)
     out = [K.LST]
     for x in r:
         out.append(K.rel_(K.EQ, v, x))
@@ -145,7 +149,7 @@ def g_eq(f, x, dep, md):                                        #@L 2
         if q is None:
             if K.V[b] != K.V[x]:
                 raise K.CasSoft(M_CANT)
-            for v in R.MODS['solved'].nsolve(b, x, -10.0, 10.0):
+            for v in R.MODS['solved'].nsolve(b, x, -10.0, 10.0, 1):
                 rs.append(K.flt(v))
         else:
             v = yield SB.g_poly([q[2], q[1], q[0]] if n == 2 else [q[2], q[1]])

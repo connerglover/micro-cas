@@ -10,6 +10,7 @@ MAXREWRITE = 3
 SERORDER = 4
 NUMFIRST = 2
 NUMLAST = 8
+NUMSTEP = 1.7320508     # the sample points are NUMSTEP * 10^k
 M_ARG = 'Invalid argument'
 
 
@@ -20,7 +21,9 @@ def numeric(f, x, a, side):                                    #@L 3
         center = 0.0 if infinity else A.nrun(A.nprog(a, ()), ())
         values = []
         for k in range(NUMFIRST, NUMLAST + 1):
-            point = (-1 if K.isninf(a) else 1) * 10.0 ** k if infinity else center + side * 10.0 ** (-k)
+            # off the powers of ten: there a term of integer period (cos(2*pi/x), x-floor(x))
+            # is sampled at one phase and passes for a constant
+            point = (-NUMSTEP if K.isninf(a) else NUMSTEP) * 10.0 ** k if infinity else center + side * NUMSTEP * 10.0 ** (-k)
             value = A.nrun(program, (point,))
             if A.LEFTREAL[0] or type(value) is complex or not -1e200 < value < 1e200:
                 return None
@@ -38,7 +41,15 @@ def numeric(f, x, a, side):                                    #@L 3
             q = ds[-1] / ds[-2]
             if abs(q) < 0.85:
                 tail += ds[-1] * q / (1 - q)
-        return K.flt(tail)
+        # only the digits the last steps agree on: 0.999999796978619 said more than it knew
+        q = max(abs(ds[-1]), abs(ds[-2]), 1e-15 * abs(tail))
+        if abs(tail) <= q:
+            return K.flt(0.0)
+        k = 0
+        while k < 15 and q < abs(tail):
+            q *= 10.0
+            k += 1
+        return K.flt(float(('%%.%dg' % k) % tail))
     except K.CasSoft:
         return None
 
@@ -46,6 +57,26 @@ def numeric(f, x, a, side):                                    #@L 3
 
 def g_one(f, x, a, side):                                      #@L 2
     f = yield R.MODS['limb'].g_piece(f, x, a, side)
+    # A floor or ceil that g_piece left has an argument u without a finite limit. With one
+    # such term, of degree 1, f = A + B*(u - h) for some 0 <= h <= 1: when h = 0 and h = 1
+    # give the same limit, B*h goes to 0 and that is the limit. Anything else has no value
+    # here (the numeric samples below would catch one phase of x - floor(x)).
+    ks = []
+    for n in A.postorder(f):
+        if K.FLOOR <= K.N[n][0] <= K.CEIL and not K.free_of(n, x):
+            ks.append(n)
+    if ks:
+        result = yield R.MODS['limb'].g_fast(f, x, a, side)     # continuous here: its value
+        if result is None and len(ks) == 1 and A.degree(f, ks[0]) == 1:
+            u = K.N[ks[0]][1]
+            result = yield R.scoped(R.MODS['lim'].g_one(A.subst(f, ks[0], u), x, a, side))
+            if result is not None:
+                u = K.add_([u, K.MONE if K.N[ks[0]][0] == K.FLOOR else K.ONE])
+                u = yield R.scoped(R.MODS['lim'].g_one(A.subst(f, ks[0], u), x, a, side))
+                if u != result:
+                    result = None
+        yield result
+        return
     wrappers = []
     result = None
     for rewrite in range(MAXREWRITE + 1):

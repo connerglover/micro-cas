@@ -143,14 +143,17 @@ def g_elim(rs, vs, dep, md):                                    #@L 2
     if not ns:
         yield [vs]
         return
-    i = best[1]
-    x = vs[best[2]]
+    i, x = best[1], vs[best[2]]
     rest = vs[:best[2]] + vs[best[2] + 1:]
     rr = yield R.scoped(SO.g_eq(ns[i], x, dep + 1, md))
     if rr is None or rr == K.TRUE:
         yield None
         return
-    out = []
+    # The roots in x miss the points where equation i vanishes for every x: x*y = 0 at y = 0
+    # (g_eq skips a factor free of x). There each coefficient of its numerator in x is zero:
+    # those equations replace it, and the system is solved again in every unknown.
+    sub = R.MODS['solvee'].vanish(SO.nd(ns[i])[0], x, best[0], rest, ns[:i] + ns[i + 1:])
+    out = ((yield R.MODS['solvec'].g_elim(sub, vs, dep + 1, md)) or []) if sub else []
     for r in rr:
         sub = []
         try:

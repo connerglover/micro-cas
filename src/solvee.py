@@ -61,6 +61,44 @@ def tdiv(n, d):                                                 #@L 4
     return K.add_(ts)
 
 
+def realat(fs, xs, vs):                                         #@L 3
+    # real mode: no subexpression of fs leaves the reals at the exact constant point vs
+    # ((x-1)*sqrt(x-2) at x = 1 is 0*i, which g_ok takes for 0). Rounding beside a branch
+    # point (sqrt(-1e-16)) is no evidence: only an imaginary part above 1e-6 counts.
+    try:
+        ys = []
+        for v in vs:
+            if K.V[v] or K.N[v][0] == K.FLT:
+                return 1
+            ys.append(A.nrun(A.nprog(v, ()), ()))
+        for f in fs:
+            A.nrun(A.nprog(f, xs), ys)
+            if A.LEFTREAL[1]:
+                return 0
+    except K.CasSoft:
+        pass
+    return 1
+
+
+def vanish(n, x, d, rest, others):                              #@L 3
+    # The system that says n (a numerator of degree d in x) vanishes for every x, beside the
+    # equations others: every coefficient of n in x is zero (g_elim normalizes them). None
+    # when n is no such polynomial, no other unknown is left, or a coefficient is a number.
+    co = A.pco(n, x, d) if rest and d < 9 else None
+    if not co:
+        return None
+    sub = list(others)
+    for ts in co:
+        if len(ts) == 1 and ts[0][0] == K.ONE:
+            return None
+        c = []
+        for t, k in ts:
+            c.append(K.mul_(K.mk(k), [(t, K.ONE)]))
+        if c:
+            sub.append(K.add_(c))
+    return tuple(sub)
+
+
 def g_inv(k, T, x, dep, md):                                    #@L 2
     # the candidate roots in x of the kernel equation k = T (see the module comment)
     SO = R.MODS['solve']

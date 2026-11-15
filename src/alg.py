@@ -24,7 +24,8 @@ NAN = float('nan')
 INF = float('inf')
 EF = math.e
 HALFPI = 0.5 * math.pi
-LEFTREAL = [0]               # 1 after nrun when a value left the reals from real operands
+LEFTREAL = [0, 0]            # [0]: 1 after nrun when a value left the reals from real operands;
+                             # [1]: 1 when by more than rounding (an imaginary part over 1e-6)
 LANCZ = (0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
          -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6,
          1.5056327351493116e-7)
@@ -762,7 +763,7 @@ def nrun(prog, vals, r=None):                                   #@L 4
     # (the device may not raise); any failure raises Undefined. LEFTREAL[0] becomes 1 when a
     # value leaves the reals although its operands were real (8.3). r, if given, receives
     # every value (len(prog) slots).
-    LEFTREAL[0] = 0
+    LEFTREAL[0] = LEFTREAL[1] = 0
     n = len(prog)
     if r is None:
         r = [0.0] * n
@@ -793,6 +794,7 @@ def nrun(prog, vals, r=None):                                   #@L 4
                         w = cpow(b, e)
                         if w.imag:
                             LEFTREAL[0] = 1
+                            LEFTREAL[1] |= abs(w.imag) > 1e-6
                     v = v * w
             elif op == P_POW:
                 b = r[ins[1]]
@@ -807,6 +809,7 @@ def nrun(prog, vals, r=None):                                   #@L 4
                     v = cpow(b, e)
                     if v.imag:
                         LEFTREAL[0] = 1
+                        LEFTREAL[1] |= abs(v.imag) > 1e-6
             else:
                 a = r[ins[2]]
                 if type(a) is complex:
@@ -821,6 +824,7 @@ def nrun(prog, vals, r=None):                                   #@L 4
                         v = FCPX[ins[1]](complex(a, 0.0))       #@calls 5
                         if type(v) is complex and v.imag:
                             LEFTREAL[0] = 1
+                            LEFTREAL[1] |= abs(v.imag) > 1e-6
             if type(v) is complex and v.imag == 0.0:
                 v = v.real
             if v - v != 0:
