@@ -7,7 +7,7 @@ them as current.
 
 ## Current delivery
 
-- **Step-by-step working (branch `steps`, local, 2026-11-14; not pushed, not tagged, version
+- **Step-by-step working (on `main`, pushed 2026-11-14 at the user's request; not tagged, version
   still 1.0.3).** User request: steps as FlowCE and CalcPlex show them, in FlowCE's manner, with
   the heap as the first concern. ENTER on the empty line after an exact derivative, integral,
   limit or solved equation (the hint row reads `ENTER: steps`) opens a steps screen: numbered
