@@ -540,7 +540,8 @@ def test_engine_packs_read_module_ints_as_literals_but_never_patched_tables(boot
     assert booted.final('run', 'FRAG') in read('need')
     # node.NUM and node.ADD are 0 and 8 in node.py: no engine pack names them any more
     for old in ('NUM', 'ADD'):
-        assert booted.get('node', old) == {'NUM': 0, 'ADD': 8}[old]   # bindings remain
+        # ... so their definitions are dropped too (packs.dead_constant: a name, a slot)
+        assert any(d.endswith('.' + old) for ds in meta['dropped'].values() for d in ds), old
         new = booted.final('node', old)
         for pack, kind in meta['kinds'].items():
             if kind in ('core', 'family', 'soft', 'aux'):

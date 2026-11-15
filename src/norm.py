@@ -173,7 +173,8 @@ def g_expand(args, ctx):                                        #@L 2
 
 def g_together(args, ctx):                                      #@L 2
     # one fraction (14): normal, the denominator factored when that is not bigger
-    yield R.MODS['normc'].dfac(normal(args[0]))
+    NC = R.MODS['normc']
+    yield args[0] if NC.isser(args[0]) else NC.dfac(normal(args[0]))
 
 
 def g_simplify(args, ctx):                                      #@L 2

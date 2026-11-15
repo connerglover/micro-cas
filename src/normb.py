@@ -81,6 +81,31 @@ def g_simp(e, full):                                            #@L 2
     yield x[e]
 
 
+def tfire(e):                                                   #@L 6
+    # Can trigsin, trigcos or tlin (ident) change e? Their rules need tan, sec, csc or cot,
+    # a power of sin or cos, or a product of two of them, as built or once expanded: a product
+    # with two factors that hold a sin or cos, a factor with an exponent other than 1 counting
+    # twice. x^5*sin(x) and its derivatives have none, and skip three rule sets and their
+    # normal passes.
+    has = {}
+    for m in A.postorder(e):
+        t = K.N[m]
+        if K.TAN <= t[0] <= K.COT:
+            return True
+        if t[0] >= K.COMP:
+            n = 0
+            for j in range(1, len(t)):
+                if t[j] in has:
+                    has[m] = 1
+                    if t[0] == K.MUL and not j & 1:
+                        n += 1 if t[j + 1] == K.ONE else 2
+            if n > 1:
+                return True
+            if K.SIN <= t[0] <= K.COS:
+                has[m] = 1
+    return False
+
+
 def g_one(e, full):                                             #@L 2
     # The smallest candidate by A.size(., True), ties to e (8.7). A candidate wins only after
     # A.nprobe(e, candidate) agrees: NO counts a SIMPBUG, no usable point discards it.
@@ -99,17 +124,20 @@ def g_one(e, full):                                             #@L 2
     best = e
     bs = A.size(e, True)
     f = R.MODS['normc'].kinds(e)
+    tw = f & 1 and tfire(e)
     for k in range(9):
         r = None
         if 1 < k < 7 and (f & 1 if k < 5 else full):
-            r = yield R.MODS['rules'].g_rewrite(e, RS[k], 0, BUD)
+            # no rule of the trig sets can fire (tfire): what is left is their normal passes
+            r = (None if k == 3 else e) if k < 5 and not tw else                 (yield R.MODS['rules'].g_rewrite(e, RS[k], 0, BUD))
             for i in range(2 if k == 4 else 0):             # tlin: expand between passes
                 if r is not None:
                     try:
                         r = R.MODS['norm'].normal(r, 1)
                     except (K.CasSoft, K.CasError):
                         pass
-                    r = yield R.MODS['rules'].g_rewrite(r, RS[k], 0, BUD)
+                    if tw:
+                        r = yield R.MODS['rules'].g_rewrite(r, RS[k], 0, BUD)
         cs = [r]
         try:
             if k == 0:

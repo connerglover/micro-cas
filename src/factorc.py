@@ -63,7 +63,8 @@ def g_mfac(P, nv):                                              #@L 2
         w *= D[i]
     its = []
     one = nv - D.count(1) < 2                                   # one variable: u is Q
-    if w <= FB.FKMAX or one:
+    if w <= FB.FKMAX or (one and w <= 1025):    # x^(2^64)-1: no dense list holds it (it was
+                                                # an OverflowError, shown as an internal error)
         x, us, c = FB.ufac(PC.mkron(Q, D))
         comp = comp and c
         for g, m in us:

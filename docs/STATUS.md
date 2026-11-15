@@ -1,12 +1,64 @@
 # Delivery status and evidence
 
-Last reviewed: 2026-11-14. Repository: connerglover/cas-evo (private).
+Last reviewed: 2026-11-15. Repository: connerglover/cas-evo (private).
 Use [AGENTS.md](../AGENTS.md) for operating instructions. This file records a
 dated snapshot; verify remote heads, build results and hosting before reporting
 them as current.
 
 ## Current delivery
 
+- **Audit fixes (branch `audit-fixes`, local, 2026-11-15; not pushed, not tagged, version
+  still 1.0.3).** User request: review the program for memory, wrong answers, general bugs
+  and calculation methods, then fix all of it. Three reviews ran (a differential test of
+  about 6,500 commands against SymPy, a host profile of 203 commands, a UI/runtime fuzz).
+  **Memory** (pinned 1f37194 runtime, `main` at eda400c built at the same path length):
+  `build/packs.py` drops the module-level int constants whose every read became a literal
+  (191 names: an interned name, a dict slot and a store each); `node.B` is a 16-bit array;
+  `node.keep` shares one mutable entry per rule (`RULECACHE[name][-2]`) and rebuilds a tuple
+  only when a child moved; `norm.normal` forgets a subtree's fraction at its last use;
+  integration strategies are tested for necessary conditions before their pack loads.
+  Startup at 95,000: 21,264 -> 27,568 B free; `ui` at 173,360, idle packs shed: 59,312 ->
+  63,616; `ui_calculus` at 185,680: 64,272 -> 68,688. Lowest heap from which every 1,000-byte
+  step passes: `ui_steps` 188,000 -> 182,000 (and 175,000 to 180,000 pass), `ui_definite`
+  171,000 -> 163,000, `ui_calculus` 177,000 -> 168,000. Archive 203,690 -> 207,384 B.
+  Tried and dropped: `node.NX` as a fixed 16-bit array (floors got worse).
+  **Wrong answers fixed** (`tests/test_audit.py`, 72 tests): float powers by squaring
+  (`node.npowi`: MicroPython 1.12 takes `complex ** n` in polar form, so `approx(-2)^2` was
+  `4.0-9.8E-16*i` on the pinned runtime only); an expression that still holds `oo` is no
+  finite value (`limitb.held`: `limit(2^x/x,x,oo)` gave 0, and convergent improper integrals
+  and sums said Diverges); no L'Hopital through floor/ceil, one floor term is squeezed; the
+  numeric limit samples off the powers of ten and keeps only agreed digits; `solve(abs(x)=x)`
+  is `Cannot solve`, not `Every x`; systems keep the branch where an equation vanishes for
+  every value of the eliminated unknown; a root where a subexpression leaves the reals is
+  dropped (`A.LEFTREAL[1]`); the numeric root search reaches +-1E6, finds touching roots, and
+  an empty search says `No root found`; ODE equilibria of degree 3 to 8; products whose
+  factors overflow a double go by logarithms (`alg.nlog`: `1.0001^7000`); quadrature shows
+  the digits its endpoint samples support; huge degrees fail softly.
+  **Session fixes:** F5 on an older entry leaves Ans; a store that keeps nothing says
+  `Not stored` (a `Done` result, a relation's `true`); `+ C` only while the line is still an
+  antiderivative; steps are refused for a message entry and not offered for a stored result
+  or a decimal input; a break in a steps job leaves no steps; 256 expansions per line.
+  **Faster:** rationals by the gcd of the small parts (`sum(1/(k^2+1),k,1,1000)` 659 -> 19 ms
+  host); `mul_` skips radical bookkeeping without radicals; integer factoring proves large
+  primes by Miller-Rabin with 13 bases (12 pass 318665857834031151167461) instead of 330,000
+  divisions; trig rule sets are skipped where none can fire (identical output on 2,100 random
+  commands); a sum that keeps a term per step stays formal at once.
+  **Left as they are, on purpose:** `integrate(1/x,x,-a,a)` with symbolic bounds is F(b)-F(a);
+  inverse hyperbolics near 0 and off the real domain; lowercase `1e3` is `e3`; `purge` of a
+  missing name and `Done` leaving Ans (both asserted by tests). **Not attempted** (estimates
+  with a risk of wrong answers): a Gauss rule before tanh-sinh, lazy rule-set compilation,
+  one-sided reuse in two-sided limits.
+  **Evidence** (host and native, not hardware), under WSL with the pinned runtime: lint,
+  framelint, not-slow `--strict-depth` source tier (4,433 passed, 180 artifact skips) and
+  `--bundled` (4,527 passed), 65 slow tests, `check_release.py` (8/8), `archive.py` (26
+  files, 207,384 B), `tests/test_archive_release.py` (86), cas32 startup 95,000, `ui` and
+  `ui_edit` 173,360, `ui_calculus` 189,776 and 185,680, `ui_definite` 177,456, `ui_steps`
+  189,776 and 193,872, probe 212,000 (55/55, 71,488 final), cas64 500,000 (55/55). Not run:
+  `package_archive.mjs`, `archive_zip.py`, the website build. Several per-file line and KB
+  budgets in `build/manifest.py` and the part-size bounds of `tests/test_solve.py` were
+  raised for the new code; no heap gate changed.
+  **Pending:** an EVO run (the float-power fix and the lower floors are native evidence
+  only), and the user's choice of merge, version and tag.
 - **Step-by-step working (on `main`, pushed 2026-11-14 at the user's request; not tagged, version
   still 1.0.3).** User request: steps as FlowCE and CalcPlex show them, in FlowCE's manner, with
   the heap as the first concern. ENTER on the empty line after an exact derivative, integral,

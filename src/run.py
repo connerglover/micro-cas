@@ -242,6 +242,7 @@ M_UNDEFINED = 'Undefined'
 M_INTERNAL = 'Internal error'
 M_TOO_LONG = 'Too long to compute'
 M_NOANS = 'No answer yet'
+M_NOSTORE = 'Not stored'
 M_MANYANS = 'Too many Ans'
 M_BADNAME = 'Invalid variable name'
 M_CIRC = 'Circular definition'
@@ -424,6 +425,7 @@ def go(job):                                                    #@L 1
     if job[0] == 'steps':
         CMDS.pop('?', None)
     if err is KBI:
+        del STEPS[:]
         raise KeyboardInterrupt()
     try:
         if err is not None:
@@ -451,6 +453,8 @@ def start(job):                                                 #@L 2
         s = job[1]
         if job[0] != 'eval':             # steps: the entry's input again, in the entry's mode
             FORMINDEX = s
+            if HIST[s][2] != R_ANS:      # a message has no working behind it
+                raise K.CasError('No steps for this one')
             s = HIST[s][0]
             if 'ans()' in s:             # Ans has moved on since that entry
                 raise K.CasError('No steps for this one')
@@ -583,8 +587,17 @@ def start(job):                                                 #@L 2
                         break
                 elif d == 1 and k == P.K_COMMA:
                     cm += 1
-            if cm <= 1:
-                FLAGS |= F_PLUSC
+            # + C when the line is still an antiderivative: the call alone, or with terms and
+            # factors after it (integrate(sin(x),x)+1). Not as an operand of ^ or !, nor in a
+            # relation or a list: integrate(x,x)=3 showed its roots + C.
+            if cm <= 1 and (i == n - 1 or (tk[i + 1][0] == P.K_OP and tk[i + 1][1] in '+-*/')):
+                for j in range(i + 1, n):
+                    k = tk[j][0]
+                    d += (k == P.K_LP or k == P.K_LB) - (k == P.K_RP or k == P.K_RB)
+                    if not d and (k == P.K_COMMA or (k == P.K_OP and tk[j][1] in P.RELOPS)):
+                        cm = 9
+                if cm <= 1:
+                    FLAGS |= F_PLUSC
         i = len(code) - 1
         while i >= 0 and code[i][0] == 'P':
             i -= 1
@@ -593,7 +606,11 @@ def start(job):                                                 #@L 2
             e = CMDS.get(f)
             if e is not None:
                 FLAGS |= e[4] & F_SOLN
-            if f == 'diff' or f == 'integrate' or f == 'solve' or f == 'limit':
+            fl = TARGET is not None and job[0] == 'eval'    # a stored result: the line would
+            for t in tk:                                    # not repeat (=> x); a decimal:
+                if t[0] == P.K_NUM and type(t[1]) is float:    # the walk is exact, the
+                    fl = True                               # answer is not (x^2.5)
+            if (f == 'diff' or f == 'integrate' or f == 'solve' or f == 'limit') and not fl:
                 FLAGS |= F_STEPS
                 if job[0] != 'eval':     # the last command gives way to its walk: '?' cannot
                     STEPS.append(f)      # be typed, and g_eval hands it the evaluated arguments
@@ -636,15 +653,20 @@ def finish(job, rec):                                           #@L 2
             elif (FORMNAME, rec[1]) not in e[5]:
                 e[5].append((FORMNAME, rec[1]))
             e[1] = rec[1]
-            ANS = rec[1]
         else:
             e[1] = e[5][0][1]
             e[5] = e[5][:1]
-            ANS = e[1]
+        if job[1] == len(HIST) - 1:     # Ans is the newest entry's answer: a form of an older
+            ANS = e[1]                  # entry changes that entry only (T1.6)
         return rec
     if rec is None:
         return rec
     nm = None
+    if TARGET is not None and (rec[1] == 'Done' and rec[0] != R_ANS or
+                               rec[0] == R_ANS and (rec[1] == 'true' or rec[1] == 'false')):
+        # Done: the text is too long to keep; true/false: x=1<2 stored 'true', and x+1 then
+        # read 'Invalid use of a result'
+        rec = (R_MSG, M_NOSTORE, None, 0)
     if rec[0] == R_ANS:
         s = rec[1]
         nm = TARGET

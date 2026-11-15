@@ -711,13 +711,20 @@ def nprog(e, xs):                                               #@L 4
                 u.append(cval(N[t[j + 1]]))
             ins = tuple(u)
         elif op == K.MUL:
-            u = [P_MUL, cval(N[t[1]])]
+            c0 = N[t[1]]
+            g = K.HUGE and c0[0] == K.NUM and not c0[2] and c0[1]
+            u = [P_MUL, qf(c0[1], c0[3]) if g else cval(c0)]
+            hg = g and (not u[1] or u[1] - u[1] != 0)   # the coefficient is beyond a double
             for j in range(2, len(t), 2):
                 b = t[j]
                 c = t[j + 1]
                 w = N[c]
-                if K.HUGE and KB.huge(b, c):        # beyond the float range (5.3, 6.1)
-                    raise K.Undefined()
+                # a power beyond the float range (5.3, 6.1) has no value, unless its base is a
+                # positive real number: then nrun's nlog may still give the whole product one
+                if K.HUGE and KB.huge(b, c):
+                    if not g or N[b][0] > K.FLT or N[b][2] or N[b][1] <= 0:
+                        raise K.Undefined()
+                    hg = 1
                 for g in (b, c):
                     if g not in at and N[g][0] <= K.FLT and (g == b or w[2]):
                         at[g] = len(prog)
@@ -738,6 +745,12 @@ def nprog(e, xs):                                               #@L 4
                     prog.append((P_POW, at[b], at[c]))
                     u.append(1)
                     u.append(0)
+            if hg:                      # nrun takes this product by logarithms (nlog): its
+                g = []                  # coefficient as (sign, ln|p/q|)
+                for b in (abs(c0[1]), c0[3]):
+                    k = 4 * len('%x' % b) - 60
+                    g.append(math.log(b >> k) + k * 0.6931471805599453 if k > 0 else math.log(b))
+                u[1] = (1.0 if c0[1] > 0 else -1.0, g[0] - g[1])
             ins = tuple(u)
         elif op >= K.FN0:
             a = t[1]
@@ -755,6 +768,37 @@ def nprog(e, xs):                                               #@L 4
     if e not in at:
         prog.append((P_CONST, cval(N[e])))
     return prog
+
+
+def nlog(ins, r):                                               #@L 5
+    # The product instruction ins by logarithms, for a nonzero real coefficient and positive
+    # real bases: a factor of 1000001^10000/10^60000 overflows a double, the product is 1.01.
+    # OverflowError (nrun: no value) for any other operand or a product beyond a double.
+    # A coefficient beyond a double is the pair (sign, ln|c|) from nprog. The sum of large
+    # logarithms cancels: the result keeps only the digits that survive (m: their size).
+    s = ins[1]
+    if type(s) is complex or not s:
+        raise OverflowError()
+    if type(s) is tuple:
+        g, s = s
+    else:
+        g = -1.0 if s < 0 else 1.0
+        s = math.log(g * s)
+    m = abs(s)
+    for j in range(2, len(ins), 3):
+        b = r[ins[j]]
+        if type(b) is complex or type(ins[j + 1]) is complex or b <= 0.0:
+            raise OverflowError()
+        b = ins[j + 1] * math.log(b)
+        s += b
+        m += abs(b)
+    if s > 709.0 or s < -708.0:         # beyond a double either way: no value, not 0.0
+        raise OverflowError()
+    k = 15
+    while m > 1.0 and k > 1:
+        m /= 10.0                                                       #@float-ok
+        k -= 1
+    return float(('%%.%dg' % k) % (g * math.exp(s)))
 
 
 def nrun(prog, vals, r=None):                                   #@L 4
@@ -781,21 +825,28 @@ def nrun(prog, vals, r=None):                                   #@L 4
                     v = v + ins[j + 1] * r[ins[j]]
             elif op == P_MUL:
                 v = ins[1]
-                for j in range(2, len(ins), 3):
-                    b = r[ins[j]]
-                    e = ins[j + 1]
-                    if type(b) is complex:
-                        w = cpow(b, e)
-                    elif type(e) is int or b >= 0.0:
-                        w = b ** e
-                    elif ins[j + 2]:
-                        w = ins[j + 2] * (-b) ** e                # the real odd root (6.2)
-                    else:
-                        w = cpow(b, e)
-                        if w.imag:
-                            LEFTREAL[0] = 1
-                            LEFTREAL[1] |= abs(w.imag) > 1e-6
-                    v = v * w
+                try:
+                    if type(v) is tuple:
+                        raise OverflowError()
+                    for j in range(2, len(ins), 3):
+                        b = r[ins[j]]
+                        e = ins[j + 1]
+                        if type(b) is complex:
+                            w = cpow(b, e)
+                        elif type(e) is int or b >= 0.0:
+                            w = b ** e
+                        elif ins[j + 2]:
+                            w = ins[j + 2] * (-b) ** e            # the real odd root (6.2)
+                        else:
+                            w = cpow(b, e)
+                            if w.imag:
+                                LEFTREAL[0] = 1
+                                LEFTREAL[1] |= abs(w.imag) > 1e-6
+                        v = v * w
+                except OverflowError:   # CPython raises; MicroPython gives inf (and inf*0: nan)
+                    v = NAN
+                if v - v != 0:
+                    v = nlog(ins, r)
             elif op == P_POW:
                 b = r[ins[1]]
                 e = r[ins[2]]

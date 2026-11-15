@@ -32,8 +32,24 @@ def g_linear(r, q, x, c, implicit=None):                        #@L 2
 
 def equilibria(h, y):                                          #@L 3
     q = A.quadratic(h, y)
-    if q is None:
-        return ()
+    if q is None:                       # degree 3 to 8, rational coefficients (the caller
+        co = A.pco(h, y, 8)             # expanded h): the rational roots (y^3 - y: 0, 1, -1)
+        a = []
+        d = 1
+        for ts in co or ():
+            k = ts[0][1] if ts else K.Q0
+            if len(ts) > 1 or (ts and ts[0][0] != K.ONE) or k[2]:
+                return ()
+            a.append(k)
+            d *= k[3]
+        out = []
+        for j in range(len(a)):
+            a[j] = a[j][1] * (d // a[j][3])
+        while a and not a[-1]:
+            a.pop()
+        for p, q, m in R.MODS['polyb'].ratroots(a)[0] if a else ():
+            out.append(K.num(p, 0, q))
+        return tuple(out)
     a, b, c = q
     if a == K.ZERO:
         return (R.MODS['ode'].div(K.neg_(c), b),) if b != K.ZERO else ()
@@ -86,7 +102,7 @@ def g_first(f, x, y, yp, c):                                    #@L 2
                 sol = K.rel_(K.EQ, fy, rhs)
             out = [sol]
             if t[0] != K.LN or K.N[sol][1] != y:
-                roots = list(equilibria(hy, y))
+                roots = list(equilibria(NO.normal(hy), y))
                 try:
                     if A.subst(hy, y, K.ZERO) == K.ZERO and K.ZERO not in roots:
                         roots.append(K.ZERO)

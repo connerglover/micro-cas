@@ -9,7 +9,9 @@ def ifactor(q):                                                 #@L 4
     # the rational q = (NUM, a, 0, d) as a HOLD of prime powers (the denominator's with
     # negative exponents), by trial division by 2, 3 and 6k+-1 up to TDIV; the NUM itself when
     # that says nothing more (numerator and denominator each 1 or a prime). A cofactor over
-    # TDIV^2 stays one base and clears COMPLETE (no primality claim).
+    # 2^20 is tested first (isprime): a large prime costs no division loop (999999999989 took
+    # 330,000 steps) and is a proven prime. A composite cofactor over TDIV^2 stays one base and
+    # clears COMPLETE.
     FA = R.MODS['fact']
     ps = []
     t = 1
@@ -17,20 +19,21 @@ def ifactor(q):                                                 #@L 4
         p = 2
         i = 0
         j = len(ps)
-        while n > 1 and p * p <= n and p <= FA.TDIV:
+        pr = n > 1048576 and R.MODS['form'].isprime(n)
+        while n > 1 and not pr and p * p <= n and p <= FA.TDIV:
             if n % p == 0:
                 e = 0
                 while n % p == 0:
                     n //= p
                     e += s
-                ps.append(K.num(p))
-                ps.append(K.num(e))
+                ps.extend((K.num(p), K.num(e)))
+                pr = n > 1048576 and R.MODS['form'].isprime(n)
             p += 1 if p < 3 else (4 if p % 6 == 1 else 2)
             i += 1
             if not i & 1023 and K.ESC is not None and K.ESC():
                 raise K.Cancel()
         if n > 1:
-            if p * p <= n:
+            if p * p <= n and not pr:
                 FA.COMPLETE[0] = 0
             ps.append(K.num(n))
             ps.append(K.num(s))

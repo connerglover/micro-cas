@@ -17,6 +17,15 @@ def kmono(k, ks):                                               #@L 7
     return tuple(u)
 
 
+def isser(e):                                                   #@L 6
+    # a sum with an O(x^n) term, a series: one fraction would put the O under a denominator
+    t = K.N[e]
+    for j in range(2, len(t), 2) if t[0] == K.ADD else ():
+        if K.N[t[j]][0] == K.BIGO:
+            return True
+    return False
+
+
 def lastuse(po):                                                #@L 6
     # child id -> the last node of the postorder po that reads it
     la = {}

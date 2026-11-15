@@ -566,3 +566,24 @@ def test_only_the_loader_may_clear_a_module_by_a_computed_name():
            'fa': 'import CVNODE as K\ndef w(n):\n    setattr(K, n, None)\n', 'fb': ''}
     with pytest.raises(packs.PackError, match='computed'):
         inlined(src)
+
+
+def test_a_constant_still_read_as_a_global_keeps_its_definition(tmp_path, monkeypatch):
+    """dead_constant drops a definition only when no read is left: a read through the loader
+    (need('fa').LIM, R.MODS['fa'].LIM) and a read by a client stay attribute reads."""
+    run = RUN + _d('''
+        def far():
+            return need('fa').LIM + MODS['fa'].CAP
+        def near():
+            return K.NUM
+        ''')
+    src = {'node': 'NUM = 3\nBASE = 15\n', 'run': run, 'printer': '',
+           'fa': 'LIM = 64\nCAP = 8\nGONE = 2\ndef g():\n    return LIM + GONE\n', 'fb': ''}
+    out, clients, meta = inlined(src, clients=(('PROBE', 'import CVNODE as K\nB = K.BASE\n'),))
+    assert 'LIM = 64' in out['CASF'] and 'CAP = 8' in out['CASF']     # read through the loader
+    assert 'GONE' not in out['CASF'] and 'NUM' not in out['CASK']     # every read a literal
+    assert 'BASE = 15' in out['CASK']                                 # the client reads it
+    assert sorted(meta['dropped']['CASF']) == ['CVFA.GONE']
+    load(out, tmp_path, monkeypatch)
+    import CASK
+    assert CASK.far() == 72 and CASK.near() == 3

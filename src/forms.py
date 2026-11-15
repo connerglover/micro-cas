@@ -47,3 +47,37 @@ def g_form(code, ctx):                                          #@L 2
                 return
         K.keep(mark, None)
     yield f
+
+
+PR12 = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41)    # 13 bases: a proof below 3.3e24
+
+
+def isprime(n):                                                 #@L 5
+    # Miller-Rabin with the first 13 primes as bases (12 pass 318665857834031151167461): a
+    # proof below 3317044064679887385961981, so n of 2^81 or more is not claimed (False).
+    # No 3-argument pow: MicroPython 1.12 may lack it.
+    if n < 2 or n >> 81:
+        return False
+    for a in PR12:
+        if n % a == 0:
+            return n == a
+    d = n - 1
+    s = 0
+    while not d & 1:
+        d >>= 1
+        s += 1
+    for a in PR12:
+        y = 1
+        e = d
+        while e:
+            if e & 1:
+                y = y * a % n
+            a = a * a % n
+            e >>= 1
+        r = 1
+        while r < s and y != 1 and y != n - 1:
+            y = y * y % n
+            r += 1
+        if y != n - 1 and (r > 1 or y != 1):
+            return False
+    return True

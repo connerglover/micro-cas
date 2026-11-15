@@ -32,10 +32,10 @@ MODULES = (
     # src         device       class  max lines  KB budget
     ('node',      'CVNODE',    'R',   1300,       30),   # 28 + the giant-power hooks (6.1), gcd-first rationals
     ('nodeb',     'CVNODEB',   'R',   320,        8),
-    ('alg',       'CVALG',     'R',   850,       19),
+    ('alg',       'CVALG',     'R',   880,       20),
     ('parse',     'CVPARSE',   'R',   1250,       33),
     ('printer',   'CVPRINT',   'R',   900,       21),
-    ('run',       'CVRUN',     'R',   655,       22),   # + memory-failure recovery (sweep), the steps job
+    ('run',       'CVRUN',     'R',   675,       23),   # + memory-failure recovery (sweep), the steps job
     ('draw',      'CVDRAW',    'R',   1075,      28),   # + the MathPrint layout (MATHPRINT.md 5)
     ('ui',        'CVUI',      'R',   1405,      37),   # + the MathPrint editor and screen (MATHPRINT.md 2-7)
     # lazy (L) and lazy UI (U) modules and parts, DESIGN 4.1 and 4.3
@@ -45,8 +45,8 @@ MODULES = (
     ('polyb',     'CVPOLYB',   'L',   129,       3),
     ('polyc',     'CVPOLYC',   'L',   138,       3),
     ('norm',      'CVNORM',    'L',   150,       5),
-    ('normc',     'CVNORMC',   'L',   160,       5),
-    ('normb',     'CVNORMB',   'L',   141,       4),
+    ('normc',     'CVNORMC',   'L',   175,       5),
+    ('normb',     'CVNORMB',   'L',   150,       5),
     ('ident',     'CVIDENT',   'L',   80,        5),
     ('factor',    'CVFACT',    'L',   145,       4),
     ('factorb',   'CVFACTB',   'L',   141,       3),
@@ -56,8 +56,8 @@ MODULES = (
     ('solveb',    'CVSOLVEB',  'L',   138,       5),
     ('solved',    'CVSOLVED',  'L',   170,       5),   # + the wide numeric search (nsolve far)
     ('solvee',    'CVSOLVEE',  'L',   145,       6),
-    ('solvec',    'CVSOLVEC',  'L',   150,       4),
-    ('forms',     'CVFORM',    'L',   50,        2),
+    ('solvec',    'CVSOLVEC',  'L',   150,       5),
+    ('forms',     'CVFORM',    'L',   75,        3),   # + the primality proof (isprime)
     ('diff',      'CVDIFF',    'L',   138,       5),
     ('series',    'CVSER',     'L',   134,       4),
     ('seriesb',   'CVSERB',    'L',   139,       5),
@@ -78,7 +78,7 @@ MODULES = (
     ('sumsb',     'CVSUMB',    'L',   94,        3),
     ('sumsc',     'CVSUMC',    'L',   108,       4),
     ('ode',       'CVODE',     'L',   150,       5),
-    ('odeb',      'CVODEB',    'L',   135,       4),
+    ('odeb',      'CVODEB',    'L',   145,       5),
     ('odec',      'CVODEC',    'L',   134,       6),
     ('oded',      'CVODED',    'L',   120,       4),
     ('sdiff',     'CVSDIFF',   'L',   150,       5),   # step-by-step working (notes/STEPS.md)
@@ -147,7 +147,7 @@ PACKS = (
     ('CASPR', ('printer',), 'soft'),
     # Computation helpers that never reach the loader (alg imports only node): loaded on first
     # use, and the last code to give way when a family needs memory.
-    ('CASAX', ('alg.cpow', 'alg.cval', 'alg.degree', 'alg.linear', 'alg.nev', 'alg.nprobe',
+    ('CASAX', ('alg.cpow', 'alg.cval', 'alg.degree', 'alg.linear', 'alg.nev', 'alg.nlog', 'alg.nprobe',
                'alg.nprog', 'alg.nrun', 'alg.ntol', 'alg.pco', 'alg.quadratic', 'alg.rebuild',
                'alg.size', 'alg.split_const', 'alg.subst'), 'aux'),
     # Powers too large to fold (DESIGN 5.3, 6.1): node calls it only for a giant power, or once

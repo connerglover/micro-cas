@@ -133,7 +133,7 @@ def g_desolve(args, ctx):                                       #@L 2
         lead = A.linear(f, yp)
         if out is not None and lead is not None and not K.free_of(lead[0], y):
             out = list(out)
-            for root in R.MODS['odeb'].equilibria(lead[0], y):
+            for root in R.MODS['odeb'].equilibria(NO.normal(lead[0]), y):
                 check = NO.normal(A.subst(f, (y, yp), (root, K.ZERO)))
                 extra = K.rel_(K.EQ, y, root)
                 if check == K.ZERO and extra not in out:

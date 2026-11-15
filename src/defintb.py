@@ -75,7 +75,7 @@ def g_quad(f, x, a, b, budget=R.MODS['def'].MAXEVAL, zero=False):            #@L
     # the rest: no table of samples, whose boxed floats would shred the heap (FASTBOOT.md).
     count = 0
     largest = 0.0
-    previous = None
+    previous = first = None
     total = 0.0
     for level in range(R.MODS['def'].MAXLEVEL + 1):
         h = 0.5 ** level
@@ -103,12 +103,24 @@ def g_quad(f, x, a, b, budget=R.MODS['def'].MAXEVAL, zero=False):            #@L
                 return
             total += value
             largest = max(largest, abs(value))
+            if first is None:
+                first = abs(value)
         current = total * h
+        # The outermost samples of a level: at an endpoint singularity they have not decayed
+        # (the nodes that round to the endpoint are skipped), and what is cut off there is of
+        # their size. The answer keeps only the digits above it (1.04719755530957 was good
+        # to 8); a smooth integrand's outermost samples are below the last digit.
+        edge = (first + abs(value)) * h
+        first = None
         if previous is not None and level >= 2 and abs(current - previous) <= R.MODS['def'].QTOL * (1 + abs(current)):
             if largest < 1e-14 and not zero:
                 yield None             # no sampled evidence: a narrow peak may be missed
                 return
-            yield K.flt(direction * current)
+            k = 0
+            while k < 15 and edge < abs(current):
+                edge *= 10.0
+                k += 1
+            yield K.flt(direction * (float(('%%.%dg' % k) % current) if k else current))
             return
         previous = current
         yield R.TICK

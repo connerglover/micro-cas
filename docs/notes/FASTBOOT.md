@@ -388,6 +388,16 @@ TEST menu):
 The measurements that led here (the printer loaded during the walk, one pack for every walk,
 evicting around the screen, the name pool) are in STEPS.md.
 
+### Audit (2026-11-15)
+
+Two build-level savings, measured on the pinned 32-bit runtime against `main` at eda400c:
+`build/packs.py` drops int constants that nothing reads once inlined (`dead_constant`; a
+reflective read must take its name from a string in the sources), and `node.B` holds 16-bit
+ids. With the leaner `keep` and `normal` the lowest heap from which every 1,000-byte step
+passes moved: `ui_steps` 188,000 -> 182,000, `ui_definite` 171,000 -> 163,000, `ui_calculus`
+177,000 -> 168,000 ([STATUS.md](../STATUS.md)). `node.NX` as a fixed 16-bit array was tried
+and made the floors worse: it costs 1.5 KB while the table is small.
+
 ### Next steps that need device data
 
 - The cost of one archive import (fixed, or growing with the number of files). If imports

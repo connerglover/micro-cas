@@ -19,6 +19,10 @@ def g_loop(f, x, lo, hi):                                       #@L 2
         out = K.add_([out, A.subst(f, x, K.num(j))])
         out = K.keep(mark, out)
         t = K.N[out]
+        if j - lo == 8 and t[0] == K.ADD and len(t) >= 20 and hi - lo > 340:
+            K.release(mark)             # a term kept per step (sin(k)): 340 of them fill the
+            yield None                  # node table, after seconds of work for an error.
+            return                      # Formal at once instead.
         for h in range(1, len(t) if t[0] == K.ADD else 2, 2):
             v = K.N[t[h]] if t[0] == K.ADD or t[0] == K.MUL else t
             if v[0] == K.NUM and (v[3] >> SUMHEX // 3 * 4 - 8 or v[1] >> SUMHEX // 3 * 4 - 8 or

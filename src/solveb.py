@@ -86,6 +86,8 @@ def g_fac(G, ks, x, dep, md):                                   #@L 2
         return
     if len(dp) == 1:
         j = dp[0]
+        if use[j] > 4096:               # x^(2^64) = 1: no dense coefficient list holds it
+            raise K.CasSoft(SO.M_CANT)
         cs = []
         for c in R.MODS['polyc'].mcoef(G, j):
             cs.append(FA.mkpoly(c, ks, 1) if c else K.ZERO)
