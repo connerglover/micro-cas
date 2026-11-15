@@ -211,8 +211,10 @@ def pat(s):
     """A pattern node, registered in RULECACHE (the invariant scan allows WILD only there)."""
     m = K.NN
     p = K.keep(m, P.inst(P.tcode(s), None))
-    rs = K.RULECACHE.setdefault('_pats', {0: ()})
-    rs[0] = rs[0] + ((p, s, ''),)
+    rs = K.RULECACHE.setdefault('_pats', {0: (), -2: []})
+    r = [p, s, '']
+    rs[-2].append(r)                    # every rule once: the list K.keep marks and remaps
+    rs[0] = rs[0] + (r,)
     return p
 
 
@@ -929,9 +931,10 @@ def test_rset_buckets_are_view_aware_and_in_file_order():
     assert tuple(r[0] for r in rs[RU.VIEW]) == view
     assert tuple(r[0] for r in rs[K.SIN]) == (ps[0], ps[1], ps[2])
     assert tuple(r[0] for r in rs[K.COS]) == (ps[0], ps[2], ps[3])
-    assert sorted(rs) == sorted([RU.VIEW, K.SIN, K.COS])
-    assert rs[K.SIN][1][1:] == ('cos(2*U)', '')
-    assert rs[K.SIN][2][1:] == ('cos(U)*R', 'P>=2')
+    assert sorted(rs) == sorted([-2, RU.VIEW, K.SIN, K.COS])    # -2: every rule once
+    assert [r[0] for r in rs[-2]] == ps and rs[-2][1] is rs[K.SIN][1]
+    assert rs[K.SIN][1][1:] == ['cos(2*U)', '']
+    assert rs[K.SIN][2][1:] == ['cos(U)*R', 'P>=2']
 
 
 def test_rset_caches_and_leaves_no_garbage():

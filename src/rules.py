@@ -28,10 +28,12 @@ def rset(name):                                                 #@L 3
     data = getattr(R.MODS[WHERE.get(name, 'ident')], name.upper())
     m = K.NN
     rs = {VIEW: []}
+    al = []
     j = 1 if type(data[0]) is tuple else 0
     while j < len(data):
         p = P.inst(P.tcode(data[j]), None)
-        r = (p, data[j + 1], data[j + 2])
+        r = [p, data[j + 1], data[j + 2]]
+        al.append(r)
         h = K.N[p][0]
         if h == K.ADD or h == K.MUL or h == K.WILD:
             for b in rs:                                        #@unordered-ok
@@ -43,6 +45,7 @@ def rset(name):                                                 #@L 3
         j += 3
     for b in rs:                                                #@unordered-ok
         rs[b] = tuple(rs[b])
+    rs[-2] = al
     K.RULECACHE[name] = rs
     K.keep(m, None)                     # drop the build garbage; the patterns are remapped
     return rs

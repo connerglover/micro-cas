@@ -21,7 +21,8 @@ def g_loop(f, x, lo, hi):                                       #@L 2
         t = K.N[out]
         for h in range(1, len(t) if t[0] == K.ADD else 2, 2):
             v = K.N[t[h]] if t[0] == K.ADD or t[0] == K.MUL else t
-            if v[0] == K.NUM and len('%x%x%x' % v[1:]) > SUMHEX:
+            if v[0] == K.NUM and (v[3] >> SUMHEX // 3 * 4 - 8 or v[1] >> SUMHEX // 3 * 4 - 8 or
+                                  v[2] >> SUMHEX // 3 * 4 - 8) and len('%x%x%x' % v[1:]) > SUMHEX:
                 K.release(mark)
                 yield None
                 return

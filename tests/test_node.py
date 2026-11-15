@@ -646,13 +646,14 @@ def test_keep_remaps_rulecache_ids():
     junk = sm(x, q(5))
     w = K.mk((K.WILD, 0, 0))
     lhs = prod(K.fn_(K.SIN, w), x)
-    K.RULECACHE['t'] = {K.MUL: ((lhs, 'L', ''),), 99: ((lhs, 'L', 'g'), (K.ONE, 'x', ''))}
+    ra, rb, rc = [lhs, 'L', ''], [lhs, 'L', 'g'], [K.ONE, 'x', '']
+    K.RULECACHE['t'] = {K.MUL: (ra,), 99: (rb, rc), -2: [ra, rb, rc]}
     s = struct(lhs)
     r = K.keep(m, None)
     assert r is None
     rs = K.RULECACHE['t']
-    assert struct(rs[K.MUL][0][0]) == s and rs[K.MUL][0][1:] == ('L', '')
-    assert rs[99][0][0] == rs[K.MUL][0][0] and rs[99][1] == (K.ONE, 'x', '')
+    assert struct(rs[K.MUL][0][0]) == s and rs[K.MUL][0][1:] == ['L', '']
+    assert rs[99][0][0] == rs[K.MUL][0][0] and rs[99][1] == [K.ONE, 'x', '']
     assert K.NN == m + 3 and junk >= m                    # w, sin(w), lhs survive
     assert invariants.scan(K) == []
     K.reset()                                  # clears RULECACHE after the reset-time scan

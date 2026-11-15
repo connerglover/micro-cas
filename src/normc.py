@@ -17,6 +17,36 @@ def kmono(k, ks):                                               #@L 7
     return tuple(u)
 
 
+def lastuse(po):                                                #@L 6
+    # child id -> the last node of the postorder po that reads it
+    la = {}
+    for m in po:
+        t = K.N[m]
+        if t[0] >= K.COMP:
+            for j in range(1, len(t)):
+                la[t[j]] = m
+    return la
+
+
+def drop(rf, la, t, m):                                         #@L 6
+    # forget the fractions of the children of m (tuple t) that no later node reads: normal's
+    # peak is then the widest front of the tree, not the whole tree (measured 52 KB -> 19 KB)
+    if t[0] >= K.COMP:
+        for j in range(1, len(t)):
+            if la[t[j]] == m and t[j] in rf:
+                del rf[t[j]]
+
+
+def nfrac(t, Z, ks):                                            #@L 6
+    # the fraction of the number tuple t
+    x = ({}, {Z: t[3]})
+    if t[1]:
+        x[0][Z] = t[1]
+    if t[2]:
+        x[0][kmono(K.I, ks)] = t[2]
+    return x
+
+
 def tonode(n, d, ks, ex):                                       #@L 4
     # the node of the fraction n/d over the kernels ks. ex (expand): d is a constant that
     # divides every term. Else the common monomial, the gcd (Kronecker substitution, checked by

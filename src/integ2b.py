@@ -33,7 +33,7 @@ def g_decompose(f, x):                                          #@L 2
     if not rem:
         yield (polynomial, [])
         return
-    # Factoring is loaded by the generator before entering this plain helper.
+    R.need('fact')
     c, factors, complete = R.MODS['factb'].ufac(denominator)
     columns = []
     specs = []
@@ -82,7 +82,6 @@ def g_partfrac(args, ctx):                                      #@L 2
     if K.N[x][0] != K.SYM:
         raise K.CasError('Invalid argument')
     ctx[P.X_MV] = x
-    R.need('fact')
     parts = yield g_decompose(args[0], x)
     if parts is None:
         yield K.mk((K.CALL, K.sym('partfrac'), args[0], x))
@@ -97,7 +96,6 @@ def g_partfrac(args, ctx):                                      #@L 2
 
 
 def g_rational(f, x, depth=0):                                  #@L 2
-    R.need('fact')
     parts = yield g_decompose(f, x)
     if parts is None:
         yield None

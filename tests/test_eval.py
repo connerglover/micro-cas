@@ -796,7 +796,8 @@ def test_approx_numeric_agreement():
 def keep_patterns(m, ids):
     """Patterns live in RULECACHE (the invariant scan allows WILD only there)."""
     ids = K.keep(m, tuple(ids))
-    K.RULECACHE['test'] = {0: tuple((p, '', '') for p in ids)}
+    rs = [[p, '', ''] for p in ids]
+    K.RULECACHE['test'] = {0: tuple(rs), -2: rs}
     return ids
 
 

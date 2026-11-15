@@ -30,7 +30,7 @@ ENTRY_BUDGET = (30, 1)          # max lines, KB (DESIGN 4.1)
 # build/release.py phases the resident sources and reports the separate heap model.
 MODULES = (
     # src         device       class  max lines  KB budget
-    ('node',      'CVNODE',    'R',   1200,       29),   # 28 + the giant-power hooks (6.1)
+    ('node',      'CVNODE',    'R',   1300,       30),   # 28 + the giant-power hooks (6.1), gcd-first rationals
     ('nodeb',     'CVNODEB',   'R',   320,        8),
     ('alg',       'CVALG',     'R',   850,       19),
     ('parse',     'CVPARSE',   'R',   1250,       33),
@@ -44,8 +44,8 @@ MODULES = (
     ('poly',      'CVPOLY',    'L',   149,       3),
     ('polyb',     'CVPOLYB',   'L',   129,       3),
     ('polyc',     'CVPOLYC',   'L',   138,       3),
-    ('norm',      'CVNORM',    'L',   150,       4),
-    ('normc',     'CVNORMC',   'L',   135,       4),
+    ('norm',      'CVNORM',    'L',   150,       5),
+    ('normc',     'CVNORMC',   'L',   160,       5),
     ('normb',     'CVNORMB',   'L',   141,       4),
     ('ident',     'CVIDENT',   'L',   80,        5),
     ('factor',    'CVFACT',    'L',   145,       4),
@@ -64,7 +64,7 @@ MODULES = (
     ('limit',     'CVLIM',     'L',   123,       4),
     ('limitb',    'CVLIMB',    'L',   138,       4),
     ('limitc',    'CVLIMC',    'L',   150,       5),
-    ('integ',     'CVINT',     'L',   150,       5),
+    ('integ',     'CVINT',     'L',   165,       6),   # + the strategy preconditions (fits)
     ('itab',      'CVITAB',    'L',   2,         2),
     ('integ2',    'CVINT2',    'L',   150,       5),
     ('integ2b',   'CVINT2B',   'L',   134,       5),

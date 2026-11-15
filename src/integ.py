@@ -81,6 +81,27 @@ def g_usub(f, x, depth=0):                                      #@L 2
     yield None
 
 
+def fits(j, v, x):                                              #@L 3
+    # a necessary condition of EXTRA[j], tested before its pack loads
+    t = K.N[v]
+    if j == 3:                          # a square root, or ln/asin/acos/atan, or e^u with sin/cos
+        g = 0
+        for i in range(2, len(t), 2) if t[0] == K.MUL else ():
+            b = K.N[t[i]][0]
+            w = K.N[t[i + 1]]
+            if (w[0] == K.NUM and w[3] == 2) or b == K.LN or K.ASIN <= b <= K.ATAN:
+                return True
+            g |= 1 if t[i] == K.E else 2 if b == K.SIN or b == K.COS else 0
+        return g == 3 or t[0] == K.LN or K.ASIN <= t[0] <= K.ATAN
+    if j == 4:                          # a trigonometric function or a power of e
+        for n in A.postorder(v):
+            z = K.N[n]
+            if K.SIN <= z[0] <= K.COT or (z[0] == K.MUL and len(z) == 4 and z[2] == K.E):
+                return True
+        return False
+    return True
+
+
 def g_int(f, x, depth=0):                                       #@L 2
     if K.free_of(f, x):
         yield (scale(f, x), K.ZERO)
@@ -102,7 +123,15 @@ def g_int(f, x, depth=0):                                       #@L 2
     if r is None:
         r = yield R.scoped(g_usub(v, x, depth))
     if r is None:
-        for key, name in EXTRA:
+        j = -1
+        for key, name in EXTRA:         # (this loop form is what build/shrink.py reads as a
+            j += 1                      # registry walk: the getattr below renames with it)
+            if j == 2:                  # rational: numbers and x only, once normalized
+                q = R.MODS['norm'].normal(v)
+                if R.MODS['normc'].kinds(q) & 2 or K.V[q] & ~K.V[x]:
+                    continue
+            elif not fits(j, v, x):
+                continue
             mod = R.need(key)
             r = yield R.scoped(getattr(mod, name)(v, x, depth))    #@calls 2
             if r is not None:

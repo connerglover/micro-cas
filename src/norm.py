@@ -99,36 +99,38 @@ def normal(e, ex=0):                                            #@L 3
         rl = [(2, -1)] + [None] * (nv - 1)
         PC = R.MODS['polyc']
         NC = R.MODS['normc']
-        rf = {}
+        rf = {}                         # fractions of the subtrees still to be used: a number
+        la = NC.lastuse(po)             # has none (NC.nfrac makes it where it is read)
         for m in po:
             t = N[m]
             op = t[0]
             if op == K.NUM:
-                x = ({}, {Z: t[3]})
-                if t[1]:
-                    x[0][Z] = t[1]
-                if t[2]:
-                    x[0][NC.kmono(K.I, ks)] = t[2]
-            elif op == K.ADD:
-                x = rf[t[1]]
+                continue
+            if op == K.ADD:
+                x = rf.get(t[1]) or NC.nfrac(N[t[1]], Z, ks)
                 for j in range(2, len(t), 2):
-                    y = rf[t[j]]
-                    c = rf[t[j + 1]]
-                    y = (pmul(y[0], c[0], rl), pmul(y[1], c[1], rl))
+                    y = rf.get(t[j]) or NC.nfrac(N[t[j]], Z, ks)
+                    w = N[t[j + 1]]
+                    if w[0] == K.NUM and not w[2]:
+                        y = (y[0] if w[1] == 1 else PC.madd({}, y[0], w[1]),
+                             y[1] if w[3] == 1 else PC.madd({}, y[1], w[3]))
+                    else:
+                        c = rf.get(t[j + 1]) or NC.nfrac(w, Z, ks)
+                        y = (pmul(y[0], c[0], rl), pmul(y[1], c[1], rl))
                     if x[1] == y[1]:
                         x = (PC.madd(x[0], y[0]), x[1])
                     else:
                         x = (PC.madd(pmul(x[0], y[1], rl), pmul(y[0], x[1], rl)),
                              pmul(x[1], y[1], rl))
             elif op == K.MUL:
-                x = rf[t[1]]
+                x = rf.get(t[1]) or NC.nfrac(N[t[1]], Z, ks)
                 for j in range(2, len(t), 2):
-                    y = rf[t[j]]
+                    y = rf.get(t[j]) or NC.nfrac(N[t[j]], Z, ks)
                     w = N[t[j + 1]]
                     p = w[1] if w[0] == K.NUM and not w[2] else 0
                     h = K.HUGE and KB.hker(t[j], t[j + 1], ex)    # too large to fold (5.3):
                     if h or not p or (p < 0 and ex):        # a power kept whole: a kernel (a
-                        c = rf[t[j + 1]]                    # giant one: b^-x is (b^x)^-1)
+                        c = rf.get(t[j + 1]) or NC.nfrac(w, Z, ks)
                         y = ({NC.kmono(h or K.mul_(K.ONE, [(NC.tonode(y[0], y[1], ks, ex),
                                                    NC.tonode(c[0], c[1], ks, ex))]), ks): 1}, one)
                         p = -1 if h and p < 0 and not ex else 1
@@ -150,12 +152,13 @@ def normal(e, ex=0):                                            #@L 3
                 if op >= K.COMP:
                     x = {}
                     for j in range(1, len(t)):
-                        y = rf[t[j]]
+                        y = rf.get(t[j]) or NC.nfrac(N[t[j]], Z, ks)
                         x[t[j]] = NC.tonode(y[0], y[1], ks, ex)
                     k = A.rebuild(m, x)
                 x = ({NC.kmono(k, ks): 1}, one)
             rf[m] = x
-        x = rf[e]
+            NC.drop(rf, la, t, m)
+        x = rf.get(e) or NC.nfrac(N[e], Z, ks)
         return NC.tonode(x[0], x[1], ks, ex)
     except (K.CasError, K.CasSoft):
         if ex:

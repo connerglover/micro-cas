@@ -288,6 +288,17 @@ class Plan(object):
                                        if self.kind[p] in getattr(man, 'INLINE', ()))
         self.run = run
         self.keys = _runtime_keys(sources[run])
+        # Reads that stay global reads (Rewrite.ref), attribute names read on values no pass can
+        # resolve, and every identifier-like string: what keeps an int constant's definition
+        # (dead_constant). merge fills live and dynamic in a first pass over every statement.
+        self.live = set()
+        self.dynamic = set()
+        self.strings = set()
+        for text in list(sources.values()) + [clients[c] for c in clients]:
+            for n in ast.walk(ast.parse(text)):
+                if isinstance(n, ast.Constant) and type(n.value) is str and n.value.isidentifier():
+                    self.strings.add(n.value)
+                    self.strings.add(n.value.upper())   # rules.rset: getattr(m, name.upper())
         self.modules = {}
         for d in self.owner:
             self.modules[d] = Module(d, sources[d], self.owner[d])
@@ -499,6 +510,17 @@ class Plan(object):
             return None
         return v
 
+    def dead_constant(self, device, name, pack):
+        """An int constant whose every read became a literal: its definition is dropped from an
+        inlining pack. A definition costs an interned name (permanent on MicroPython), a module
+        dict slot and a store; 191 of them were 2.8 KB with the engine loaded (docs/notes/
+        FASTBOOT.md). Kept: a name some pack or client still reads as a global, one read on a
+        value the passes cannot resolve, and one that appears anywhere as a string, in any
+        case: a reflective read (getattr) must take its name from a string in the sources."""
+        return (pack in self.inline and self.int_constant(device, name) is not None and
+                (device, name) not in self.live and name not in self.dynamic and
+                name not in self.strings and not name.startswith('__'))
+
     def _shared(self, a, b, name):
         """Both modules bind name to the same literal, import the same native module, or alias
         modules of the same pack."""
@@ -679,6 +701,8 @@ class Rewrite(ast.NodeTransformer):
                 return ast.copy_location(ast.UnaryOp(
                     op=ast.USub(), operand=ast.copy_location(ast.Constant(-value), node)), node)
             return ast.copy_location(ast.Constant(value), node)
+        if isinstance(ctx, ast.Load) or self.fn is not None:
+            plan.live.add((device, name))
         if loc == self.here and not self.client:
             if self.fn is not None:
                 if new in self.locals:
@@ -755,8 +779,10 @@ class Rewrite(ast.NodeTransformer):
             raise PackError('%s: .%s on a value that is not a known module, but a pack renamed '
                             'that name' % (self.name, node.attr))
         if target is None or target == '#mods':
+            self.plan.dynamic.add(node.attr)
             return self.generic_visit(node)
         if target == '*':
+            self.plan.dynamic.add(node.attr)
             loaded = set(self.plan.keys.values())
             if any(t in loaded and n == node.attr for t, n in self.plan.rename) or \
                     any(t in loaded and f == node.attr for t, f in self.plan.place):
@@ -777,6 +803,7 @@ class Rewrite(ast.NodeTransformer):
         if loc != self.plan.owner[target]:
             raise PackError('%s: %s.%s is placed in %s, but this code reaches it through the '
                             'loader' % (self.name, target, node.attr, loc))
+        self.plan.live.add((target, node.attr))     # read through the loader: stays a read
         attr = self.plan.rename.get((target, node.attr), node.attr)
         value = self.visit(node.value)
         return ast.copy_location(ast.Attribute(value=value, attr=attr, ctx=node.ctx), node)
@@ -1093,11 +1120,32 @@ def merge(sources, man, clients=()):
                     isinstance(s, ast.Assign) and len(s.targets) == 1 and
                     isinstance(s.targets[0], ast.Name) and s.targets[0].id == fn][0]
             emitted[pack].append((d, stmt))
-    packs, meta = {}, {'packs': {}, 'statements': {}}
+    # A first pass over every statement and client finds the reads that stay global reads
+    # (plan.live, plan.dynamic); the second then leaves out the definitions nothing reads.
+    for pack in emitted:
+        for d, stmt in emitted[pack]:
+            Rewrite(plan, d, pack, plan.modules[d].aliases).visit(copy.deepcopy(stmt))
+    for name in clients:
+        tree = ast.parse(clients[name], filename=name + '.py')
+        aliases = {}
+        for stmt in tree.body:
+            if isinstance(stmt, ast.Import):
+                for a in stmt.names:
+                    if a.name in plan.owner:
+                        aliases[a.asname or a.name] = a.name
+        rw = Rewrite(plan, name, None, aliases, client=True)
+        for stmt in tree.body:
+            rw.visit(stmt)
+    packs, meta = {}, {'packs': {}, 'statements': {}, 'dropped': {}}
     for pack, kind, homes, placed in plan.order:
         body, spans, uses = [], [], set()
         for d, stmt in emitted[pack]:
             m = plan.modules[d]
+            if (isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and
+                    isinstance(stmt.targets[0], ast.Name) and
+                    plan.dead_constant(d, stmt.targets[0].id, pack)):
+                meta['dropped'].setdefault(pack, []).append('%s.%s' % (d, stmt.targets[0].id))
+                continue
             rw = Rewrite(plan, d, pack, m.aliases)
             new = rw.visit(copy.deepcopy(stmt))
             new = new if isinstance(new, list) else [new]

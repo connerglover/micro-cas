@@ -387,14 +387,16 @@ def test_engine_packs_read_module_ints_as_literals(tmp_path, monkeypatch):
     assert _fn(out['CASK'], 'f') == 'def f():\n    return 3 + 5'
     assert _fn(out['CASP'], 'p') == 'def p(e):\n    return 5 * e'
     assert _fn(out['CASF'], 'g') == "def g(d=3):\n    return __import__('CASP').p(5) + d"
-    assert 'NUM = 3' in out['CASK'] and 'MUL = 5' in out['CASK']     # bindings stay: getattr
+    # every read became a literal: the definitions (a name, a dict slot, a store each) go
+    assert 'NUM = 3' not in out['CASK'] and 'MUL = 5' not in out['CASK']
+    assert sorted(meta['dropped']['CASK']) == ['CVNODE.MUL', 'CVNODE.NUM']
     for pack, spans in meta['statements'].items():   # build/linemap.py: one span per statement
         assert len(spans) == len(ast.parse(out[pack]).body)
     load(out, tmp_path, monkeypatch)
     import CASK
     import CASF
     assert CASK.f() == 8 and CASK.kind(0) == 5 and CASF.g() == 28
-    assert getattr(CASK, 'NUM') == 3
+    assert not hasattr(CASK, 'NUM')
 
 
 def test_inlining_follows_the_manifest_kinds():
@@ -474,9 +476,12 @@ def test_a_computed_store_fails_an_inlining_build(code):
 
 def test_the_eviction_clearing_and_reflective_reads_keep_working(tmp_path, monkeypatch):
     """run.unload's setattr(m, k, None) (EVDICT) clears an evicted pack, whose code no longer
-    runs; getattr and loader lookups by name still find the binding."""
+    runs; getattr and loader lookups by name still find the binding. A constant that is read by
+    name must have that name as a string somewhere in the sources (here PEEKS): one that no code
+    names is dropped once its reads are literals."""
     run = RUN + _d('''
         import sys
+        PEEKS = ('X',)
         def unload(n):
             m = sys.modules[n]
             del sys.modules[n]
@@ -486,13 +491,13 @@ def test_the_eviction_clearing_and_reflective_reads_keep_working(tmp_path, monke
         def peek(name):
             return getattr(K, name) + getattr(need('fa'), 'LIM')
         ''')
-    src = {'node': 'X = 1\n', 'run': run, 'printer': '',
+    src = {'node': 'X = 1\nY = 2\ndef y():\n    return Y\n', 'run': run, 'printer': '',
            'fa': 'LIM = 64\ndef g():\n    return LIM\n', 'fb': ''}
     out, _, _ = inlined(src)
     assert _fn(out['CASF'], 'g') == 'def g():\n    return 64'
     load(out, tmp_path, monkeypatch)
     import CASK
-    assert CASK.peek('X') == 65
+    assert CASK.peek('X') == 65 and CASK.y() == 2 and not hasattr(CASK, 'Y')
     CASK.unload('CASF')
     assert CASK.need('fa').g() == 64 and CASK.peek('X') == 65
 

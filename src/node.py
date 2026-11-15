@@ -100,7 +100,7 @@ H = [0, 1, 9, 33554113, 17, 10, 3, 12288, 12305, 12322, 12339, 81, 1233, 12356,
      12373] + [0] * (NINIT - BASE)
 NX = [0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0] + [0] * (NINIT - BASE)
 V = [0] * NINIT
-B = array.array('i', [0] * NB)
+B = array.array('H', bytes(2 * NB))        # bucket heads: ids below NMAX fit 16 bits
 B[0], B[1], B[3], B[9], B[10], B[17], B[34] = 7, 1, 6, 2, 5, 8, 9
 B[51], B[68], B[81], B[85], B[209], B[705] = 10, 13, 11, 14, 12, 3
 NN = BASE
@@ -291,12 +291,10 @@ def keep(m, y):                                                 #@L 4
     # One rule pattern at a time: the stack holds one pattern's frontier, not every root. A
     # large stack is one large allocation, which a fragmented heap may not have (FASTBOOT.md).
     for nm in RULECACHE:                                        #@unordered-ok
-        rs = RULECACHE[nm]
-        for op in rs:                                           #@unordered-ok
-            for r in rs[op]:
-                if r[0] >= m and not live[r[0] - m]:
-                    st.append(r[0])
-                    mark(st, live, m)
+        for r in RULECACHE[nm][-2]:
+            if r[0] >= m and not live[r[0] - m]:
+                st.append(r[0])
+                mark(st, live, m)
     for i in range(n - 1, m - 1, -1):
         if N[i][0] != DEAD:
             B[H[i] & NBM] = NX[i]
@@ -306,11 +304,15 @@ def keep(m, y):                                                 #@L 4
         if live[i - m]:
             t = N[i]
             if t[0] >= COMP:
-                u = [t[0]]
+                u = None
                 for j in range(1, len(t)):
                     c = t[j]
-                    u.append(rm[c - m] if c >= m else c)
-                t = tuple(u)
+                    if c >= m and rm[c - m] != c:
+                        if u is None:
+                            u = list(t)
+                        u[j] = rm[c - m]
+                if u is not None:
+                    t = tuple(u)
             if k >= NMAX:
                 raise CasError(M_COMPLEX)
             h = H[i]
@@ -325,14 +327,9 @@ def keep(m, y):                                                 #@L 4
         N[i] = DEADT if DEBUG_ARENA else None
     NN = k
     for nm in RULECACHE:                                        #@unordered-ok
-        rs = RULECACHE[nm]
-        for op in rs:                                           #@unordered-ok
-            out = []
-            for r in rs[op]:
-                if r[0] >= m:
-                    r = (rm[r[0] - m],) + r[1:]
-                out.append(r)
-            rs[op] = tuple(out)
+        for r in RULECACHE[nm][-2]:
+            if r[0] >= m:
+                r[0] = rm[r[0] - m]
     if type(y) is tuple:
         out = []
         for r in y:
@@ -407,6 +404,19 @@ def nadd(x, y):                                                 #@L 7
         d = x[3]
         if d == 1:
             return (NUM, a, b, 1)
+    elif not x[2] and not y[2]:                                 # real: gcds of the small parts
+        g = x[3]
+        h = y[3]
+        while h:
+            g, h = h, g % h
+        if g == 1:
+            return (NUM, x[1] * y[3] + y[1] * x[3], 0, x[3] * y[3])
+        d = x[3] // g
+        a = x[1] * (y[3] // g) + y[1] * d
+        h = a if a >= 0 else -a
+        while h:
+            g, h = h, g % h
+        return (NUM, a // g, 0, d * (y[3] // g))
     else:
         a = x[1] * y[3] + y[1] * x[3]
         b = x[2] * y[3] + y[2] * x[3]
@@ -436,8 +446,19 @@ def nmul(x, y):                                                 #@L 7
             raise CasError(M_BIG)
         return (FLT, z.real + 0.0, z.imag + 0.0)
     if x[2] == 0 and y[2] == 0:                                 # real fast path
-        a = x[1] * y[1]
-        b = 0
+        if x[3] == 1 and y[3] == 1:
+            return (NUM, x[1] * y[1], 0, 1)
+        if not x[1] or not y[1]:
+            return Q0
+        g = y[3]
+        h = x[1] if x[1] >= 0 else -x[1]
+        while h:
+            g, h = h, g % h
+        d = x[3]
+        h = y[1] if y[1] >= 0 else -y[1]
+        while h:
+            d, h = h, d % h
+        return (NUM, (x[1] // g) * (y[1] // d), 0, (x[3] // d) * (y[3] // g))
     else:
         a = x[1] * y[1] - x[2] * y[2]
         b = x[1] * y[2] + x[2] * y[1]
@@ -524,8 +545,23 @@ def npowi(x, n):                                                #@L 7
     if not x[1] and not x[2] and n < 0:
         raise Undefined()
     if x[0]:
+        # By squaring, not complex ** n: MicroPython 1.12 takes a complex power in polar form,
+        # which gives a negative real base an imaginary part of sin(n*pi) noise (-2.5 ** 1).
         try:
-            z = complex(x[1], x[2]) ** n
+            if x[2]:
+                z = complex(1.0, 0.0)
+                w = complex(x[1], x[2])
+                k = n if n > 0 else -n
+                while k:
+                    if k & 1:
+                        z *= w
+                    k >>= 1
+                    if k:
+                        w *= w
+                if n < 0:
+                    z = 1 / z                                   #@float-ok
+            else:
+                z = complex(x[1] ** n, 0.0)
         except (OverflowError, ZeroDivisionError):
             raise CasError(M_BIG)
         if z.real - z.real != 0 or z.imag - z.imag != 0:
@@ -1159,21 +1195,22 @@ def mul_(k, pairs):                                             #@L 5
             st.append((b, mk(nadd(w, te)) if w[0] <= FLT and oe <= FLT else add_([x, e])))
         else:
             acc[b] = e
-    w = 20 * len('%x%x%x' % c[1:]) if c[0] == NUM else 0     # w bounds the weights 4*|n|*
-    k = c                                                       # hexlen(q) of the primes q^n,
-    lst = []                                                    # c's primes joined (6.1)
-    for q in rad:                                               #@unordered-ok (sorted below)
-        x = rad[q]
-        n = x[1] // x[3]
-        w += 4 * len('%x' % q) * abs(n)
+    lst = []
+    if rad:
+        w = 20 * len('%x%x%x' % c[1:]) if c[0] == NUM else 0
+        k = c
+        for q in rad:                                           #@unordered-ok (sorted below)
+            x = rad[q]
+            n = x[1] // x[3]
+            w += 4 * len('%x' % q) * abs(n)
+            if w > MAXBITS:
+                break
+            c = nmul(c, npowi((NUM, q, 0, 1), n))
+            if x[1] - n * x[3]:
+                lst.append((x[3], x[1] - n * x[3], q))
         if w > MAXBITS:
-            break
-        c = nmul(c, npowi((NUM, q, 0, 1), n))
-        if x[1] - n * x[3]:
-            lst.append((x[3], x[1] - n * x[3], q))
-    if w > MAXBITS:                     # a power may be too large to fold: KB.hfold decides
-        c, lst = KB.hfold(k, rad)
-    lst.sort()
+            c, lst = KB.hfold(k, rad)
+        lst.sort()
     j = 0
     while j < len(lst):                                         # rule 11: one base per exponent
         x = lst[j]
