@@ -58,7 +58,7 @@ MODULES = (
     ('solvee',    'CVSOLVEE',  'L',   145,       6),
     ('solvec',    'CVSOLVEC',  'L',   150,       5),
     ('forms',     'CVFORM',    'L',   75,        3),   # + the primality proof (isprime)
-    ('diff',      'CVDIFF',    'L',   138,       5),
+    ('diff',      'CVDIFF',    'L',   165,       6),   # + implicit differentiation (dep, g_imp)
     ('series',    'CVSER',     'L',   134,       4),
     ('seriesb',   'CVSERB',    'L',   139,       5),
     ('limit',     'CVLIM',     'L',   140,       5),

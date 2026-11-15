@@ -113,10 +113,59 @@ def g_deriv(e, x):                                              #@L 2
     yield d[e]
 
 
+def dep(args, x, xs):                                           #@L 3
+    # Implicit differentiation, diff(l=r, x, [y or n]): the dependent variable y and the
+    # order. Not named: the only other variable of the equation, else y.
+    y = None
+    n = K.N[args[2]] if len(args) > 2 else K.N[K.ONE]
+    if n[0] == K.SYM:
+        y = args[2]
+        n = K.N[K.ONE]
+    if n[0] != K.NUM or n[2] or n[3] != 1 or not 1 <= n[1] <= MAXORDER or y == x or K.N[x][0] != K.SYM:
+        raise K.CasError(M_ARG)
+    if y is None:
+        o = list(xs)
+        if x in o:
+            o.remove(x)
+        y = o[0] if len(o) == 1 else K.sym('y')
+        if y not in o:
+            raise K.CasError('Which variable? diff(eq,x,y)')
+    return y, n[1]
+
+
+def g_imp(e, x, y, n):                                          #@L 2
+    # dy/dx of l=r with F = l-r: -F_x/F_y, the partial derivatives with the other variable
+    # held. A higher order is d/dx of the last one along the curve, e_x + e_y*(dy/dx).
+    # F_y = 0: y is no function of x there (x^2=4), no derivative.
+    t = K.N[e]
+    e = K.add_([t[1], K.neg_(t[2])])
+    for j in range(n):
+        fx = yield g_deriv(e, x)
+        fy = yield g_deriv(e, y)
+        if j:
+            e = K.add_([fx, K.mul_(K.ONE, [(fy, K.ONE), (r, K.ONE)])])
+        elif (yield R.MODS['normb'].g_iszero(fy)) == 2:
+            raise K.CasError(M_ARG)
+        else:
+            e = K.mul_(K.MONE, [(fx, K.ONE), (fy, K.MONE)])
+        if j + 1 < n:
+            s = yield R.MODS['norm'].g_autosimp(e)
+            if s is not None:
+                e = s
+        if not j:
+            r = e
+    yield e
+
+
 def g_diff(args, ctx):                                          #@L 2
     e = args[0]
     xs = variables(e)
     x = args[1] if len(args) > 1 else (xs[0] if len(xs) == 1 else K.sym('x'))
+    if K.N[e][0] == K.EQ:
+        y, n = dep(args, x, xs)
+        ctx[P.X_MV] = x
+        yield (yield g_imp(e, x, y, n))
+        return
     n = K.N[args[2]] if len(args) > 2 else K.N[K.ONE]
     if K.N[x][0] != K.SYM or n[0] != K.NUM or n[2] or n[3] != 1 or not 0 <= n[1] <= MAXORDER:
         raise K.CasError(M_ARG)

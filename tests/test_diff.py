@@ -212,4 +212,4 @@ def test_gradient_rejects_nonvariables(variables):
 def test_module_fits_lazy_part():
     from build.bundle import minify
     source = Path(__file__).resolve().parents[1] / 'src' / 'diff.py'
-    assert len(minify(source.read_text(), 'diff').lines) <= 150
+    assert len(minify(source.read_text(), 'diff').lines) <= 165    # + implicit differentiation

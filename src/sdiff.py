@@ -45,6 +45,29 @@ def g_walk(args, ctx):                                          #@L 2
     e = args[0]
     xs = DF.variables(e)
     x = args[1] if len(args) > 1 else (xs[0] if len(xs) == 1 else K.sym('x'))
+    if K.N[e][0] == K.EQ:               # implicit: both sides, y a function of x, solve for y'
+        y, n = DF.dep(args, x, xs)
+        if n > 6:
+            raise K.CasError('No steps for this one')
+        ctx[P.X_MV] = x
+        dy = call('diff', (y, x))
+        t = K.N[e]
+        add(out, 'Differentiate both sides', call('diff', (t[1], x)), call('diff', (t[2], x)))
+        s = []
+        for u in t[1:]:                 # u' = u_x + u_y*y'
+            a = yield DF.g_deriv(u, x)
+            b = yield DF.g_deriv(u, y)
+            s.append(K.add_([a, K.mul_(K.ONE, [(b, K.ONE), (dy, K.ONE)])]))
+        add(out, 'Chain rule: ' + K.N[y][1] + ' depends on ' + K.N[x][1], s[0], s[1])
+        for j in range(n):
+            d = yield DF.g_imp(e, x, y, j + 1)
+            s = yield R.MODS['norm'].g_autosimp(d)
+            if j:
+                dy = call('diff', (dy, x))
+            add(out, 'Differentiate again' if j else 'Solve for the derivative', dy,
+                d if s is None else s)
+        yield done(out, 'Answer', dy, ctx)
+        return
     n = K.N[args[2]] if len(args) > 2 else K.N[K.ONE]
     if K.N[x][0] != K.SYM or n[0] != K.NUM or n[2] or n[3] != 1 or not 1 <= n[1] <= 6:
         raise K.CasError('No steps for this one')

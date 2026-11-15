@@ -97,7 +97,7 @@ is not done here; it is a decision for a later change.
 
 | command | module | rules shown |
 | --- | --- | --- |
-| `diff` | `sdiff` | Sum rule, Constant multiple, Product rule, Quotient rule, Power rule, Chain rule, Known derivative, Logarithmic differentiation; an order above 1 is one line per derivative (up to 6) |
+| `diff` | `sdiff` | Sum rule, Constant multiple, Product rule, Quotient rule, Power rule, Chain rule, Known derivative, Logarithmic differentiation; an order above 1 is one line per derivative (up to 6); an equation (implicit differentiation): Differentiate both sides, Chain rule: y depends on x, Solve for the derivative, then Differentiate again per further order |
 | `integrate` | `sint` | Integral of a constant, Constant multiple, Sum rule, Power rule, Known integral, Substitution / Rewrite the integral / Substitute back, Integration by parts, Trig identities, Partial fractions (then its terms one by one), Radical formula; then Answer (+C) or Evaluate at the bounds |
 | `solve` | `salg` | Move all terms to one side, Multiply by the denominator, Isolate the variable term / Divide both sides, Factor / A factor is zero, Standard form / Read off a, b, c / Quadratic formula / Discriminant / With these numbers / And with the other sign |
 | `limit` | `salg` | Direct substitution, L'Hopital's rule (0/0 and oo/oo, at most three times) |

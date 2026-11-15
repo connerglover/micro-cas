@@ -7,6 +7,25 @@ them as current.
 
 ## Current delivery
 
+- **Implicit differentiation (branch `audit-fixes`, local, 2026-11-15; not pushed, not
+  tagged, version still 1.0.3).** User request: no separate function; an equation typed into
+  `diff` gives the implicit derivative. `diff(l=r, x, [y or n])` is dy/dx = -F_x/F_y with
+  F = l-r (`diff.g_imp`); an order above 1 differentiates the last one along the curve. The
+  dependent variable is the third argument when it is a name, else the equation's only other
+  variable, else `y` (`diff.dep`); otherwise the message `Which variable? diff(eq,x,y)`.
+  F_y = 0 (by `g_iszero`) is `Invalid argument`. The answer is the bare derivative
+  (`diff(2y+6x=0,x)` -> `-3`, `diff(x^2+y^2=25,x)` -> `-x/y`), so Ans stays usable; other
+  relations (`<`) stay unevaluated as before. Steps (`sdiff.g_walk`): Differentiate both
+  sides, Chain rule: y depends on x, Solve for the derivative, Differentiate again.
+  `tests/test_implicit.py` (22 tests, SymPy `idiff` as the oracle). The `diff` module budget
+  went from 138 lines / 5 KB to 165 / 6 (2,971 B compiled). Evidence, pinned 1f37194 runtime:
+  lint, framelint, source tier 4,455 passed, bundled 4,549, 65 slow, check_release 8/8,
+  archive 26 files 208,474 B (was 207,384), 86 archive tests, every 32-bit gate at its
+  `build.yml` heap with the readings unchanged (startup 27,568 free; `ui` shed 63,616;
+  `ui_calculus` 72,720 / 68,688; `ui_definite`; `ui_steps` at both heaps), probe 55/55
+  (70,848 final), cas64 55/55. A one-off native suite typed five implicit derivatives and
+  opened and paged their steps at 189,776, 185,680, 177,456 and 173,360: all pass. Not run:
+  EVO hardware.
 - **Audit fixes (branch `audit-fixes`, local, 2026-11-15; not pushed, not tagged, version
   still 1.0.3).** User request: review the program for memory, wrong answers, general bugs
   and calculation methods, then fix all of it. Three reviews ran (a differential test of
