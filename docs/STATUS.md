@@ -7,6 +7,13 @@ them as current.
 
 ## Current delivery
 
+- **v1.0.4 (on `main`, 2026-11-15; tagged at the user's request).** The steps work, the audit
+  fixes and implicit differentiation below, released together. `main` also takes the
+  `forgejo-ci` branch: the release workflow is `.forgejo/workflows/build.yml` on the Forgejo
+  runner, which publishes the Release (`tools/publish-release.sh`) and deploys the `cas`
+  Worker with Wrangler ([HOSTING.md](HOSTING.md)). The user installed the pre-release build
+  from a local server on an EVO and reported that it seems to work; no itemised hardware run is
+  recorded.
 - **Implicit differentiation (branch `audit-fixes`, local, 2026-11-15; not pushed, not
   tagged, version still 1.0.3).** User request: no separate function; an equation typed into
   `diff` gives the implicit derivative. `diff(l=r, x, [y or n])` is dy/dx = -F_x/F_y with
