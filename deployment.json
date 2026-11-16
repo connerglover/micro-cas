@@ -1,6 +1,6 @@
 {
   "generator": "cas-evo/build/publish_site.py",
-  "source_commit": "901899579c409d609c8c4116e544dab8e5cbef5f",
-  "source_ref": "refs/tags/v1.0.3",
-  "run_url": "https://github.com/connerglover/micro-cas/actions/runs/42164690981"
+  "source_commit": "f73e0209edfaa8553a8364398345ca54aa15ca00",
+  "source_ref": "refs/tags/v1.0.4",
+  "run_url": "http://192.168.1.223:3000/conner/micro-cas/actions/runs/12"
 }
