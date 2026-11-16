@@ -232,6 +232,10 @@ jobs:
         env:
           FORGEJO_TOKEN: ${{ github.token }}
           GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
+          # The script is checked out into src, so its default (the checkout's folder name)
+          # would name conner/src: the v1.0.4 run failed there with a 404.
+          FORGEJO_REPO: ${{ github.repository }}
+          GH_REPO: connerglover/micro-cas
           TAG: ${{ github.ref_name }}
         run: |
           cp dist/microcas-calculator.zip "microcas-$TAG.zip"

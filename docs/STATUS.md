@@ -13,7 +13,14 @@ them as current.
   runner, which publishes the Release (`tools/publish-release.sh`) and deploys the `cas`
   Worker with Wrangler ([HOSTING.md](HOSTING.md)). The user installed the pre-release build
   from a local server on an EVO and reported that it seems to work; no itemised hardware run is
-  recorded.
+  recorded. Tag `v1.0.4` names f73e020. Forgejo run 5: the build job passed and `pages` was
+  updated (6e9bf4c, calculator ZIP 151,515 B); the two publishing steps failed. The Release
+  step asked for `conner/src` (the script's checkout folder; fixed after the tag with
+  `FORGEJO_REPO`), so the Release was created by hand through the API with the run's ZIP from
+  `pages` as `microcas-v1.0.4.zip`. The Wrangler step had no `CLOUDFLARE_API_TOKEN`: the
+  secrets of HOSTING.md are not set on the Forgejo repository, so **cas.connerglover.com
+  still serves v1.0.3** until they are added and the job is re-run (or `pages` is deployed
+  with a logged-in Wrangler). No Release on the GitHub mirror.
 - **Implicit differentiation (branch `audit-fixes`, local, 2026-11-15; not pushed, not
   tagged, version still 1.0.3).** User request: no separate function; an equation typed into
   `diff` gives the implicit derivative. `diff(l=r, x, [y or n])` is dy/dx = -F_x/F_y with
