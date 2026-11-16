@@ -1,13 +1,14 @@
-"""The release workflow (.github/workflows/build.yml, docs/HOSTING.md): it runs only for v* tags
-(and by hand), attaches microcas-<tag>.zip to the tag's GitHub Release with the built-in token,
-and publishes the website from tags. Text checks: the suite has no YAML parser."""
+"""The release workflow (.forgejo/workflows/build.yml, docs/HOSTING.md): it runs only for v* tags
+(and by hand) on the Forgejo runner, attaches microcas-<tag>.zip to the tag's Release on Forgejo
+and its GitHub mirror (tools/publish-release.sh), and publishes and deploys the website from tags.
+Text checks: the suite has no YAML parser."""
 from pathlib import Path
 
 import pytest
 
 pytestmark = [pytest.mark.no_depth, pytest.mark.no_invariants]
 
-WORKFLOW = (Path(__file__).resolve().parents[1] / '.github/workflows/build.yml').read_text()
+WORKFLOW = (Path(__file__).resolve().parents[1] / '.forgejo/workflows/build.yml').read_text()
 
 
 def block(name, indent=2):
@@ -51,16 +52,30 @@ def test_only_the_publishing_jobs_may_write():
 
 
 def test_release_job_creates_or_reuses_the_release_and_uploads_the_zip():
+    # tools/publish-release.sh finds or creates the tag's Release on both forges and replaces
+    # an asset of the same name (the old gh release ... --clobber).
     text = block('release')
-    assert 'gh release view "$TAG"' in text and 'gh release create "$TAG"' in text
-    assert '--verify-tag' in text
-    assert 'gh release upload "$TAG" "microcas-$TAG.zip"' in text and '--clobber' in text
-    assert 'GH_TOKEN: ${{ github.token }}' in text
+    assert 'tools/publish-release.sh' in text and '"../microcas-$TAG.zip"' in text
+    assert 'FORGEJO_TOKEN: ${{ github.token }}' in text
+    assert 'GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}' in text
     assert 'name: microcas-calculator' in text and 'cas-evo' not in text
+
+
+def test_publish_script_replaces_assets_on_both_forges():
+    script = (Path(__file__).resolve().parents[1] / 'tools/publish-release.sh').read_text()
+    assert 'FORGEJO_TOKEN' in script and 'GH_TOKEN' in script
+    assert script.count('-X DELETE') >= 2  # a same-named asset is replaced on each forge
 
 
 def test_publish_job_checks_the_tag():
     assert '--ref "$GITHUB_REF"' in block('publish')
+
+
+def test_publish_job_deploys_pages_to_the_worker_with_pinned_wrangler():
+    text = block('publish')
+    assert text.index('publish_site.py') < text.index('wrangler')
+    assert 'npx --yes wrangler@4.149.0 deploy' in text and 'origin/pages' in text
+    assert 'CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}' in text
 
 
 def test_actions_are_pinned_to_full_commits():
