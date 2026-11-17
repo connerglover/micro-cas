@@ -271,7 +271,7 @@ def test_manifest_is_consistent_with_the_design_and_the_lint_map():
         assert lint.alias_for(mod) is not None
     # parts (DESIGN 4.3)
     for src in ('rulesb', 'polyb', 'polyc', 'normb', 'factorb', 'solveb', 'solvec', 'seriesb',
-                'limitb', 'limitc', 'integ2b', 'integ3b', 'defintb', 'sumsb', 'odeb', 'odec',
+                'limitb', 'limitc', 'integ2b', 'integ3b', 'integ3c', 'defintb', 'sumsb', 'odeb', 'odec',
                 'menub', 'catalogb'):
         assert rows[src][2] in ('L', 'U')
     assert rows['node'][1] == 'CVNODE' and rows['integ2b'][1] == 'CVINT2B'

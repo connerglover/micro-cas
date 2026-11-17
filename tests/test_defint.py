@@ -219,6 +219,9 @@ def test_step_function_without_a_jump_on_the_interval(command, value):
     ('integrate(sign(x),x)', 'abs(x)'),
     ('integrate(sign(2*x+1),x)', 'abs(2*x+1)/2'),
     ('integrate(sign(x),x,-1,2)', '1'),
+    # by parts with u = x: sign has the primitive abs, and x*abs(x)/2 is smooth
+    ('integrate(x*sign(x),x)', 'x*abs(x)/2'),
+    ('integrate(x*sign(x),x,-1,2)', '5/2'),
 ])
 def test_sign_has_an_exact_primitive(command, text):
     r = R.go(('eval', command))
@@ -226,7 +229,7 @@ def test_sign_has_an_exact_primitive(command, text):
 
 
 @pytest.mark.parametrize('command', [
-    'integrate(floor(x),x)', 'integrate(ceil(x),x)', 'integrate(x*sign(x),x)',
+    'integrate(floor(x),x)', 'integrate(ceil(x),x)', 'integrate(x^2*sign(x)*floor(x),x)',
     'integrate(x+floor(x),x)', 'integrate(x!,x)', 'diff(x!,x)', 'diff(x*x!,x)',
     'integrate(floor(x),x,a,b)', 'integrate(floor(x)*y,x,0,5/2)',
     'integrate(sign(x-1)*e^(-x^2),x,-oo,oo)'])

@@ -12,6 +12,7 @@ import run as R
 WAYS = (('int2', 'g_tabular', 'Integration by parts'), ('int2', 'g_trig', 'Trig identities'),
         ('int2b', 'g_rational', 'Partial fractions'), ('int3', 'g_radical', 'Radical formula'),
         ('int3', 'g_parts', 'Integration by parts'), ('int3b', 'g_substitutions', 'Substitution'))
+# g_substitutions leaves its change of variable in integ.USUB as (B, n, f): see integ3c.cands
 MAXSTEPS = 24       # as in sdiff
 MAXNODES = 560
 
@@ -26,6 +27,16 @@ def add(out, title, a, b):                                      #@L 4
 
 def call(name, args):                                           #@L 4
     return K.mk((K.CALL, K.sym(name)) + tuple(args))
+
+
+def name(v):                                                    #@L 3
+    # the substitution's variable: u, or the first of w, t, s, p, q that v does not hold
+    w = K.sym('u')
+    for nm in ('w', 't', 's', 'p', 'q'):
+        if K.free_of(v, w):
+            break
+        w = K.sym(nm)
+    return w
 
 
 def done(out, title, lhs, ctx):                                 #@L 3
@@ -90,11 +101,7 @@ def g_walk(args, ctx):                                          #@L 2
                 r = yield R.scoped(IN.g_usub(v, x, 0))
                 u = IN.USUB[0]
                 if r is not None and u:
-                    w = K.sym('u')
-                    for nm in ('w', 't', 's', 'p', 'q'):
-                        if K.free_of(v, w):
-                            break
-                        w = K.sym(nm)
+                    w = name(v)
                     du = yield R.MODS['diff'].g_deriv(u, x)
                     q = R.MODS['norm'].normal(K.mul_(K.ONE, [(v, K.ONE), (du, K.MONE)]))
                     q = A.subst(q, u, w)
@@ -105,9 +112,9 @@ def g_walk(args, ctx):                                          #@L 2
                         continue
                     title = 'Substitution'
             if r is None:
-                for key, name, title in WAYS:
+                for key, way, title in WAYS:
                     mod = R.need(key)
-                    if name == 'g_rational':
+                    if way == 'g_rational':
                         # the decomposition is the step; its terms are then explained one by
                         # one, each a lighter search than the rational strategy as a whole
                         q = yield R.scoped(R.MODS['int2b'].g_partfrac((v, x), ctx))
@@ -116,10 +123,24 @@ def g_walk(args, ctx):                                          #@L 2
                             work += ['I', q, x, 0]
                             r = 0
                             break
-                    r = yield R.scoped(getattr(mod, name)(v, x, 0))    #@calls 2
+                    IN.USUB[0] = 0
+                    r = yield R.scoped(getattr(mod, way)(v, x, 0))     #@calls 2
                     if r is not None and r[1] == K.ZERO:
                         good = yield IN.g_check(r[0], r[1], v, x)
+                        u = IN.USUB[0]
+                        w = name(v)
+                        if good and type(u) is tuple and u[2] == v and K.free_of(v, w):
+                            # a change of variable (integ3c): its u, the integral in u, and
+                            # that integral explained before the line that closes this one
+                            q = yield R.MODS['int3c'].g_subs(v, x, u[0], u[1], w)
+                            if q is not None:
+                                add(out, title, w, q[0])
+                                add(out, 'Rewrite the integral', lhs, call('integrate', (q[1], w)))
+                                work += ['B', r[0], v, x, 'I', q[1], w, 0]
+                                r = 0
                         if good:
+                            if type(u) is int and u < 0:
+                                title = ('Half-angle substitution', 'Write as exponentials')[u + 2]
                             break
                     r = None
                     mod = None
@@ -127,6 +148,15 @@ def g_walk(args, ctx):                                          #@L 2
                 mod = None
                 if r == 0:
                     R.drop((key,), True)
+                    continue
+            if r is None:               # as g_int: multiplied out, then term by term
+                try:
+                    q = R.MODS['norm'].normal(v, 1)
+                except K.CasError:
+                    q = v
+                if q != v and K.N[q][0] == K.ADD:
+                    add(out, 'Expand', lhs, call('integrate', (q, x)))
+                    work += ['I', q, x, 0]
                     continue
             if r is None or r[1] != K.ZERO:
                 raise K.CasError('No steps for this one')

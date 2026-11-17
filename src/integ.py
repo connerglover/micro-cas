@@ -8,7 +8,10 @@ import run as R
 
 EXTRA = (('int2', 'g_tabular'), ('int2', 'g_trig'), ('int2b', 'g_rational'),
          ('int3', 'g_advanced'), ('int3b', 'g_substitutions'))
-USUB = [0]          # the u of the last successful g_usub (an id inside its f): read by steps
+# The u of the last successful g_usub (an id inside its f), or the (B, n, f) of the last change
+# of variable of integ3b (ids inside f, and numbers), or its -1 (hyperbolic functions written
+# as exponentials) or -2 (the half-angle substitution): read by the steps (sint).
+USUB = [0]
 
 
 def scale(c, f):                                                #@L 3
@@ -84,22 +87,17 @@ def g_usub(f, x, depth=0):                                      #@L 2
 def fits(j, v, x):                                              #@L 3
     # a necessary condition of EXTRA[j], tested before its pack loads
     t = K.N[v]
-    if j == 3:                          # a square root, or ln/asin/acos/atan, or e^u with sin/cos
+    if j == 3:              # a square root, ln/asin/acos/atan, e^u with sin/cos, or a factor x
         g = 0
         for i in range(2, len(t), 2) if t[0] == K.MUL else ():
             b = K.N[t[i]][0]
             w = K.N[t[i + 1]]
-            if (w[0] == K.NUM and w[3] == 2) or b == K.LN or K.ASIN <= b <= K.ATAN:
+            if (w[0] == K.NUM and w[3] == 2) or b == K.LN or K.ASIN <= b <= K.ATAN or (
+                    t[i] == x and t[i + 1] == K.ONE):
                 return True
             g |= 1 if t[i] == K.E else 2 if b == K.SIN or b == K.COS else 0
         return g == 3 or t[0] == K.LN or K.ASIN <= t[0] <= K.ATAN
-    if j == 4:                          # a trigonometric function or a power of e
-        for n in A.postorder(v):
-            z = K.N[n]
-            if K.SIN <= z[0] <= K.COT or (z[0] == K.MUL and len(z) == 4 and z[2] == K.E):
-                return True
-        return False
-    return True
+    return True                         # j == 4, the changes of variable, judge for themselves
 
 
 def g_int(f, x, depth=0):                                       #@L 2
@@ -141,6 +139,15 @@ def g_int(f, x, depth=0):                                       #@L 2
                 r = None
             mod = None
             R.drop((key,), True)   # unpin; need() evicts LRU strategies only for memory
+    if r is None and depth < 3:         # last: multiplied out, term by term (x*(e^x+1))
+        try:
+            q = R.MODS['norm'].normal(v, 1)
+        except K.CasError:
+            q = v
+        if q != v and K.N[q][0] == K.ADD:
+            r = yield R.scoped(R.MODS['int'].g_int(q, x, depth + 1))
+            if r is not None and r[1] != K.ZERO:
+                r = None
     if r is None:
         r = (K.ZERO, v)
     yield (scale(c, r[0]), scale(c, r[1]))

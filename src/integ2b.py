@@ -117,12 +117,14 @@ def g_rational(f, x, depth=0):                                  #@L 2
             out.append(R.MODS['int2'].template(s, x, u=alpha, v=base, w=K.num(power)))
         if beta == K.ZERO:
             continue
-        reciprocal = K.mul_(K.ONE, [(base, K.MONE)])
+        # the canonical 1/base may carry a sign (x^2-x+1 is kept as -(-x^2+x-1)): the table
+        # matches the part without it
+        k, reciprocal = A.split_const(K.mul_(K.ONE, [(base, K.MONE)]), x)
         r = yield R.MODS['int'].g_table(reciprocal, x, depth)
         if r is None:
             yield None
             return
-        primitive = r[0]
+        primitive = K.mul_(K.ONE, [(k, K.ONE), (r[0], K.ONE)])
         for n in range(2, power + 1):
             primitive = R.MODS['int2'].template('(2*A*x+B)/((W-1)*(4*A*C-B^2)*V^(W-1))+2*A*(2*W-3)*U/((W-1)*(4*A*C-B^2))', x, a, b, c, primitive, base, K.num(n))
         out.append(K.mul_(K.ONE, [(beta, K.ONE), (primitive, K.ONE)]))

@@ -58,7 +58,12 @@ INTS = ['integrate(x^2+3*x,x)', 'integrate(x*cos(x^2),x)', 'integrate(x*e^x,x)',
         'integrate(1/(x^2-1),x)', 'integrate(sin(x)^2,x)', 'integrate(ln(x),x)',
         'integrate(2*x/(x^2+1),x)', 'integrate((x+1)/(x^2-x),x)', 'integrate(5,x)',
         'integrate(x^3+3*x^2-sin(x)+e^x+1/x,x)', 'integrate(e^(3*x)*sin(x),x)',
-        'integrate(sqrt(4*x^2+1),x)', 'integrate(cos(x)*e^(sin(x)),x)']
+        'integrate(sqrt(4*x^2+1),x)', 'integrate(cos(x)*e^(sin(x)),x)',
+        # changes of variable (integ3b), hyperbolic functions and products multiplied out
+        'integrate(e^sqrt(x),x)', 'integrate(x^3*e^(x^2),x)', 'integrate(1/(e^x+e^(-x)),x)',
+        'integrate(sin(ln(x)),x)', 'integrate(1/(x^2*sqrt(x^2+4)),x)',
+        'integrate(sinh(x)^2,x)', 'integrate(x*(e^x+e^(-x)),x)', 'integrate(x*sec(x)^2,x)',
+        'integrate(1/(x^3+1),x)', 'integrate(sqrt(x)/(1+x),x)']
 
 
 @pytest.mark.parametrize('text', DIFFS)
@@ -109,6 +114,13 @@ def test_integral_methods_are_named():
     assert titles('integrate(x*e^x,x)') == ['Integration by parts', 'Answer']
     assert 'Partial fractions' in titles('integrate((x+1)/(x^2-x),x)')
     assert titles('integrate(sin(x)^2,x)') == ['Trig identities', 'Answer']
+    assert titles('integrate(e^sqrt(x),x)') == [
+        'Substitution', 'Rewrite the integral', 'Constant multiple', 'Integration by parts',
+        'Substitute back', 'Answer']
+    assert steps('integrate(1/(x^2*sqrt(x^2+4)),x)')[0] == ('Substitution', 'u=1/x')
+    assert titles('integrate(sinh(x)^2,x)') == ['Write as exponentials', 'Answer']
+    assert titles('integrate(1/(2+cos(x)),x)') == ['Half-angle substitution', 'Answer']
+    assert titles('integrate(x*(e^x+e^(-x)),x)')[:2] == ['Expand', 'Sum rule']
 
 
 def test_definite_integral_ends_at_the_entry_answer():

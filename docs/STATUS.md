@@ -7,6 +7,41 @@ them as current.
 
 ## Current delivery
 
+- **v1.1.1 (on `main`, 2026-11-16; tagged at the user's request): integrals that came back
+  unevaluated.** User report: a harder integral often returns as typed; is it memory, and
+  would clearing memory between steps help? **Not memory.** On the pinned 1f37194 runtime a
+  memory failure reads `Out of memory`; an integral that comes back as typed is one no
+  strategy reached, and the same integrals came back on the desktop with no memory limit: 22
+  of 75 everyday ones. Fixed (details in [notes/T2.md](notes/T2.md)): `integ3b`/`integ3c`
+  (pack CASIN3B, 979 -> about 3,600 B) is now the general change of variable
+  (`t = (a*x+b)^(1/n)`, `x^n`, `e^(a*x)`, `ln(x)`, `1/x` under the root of a quadratic) and
+  writes hyperbolic functions as exponentials; `g_int` ends by multiplying the integrand out;
+  `g_parts` takes `u = x` beside a table factor; `g_rational` no longer stops at a quadratic
+  factor the canonical form keeps with a sign (`1/(x^3+1)`). 73 of the 75 now have a
+  primitive; `1/(x^4+1)` and `(x^2+1)/(x^4+1)` do not (irreducible factor above degree two).
+  `x*sign(x)` gained the exact `x*abs(x)/2`, and `integrate(1/(x*sqrt(x^2-1)),x,1,2)` is the
+  exact `pi/3`. Steps show the substitution, the integral in `u` and its own steps
+  ([notes/STEPS.md](notes/STEPS.md)). A wrong sign was caught on the way: `t = x^2` gave
+  `abs(x)/sqrt(1-x^2)` and `g_check` accepted it (its usable points were positive); such
+  changes are now written back in `x` and the integrand's roots and refused otherwise
+  (`integ3c.stray`). `tests/test_integ_advanced.py` (+53: each primitive differentiated by
+  SymPy at a point on either side of 0 where the integrand lives there), `test_steps.py`
+  (+10 integrals). A search that fails stays under 500 trampoline steps (budget 20,000).
+  Evidence, pinned runtime: lint, framelint, source 4,702 passed, bundled 4,702, 65 slow,
+  check_release 8/8, archive 26 files 212,222 B (was 208,474), 86 archive tests, every 32-bit
+  gate at its `build.yml` heap (startup 27,456 free; `ui` shed 63,408; `ui_edit` 60,304;
+  `ui_calculus` 72,464 / 68,432; `ui_definite`; `ui_steps` at both heaps), probe 55/55
+  (59,440 final), cas64 55/55. A one-off native session typed 20 of the new integrals: all 20
+  answered at 189,776. Not run: EVO hardware, the Node packaging and website steps.
+  **Open, older than this change: Out of memory late in a long session.** The same one-off
+  session and a second one of 20 integrals that 1.0.4 already solved report `Out of memory`
+  for 1 to 4 of the 20 at 185,680, 177,456 and 173,360 (1.0.4 on the second session: 1 at
+  189,776, 2 at 177,456; this build: 1 and 2), mostly partial fractions, which hold `norm`,
+  `int`, `int2`, `int2b` and `fact` at once. Diagnosed with a print in `go`: the refused
+  request is 784 bytes with about 29 KB free, `node.N` growing from 128 to 192 slots, so it
+  is fragmentation, and the retry rebuilds the same layout and fails the same way. Tried and
+  dropped: reserving 256 slots before the packs load and 512 in the retry (worse at 177,456
+  and 173,360), and evicting a failed strategy's pack at once in the retry (within noise).
 - **v1.1.0 (on `main`, 2026-11-16; the user asked for the last release to be retagged as
   1.1.0).** The program of v1.0.4 with the version text changed (`build/manifest.py`,
   `src/menu.py`, `docs/INSTALL.md` and the two tests that repeat it) on top of e2bc59e, the

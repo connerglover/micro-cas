@@ -217,8 +217,11 @@ def test_isprime_is_a_proof():
 # -- quadrature -----------------------------------------------------------------------------------
 
 def test_quadrature_shows_the_digits_it_has():
-    r = ans('integrate(1/(x*sqrt(x^2-1)),x,1,2)')
-    assert len(r) <= 10 and abs(float(r) - math.pi / 3) < 1e-6      # was 1.04719755530957
+    # an endpoint singularity with no elementary primitive (1/(x*sqrt(x^2-1)) on 1..2 was the
+    # case here until the change of variable t = x^2 made it the exact pi/3)
+    r = ans('integrate(cos(x)/sqrt(x),x,0,1)')
+    assert len(r) <= 10 and abs(float(r) - 1.80904847580054) < 1e-6
+    assert ans('integrate(1/(x*sqrt(x^2-1)),x,1,2)') == 'pi/3'
     r = ans('integrate(e^(-x^2),x,0,1)')
     assert abs(float(r) - 0.746824132812427) < 1e-13                # smooth: every digit
 

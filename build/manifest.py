@@ -15,7 +15,7 @@ The numbers are provisional. The M0.5 memory gate sets FACTOR, PEAKB, LAZYMAX an
 
 # The release version (release.json and archive.json 'release'; the About screen in src/menu.py
 # repeats it, tests/test_release.py keeps the two equal). Tags are v<VERSION> (docs/HOSTING.md).
-VERSION = '1.1.0'
+VERSION = '1.1.1'
 
 # The entry program (DESIGN 0.6): the RAM launcher CAS (src/casevo.py), which the user runs
 # from the Python app; a program runs as ``from CAS import *``. No pack may share its name.
@@ -69,7 +69,8 @@ MODULES = (
     ('integ2',    'CVINT2',    'L',   150,       5),
     ('integ2b',   'CVINT2B',   'L',   134,       5),
     ('integ3',    'CVINT3',    'L',   145,       5),
-    ('integ3b',   'CVINT3B',   'L',   71,        3),
+    ('integ3b',   'CVINT3B',   'L',   110,       5),   # + hyperbolic functions, the changes of integ3c
+    ('integ3c',   'CVINT3C',   'L',   150,       6),   # changes of variable: t = root, x^n, e^(a*x), ln(x), 1/x
     ('defint',    'CVDEF',     'L',   149,       5),
     ('defintb',   'CVDEFB',    'L',   150,       6),
     ('defintc',   'CVDEFC',    'L',   130,       5),
@@ -97,7 +98,7 @@ KEYS = {
     'fact': 'factor', 'factb': 'factorb', 'factc': 'factorc', 'factd': 'factord',
     'ser': 'series', 'serb': 'seriesb',
     'lim': 'limit', 'limb': 'limitb', 'limc': 'limitc', 'int': 'integ',
-    'int2': 'integ2', 'int2b': 'integ2b', 'int3': 'integ3', 'int3b': 'integ3b',
+    'int2': 'integ2', 'int2b': 'integ2b', 'int3': 'integ3', 'int3b': 'integ3b', 'int3c': 'integ3c',
     'def': 'defint', 'defb': 'defintb', 'defc': 'defintc', 'defd': 'defintd', 'sum': 'sums', 'sumb': 'sumsb', 'sumc': 'sumsc',
     'form': 'forms', 'cat': 'catalog', 'catb': 'catalogb',
     'stepv': 'stepview',
@@ -113,6 +114,7 @@ PARTS = {
     'fact': ('fact', 'factb', 'factc', 'factd', 'form'),
     'solve': ('solve', 'solveb', 'solvec', 'solved', 'solvee'),
     'int': ('int', 'itab'),   # strategies load one at a time (integ.EXTRA: need, then drop)
+    'int3b': ('int3b', 'int3c'),
     'lim': ('lim', 'limb', 'limc', 'ser', 'serb'),
     'def': ('def', 'defb', 'defc', 'defd'),
     'sum': ('sum', 'sumb', 'sumc'),
@@ -181,7 +183,7 @@ PACKS = (
     ('CASIN2', ('integ2',), 'family'),
     ('CASIN2B', ('integ2b',), 'family'),
     ('CASIN3', ('integ3',), 'family'),
-    ('CASIN3B', ('integ3b',), 'family'),
+    ('CASIN3B', ('integ3b', 'integ3c'), 'family'),
     ('CASLIM', ('series', 'seriesb', 'limit', 'limitb', 'limitc'), 'family'),
     ('CASDEF', ('defint', 'defintb', 'defintc', 'defintd'), 'family'),
     ('CASSUM', ('sums', 'sumsb', 'sumsc'), 'family'),

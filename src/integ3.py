@@ -119,6 +119,17 @@ def g_parts(f, x, depth=0):                                    #@L 2
         if ir is not None and ir[1] == K.ZERO:
             yield (K.add_([mul(u, v[0]), K.neg_(ir[0])]), K.ZERO)
             return
+    for b, p in pairs:                  # u = x beside a factor of the table: x*sec(x)^2
+        if b != x or p != K.ONE:
+            continue
+        c, dv = A.split_const(R.MODS['norm'].normal(div(f, x)), x)
+        v = yield R.MODS['int'].g_table(dv, x, depth)
+        ir = None
+        if v is not None:
+            ir = yield R.MODS['int'].g_int(v[0], x, depth + 1)
+        if ir is not None and ir[1] == K.ZERO:
+            yield (mul(c, K.add_([mul(x, v[0]), K.neg_(ir[0])])), K.ZERO)
+            return
     # Closed cyclic parts for exp(a*x+b)*sin/cos(c*x+d).
     ex = trig = None
     for b, p in pairs:
