@@ -132,4 +132,4 @@ def test_setup_rows():
     TS.load([34, 34, 34, 105])                        # row 4 opens About
     with pytest.raises(TS.StopScript):
         R.need('menu').open('setup')
-    assert 'Free heap' in TD.screen_text() and 'MicroCAS 1.0.4 / TI-84 EVO' in TD.screen_text()
+    assert 'Free heap' in TD.screen_text() and 'MicroCAS 1.1.0 / TI-84 EVO' in TD.screen_text()

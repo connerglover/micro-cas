@@ -1,12 +1,19 @@
 # Delivery status and evidence
 
-Last reviewed: 2026-11-15. Repository: connerglover/cas-evo (private).
+Last reviewed: 2026-11-16. Repository: connerglover/cas-evo (private).
 Use [AGENTS.md](../AGENTS.md) for operating instructions. This file records a
 dated snapshot; verify remote heads, build results and hosting before reporting
 them as current.
 
 ## Current delivery
 
+- **v1.1.0 (on `main`, 2026-11-16; the user asked for the last release to be retagged as
+  1.1.0).** The program of v1.0.4 with the version text changed (`build/manifest.py`,
+  `src/menu.py`, `docs/INSTALL.md` and the two tests that repeat it) on top of e2bc59e, the
+  commit after v1.0.4 that fixed the release script's repository name. No engine change.
+  Local checks: release build, `tests/test_release.py`, `test_menu.py`, `test_build.py`,
+  `test_packs.py` (206 passed) and the bundled release and menu tests (115). Tag `v1.0.4` and
+  its Release are left in place.
 - **v1.0.4 (on `main`, 2026-11-15; tagged at the user's request).** The steps work, the audit
   fixes and implicit differentiation below, released together. `main` also takes the
   `forgejo-ci` branch: the release workflow is `.forgejo/workflows/build.yml` on the Forgejo
